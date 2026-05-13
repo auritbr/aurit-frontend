@@ -1,6 +1,13 @@
-import type { ReactElement } from "react";
+import { useEffect, type ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,7 +20,16 @@ import ProtectedRouteWithPermission, {
 import PublicRoute from "@/components/PublicRoute";
 import { AccessDenied } from "@/components/AccessDenied";
 import { DocumentosVencidosNotifier } from "./components/DocumentosVencidosNotifier";
-import { getUsuarioLogadoStorage, isAuthenticated } from "@/lib/auth";
+import {
+  getUsuarioLogadoStorage,
+  isAuthenticated,
+  limparSessaoUsuario,
+} from "@/lib/auth";
+import {
+  logoutEvent,
+  startInactivityMonitoring,
+  stopInactivityMonitoring,
+} from "@/lib/inactivityLogout";
 
 import Dashboard from "./pages/Dashboard.tsx";
 import Inicio from "./pages/Inicio.tsx";
@@ -178,6 +194,30 @@ function AuthenticatedServices() {
 }
 
 function AppRoutes() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      stopInactivityMonitoring();
+      return;
+    }
+
+    function handleAutoLogout() {
+      limparSessaoUsuario();
+      stopInactivityMonitoring();
+      navigate("/login", { replace: true });
+    }
+
+    window.addEventListener(logoutEvent, handleAutoLogout);
+    startInactivityMonitoring();
+
+    return () => {
+      window.removeEventListener(logoutEvent, handleAutoLogout);
+      stopInactivityMonitoring();
+    };
+  }, [navigate, location.pathname]);
+
   return (
     <>
       <AuthenticatedServices />
