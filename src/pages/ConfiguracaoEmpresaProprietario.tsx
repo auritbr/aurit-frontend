@@ -31,14 +31,13 @@ import { estadosBrasil } from "@/data/colaboradores";
 
 import {
   fetchConfiguracaoEmpresaById,
+  fetchConfiguracaoEmpresaLogoUrl,
   saveConfiguracaoEmpresa,
   updateConfiguracaoEmpresaById,
   type ConfiguracaoEmpresaData,
   type ConfiguracaoEmpresaRequestDTO,
   type TipoPlanoApi,
 } from "@/lib/configuracaoEmpresaStore";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const maskDoc = (v: string) => {
   const d = v.replace(/\D/g, "").slice(0, 14);
@@ -56,22 +55,6 @@ const maskDoc = (v: string) => {
     .replace(/(\d{3})(\d)/, "$1/$2")
     .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
 };
-
-function getLogoUrl(caminhoLogo?: string | null) {
-  if (!caminhoLogo) return null;
-
-  if (
-    caminhoLogo.startsWith("http://") ||
-    caminhoLogo.startsWith("https://") ||
-    caminhoLogo.startsWith("data:")
-  ) {
-    return caminhoLogo;
-  }
-
-  const path = caminhoLogo.startsWith("/") ? caminhoLogo : `/${caminhoLogo}`;
-
-  return `${API_URL}${path}`;
-}
 
 interface ViaCepResponse {
   cep?: string;
@@ -251,6 +234,8 @@ export default function ConfiguracaoEmpresaProprietario() {
   ) => setForm((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
+    let active = true;
+
     async function load() {
       if (!configId || Number.isNaN(configId)) {
         toast.error("Configuração da empresa inválida.");
@@ -264,15 +249,23 @@ export default function ConfiguracaoEmpresaProprietario() {
         const config = await fetchConfiguracaoEmpresaById(configId);
         const mapped = mapDataToForm(config);
 
+        if (!active) return;
+
         setForm(mapped);
 
-        const logoUrl = getLogoUrl(mapped.caminhoLogo);
+        if (mapped.id && mapped.caminhoLogo) {
+          const logoUrl = await fetchConfiguracaoEmpresaLogoUrl(mapped.id);
 
-        if (logoUrl) {
-          setLogoPreview({
-            dataUrl: logoUrl,
-            name: "logo",
-          });
+          if (!active) return;
+
+          if (logoUrl) {
+            setLogoPreview({
+              dataUrl: logoUrl,
+              name: "logo",
+            });
+          } else {
+            setLogoPreview(null);
+          }
         } else {
           setLogoPreview(null);
         }
@@ -285,11 +278,15 @@ export default function ConfiguracaoEmpresaProprietario() {
             : "Erro ao carregar configuração da empresa.",
         );
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
 
     void load();
+
+    return () => {
+      active = false;
+    };
   }, [configId]);
 
   useEffect(() => {
@@ -426,13 +423,17 @@ export default function ConfiguracaoEmpresaProprietario() {
 
       setForm(mapped);
 
-      const logoUrl = getLogoUrl(saved.caminhoLogo);
+      if (mapped.id && mapped.caminhoLogo) {
+        const logoUrl = await fetchConfiguracaoEmpresaLogoUrl(mapped.id);
 
-      if (logoUrl) {
-        setLogoPreview({
-          dataUrl: logoUrl,
-          name: logoFile?.name ?? "logo",
-        });
+        if (logoUrl) {
+          setLogoPreview({
+            dataUrl: logoUrl,
+            name: logoFile?.name ?? "logo",
+          });
+        } else {
+          setLogoPreview(null);
+        }
       } else {
         setLogoPreview(null);
       }
