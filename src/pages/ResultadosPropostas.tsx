@@ -257,18 +257,6 @@ export default function ResultadosPropostas() {
     toast.info("Exportação em PDF ainda não configurada para Resultado da Proposta.");
   }
 
-  if (loadingPermissoes || loading) {
-    return (
-      <AppLayout>
-        <div className="container max-w-7xl py-6 sm:py-8">
-          <p className="text-sm text-muted-foreground">
-            Carregando Resultados da Proposta...
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   if (!podeVisualizar) {
     return (
       <AppLayout>

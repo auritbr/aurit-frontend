@@ -1,51 +1,36 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getTenantSlug() {
-  const hostname = window.location.hostname;
-
-  if (hostname === "localhost") {
-    return "";
-  }
-
-  if (!hostname.endsWith(".aurit.com.br")) {
-    return "";
-  }
-
-  const slug = hostname.replace(".aurit.com.br", "");
-
-  if (!slug || slug.includes(".")) {
-    return "";
-  }
-
-  if (["www", "admin", "api", "mail", "webmail", "cpanel"].includes(slug)) {
-    return "";
-  }
-
-  return slug;
-}
-
-function getAuthHeaders() {
-  const token =
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken");
-
-  const tenantSlug = getTenantSlug();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
     const text = await response.text();
-    return text || `Erro ${response.status} ao processar requisição.`;
+
+    if (!text) {
+      if (response.status === 401) {
+        return "Sessão expirada ou token inválido. Faça login novamente.";
+      }
+
+      if (response.status === 403) {
+        return "Acesso negado.";
+      }
+
+      return `Erro ${response.status} ao processar requisição.`;
+    }
+
+    try {
+      const json = JSON.parse(text);
+
+      return (
+        json?.message ||
+        json?.error ||
+        json?.detail ||
+        json?.mensagem ||
+        text
+      );
+    } catch {
+      return text;
+    }
   } catch {
     return `Erro ${response.status} ao processar requisição.`;
   }
@@ -277,7 +262,7 @@ export function buildDiretoriaPayload(form: DiretoriaData): DiretoriaDTO {
 export async function getDiretorias(): Promise<DiretoriaData[]> {
   const response = await fetch(`${API_URL}/diretorias`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -292,7 +277,7 @@ export async function getDiretorias(): Promise<DiretoriaData[]> {
 export async function getDiretoriaById(id: number): Promise<DiretoriaData> {
   const response = await fetch(`${API_URL}/diretorias/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -309,7 +294,7 @@ export async function createDiretoria(
 ): Promise<DiretoriaData> {
   const response = await fetch(`${API_URL}/diretorias`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -328,7 +313,7 @@ export async function updateDiretoria(
 ): Promise<DiretoriaData> {
   const response = await fetch(`${API_URL}/diretorias/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -344,7 +329,7 @@ export async function updateDiretoria(
 export async function deleteDiretoria(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/diretorias/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -357,7 +342,7 @@ export async function getOrganizacoesDiretoria(): Promise<
 > {
   const response = await fetch(`${API_URL}/organizacoes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

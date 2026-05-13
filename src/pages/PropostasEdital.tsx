@@ -417,18 +417,6 @@ export default function PropostasEdital() {
     } as any);
   }
 
-  if (loadingPermissoes || loading) {
-    return (
-      <AppLayout>
-        <div className="container max-w-7xl py-6 sm:py-8">
-          <p className="text-sm text-muted-foreground">
-            Carregando propostas...
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   if (!podeVisualizar) {
     return (
       <AppLayout>

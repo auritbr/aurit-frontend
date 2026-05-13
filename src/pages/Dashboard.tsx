@@ -465,18 +465,6 @@ export default function Dashboard() {
   const showAt4 = atividadesAgg.pendentesOuInativos > 0;
   const showPrj4 = projetosAgg.pendentesOuInativos > 0;
 
-  if (loadingPermissoes || loading) {
-    return (
-      <AppLayout>
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          <p className="text-sm text-muted-foreground">
-            Carregando dashboard...
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   if (!podeVisualizar) {
     return (
       <AppLayout>

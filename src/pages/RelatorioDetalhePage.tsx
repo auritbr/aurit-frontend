@@ -203,18 +203,6 @@ export default function RelatorioDetalhePage() {
     return [];
   }, [data, slug]);
 
-  if (loadingPermissoes) {
-    return (
-      <AppLayout>
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          <p className="text-sm text-muted-foreground">
-            Carregando permissões do relatório...
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   if (!podeVisualizar) {
     return (
       <AppLayout>

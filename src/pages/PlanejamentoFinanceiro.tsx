@@ -606,18 +606,6 @@ export default function PlanejamentoFinanceiro() {
     });
   }
 
-  if (loadingPermissoes || loading) {
-    return (
-      <AppLayout>
-        <div className="container max-w-7xl py-6 sm:py-8">
-          <p className="text-sm text-muted-foreground">
-            Carregando orçamento da proposta...
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   if (!podeVisualizar) {
     return (
       <AppLayout>

@@ -527,16 +527,6 @@ export default function ControleEmpresas() {
               </thead>
 
               <tbody>
-                {loading && (
-                  <tr>
-                    <td
-                      colSpan={9}
-                      className="px-5 py-16 text-center text-muted-foreground"
-                    >
-                      Carregando empresas...
-                    </td>
-                  </tr>
-                )}
 
                 {!loading &&
                   empresasPagination.paginated.map((e) => {

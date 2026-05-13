@@ -332,16 +332,6 @@ export default function EquipeEditalForm() {
   const showColaborador = form.tipoPessoa === "COLABORADOR";
   const showIntegrante = form.tipoPessoa === "INTEGRANTE";
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="container max-w-4xl py-6 sm:py-8">
-          <p className="text-sm text-muted-foreground">Carregando registro...</p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">

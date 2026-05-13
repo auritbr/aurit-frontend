@@ -293,18 +293,6 @@ export default function UsuarioPermissoes() {
     }
   };
 
-  if (loadingPermissoes || loading) {
-    return (
-      <AppLayout>
-        <div className="container max-w-6xl py-6 sm:py-8">
-          <p className="text-sm text-muted-foreground">
-            Carregando permissões...
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   if (!podeEditarPermissoes) {
     return (
       <AppLayout>

@@ -354,18 +354,6 @@ export default function DocumentoForm() {
     }
   };
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="container max-w-4xl py-6 sm:py-8">
-          <p className="text-sm text-muted-foreground">
-            Carregando documento...
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 pb-24 sm:py-8">

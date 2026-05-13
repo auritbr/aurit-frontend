@@ -202,18 +202,6 @@ export default function ControleEmpresaDetalhe() {
     void carregarDados();
   }, [empresaId]);
 
-  if (loading) {
-    return (
-      <ProprietarioLayout>
-        <div className="container max-w-[1400px] py-10">
-          <p className="text-sm text-muted-foreground">
-            Carregando detalhes da empresa...
-          </p>
-        </div>
-      </ProprietarioLayout>
-    );
-  }
-
   if (!empresa) {
     return (
       <ProprietarioLayout>

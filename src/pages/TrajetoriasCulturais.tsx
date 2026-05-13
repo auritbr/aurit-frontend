@@ -287,18 +287,6 @@ export default function TrajetoriasCulturais() {
     toast.success("Trajetória cultural exportada em PDF.");
   };
 
-  if (loadingPermissoes || loading) {
-    return (
-      <AppLayout>
-        <div className="container max-w-7xl py-6 sm:py-8">
-          <p className="text-sm text-muted-foreground">
-            Carregando trajetórias culturais...
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   if (!podeVisualizar) {
     return (
       <AppLayout>

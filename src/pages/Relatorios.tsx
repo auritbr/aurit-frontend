@@ -75,18 +75,6 @@ export default function Relatorios() {
     };
   }, []);
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          <p className="text-sm text-muted-foreground">
-            Carregando relatórios...
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   if (!podeVisualizar) {
     return (
       <AppLayout>

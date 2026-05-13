@@ -309,16 +309,6 @@ function UsuarioFormContent() {
     );
   }
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="container max-w-3xl py-6 sm:py-8">
-          <p className="text-sm text-muted-foreground">Carregando usuário...</p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   return (
     <AppLayout>
       <div className="container max-w-3xl py-6 sm:py-8">

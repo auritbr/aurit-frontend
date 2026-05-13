@@ -508,18 +508,6 @@ export default function ResultadoPropostaForm() {
       ? "Resultado da Proposta"
       : "Resultado da Proposta";
 
-  if (loadingPermissoes || loading) {
-    return (
-      <AppLayout>
-        <div className="container max-w-4xl py-6 sm:py-8">
-          <p className="text-sm text-muted-foreground">
-            Carregando Resultado da Proposta...
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   if (!podeVisualizar) {
     return (
       <AppLayout>
