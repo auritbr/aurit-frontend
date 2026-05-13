@@ -28,6 +28,30 @@ const USER_KEY = "usuarioLogado";
 const USER_ROLE_KEY = "userRole";
 const USER_NAME_KEY = "userName";
 
+function getTenantSlug() {
+  const hostname = window.location.hostname;
+
+  if (hostname === "localhost") {
+    return "";
+  }
+
+  if (!hostname.endsWith(".aurit.com.br")) {
+    return "";
+  }
+
+  const slug = hostname.replace(".aurit.com.br", "");
+
+  if (!slug || slug.includes(".")) {
+    return "";
+  }
+
+  if (["www", "admin", "api", "mail", "webmail", "cpanel"].includes(slug)) {
+    return "";
+  }
+
+  return slug;
+}
+
 export function getStoredToken(): string {
   for (const key of TOKEN_KEYS) {
     const localToken = localStorage.getItem(key);
@@ -57,10 +81,12 @@ export function getStoredUserRole(): string {
 
 export function getAuthHeaders(): Record<string, string> {
   const token = getStoredToken();
+  const tenantSlug = getTenantSlug();
 
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}),
   };
 }
 
@@ -100,6 +126,7 @@ export function limparSessaoUsuario() {
 
 export async function logoutUsuario(redirect = true): Promise<void> {
   const token = getStoredToken();
+  const tenantSlug = getTenantSlug();
 
   try {
     if (token) {
@@ -107,6 +134,7 @@ export async function logoutUsuario(redirect = true): Promise<void> {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
+          ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}),
         },
       });
     }
@@ -235,10 +263,13 @@ export async function loginUsuario(
   password: string,
   persistir = true,
 ): Promise<{ token: string; usuario: UsuarioLogado }> {
+  const tenantSlug = getTenantSlug();
+
   const response = await fetch(`${API_URL}/usuarios/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}),
     },
     body: JSON.stringify({
       login: login.trim(),

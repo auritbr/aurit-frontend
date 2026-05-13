@@ -6,6 +6,32 @@ function isFormData(body: RequestInit["body"]) {
   return typeof FormData !== "undefined" && body instanceof FormData;
 }
 
+function getTenantSlug() {
+  const hostname = window.location.hostname;
+
+  if (hostname === "localhost") {
+    return "";
+  }
+
+  if (!hostname.endsWith(".aurit.com.br")) {
+    return "";
+  }
+
+  const slug = hostname.replace(".aurit.com.br", "");
+
+  if (!slug || slug.includes(".")) {
+    return "";
+  }
+
+  if (
+    ["www", "admin", "api", "mail", "webmail", "cpanel"].includes(slug)
+  ) {
+    return "";
+  }
+
+  return slug;
+}
+
 async function readErrorMessage(response: Response, path: string) {
   try {
     const text = await response.text();
@@ -61,10 +87,12 @@ export async function apiFetch<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const token = getStoredToken();
+  const tenantSlug = getTenantSlug();
 
   const headers: HeadersInit = {
     ...(isFormData(options.body) ? {} : { "Content-Type": "application/json" }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}),
     ...(options.headers ?? {}),
   };
 
