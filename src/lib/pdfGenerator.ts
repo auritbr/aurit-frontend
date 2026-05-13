@@ -391,6 +391,23 @@ function safeText(value?: string | number | null): string {
   return text || "—";
 }
 
+function normalizeParagraphBlocks(values?: string[]): string[] {
+  return (values ?? [])
+    .flatMap((value) =>
+      String(value ?? "")
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+        .split(/\n{2,}/g),
+    )
+    .map((text) =>
+      text
+        .replace(/\n+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    )
+    .filter(Boolean);
+}
+
 function maskCNPJ(value?: string | number | null): string {
   if (value === null || value === undefined) return "—";
 
@@ -1132,13 +1149,9 @@ export async function generateInstitutionalPdf(opts: PdfOptions) {
       .map((s) => s?.trim())
       .filter(Boolean) as string[];
 
-    const paragraphs = (section.paragraphs ?? [])
-      .map((p) => p?.trim())
-      .filter(Boolean) as string[];
+    const paragraphs = normalizeParagraphBlocks(section.paragraphs);
 
-    const justifiedParagraphs = (section.justifiedParagraphs ?? [])
-      .map((p) => p?.trim())
-      .filter(Boolean) as string[];
+    const justifiedParagraphs = normalizeParagraphBlocks(section.justifiedParagraphs);
 
     const clauses = (section.clauses ?? []).filter(
       (c) => c.titulo && c.itens.some((i) => i?.trim()),
@@ -1230,23 +1243,27 @@ export async function generateInstitutionalPdf(opts: PdfOptions) {
 
     for (const p of justifiedParagraphs) {
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(10.5);
+      doc.setFontSize(10);
       doc.setTextColor(35);
 
       const lines = doc.splitTextToSize(p, CONTENT_WIDTH);
-      const needed = lines.length * 5.6 + 5;
+      const lineHeight = 5;
+      const paragraphSpacing = 3;
+      const needed = lines.length * lineHeight + paragraphSpacing;
 
       cursor = ensureSpace(doc, cursor, needed, opts, ctx);
 
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(10.5);
+      doc.setFontSize(10);
       doc.setTextColor(35);
+
       doc.text(lines, MARGIN_LEFT, cursor, {
         align: "justify",
         maxWidth: CONTENT_WIDTH,
+        lineHeightFactor: 1.15,
       });
 
-      cursor += needed;
+      cursor += lines.length * lineHeight + paragraphSpacing;
     }
 
     for (const cl of clauses) {

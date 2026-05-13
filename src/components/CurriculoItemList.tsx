@@ -1,5 +1,4 @@
 import { Trash2, Plus } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 interface CurriculoItemListProps {
@@ -16,7 +15,7 @@ export function CurriculoItemList({
   values,
   onChange,
   placeholder = "Digite uma informação...",
-  maxLength = 200,
+  maxLength = 5000,
   disabled = false,
 }: CurriculoItemListProps) {
   const list = values.length === 0 ? [""] : values;
@@ -45,31 +44,44 @@ export function CurriculoItemList({
   };
 
   return (
-    <div className="space-y-2">
-      {list.map((value, idx) => (
-        <div key={`${id}-${idx}`} className="flex items-center gap-2">
-          <Input
-            id={idx === 0 ? id : undefined}
-            value={value}
-            onChange={(e) => updateAt(idx, e.target.value)}
-            placeholder={placeholder}
-            maxLength={maxLength}
-            disabled={disabled}
-            readOnly={disabled}
-            className="h-9 flex-1"
-          />
+    <div className="space-y-3">
+      {list.map((value, idx) => {
+        const textareaId = idx === 0 ? id : `${id}-${idx}`;
 
-          <button
-            type="button"
-            onClick={() => removeAt(idx)}
-            disabled={disabled || (list.length === 1 && !value)}
-            aria-label="Remover item"
-            className="inline-flex h-9 w-9 items-center justify-center rounded border border-border text-muted-foreground hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      ))}
+        return (
+          <div key={`${id}-${idx}`} className="space-y-1.5">
+            <div className="flex items-start gap-2">
+              <textarea
+                id={textareaId}
+                value={value}
+                onChange={(e) => updateAt(idx, e.target.value)}
+                placeholder={placeholder}
+                maxLength={maxLength}
+                disabled={disabled}
+                readOnly={disabled}
+                rows={4}
+                className="min-h-[96px] flex-1 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              />
+
+              <button
+                type="button"
+                onClick={() => removeAt(idx)}
+                disabled={disabled || (list.length === 1 && !value)}
+                aria-label="Remover item"
+                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded border border-border text-muted-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            {!disabled && (
+              <p className="text-right text-[11px] text-muted-foreground">
+                {value.length}/{maxLength} caracteres
+              </p>
+            )}
+          </div>
+        );
+      })}
 
       <Button
         type="button"
@@ -77,7 +89,7 @@ export function CurriculoItemList({
         size="sm"
         onClick={add}
         disabled={disabled}
-        className="h-8 gap-1.5 border-dashed text-muted-foreground hover:text-primary hover:border-primary/40"
+        className="h-8 gap-1.5 border-dashed text-muted-foreground hover:border-primary/40 hover:text-primary"
       >
         <Plus className="h-3.5 w-3.5" />
         Adicionar

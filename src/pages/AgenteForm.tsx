@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { EmailInput } from "@/components/EmailInput";
 import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,7 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { maskCPF, maskPhone, maskCEP, maskDate, maskRG } from "@/lib/masks";
+import { maskCPF, maskPhone, maskCEP, maskDate } from "@/lib/masks";
 import { estadosBrasil } from "@/data/colaboradores";
 import {
   TipoAgente,
@@ -36,6 +37,8 @@ import { getJsonHeaders } from "@/lib/apiHeaders";
 import { toast } from "sonner";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+
+const AGENTE_NEXT_STEP_KEY = "aurit:agentes:next-step-card";
 
 const maskCNPJ = (v: string) =>
   v
@@ -105,7 +108,7 @@ interface AgenteDetalhadoDTO {
 
   cep?: string | null;
   logradouro?: string | null;
-  numero?: string | null;
+  numero?: string | number | null;
   complemento?: string | null;
   bairro?: string | null;
   cidade?: string | null;
@@ -129,6 +132,16 @@ interface AgentePayload {
     cidade: string;
     estado: string;
   } | null;
+}
+
+interface ViaCepResponse {
+  cep?: string;
+  logradouro?: string;
+  complemento?: string;
+  bairro?: string;
+  localidade?: string;
+  uf?: string;
+  erro?: boolean;
 }
 
 const emptyPF: PessoaFisica = {
@@ -200,8 +213,8 @@ function onlyDigits(value?: string | null) {
   return (value ?? "").replace(/\D/g, "");
 }
 
-function normalizeText(value?: string | null) {
-  return value?.trim() ?? "";
+function normalizeText(value?: string | number | null) {
+  return value === null || value === undefined ? "" : String(value).trim();
 }
 
 function toDateInput(value?: string | null) {
@@ -222,6 +235,79 @@ function toDateInput(value?: string | null) {
   return value;
 }
 
+function maskRGFlex(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+
+  if (!digits) return "";
+
+  if (digits.length <= 7) {
+    if (digits.length <= 1) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 1)}-${digits.slice(1)}`;
+
+    return `${digits.slice(0, 1)}-${digits.slice(1, 4)}.${digits.slice(4)}`;
+  }
+
+  if (digits.length <= 8) {
+    return digits.replace(/^(\d{2})(\d{3})(\d{0,3})$/, (_, a, b, c) =>
+      c ? `${a}.${b}.${c}` : `${a}.${b}`,
+    );
+  }
+
+  if (digits.length === 9) {
+    return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d)$/, "$1.$2.$3-$4");
+  }
+
+  return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, (_, a, b, c, d) =>
+    d ? `${a}.${b}.${c}-${d}` : `${a}.${b}.${c}`,
+  );
+}
+
+function mapUfToEstado(uf?: string | null): string {
+  const mapa: Record<string, string> = {
+    AC: "Acre",
+    AL: "Alagoas",
+    AP: "Amapá",
+    AM: "Amazonas",
+    BA: "Bahia",
+    CE: "Ceará",
+    DF: "Distrito Federal",
+    ES: "Espírito Santo",
+    GO: "Goiás",
+    MA: "Maranhão",
+    MT: "Mato Grosso",
+    MS: "Mato Grosso do Sul",
+    MG: "Minas Gerais",
+    PA: "Pará",
+    PB: "Paraíba",
+    PR: "Paraná",
+    PE: "Pernambuco",
+    PI: "Piauí",
+    RJ: "Rio de Janeiro",
+    RN: "Rio Grande do Norte",
+    RS: "Rio Grande do Sul",
+    RO: "Rondônia",
+    RR: "Roraima",
+    SC: "Santa Catarina",
+    SP: "São Paulo",
+    SE: "Sergipe",
+    TO: "Tocantins",
+  };
+
+  if (!uf) return "";
+
+  const value = uf.trim();
+
+  if (estadosBrasil.includes(value)) {
+    return value;
+  }
+
+  return mapa[value.toUpperCase()] ?? "";
+}
+
+function isValidEmail(value: string) {
+  return !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 function limparPessoaFisica(data: PessoaFisica): PessoaFisica {
   return {
     nomeCompleto: data.nomeCompleto.trim(),
@@ -229,7 +315,7 @@ function limparPessoaFisica(data: PessoaFisica): PessoaFisica {
     cpf: onlyDigits(data.cpf),
     rg: data.rg.trim(),
     telefone: data.telefone.trim(),
-    email: data.email.trim(),
+    email: data.email.trim().toLowerCase(),
   };
 }
 
@@ -253,24 +339,12 @@ function limparEndereco(data: Endereco): AgentePayload["endereco"] {
   return {
     cep: onlyDigits(data.cep),
     logradouro: data.logradouro.trim(),
-    numero: data.numero.trim() ? Number(data.numero) : null,
+    numero: data.numero.trim() ? Number(data.numero.replace(/\D/g, "")) : null,
     complemento: data.complemento.trim() || null,
     bairro: data.bairro.trim(),
     cidade: data.cidade.trim(),
     estado: data.estado.trim(),
   };
-}
-
-function ufToEstadoValue(uf?: string | null) {
-  const value = normalizeText(uf).toUpperCase();
-
-  if (!value) return "";
-
-  const encontrado = estadosBrasil.find(
-    (estado) => estado.toUpperCase() === value,
-  );
-
-  return encontrado ?? value;
 }
 
 function buildPayload(
@@ -300,6 +374,21 @@ function buildPayload(
   };
 }
 
+function salvarProximaAcaoAgente() {
+  const card = {
+    titulo: "Após cadastrar o agente cultural, organize os projetos vinculados",
+    descricao:
+      "Com o agente cadastrado, você pode avançar para os projetos, registrando objetivos, público, acessibilidade, equipe responsável e informações importantes para editais e documentos institucionais.",
+    acaoLabel: "Cadastrar projetos",
+    acaoUrl: "/projetos/novo",
+    acaoSecundariaLabel: "Ver agentes",
+    acaoSecundariaUrl: "/agentes",
+    variante: "pendente",
+  };
+
+  sessionStorage.setItem(AGENTE_NEXT_STEP_KEY, JSON.stringify(card));
+}
+
 export default function AgenteForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -318,6 +407,8 @@ export default function AgenteForm() {
   const [loading, setLoading] = useState(false);
   const [loadingInitialData, setLoadingInitialData] = useState(!!id);
   const [loadingCep, setLoadingCep] = useState(false);
+
+  const ultimoCepConsultadoRef = useRef<string>("");
 
   const bloqueado = visualizando || loading || loadingInitialData;
 
@@ -351,7 +442,10 @@ export default function AgenteForm() {
   const isColetivo = tipo === "GRUPO_COLETIVO";
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setLoadingInitialData(false);
+      return;
+    }
 
     let active = true;
 
@@ -378,7 +472,7 @@ export default function AgenteForm() {
           nomeCompleto: normalizeText(data.nomeCompleto),
           dataNascimento: toDateInput(data.dataNascimento),
           cpf: maskCPF(normalizeText(data.cpf)),
-          rg: maskRG(normalizeText(data.rg)),
+          rg: maskRGFlex(normalizeText(data.rg)),
           telefone: maskPhone(normalizeText(data.telefone)),
           email: normalizeText(data.email),
         });
@@ -399,19 +493,23 @@ export default function AgenteForm() {
           nomeCompleto: normalizeText(data.nomeRepresentante),
           dataNascimento: toDateInput(data.dataNascimentoRepresentante),
           cpf: maskCPF(normalizeText(data.cpfRepresentante)),
-          rg: maskRG(normalizeText(data.rgRepresentante)),
+          rg: maskRGFlex(normalizeText(data.rgRepresentante)),
           telefone: maskPhone(normalizeText(data.telefoneRepresentante)),
           email: normalizeText(data.emailRepresentante),
         });
 
+        const cep = maskCEP(normalizeText(data.cep));
+
+        ultimoCepConsultadoRef.current = onlyDigits(cep);
+
         setEndereco({
-          cep: maskCEP(normalizeText(data.cep)),
+          cep,
           logradouro: normalizeText(data.logradouro),
           numero: normalizeText(data.numero),
           complemento: normalizeText(data.complemento),
           bairro: normalizeText(data.bairro),
           cidade: normalizeText(data.cidade),
-          estado: ufToEstadoValue(data.estado),
+          estado: mapUfToEstado(data.estado),
         });
       } catch (error) {
         const message =
@@ -433,27 +531,24 @@ export default function AgenteForm() {
     };
   }, [id, navigate]);
 
-  async function buscarCep(value: string) {
-    const cep = onlyDigits(value);
+  async function buscarEnderecoPorCep(cepFormatado: string) {
+    const cepLimpo = onlyDigits(cepFormatado);
 
-    if (cep.length !== 8 || visualizando) return;
+    if (cepLimpo.length !== 8 || visualizando) return;
+
+    if (ultimoCepConsultadoRef.current === cepLimpo) return;
 
     try {
       setLoadingCep(true);
+      ultimoCepConsultadoRef.current = cepLimpo;
 
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
 
       if (!response.ok) {
         throw new Error("Não foi possível consultar o CEP.");
       }
 
-      const data: {
-        erro?: boolean;
-        logradouro?: string;
-        bairro?: string;
-        localidade?: string;
-        uf?: string;
-      } = await response.json();
+      const data: ViaCepResponse = await response.json();
 
       if (data.erro) {
         toast.error("CEP não encontrado.");
@@ -462,37 +557,155 @@ export default function AgenteForm() {
 
       setEndereco((prev) => ({
         ...prev,
-        cep: maskCEP(cep),
-        logradouro: data.logradouro ?? prev.logradouro,
-        bairro: data.bairro ?? prev.bairro,
-        cidade: data.localidade ?? prev.cidade,
-        estado: ufToEstadoValue(data.uf) || prev.estado,
+        cep: maskCEP(cepLimpo),
+        logradouro: data.logradouro ?? "",
+        complemento: prev.complemento || data.complemento || "",
+        bairro: data.bairro ?? "",
+        cidade: data.localidade ?? "",
+        estado: mapUfToEstado(data.uf),
       }));
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Erro ao consultar CEP.";
-
-      toast.error(message);
+      console.error(error);
+      toast.error("Erro ao buscar CEP.");
+      ultimoCepConsultadoRef.current = "";
     } finally {
       setLoadingCep(false);
     }
+  }
+
+  function validar() {
+    if (!tipo) {
+      toast.error("Selecione o tipo de agente.");
+      return false;
+    }
+
+    if (isPF) {
+      if (!pf.nomeCompleto.trim()) {
+        toast.error("Informe o nome completo.");
+        return false;
+      }
+
+      if (!pf.dataNascimento.trim()) {
+        toast.error("Informe a data de nascimento.");
+        return false;
+      }
+
+      if (onlyDigits(pf.cpf).length !== 11) {
+        toast.error("Informe um CPF válido com 11 dígitos.");
+        return false;
+      }
+
+      if (!pf.telefone.trim()) {
+        toast.error("Informe o telefone.");
+        return false;
+      }
+
+      if (pf.email && !isValidEmail(pf.email)) {
+        toast.error("Informe um e-mail válido.");
+        return false;
+      }
+    }
+
+    if (isPJ) {
+      if (!pj.razaoSocial.trim()) {
+        toast.error("Informe a razão social.");
+        return false;
+      }
+
+      if (onlyDigits(pj.cnpj).length !== 14) {
+        toast.error("Informe um CNPJ válido com 14 dígitos.");
+        return false;
+      }
+
+      if (!pj.dataFundacao.trim()) {
+        toast.error("Informe a data de fundação.");
+        return false;
+      }
+    }
+
+    if (isColetivo) {
+      if (!coletivo.nome.trim()) {
+        toast.error("Informe o nome do coletivo.");
+        return false;
+      }
+
+      if (!coletivo.dataCriacao.trim()) {
+        toast.error("Informe a data de criação do coletivo.");
+        return false;
+      }
+    }
+
+    if (isPJ || isColetivo) {
+      if (!representante.nomeCompleto.trim()) {
+        toast.error("Informe o nome do representante.");
+        return false;
+      }
+
+      if (!representante.dataNascimento.trim()) {
+        toast.error("Informe a data de nascimento do representante.");
+        return false;
+      }
+
+      if (onlyDigits(representante.cpf).length !== 11) {
+        toast.error("Informe um CPF válido para o representante.");
+        return false;
+      }
+
+      if (!representante.telefone.trim()) {
+        toast.error("Informe o telefone do representante.");
+        return false;
+      }
+
+      if (representante.email && !isValidEmail(representante.email)) {
+        toast.error("Informe um e-mail válido para o representante.");
+        return false;
+      }
+    }
+
+    if (onlyDigits(endereco.cep).length !== 8) {
+      toast.error("Informe um CEP válido com 8 dígitos.");
+      return false;
+    }
+
+    if (!endereco.logradouro.trim()) {
+      toast.error("Informe o logradouro.");
+      return false;
+    }
+
+    if (!endereco.numero.trim()) {
+      toast.error("Informe o número do endereço.");
+      return false;
+    }
+
+    if (!endereco.bairro.trim()) {
+      toast.error("Informe o bairro.");
+      return false;
+    }
+
+    if (!endereco.cidade.trim()) {
+      toast.error("Informe a cidade.");
+      return false;
+    }
+
+    if (!endereco.estado.trim()) {
+      toast.error("Informe o estado.");
+      return false;
+    }
+
+    return true;
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     if (visualizando) return;
-
-    if (!tipo) {
-      toast.error("Selecione o tipo de agente.");
-      return;
-    }
+    if (!validar()) return;
 
     try {
       setLoading(true);
 
       const payload = buildPayload(
-        tipo,
+        tipo as TipoAgente,
         pf,
         pj,
         coletivo,
@@ -518,6 +731,10 @@ export default function AgenteForm() {
           ? "Agente atualizado com sucesso."
           : "Agente cadastrado com sucesso.",
       );
+
+      if (!editando) {
+        salvarProximaAcaoAgente();
+      }
 
       navigate("/agentes");
     } catch (error) {
@@ -572,264 +789,278 @@ export default function AgenteForm() {
 
         {!visualizando && <FormLegend />}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={UserCog} title="Tipo de agente">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel
-                  htmlFor="tipoAgente"
-                  required
-                  tooltip="Selecione o tipo de agente cultural que será cadastrado."
-                >
-                  Tipo de agente
-                </FieldLabel>
-
-                <Select
-                  value={tipo}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-                    setTipo(v as TipoAgente);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="tipoAgente">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map(
-                      (k) => (
-                        <SelectItem key={k} value={k}>
-                          {tipoAgenteLabels[k]}
-                        </SelectItem>
-                      ),
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-
-            <div className="mt-5 grid sm:grid-cols-2 gap-2.5">
-              {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map((k) => (
-                <button
-                  type="button"
-                  key={k}
-                  disabled={bloqueado}
-                  onClick={() => {
-                    if (visualizando) return;
-                    setTipo(k);
-                  }}
-                  className={`rounded border px-3 py-2.5 text-left text-[12px] leading-relaxed transition-colors disabled:cursor-default ${
-                    tipo === k
-                      ? "border-primary/40 bg-primary-soft"
-                      : "border-border bg-muted/30"
-                  }`}
-                >
-                  <p className="font-semibold text-foreground text-[12.5px] mb-0.5">
-                    {tipoAgenteLabels[k]}
-                  </p>
-
-                  <p className="text-muted-foreground">
-                    {tipoAgenteDescricoes[k]}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </Section>
-
-          {isPF && (
-            <>
-              <Section icon={User} title="Dados pessoais">
-                <PessoaFisicaFields
-                  data={pf}
-                  set={setPF}
-                  disabled={bloqueado}
-                />
-              </Section>
-
-              <Section icon={MapPin} title="Endereço">
-                <EnderecoFields
-                  data={endereco}
-                  set={setEnd}
-                  disabled={bloqueado}
-                  loadingCep={loadingCep}
-                  onCepBlur={buscarCep}
-                />
-              </Section>
-            </>
-          )}
-
-          {isPJ && (
-            <>
-              <Section
-                icon={Building2}
-                title={
-                  tipo === "MEI"
-                    ? "Dados da pessoa jurídica"
-                    : "Dados da organização"
-                }
-              >
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Field full>
-                    <FieldLabel htmlFor="razaoSocial" required>
-                      Razão Social
-                    </FieldLabel>
-
-                    <Input
-                      id="razaoSocial"
-                      value={pj.razaoSocial}
-                      onChange={(e) =>
-                        setPJ("razaoSocial", e.target.value)
-                      }
-                      disabled={bloqueado}
-                    />
-                  </Field>
-
-                  <Field full>
-                    <FieldLabel htmlFor="nomeFantasia">
-                      Nome Fantasia
-                    </FieldLabel>
-
-                    <Input
-                      id="nomeFantasia"
-                      value={pj.nomeFantasia}
-                      onChange={(e) =>
-                        setPJ("nomeFantasia", e.target.value)
-                      }
-                      disabled={bloqueado}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="cnpj" required>
-                      CNPJ
-                    </FieldLabel>
-
-                    <Input
-                      id="cnpj"
-                      value={pj.cnpj}
-                      onChange={(e) => setPJ("cnpj", maskCNPJ(e.target.value))}
-                      inputMode="numeric"
-                      disabled={bloqueado}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="dataFundacao" required>
-                      Data de Fundação
-                    </FieldLabel>
-
-                    <Input
-                      id="dataFundacao"
-                      value={pj.dataFundacao}
-                      onChange={(e) =>
-                        setPJ("dataFundacao", maskDate(e.target.value))
-                      }
-                      inputMode="numeric"
-                      disabled={bloqueado}
-                    />
-                  </Field>
-                </div>
-              </Section>
-
-              <Section icon={MapPin} title="Endereço">
-                <EnderecoFields
-                  data={endereco}
-                  set={setEnd}
-                  disabled={bloqueado}
-                  loadingCep={loadingCep}
-                  onCepBlur={buscarCep}
-                />
-              </Section>
-
-              <Section icon={User} title="Dados do representante">
-                <PessoaFisicaFields
-                  data={representante}
-                  set={setRep}
-                  prefix="rep"
-                  disabled={bloqueado}
-                />
-              </Section>
-            </>
-          )}
-
-          {isColetivo && (
-            <>
-              <Section icon={Users2} title="Dados do coletivo">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Field full>
-                    <FieldLabel htmlFor="nomeColetivo" required>
-                      Nome do Coletivo
-                    </FieldLabel>
-
-                    <Input
-                      id="nomeColetivo"
-                      value={coletivo.nome}
-                      onChange={(e) => setCol("nome", e.target.value)}
-                      disabled={bloqueado}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="dataCriacao" required>
-                      Data de Criação
-                    </FieldLabel>
-
-                    <Input
-                      id="dataCriacao"
-                      value={coletivo.dataCriacao}
-                      onChange={(e) =>
-                        setCol("dataCriacao", maskDate(e.target.value))
-                      }
-                      inputMode="numeric"
-                      disabled={bloqueado}
-                    />
-                  </Field>
-                </div>
-              </Section>
-
-              <Section icon={MapPin} title="Endereço">
-                <EnderecoFields
-                  data={endereco}
-                  set={setEnd}
-                  disabled={bloqueado}
-                  loadingCep={loadingCep}
-                  onCepBlur={buscarCep}
-                />
-              </Section>
-
-              <Section icon={User} title="Dados do representante">
-                <PessoaFisicaFields
-                  data={representante}
-                  set={setRep}
-                  prefix="rep"
-                  disabled={bloqueado}
-                />
-              </Section>
-            </>
-          )}
-
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/agentes")}
-              disabled={loading}
-            >
-              {visualizando ? "Voltar" : "Cancelar"}
-            </Button>
-
-            {!visualizando && (
-              <Button
-                type="submit"
-                className="sm:min-w-32"
-                disabled={loading || loadingInitialData}
-              >
-                {loading ? "Salvando..." : "Salvar"}
-              </Button>
-            )}
+        {loadingInitialData ? (
+          <div className="rounded border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+            Carregando agente cultural...
           </div>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <Section icon={UserCog} title="Tipo de agente">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel
+                    htmlFor="tipoAgente"
+                    required
+                    tooltip="Selecione o tipo de agente cultural que será cadastrado."
+                  >
+                    Tipo de Agente
+                  </FieldLabel>
+
+                  <Select
+                    value={tipo}
+                    onValueChange={(v) => {
+                      if (visualizando) return;
+                      setTipo(v as TipoAgente);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="tipoAgente">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map(
+                        (k) => (
+                          <SelectItem key={k} value={k}>
+                            {tipoAgenteLabels[k]}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+
+              <div className="mt-5 grid sm:grid-cols-2 gap-2.5">
+                {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map((k) => (
+                  <button
+                    type="button"
+                    key={k}
+                    disabled={bloqueado}
+                    onClick={() => {
+                      if (visualizando) return;
+                      setTipo(k);
+                    }}
+                    className={`rounded border px-3 py-2.5 text-left text-[12px] leading-relaxed transition-colors disabled:cursor-default ${
+                      tipo === k
+                        ? "border-primary/40 bg-primary-soft"
+                        : "border-border bg-muted/30"
+                    }`}
+                  >
+                    <p className="font-semibold text-foreground text-[12.5px] mb-0.5">
+                      {tipoAgenteLabels[k]}
+                    </p>
+
+                    <p className="text-muted-foreground">
+                      {tipoAgenteDescricoes[k]}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </Section>
+
+            {isPF && (
+              <>
+                <Section icon={User} title="Dados pessoais">
+                  <PessoaFisicaFields
+                    data={pf}
+                    set={setPF}
+                    disabled={bloqueado}
+                    visualizando={visualizando}
+                  />
+                </Section>
+
+                <Section icon={MapPin} title="Endereço">
+                  <EnderecoFields
+                    data={endereco}
+                    set={setEnd}
+                    disabled={bloqueado}
+                    visualizando={visualizando}
+                    loadingCep={loadingCep}
+                    onCepChange={(cep) => void buscarEnderecoPorCep(cep)}
+                  />
+                </Section>
+              </>
+            )}
+
+            {isPJ && (
+              <>
+                <Section
+                  icon={Building2}
+                  title={
+                    tipo === "MEI"
+                      ? "Dados da pessoa jurídica"
+                      : "Dados da organização"
+                  }
+                >
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <Field full>
+                      <FieldLabel htmlFor="razaoSocial" required>
+                        Razão Social
+                      </FieldLabel>
+
+                      <Input
+                        id="razaoSocial"
+                        value={pj.razaoSocial}
+                        onChange={(e) => setPJ("razaoSocial", e.target.value)}
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field full>
+                      <FieldLabel htmlFor="nomeFantasia">
+                        Nome Fantasia
+                      </FieldLabel>
+
+                      <Input
+                        id="nomeFantasia"
+                        value={pj.nomeFantasia}
+                        onChange={(e) => setPJ("nomeFantasia", e.target.value)}
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="cnpj" required>
+                        CNPJ
+                      </FieldLabel>
+
+                      <Input
+                        id="cnpj"
+                        value={pj.cnpj}
+                        onChange={(e) => setPJ("cnpj", maskCNPJ(e.target.value))}
+                        inputMode="numeric"
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="dataFundacao" required>
+                        Data de Fundação
+                      </FieldLabel>
+
+                      <Input
+                        id="dataFundacao"
+                        value={pj.dataFundacao}
+                        onChange={(e) =>
+                          setPJ("dataFundacao", maskDate(e.target.value))
+                        }
+                        inputMode="numeric"
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+                  </div>
+                </Section>
+
+                <Section icon={MapPin} title="Endereço">
+                  <EnderecoFields
+                    data={endereco}
+                    set={setEnd}
+                    disabled={bloqueado}
+                    visualizando={visualizando}
+                    loadingCep={loadingCep}
+                    onCepChange={(cep) => void buscarEnderecoPorCep(cep)}
+                  />
+                </Section>
+
+                <Section icon={User} title="Dados do representante">
+                  <PessoaFisicaFields
+                    data={representante}
+                    set={setRep}
+                    prefix="rep"
+                    disabled={bloqueado}
+                    visualizando={visualizando}
+                  />
+                </Section>
+              </>
+            )}
+
+            {isColetivo && (
+              <>
+                <Section icon={Users2} title="Dados do coletivo">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <Field full>
+                      <FieldLabel htmlFor="nomeColetivo" required>
+                        Nome do Coletivo
+                      </FieldLabel>
+
+                      <Input
+                        id="nomeColetivo"
+                        value={coletivo.nome}
+                        onChange={(e) => setCol("nome", e.target.value)}
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="dataCriacao" required>
+                        Data de Criação
+                      </FieldLabel>
+
+                      <Input
+                        id="dataCriacao"
+                        value={coletivo.dataCriacao}
+                        onChange={(e) =>
+                          setCol("dataCriacao", maskDate(e.target.value))
+                        }
+                        inputMode="numeric"
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+                  </div>
+                </Section>
+
+                <Section icon={MapPin} title="Endereço">
+                  <EnderecoFields
+                    data={endereco}
+                    set={setEnd}
+                    disabled={bloqueado}
+                    visualizando={visualizando}
+                    loadingCep={loadingCep}
+                    onCepChange={(cep) => void buscarEnderecoPorCep(cep)}
+                  />
+                </Section>
+
+                <Section icon={User} title="Dados do representante">
+                  <PessoaFisicaFields
+                    data={representante}
+                    set={setRep}
+                    prefix="rep"
+                    disabled={bloqueado}
+                    visualizando={visualizando}
+                  />
+                </Section>
+              </>
+            )}
+
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate("/agentes")}
+                disabled={loading}
+              >
+                {visualizando ? "Voltar" : "Cancelar"}
+              </Button>
+
+              {!visualizando && (
+                <Button
+                  type="submit"
+                  className="sm:min-w-32"
+                  disabled={loading || loadingInitialData || loadingCep}
+                >
+                  {loading ? "Salvando..." : "Salvar"}
+                </Button>
+              )}
+            </div>
+          </form>
+        )}
       </div>
 
       <WikiFloatingButton
@@ -866,11 +1097,13 @@ function PessoaFisicaFields({
   set,
   prefix = "",
   disabled = false,
+  visualizando = false,
 }: {
   data: PessoaFisica;
   set: <K extends keyof PessoaFisica>(k: K, v: PessoaFisica[K]) => void;
   prefix?: string;
   disabled?: boolean;
+  visualizando?: boolean;
 }) {
   const id = (s: string) => (prefix ? `${prefix}-${s}` : s);
 
@@ -886,6 +1119,7 @@ function PessoaFisicaFields({
           value={data.nomeCompleto}
           onChange={(e) => set("nomeCompleto", e.target.value)}
           disabled={disabled}
+          readOnly={visualizando}
         />
       </Field>
 
@@ -900,6 +1134,7 @@ function PessoaFisicaFields({
           onChange={(e) => set("dataNascimento", maskDate(e.target.value))}
           inputMode="numeric"
           disabled={disabled}
+          readOnly={visualizando}
         />
       </Field>
 
@@ -914,6 +1149,7 @@ function PessoaFisicaFields({
           onChange={(e) => set("cpf", maskCPF(e.target.value))}
           inputMode="numeric"
           disabled={disabled}
+          readOnly={visualizando}
         />
       </Field>
 
@@ -928,9 +1164,10 @@ function PessoaFisicaFields({
         <Input
           id={id("rg")}
           value={data.rg}
-          onChange={(e) => set("rg", maskRG(e.target.value))}
-          inputMode="text"
+          onChange={(e) => set("rg", maskRGFlex(e.target.value))}
+          inputMode="numeric"
           disabled={disabled}
+          readOnly={visualizando}
         />
       </Field>
 
@@ -945,6 +1182,7 @@ function PessoaFisicaFields({
           onChange={(e) => set("telefone", maskPhone(e.target.value))}
           inputMode="tel"
           disabled={disabled}
+          readOnly={visualizando}
         />
       </Field>
 
@@ -956,12 +1194,12 @@ function PessoaFisicaFields({
           E-mail
         </FieldLabel>
 
-        <Input
+        <EmailInput
           id={id("email")}
-          type="email"
           value={data.email}
           onChange={(e) => set("email", e.target.value)}
           disabled={disabled}
+          readOnly={visualizando}
         />
       </Field>
     </div>
@@ -972,14 +1210,16 @@ function EnderecoFields({
   data,
   set,
   disabled = false,
+  visualizando = false,
   loadingCep = false,
-  onCepBlur,
+  onCepChange,
 }: {
   data: Endereco;
   set: <K extends keyof Endereco>(k: K, v: Endereco[K]) => void;
   disabled?: boolean;
+  visualizando?: boolean;
   loadingCep?: boolean;
-  onCepBlur?: (value: string) => void;
+  onCepChange?: (value: string) => void;
 }) {
   return (
     <div className="grid sm:grid-cols-6 gap-4">
@@ -995,12 +1235,29 @@ function EnderecoFields({
         <Input
           id="cep"
           value={data.cep}
-          onChange={(e) => set("cep", maskCEP(e.target.value))}
-          onBlur={(e) => onCepBlur?.(e.target.value)}
+          onChange={(e) => {
+            if (visualizando) return;
+
+            const cepFormatado = maskCEP(e.target.value);
+            set("cep", cepFormatado);
+
+            const cepLimpo = cepFormatado.replace(/\D/g, "");
+
+            if (cepLimpo.length === 8) {
+              onCepChange?.(cepFormatado);
+            }
+          }}
           inputMode="numeric"
           disabled={disabled || loadingCep}
+          readOnly={visualizando}
           placeholder={loadingCep ? "Consultando..." : undefined}
         />
+
+        {loadingCep && !visualizando && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Buscando endereço...
+          </p>
+        )}
       </Field>
 
       <Field className="sm:col-span-4">
@@ -1013,6 +1270,7 @@ function EnderecoFields({
           value={data.logradouro}
           onChange={(e) => set("logradouro", e.target.value)}
           disabled={disabled}
+          readOnly={visualizando}
         />
       </Field>
 
@@ -1024,9 +1282,12 @@ function EnderecoFields({
         <Input
           id="numero"
           value={data.numero}
-          onChange={(e) => set("numero", e.target.value)}
+          onChange={(e) =>
+            set("numero", e.target.value.replace(/\D/g, "").slice(0, 6))
+          }
           inputMode="numeric"
           disabled={disabled}
+          readOnly={visualizando}
         />
       </Field>
 
@@ -1038,6 +1299,7 @@ function EnderecoFields({
           value={data.complemento}
           onChange={(e) => set("complemento", e.target.value)}
           disabled={disabled}
+          readOnly={visualizando}
         />
       </Field>
 
@@ -1051,6 +1313,7 @@ function EnderecoFields({
           value={data.bairro}
           onChange={(e) => set("bairro", e.target.value)}
           disabled={disabled}
+          readOnly={visualizando}
         />
       </Field>
 
@@ -1064,6 +1327,7 @@ function EnderecoFields({
           value={data.cidade}
           onChange={(e) => set("cidade", e.target.value)}
           disabled={disabled}
+          readOnly={visualizando}
         />
       </Field>
 
@@ -1074,7 +1338,10 @@ function EnderecoFields({
 
         <Select
           value={data.estado}
-          onValueChange={(v) => set("estado", v)}
+          onValueChange={(v) => {
+            if (visualizando) return;
+            set("estado", v);
+          }}
           disabled={disabled}
         >
           <SelectTrigger id="estado">
