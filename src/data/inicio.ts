@@ -1,0 +1,496 @@
+import {
+  getUsuarioLogado,
+  type UsuarioLogado,
+} from "@/lib/usuarioService";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+
+export interface InicioDados {
+  nomeUsuario: string;
+  nomeOrganizacao: string;
+  hasOrganizacao: boolean;
+
+  totalOrganizacoes: number;
+  totalAgentes: number;
+  totalDiretoria: number;
+
+  totalParticipantes: number;
+  totalColaboradores: number;
+  totalIntegrantes: number;
+
+  totalProjetos: number;
+  totalMetasProjeto: number;
+  totalAtividades: number;
+  totalTurmas: number;
+  totalPresencas: number;
+  totalCronogramas: number;
+
+  totalEventos: number;
+  totalAcoesDivulgacao: number;
+  totalPlanosComunicacao: number;
+
+  totalEvidencias: number;
+
+  totalFinanceiros: number;
+  totalPlanejamentosFinanceiros: number;
+
+  totalEditais: number;
+  totalPropostasEditais: number;
+  totalResultadosPropostas: number;
+  totalHabilitacoesPropostas: number;
+  totalEquipesEditais: number;
+
+  totalPrestacoesContas: number;
+  totalPrestacoesMetas: number;
+
+  totalPatrimonios: number;
+  totalEmprestimos: number;
+
+  totalCurriculos: number;
+  totalTrajetoriasCulturais: number;
+
+  totalDocumentos: number;
+  documentosAtualizados: number;
+  documentosVencidos: number;
+  documentosPendentes: number;
+}
+
+interface DocumentoLike {
+  statusDocumento?: string | null;
+  vencido?: boolean | null;
+}
+
+interface OrganizacaoLike {
+  id?: number | string;
+  razaoSocial?: string | null;
+  nomeFantasia?: string | null;
+  nomeOrganizacao?: string | null;
+  nome?: string | null;
+  cnpj?: string | null;
+}
+
+interface PageResponse<T> {
+  content?: T[];
+  data?: T[];
+  items?: T[];
+  results?: T[];
+}
+
+function getToken() {
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken") ||
+    localStorage.getItem("accessToken") ||
+    sessionStorage.getItem("token") ||
+    sessionStorage.getItem("authToken") ||
+    sessionStorage.getItem("accessToken") ||
+    ""
+  );
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const token = getToken();
+
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+async function parseError(response: Response): Promise<string> {
+  try {
+    const text = await response.text();
+
+    if (!text) {
+      if (response.status === 401) {
+        return "Sessão expirada ou token inválido. Faça login novamente.";
+      }
+
+      if (response.status === 403) {
+        return "Acesso negado.";
+      }
+
+      return `Erro ${response.status} ao processar requisição.`;
+    }
+
+    try {
+      const json = JSON.parse(text);
+
+      return (
+        json?.message ||
+        json?.error ||
+        json?.detail ||
+        json?.mensagem ||
+        text
+      );
+    } catch {
+      return text;
+    }
+  } catch {
+    return `Erro ${response.status} ao processar requisição.`;
+  }
+}
+
+function normalizeMessage(message: string) {
+  return message
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function isPlanoOuPermissaoMessage(message: string) {
+  const normalized = normalizeMessage(message);
+
+  return (
+    normalized.includes("plano") ||
+    normalized.includes("permissao") ||
+    normalized.includes("nao tem permissao") ||
+    normalized.includes("acesso negado") ||
+    normalized.includes("disponivel apenas no plano pago") ||
+    normalized.includes("este modulo esta disponivel apenas no plano pago") ||
+    normalized.includes("access denied") ||
+    normalized.includes("forbidden") ||
+    normalized.includes("403")
+  );
+}
+
+async function fetchJson<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function extractList<T>(data: unknown): T[] {
+  if (Array.isArray(data)) {
+    return data as T[];
+  }
+
+  if (data && typeof data === "object") {
+    const record = data as PageResponse<T>;
+
+    if (Array.isArray(record.content)) {
+      return record.content;
+    }
+
+    if (Array.isArray(record.data)) {
+      return record.data;
+    }
+
+    if (Array.isArray(record.items)) {
+      return record.items;
+    }
+
+    if (Array.isArray(record.results)) {
+      return record.results;
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Busca lista sem quebrar a página inicial.
+ *
+ * A tela inicial precisa funcionar em todos os planos.
+ * Se algum módulo pago retornar bloqueio de plano/permissão,
+ * o contador daquele módulo fica 0, mas a página continua carregando.
+ */
+async function fetchListSafe<T = unknown>(path: string): Promise<T[]> {
+  try {
+    const data = await fetchJson<unknown>(path);
+
+    return extractList<T>(data);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao buscar dados.";
+
+    if (isPlanoOuPermissaoMessage(message)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Tenta mais de uma rota para o mesmo módulo.
+ * Útil porque alguns módulos aparecem com nomes próximos,
+ * como /propostas-edital e /propostas-editais.
+ */
+async function fetchFirstAvailableList<T = unknown>(
+  paths: string[],
+): Promise<T[]> {
+  let lastError: unknown = null;
+
+  for (const path of paths) {
+    try {
+      return await fetchListSafe<T>(path);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError instanceof Error) {
+    const message = lastError.message;
+
+    if (isPlanoOuPermissaoMessage(message)) {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+function count(list: unknown[] | null | undefined) {
+  return Array.isArray(list) ? list.length : 0;
+}
+
+function getNomeUsuario(usuario?: UsuarioLogado | null): string {
+  return usuario?.name?.trim() || "Usuário";
+}
+
+async function getUsuarioLogadoNome(): Promise<string> {
+  try {
+    const usuario = await getUsuarioLogado();
+
+    return getNomeUsuario(usuario);
+  } catch (error) {
+    console.error("Erro ao buscar usuário logado na página inicial:", error);
+
+    return "Usuário";
+  }
+}
+
+function getNomeOrganizacao(organizacoes: OrganizacaoLike[]) {
+  const org = organizacoes[0];
+
+  return (
+    org?.razaoSocial?.trim() ||
+    org?.nomeFantasia?.trim() ||
+    org?.nomeOrganizacao?.trim() ||
+    org?.nome?.trim() ||
+    "sua organização"
+  );
+}
+
+function hasOrganizacaoValida(organizacoes: OrganizacaoLike[]) {
+  const org = organizacoes[0];
+
+  if (!org) return false;
+
+  return Boolean(
+    org.razaoSocial?.trim() ||
+      org.nomeFantasia?.trim() ||
+      org.nomeOrganizacao?.trim() ||
+      org.nome?.trim() ||
+      org.cnpj?.trim(),
+  );
+}
+
+function contarDocumentos(documentos: DocumentoLike[]) {
+  const documentosAtualizados = documentos.filter(
+    (d) => d.statusDocumento === "ATUALIZADO",
+  ).length;
+
+  const documentosVencidos = documentos.filter(
+    (d) => d.statusDocumento === "VENCIDO" || d.vencido === true,
+  ).length;
+
+  const documentosPendentes = documentos.filter(
+    (d) =>
+      d.statusDocumento === "PENDENTE" ||
+      d.statusDocumento === "NECESSITA_REVISAO" ||
+      d.statusDocumento === "EM_ANALISE",
+  ).length;
+
+  return {
+    documentosAtualizados,
+    documentosVencidos,
+    documentosPendentes,
+  };
+}
+
+export async function getInicioDados(): Promise<InicioDados> {
+  const [
+    nomeUsuario,
+
+    organizacoes,
+    diretoria,
+    documentos,
+    agentes,
+
+    colaboradores,
+    integrantes,
+    participantes,
+
+    curriculos,
+    trajetoriasCulturais,
+
+    projetos,
+    metasProjeto,
+    cronogramas,
+
+    atividades,
+    turmas,
+    presencas,
+
+    eventos,
+    acoesDivulgacao,
+    planosComunicacao,
+
+    financeiros,
+
+    editais,
+    propostasEditais,
+    resultadosPropostas,
+    habilitacoesPropostas,
+    equipesEditais,
+    planejamentosFinanceiros,
+
+    evidenciasExecucao,
+
+    prestacoesContas,
+    prestacoesMetas,
+
+    patrimonios,
+    emprestimos,
+  ] = await Promise.all([
+    getUsuarioLogadoNome(),
+
+    fetchListSafe<OrganizacaoLike>("/organizacoes"),
+    fetchFirstAvailableList(["/diretorias", "/diretoria"]),
+    fetchListSafe<DocumentoLike>("/documentos"),
+    fetchFirstAvailableList(["/agentes", "/agentes-culturais"]),
+
+    fetchListSafe("/colaboradores"),
+    fetchListSafe("/integrantes"),
+    fetchListSafe("/participantes"),
+
+    fetchListSafe("/curriculos"),
+    fetchListSafe("/trajetorias-culturais"),
+
+    fetchListSafe("/projetos"),
+    fetchFirstAvailableList(["/metas-projeto", "/metas-projetos"]),
+    fetchFirstAvailableList(["/cronogramas", "/cronograma"]),
+
+    fetchListSafe("/atividades"),
+    fetchListSafe("/turmas"),
+    fetchListSafe("/presencas"),
+
+    fetchListSafe("/eventos-culturais"),
+    fetchListSafe("/acoes-divulgacao"),
+    fetchFirstAvailableList([
+      "/planos-comunicacao",
+      "/plano-comunicacao",
+      "/planoComunicacao",
+    ]),
+
+    fetchFirstAvailableList(["/financeiros", "/financeiro"]),
+
+    fetchListSafe("/editais"),
+    fetchFirstAvailableList([
+      "/propostas-editais",
+      "/propostas-edital",
+    ]),
+    fetchFirstAvailableList([
+      "/resultados-propostas",
+      "/resultado-propostas",
+      "/resultados",
+      "/resultado-proposta",
+    ]),
+    fetchFirstAvailableList([
+      "/habilitacoes-propostas",
+      "/habilitacao-propostas",
+      "/habilitacoes",
+      "/habilitacao",
+    ]),
+    fetchFirstAvailableList([
+      "/equipes-editais",
+      "/equipe-edital",
+    ]),
+    fetchFirstAvailableList([
+      "/planejamentos-financeiros",
+      "/planejamento-financeiro",
+    ]),
+
+    fetchFirstAvailableList([
+      "/evidencias-execucao",
+      "/evidencias",
+    ]),
+
+    fetchFirstAvailableList([
+      "/prestacoes-contas",
+      "/prestacao-contas",
+    ]),
+    fetchFirstAvailableList([
+      "/prestacao-metas",
+      "/prestacoes-metas",
+    ]),
+
+    fetchFirstAvailableList(["/patrimonios", "/patrimonio"]),
+    fetchFirstAvailableList(["/emprestimos", "/emprestimos-patrimonio"]),
+  ]);
+
+  const {
+    documentosAtualizados,
+    documentosVencidos,
+    documentosPendentes,
+  } = contarDocumentos(documentos);
+
+  return {
+    nomeUsuario,
+    nomeOrganizacao: getNomeOrganizacao(organizacoes),
+    hasOrganizacao: hasOrganizacaoValida(organizacoes),
+
+    totalOrganizacoes: count(organizacoes),
+    totalAgentes: count(agentes),
+    totalDiretoria: count(diretoria),
+
+    totalParticipantes: count(participantes),
+    totalColaboradores: count(colaboradores),
+    totalIntegrantes: count(integrantes),
+
+    totalProjetos: count(projetos),
+    totalMetasProjeto: count(metasProjeto),
+    totalAtividades: count(atividades),
+    totalTurmas: count(turmas),
+    totalPresencas: count(presencas),
+    totalCronogramas: count(cronogramas),
+
+    totalEventos: count(eventos),
+    totalAcoesDivulgacao: count(acoesDivulgacao),
+    totalPlanosComunicacao: count(planosComunicacao),
+
+    totalEvidencias: count(evidenciasExecucao),
+
+    totalFinanceiros: count(financeiros),
+    totalPlanejamentosFinanceiros: count(planejamentosFinanceiros),
+
+    totalEditais: count(editais),
+    totalPropostasEditais: count(propostasEditais),
+    totalResultadosPropostas: count(resultadosPropostas),
+    totalHabilitacoesPropostas: count(habilitacoesPropostas),
+    totalEquipesEditais: count(equipesEditais),
+
+    totalPrestacoesContas: count(prestacoesContas),
+    totalPrestacoesMetas: count(prestacoesMetas),
+
+    totalPatrimonios: count(patrimonios),
+    totalEmprestimos: count(emprestimos),
+
+    totalCurriculos: count(curriculos),
+    totalTrajetoriasCulturais: count(trajetoriasCulturais),
+
+    totalDocumentos: count(documentos),
+    documentosAtualizados,
+    documentosVencidos,
+    documentosPendentes,
+  };
+}
