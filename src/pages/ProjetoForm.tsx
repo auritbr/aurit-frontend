@@ -96,7 +96,57 @@ const initial: FormState = {
   objetivos: [{ objetivoEspecifico: "" }],
 };
 
-function projetoToForm(projeto: Projeto): FormState {
+function toStringId(value: unknown): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  return String(value);
+}
+
+function resolverOrganizacaoId(
+  projeto: Projeto,
+  organizacoes: OrganizacaoOption[],
+): string {
+  const projetoRaw = projeto as any;
+
+  const idDireto = toStringId(projetoRaw.organizacaoId);
+
+  if (idDireto) {
+    return idDireto;
+  }
+
+  const idPorObjeto = toStringId(
+    projetoRaw.organizacao?.id ??
+      projetoRaw.organizacao?.organizacaoId ??
+      projetoRaw.organizacao?.codigo,
+  );
+
+  if (idPorObjeto) {
+    return idPorObjeto;
+  }
+
+  const idAlternativo = toStringId(
+    projetoRaw.idOrganizacao ??
+      projetoRaw.organizacao_id ??
+      projetoRaw.organizacaoID,
+  );
+
+  if (idAlternativo) {
+    return idAlternativo;
+  }
+
+  if (organizacoes.length === 1) {
+    return String(organizacoes[0].id);
+  }
+
+  return "";
+}
+
+function projetoToForm(
+  projeto: Projeto,
+  organizacoes: OrganizacaoOption[],
+): FormState {
   return {
     nomeProjeto: projeto.nomeProjeto ?? "",
     descricao: projeto.descricao ?? "",
@@ -109,17 +159,14 @@ function projetoToForm(projeto: Projeto): FormState {
     status: projeto.status ?? "",
     areaAtuacao: projeto.areaAtuacao ?? "",
     origemProjeto: projeto.origemProjeto ?? "",
-    organizacaoId:
-      projeto.organizacaoId !== null && projeto.organizacaoId !== undefined
-        ? String(projeto.organizacaoId)
-        : "",
+    organizacaoId: resolverOrganizacaoId(projeto, organizacoes),
     colaboradoresIds: (projeto.colaboradoresIds ?? []).map(String),
     objetivos:
       projeto.objetivos && projeto.objetivos.length > 0
         ? projeto.objetivos.map((objetivo) => ({
-          id: objetivo.id,
-          objetivoEspecifico: objetivo.objetivoEspecifico ?? "",
-        }))
+            id: objetivo.id,
+            objetivoEspecifico: objetivo.objetivoEspecifico ?? "",
+          }))
         : [{ objetivoEspecifico: "" }],
   };
 }
@@ -206,16 +253,15 @@ export default function ProjetoForm() {
         setColaboradores(colaboradoresData);
 
         if (projetoData) {
-          setForm(projetoToForm(projetoData));
+          setForm(projetoToForm(projetoData, organizacoesData));
         } else {
-          setForm((prev) => ({
+          setForm({
             ...initial,
             organizacaoId:
-              prev.organizacaoId ||
-              (organizacoesData.length === 1
+              organizacoesData.length === 1
                 ? String(organizacoesData[0].id)
-                : ""),
-          }));
+                : "",
+          });
         }
       } catch (error) {
         toast.error(
@@ -253,9 +299,9 @@ export default function ProjetoForm() {
       objetivos: prev.objetivos.map((objetivo, index) =>
         index === idx
           ? {
-            ...objetivo,
-            objetivoEspecifico: value,
-          }
+              ...objetivo,
+              objetivoEspecifico: value,
+            }
           : objetivo,
       ),
     }));
