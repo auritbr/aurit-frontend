@@ -478,451 +478,444 @@ export default function PatrimonioForm() {
         </div>
 
         {!visualizando && <FormLegend />}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Section icon={Building2} title="Vinculação institucional">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="organizacaoId"
+                  tooltip="Selecione a organização proprietária ou responsável por este bem patrimonial. Quando não informado, o backend deve vincular pela empresa logada."
+                >
+                  Organização
+                </FieldLabel>
 
-        {loading ? (
-          <div className="rounded border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            Carregando patrimônio...
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <Section icon={Building2} title="Vinculação institucional">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="organizacaoId"
-                    tooltip="Selecione a organização proprietária ou responsável por este bem patrimonial. Quando não informado, o backend deve vincular pela empresa logada."
-                  >
-                    Organização
-                  </FieldLabel>
+                <Select
+                  value={form.organizacaoId}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
 
-                  <Select
-                    value={form.organizacaoId}
-                    onValueChange={(value) => {
-                      if (visualizando) return;
+                    set("organizacaoId", value);
+                  }}
+                  disabled={bloqueado || organizacoes.length === 0}
+                >
+                  <SelectTrigger id="organizacaoId">
+                    <SelectValue placeholder="Vincular pela empresa logada" />
+                  </SelectTrigger>
 
-                      set("organizacaoId", value);
-                    }}
-                    disabled={bloqueado || organizacoes.length === 0}
-                  >
-                    <SelectTrigger id="organizacaoId">
-                      <SelectValue placeholder="Vincular pela empresa logada" />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {organizacoes.length === 0 ? (
-                        <SelectItem value="sem-organizacao" disabled>
-                          Nenhuma organização cadastrada
-                        </SelectItem>
-                      ) : (
-                        organizacoes.map((org) => (
-                          <SelectItem key={org.id} value={String(org.id)}>
-                            {org.nome}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="projetoId"
-                    tooltip="Selecione o projeto relacionado à origem, uso ou vinculação institucional do bem, quando houver."
-                  >
-                    Projeto
-                  </FieldLabel>
-
-                  <Select
-                    value={form.projetoId || SEM_PROJETO_VALUE}
-                    onValueChange={(value) => {
-                      if (visualizando) return;
-
-                      set(
-                        "projetoId",
-                        value === SEM_PROJETO_VALUE ? "" : value,
-                      );
-                    }}
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="projetoId">
-                      <SelectValue placeholder="Selecione um projeto, se houver" />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      <SelectItem value={SEM_PROJETO_VALUE}>
-                        Sem projeto vinculado
+                  <SelectContent>
+                    {organizacoes.length === 0 ? (
+                      <SelectItem value="sem-organizacao" disabled>
+                        Nenhuma organização cadastrada
                       </SelectItem>
-
-                      {projetos.map((projeto) => (
-                        <SelectItem key={projeto.id} value={String(projeto.id)}>
-                          {projeto.nome}
+                    ) : (
+                      organizacoes.map((org) => (
+                        <SelectItem key={org.id} value={String(org.id)}>
+                          {org.nome}
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-            </Section>
-
-            <Section icon={Tag} title="Identificação do bem">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="numeroPatrimonio"
-                    required={!visualizando}
-                    tooltip="Informe um código único para identificar o bem dentro da organização. Ex.: PAT-001, EQP-SOM-01 ou INST-2026-01."
-                  >
-                    Número do Patrimônio
-                  </FieldLabel>
-
-                  <Input
-                    id="numeroPatrimonio"
-                    value={form.numeroPatrimonio}
-                    onChange={(e) => set("numeroPatrimonio", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="nomePatrimonio"
-                    required={!visualizando}
-                    tooltip="Informe o nome pelo qual o bem é conhecido na organização. Ex.: Caixa de Som JBL, Violão Yamaha, Notebook Dell ou Mesa de Escritório."
-                  >
-                    Nome do Patrimônio
-                  </FieldLabel>
-
-                  <Input
-                    id="nomePatrimonio"
-                    value={form.nomePatrimonio}
-                    onChange={(e) => set("nomePatrimonio", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="marca"
-                    tooltip="Informe a marca do bem, quando houver. Ex.: Yamaha, JBL, Dell, Canon."
-                  >
-                    Marca
-                  </FieldLabel>
-
-                  <Input
-                    id="marca"
-                    value={form.marca}
-                    onChange={(e) => set("marca", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="modelo"
-                    tooltip="Informe o modelo do bem, quando houver. Ex.: C40, EON615, Inspiron 15."
-                  >
-                    Modelo
-                  </FieldLabel>
-
-                  <Input
-                    id="modelo"
-                    value={form.modelo}
-                    onChange={(e) => set("modelo", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="numeroSerie"
-                    tooltip="Informe o número de série do equipamento, quando existir. Esse dado ajuda na identificação em notas fiscais, garantias, seguros e inventários."
-                  >
-                    Número de Série
-                  </FieldLabel>
-
-                  <Input
-                    id="numeroSerie"
-                    value={form.numeroSerie}
-                    onChange={(e) => set("numeroSerie", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="urlNotaFiscal"
-                    tooltip="Anexe a nota fiscal, recibo, termo de doação, comprovante de compra ou outro documento que comprove a origem do bem."
-                  >
-                    Nota Fiscal
-                  </FieldLabel>
-
-                  <input
-                    ref={notaFiscalInputRef}
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.png,.jpg,.jpeg,.webp"
-                    onChange={handleNotaFiscalChange}
-                    disabled={bloqueado}
-                  />
-
-                  <div className="flex gap-2">
-                    <Input
-                      id="urlNotaFiscal"
-                      value={
-                        notaFiscalFile?.name ||
-                        getNomeArquivoPatrimonio(form.urlNotaFiscal)
-                      }
-                      readOnly
-                      disabled
-                      className="flex-1 cursor-not-allowed bg-muted/40"
-                      placeholder="Nenhum arquivo anexado"
-                    />
-
-                    {visualizando && form.urlNotaFiscal && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 gap-2"
-                        onClick={() => void abrirNotaFiscal()}
-                      >
-                        <FileText className="h-4 w-4" />
-                        Abrir
-                      </Button>
+                      ))
                     )}
+                  </SelectContent>
+                </Select>
+              </Field>
 
-                    {!visualizando && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 gap-2"
-                        onClick={abrirSeletorNotaFiscal}
-                        disabled={saving}
-                      >
-                        <Upload className="h-4 w-4" />
-                        Anexar
-                      </Button>
-                    )}
-                  </div>
+              <Field>
+                <FieldLabel
+                  htmlFor="projetoId"
+                  tooltip="Selecione o projeto relacionado à origem, uso ou vinculação institucional do bem, quando houver."
+                >
+                  Projeto
+                </FieldLabel>
 
-                  {!visualizando && form.urlNotaFiscal && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <p className="truncate text-xs text-muted-foreground">
-                        Arquivo selecionado: {notaFiscalFile?.name || getNomeArquivoPatrimonio(form.urlNotaFiscal)}
-                      </p>
+                <Select
+                  value={form.projetoId || SEM_PROJETO_VALUE}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={removerNotaFiscal}
-                        disabled={saving}
-                      >
-                        Limpar seleção
-                      </Button>
-                    </div>
+                    set(
+                      "projetoId",
+                      value === SEM_PROJETO_VALUE ? "" : value,
+                    );
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="projetoId">
+                    <SelectValue placeholder="Selecione um projeto, se houver" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value={SEM_PROJETO_VALUE}>
+                      Sem projeto vinculado
+                    </SelectItem>
+
+                    {projetos.map((projeto) => (
+                      <SelectItem key={projeto.id} value={String(projeto.id)}>
+                        {projeto.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </Section>
+
+          <Section icon={Tag} title="Identificação do bem">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="numeroPatrimonio"
+                  required={!visualizando}
+                  tooltip="Informe um código único para identificar o bem dentro da organização. Ex.: PAT-001, EQP-SOM-01 ou INST-2026-01."
+                >
+                  Número do Patrimônio
+                </FieldLabel>
+
+                <Input
+                  id="numeroPatrimonio"
+                  value={form.numeroPatrimonio}
+                  onChange={(e) => set("numeroPatrimonio", e.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="nomePatrimonio"
+                  required={!visualizando}
+                  tooltip="Informe o nome pelo qual o bem é conhecido na organização. Ex.: Caixa de Som JBL, Violão Yamaha, Notebook Dell ou Mesa de Escritório."
+                >
+                  Nome do Patrimônio
+                </FieldLabel>
+
+                <Input
+                  id="nomePatrimonio"
+                  value={form.nomePatrimonio}
+                  onChange={(e) => set("nomePatrimonio", e.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="marca"
+                  tooltip="Informe a marca do bem, quando houver. Ex.: Yamaha, JBL, Dell, Canon."
+                >
+                  Marca
+                </FieldLabel>
+
+                <Input
+                  id="marca"
+                  value={form.marca}
+                  onChange={(e) => set("marca", e.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="modelo"
+                  tooltip="Informe o modelo do bem, quando houver. Ex.: C40, EON615, Inspiron 15."
+                >
+                  Modelo
+                </FieldLabel>
+
+                <Input
+                  id="modelo"
+                  value={form.modelo}
+                  onChange={(e) => set("modelo", e.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="numeroSerie"
+                  tooltip="Informe o número de série do equipamento, quando existir. Esse dado ajuda na identificação em notas fiscais, garantias, seguros e inventários."
+                >
+                  Número de Série
+                </FieldLabel>
+
+                <Input
+                  id="numeroSerie"
+                  value={form.numeroSerie}
+                  onChange={(e) => set("numeroSerie", e.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="urlNotaFiscal"
+                  tooltip="Anexe a nota fiscal, recibo, termo de doação, comprovante de compra ou outro documento que comprove a origem do bem."
+                >
+                  Nota Fiscal
+                </FieldLabel>
+
+                <input
+                  ref={notaFiscalInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp"
+                  onChange={handleNotaFiscalChange}
+                  disabled={bloqueado}
+                />
+
+                <div className="flex gap-2">
+                  <Input
+                    id="urlNotaFiscal"
+                    value={
+                      notaFiscalFile?.name ||
+                      getNomeArquivoPatrimonio(form.urlNotaFiscal)
+                    }
+                    readOnly
+                    disabled
+                    className="flex-1 cursor-not-allowed bg-muted/40"
+                    placeholder="Nenhum arquivo anexado"
+                  />
+
+                  {visualizando && form.urlNotaFiscal && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 gap-2"
+                      onClick={() => void abrirNotaFiscal()}
+                    >
+                      <FileText className="h-4 w-4" />
+                      Abrir
+                    </Button>
                   )}
 
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Formatos aceitos: PDF, PNG, JPG, JPEG ou WEBP. Tamanho
-                    máximo: 10 MB.
-                  </p>
-                </Field>
-              </div>
-            </Section>
+                  {!visualizando && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 gap-2"
+                      onClick={abrirSeletorNotaFiscal}
+                      disabled={saving}
+                    >
+                      <Upload className="h-4 w-4" />
+                      Anexar
+                    </Button>
+                  )}
+                </div>
 
-            <Section icon={ClipboardList} title="Dados do patrimônio">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="dataAquisicao"
-                    required={!visualizando}
-                    tooltip="Informe a data em que o bem foi comprado, recebido, doado ou incorporado ao patrimônio da organização."
-                  >
-                    Data de Aquisição
-                  </FieldLabel>
+                {!visualizando && form.urlNotaFiscal && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <p className="truncate text-xs text-muted-foreground">
+                      Arquivo selecionado: {notaFiscalFile?.name || getNomeArquivoPatrimonio(form.urlNotaFiscal)}
+                    </p>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={removerNotaFiscal}
+                      disabled={saving}
+                    >
+                      Limpar seleção
+                    </Button>
+                  </div>
+                )}
+
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Formatos aceitos: PDF, PNG, JPG, JPEG ou WEBP. Tamanho
+                  máximo: 10 MB.
+                </p>
+              </Field>
+            </div>
+          </Section>
+
+          <Section icon={ClipboardList} title="Dados do patrimônio">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="dataAquisicao"
+                  required={!visualizando}
+                  tooltip="Informe a data em que o bem foi comprado, recebido, doado ou incorporado ao patrimônio da organização."
+                >
+                  Data de Aquisição
+                </FieldLabel>
+
+                <Input
+                  id="dataAquisicao"
+                  value={form.dataAquisicao}
+                  onChange={(e) =>
+                    set("dataAquisicao", maskDate(e.target.value))
+                  }
+                  inputMode="numeric"
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="valorPatrimonio"
+                  tooltip="Informe o valor do bem, quando houver nota fiscal, recibo, orçamento, termo de aquisição ou estimativa contábil."
+                >
+                  Valor do Patrimônio
+                </FieldLabel>
+
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    R$
+                  </span>
 
                   <Input
-                    id="dataAquisicao"
-                    value={form.dataAquisicao}
+                    id="valorPatrimonio"
+                    value={form.valorPatrimonio}
                     onChange={(e) =>
-                      set("dataAquisicao", maskDate(e.target.value))
+                      set("valorPatrimonio", maskCurrency(e.target.value))
                     }
-                    inputMode="numeric"
+                    inputMode="decimal"
+                    className="pl-9"
                     disabled={bloqueado}
                     readOnly={visualizando}
                   />
-                </Field>
+                </div>
+              </Field>
 
-                <Field>
-                  <FieldLabel
-                    htmlFor="valorPatrimonio"
-                    tooltip="Informe o valor do bem, quando houver nota fiscal, recibo, orçamento, termo de aquisição ou estimativa contábil."
-                  >
-                    Valor do Patrimônio
-                  </FieldLabel>
+              <Field full>
+                <FieldLabel
+                  htmlFor="descricaoPatrimonio"
+                  required={!visualizando}
+                  tooltip="Descreva o bem de forma clara, informando o que é, sua finalidade, principais características e como pode ser utilizado pela organização. Ex.: Caixa de som amplificada 500W utilizada em eventos culturais, apresentações e atividades comunitárias."
+                >
+                  Descrição do Patrimônio
+                </FieldLabel>
 
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      R$
-                    </span>
-
-                    <Input
-                      id="valorPatrimonio"
-                      value={form.valorPatrimonio}
-                      onChange={(e) =>
-                        set("valorPatrimonio", maskCurrency(e.target.value))
-                      }
-                      inputMode="decimal"
-                      className="pl-9"
-                      disabled={bloqueado}
-                      readOnly={visualizando}
-                    />
-                  </div>
-                </Field>
-
-                <Field full>
-                  <FieldLabel
-                    htmlFor="descricaoPatrimonio"
-                    required={!visualizando}
-                    tooltip="Descreva o bem de forma clara, informando o que é, sua finalidade, principais características e como pode ser utilizado pela organização. Ex.: Caixa de som amplificada 500W utilizada em eventos culturais, apresentações e atividades comunitárias."
-                  >
-                    Descrição do Patrimônio
-                  </FieldLabel>
-
-                  <Textarea
-                    id="descricaoPatrimonio"
-                    value={form.descricaoPatrimonio}
-                    onChange={(e) =>
-                      set("descricaoPatrimonio", e.target.value)
-                    }
-                    className="min-h-[90px] resize-none"
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-              </div>
-            </Section>
-
-            <Section icon={Layers} title="Classificação e situação">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <Field>
-                  <FieldLabel
-                    htmlFor="tipoPatrimonio"
-                    required={!visualizando}
-                    tooltip="Selecione a categoria que melhor representa o bem patrimonial. Ex.: Instrumento musical, equipamento de som, equipamento de informática, mobiliário, material permanente ou equipamento audiovisual."
-                  >
-                    Tipo de Patrimônio
-                  </FieldLabel>
-
-                  <Select
-                    value={form.tipoPatrimonio}
-                    onValueChange={(value) => {
-                      if (visualizando) return;
-                      set("tipoPatrimonio", value as TipoPatrimonioApi);
-                    }}
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="tipoPatrimonio">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-
-                    <SelectContent className="max-h-72">
-                      {tipoPatrimonioOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="estadoConservacao"
-                    required={!visualizando}
-                    tooltip="Informe a condição física atual do bem. Ex.: Novo, usado, danificado ou inutilizado."
-                  >
-                    Estado de Conservação
-                  </FieldLabel>
-
-                  <Select
-                    value={form.estadoConservacao}
-                    onValueChange={(value) => {
-                      if (visualizando) return;
-                      set("estadoConservacao", value as EstadoConservacaoApi);
-                    }}
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="estadoConservacao">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {estadoConservacaoOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="statusPatrimonio"
-                    required={!visualizando}
-                    tooltip="Defina a situação administrativa ou de uso do bem na organização. Ex.: Disponível, emprestado, em manutenção ou baixado."
-                  >
-                    Status do Patrimônio
-                  </FieldLabel>
-
-                  <Select
-                    value={form.statusPatrimonio}
-                    onValueChange={(value) => {
-                      if (visualizando) return;
-                      set("statusPatrimonio", value as StatusPatrimonioApi);
-                    }}
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="statusPatrimonio">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {statusPatrimonioOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-            </Section>
-
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate("/patrimonio")}
-                disabled={saving}
-              >
-                {visualizando ? "Voltar" : "Cancelar"}
-              </Button>
-
-              {!visualizando && (
-                <Button type="submit" className="sm:min-w-32" disabled={saving}>
-                  {saving ? "Salvando..." : "Salvar"}
-                </Button>
-              )}
+                <Textarea
+                  id="descricaoPatrimonio"
+                  value={form.descricaoPatrimonio}
+                  onChange={(e) =>
+                    set("descricaoPatrimonio", e.target.value)
+                  }
+                  className="min-h-[90px] resize-none"
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
             </div>
-          </form>
-        )}
+          </Section>
+
+          <Section icon={Layers} title="Classificação e situação">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field>
+                <FieldLabel
+                  htmlFor="tipoPatrimonio"
+                  required={!visualizando}
+                  tooltip="Selecione a categoria que melhor representa o bem patrimonial. Ex.: Instrumento musical, equipamento de som, equipamento de informática, mobiliário, material permanente ou equipamento audiovisual."
+                >
+                  Tipo de Patrimônio
+                </FieldLabel>
+
+                <Select
+                  value={form.tipoPatrimonio}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
+                    set("tipoPatrimonio", value as TipoPatrimonioApi);
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="tipoPatrimonio">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent className="max-h-72">
+                    {tipoPatrimonioOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="estadoConservacao"
+                  required={!visualizando}
+                  tooltip="Informe a condição física atual do bem. Ex.: Novo, usado, danificado ou inutilizado."
+                >
+                  Estado de Conservação
+                </FieldLabel>
+
+                <Select
+                  value={form.estadoConservacao}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
+                    set("estadoConservacao", value as EstadoConservacaoApi);
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="estadoConservacao">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {estadoConservacaoOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="statusPatrimonio"
+                  required={!visualizando}
+                  tooltip="Defina a situação administrativa ou de uso do bem na organização. Ex.: Disponível, emprestado, em manutenção ou baixado."
+                >
+                  Status do Patrimônio
+                </FieldLabel>
+
+                <Select
+                  value={form.statusPatrimonio}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
+                    set("statusPatrimonio", value as StatusPatrimonioApi);
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="statusPatrimonio">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {statusPatrimonioOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </Section>
+
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/patrimonio")}
+              disabled={saving}
+            >
+              {visualizando ? "Voltar" : "Cancelar"}
+            </Button>
+
+            {!visualizando && (
+              <Button type="submit" className="sm:min-w-32" disabled={saving}>
+                {saving ? "Salvando..." : "Salvar"}
+              </Button>
+            )}
+          </div>
+        </form>
       </div>
     </AppLayout>
   );

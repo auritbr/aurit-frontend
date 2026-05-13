@@ -71,8 +71,102 @@ interface ViaCepResponse {
   complemento?: string;
   bairro?: string;
   localidade?: string;
+  uf?: string;
   estado?: string;
   erro?: boolean;
+}
+
+const estadosPorUf: Record<string, string> = {
+  AC: "Acre",
+  AL: "Alagoas",
+  AP: "Amapá",
+  AM: "Amazonas",
+  BA: "Bahia",
+  CE: "Ceará",
+  DF: "Distrito Federal",
+  ES: "Espírito Santo",
+  GO: "Goiás",
+  MA: "Maranhão",
+  MT: "Mato Grosso",
+  MS: "Mato Grosso do Sul",
+  MG: "Minas Gerais",
+  PA: "Pará",
+  PB: "Paraíba",
+  PR: "Paraná",
+  PE: "Pernambuco",
+  PI: "Piauí",
+  RJ: "Rio de Janeiro",
+  RN: "Rio Grande do Norte",
+  RS: "Rio Grande do Sul",
+  RO: "Rondônia",
+  RR: "Roraima",
+  SC: "Santa Catarina",
+  SP: "São Paulo",
+  SE: "Sergipe",
+  TO: "Tocantins",
+};
+
+function normalizarChave(value?: string | null) {
+  return (value ?? "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function resolverEstadoParaSelect(value?: string | null): string {
+  const raw = (value ?? "").trim();
+
+  if (!raw) return "";
+
+  const direto = estadosBrasil.find((estado) => estado === raw);
+
+  if (direto) return direto;
+
+  const rawUpper = raw.toUpperCase();
+
+  if (rawUpper.length === 2) {
+    const opcaoUf = estadosBrasil.find(
+      (estado) => estado.toUpperCase() === rawUpper,
+    );
+
+    if (opcaoUf) return opcaoUf;
+
+    const nomeEstado = estadosPorUf[rawUpper];
+
+    if (nomeEstado) {
+      const opcaoNome = estadosBrasil.find(
+        (estado) => normalizarChave(estado) === normalizarChave(nomeEstado),
+      );
+
+      if (opcaoNome) return opcaoNome;
+    }
+  }
+
+  const ufPorNome = Object.entries(estadosPorUf).find(
+    ([, nome]) => normalizarChave(nome) === normalizarChave(raw),
+  )?.[0];
+
+  if (ufPorNome) {
+    const opcaoUf = estadosBrasil.find(
+      (estado) => estado.toUpperCase() === ufPorNome,
+    );
+
+    if (opcaoUf) return opcaoUf;
+
+    const opcaoNome = estadosBrasil.find(
+      (estado) =>
+        normalizarChave(estado) === normalizarChave(estadosPorUf[ufPorNome]),
+    );
+
+    if (opcaoNome) return opcaoNome;
+  }
+
+  const porNomeNormalizado = estadosBrasil.find(
+    (estado) => normalizarChave(estado) === normalizarChave(raw),
+  );
+
+  return porNomeNormalizado ?? "";
 }
 
 function maskRGFlex(value: string): string {
@@ -99,40 +193,6 @@ function maskRGFlex(value: string): string {
   return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, (_, a, b, c, d) =>
     d ? `${a}.${b}.${c}-${d}` : `${a}.${b}.${c}`,
   );
-}
-
-function mapUfToEstado(uf?: string): string {
-  const mapa: Record<string, string> = {
-    AC: "Acre",
-    AL: "Alagoas",
-    AP: "Amapá",
-    AM: "Amazonas",
-    BA: "Bahia",
-    CE: "Ceará",
-    DF: "Distrito Federal",
-    ES: "Espírito Santo",
-    GO: "Goiás",
-    MA: "Maranhão",
-    MT: "Mato Grosso",
-    MS: "Mato Grosso do Sul",
-    MG: "Minas Gerais",
-    PA: "Pará",
-    PB: "Paraíba",
-    PR: "Paraná",
-    PE: "Pernambuco",
-    PI: "Piauí",
-    RJ: "Rio de Janeiro",
-    RN: "Rio Grande do Norte",
-    RS: "Rio Grande do Sul",
-    RO: "Rondônia",
-    RR: "Roraima",
-    SC: "Santa Catarina",
-    SP: "São Paulo",
-    SE: "Sergipe",
-    TO: "Tocantins",
-  };
-
-  return uf ? mapa[uf] ?? "" : "";
 }
 
 function isValidEmail(value: string) {
@@ -178,6 +238,7 @@ export default function ColaboradorForm() {
           telefone: data.telefone ? maskPhone(data.telefone) : "",
           cep: data.cep ? maskCEP(data.cep) : "",
           rg: data.rg ? maskRGFlex(data.rg) : "",
+          estado: resolverEstadoParaSelect(data.estado),
         });
       } else {
         setForm(createEmptyColaborador());
@@ -324,7 +385,7 @@ export default function ColaboradorForm() {
         complemento: prev.complemento || data.complemento || "",
         bairro: data.bairro ?? "",
         cidade: data.localidade ?? "",
-        estado: mapUfToEstado(data.estado),
+        estado: resolverEstadoParaSelect(data.uf ?? data.estado),
       }));
     } catch (error) {
       console.error(error);
@@ -389,7 +450,6 @@ export default function ColaboradorForm() {
         )}
 
         {!visualizando && <FormLegend />}
-
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Section icon={User} title="Dados pessoais">

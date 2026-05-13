@@ -124,7 +124,7 @@ interface ViaCepResponse {
   complemento?: string;
   bairro?: string;
   localidade?: string;
-  estado?: string;
+  uf?: string;
   erro?: boolean;
 }
 
@@ -249,6 +249,25 @@ function mapUfToEstado(uf?: string): string {
   return uf ? mapa[uf] ?? "" : "";
 }
 
+
+function normalizarEstado(value?: string): string {
+  if (!value) return "";
+
+  const estado = value.trim();
+
+  if (!estado) return "";
+
+  if (estado.length === 2) {
+    return mapUfToEstado(estado.toUpperCase());
+  }
+
+  const encontrado = estadosBrasil.find(
+    (item) => item.toLowerCase() === estado.toLowerCase(),
+  );
+
+  return encontrado ?? estado;
+}
+
 function mapParticipanteToForm(participante: Participante): FormState {
   return {
     id: participante.id ?? "",
@@ -256,7 +275,7 @@ function mapParticipanteToForm(participante: Participante): FormState {
     nomeCompleto: participante.nomeCompleto ?? "",
     dataNascimento: participante.dataNascimento ?? "",
     cpf: participante.cpf ? maskCPF(participante.cpf) : "",
-    rg: participante.rg ?? "",
+    rg: participante.rg ? maskRGFlex(participante.rg) : "",
     telefone: participante.telefone ? maskPhone(participante.telefone) : "",
     email: participante.email ?? "",
 
@@ -266,13 +285,15 @@ function mapParticipanteToForm(participante: Participante): FormState {
     complemento: participante.complemento ?? "",
     bairro: participante.bairro ?? "",
     cidade: participante.cidade ?? "",
-    estado: participante.estado ?? "",
+    estado: normalizarEstado(participante.estado),
 
     nomeResponsavel: participante.nomeResponsavel ?? "",
     cpfResponsavel: participante.cpfResponsavel
       ? maskCPF(participante.cpfResponsavel)
       : "",
-    rgResponsavel: participante.rgResponsavel ?? "",
+    rgResponsavel: participante.rgResponsavel
+      ? maskRGFlex(participante.rgResponsavel)
+      : "",
     telefoneResponsavel: participante.telefoneResponsavel
       ? maskPhone(participante.telefoneResponsavel)
       : "",
@@ -444,7 +465,7 @@ export default function ParticipanteForm() {
         complemento: prev.complemento || data.complemento || "",
         bairro: data.bairro ?? "",
         cidade: data.localidade ?? "",
-        estado: mapUfToEstado(data.estado),
+        estado: mapUfToEstado(data.uf),
       }));
     } catch (error) {
       console.error(error);

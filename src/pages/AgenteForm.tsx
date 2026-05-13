@@ -140,6 +140,7 @@ interface ViaCepResponse {
   complemento?: string;
   bairro?: string;
   localidade?: string;
+  uf?: string;
   estado?: string;
   erro?: boolean;
 }
@@ -174,6 +175,99 @@ const emptyCol: Coletivo = {
   nome: "",
   dataCriacao: "",
 };
+
+const estadosPorUf: Record<string, string> = {
+  AC: "Acre",
+  AL: "Alagoas",
+  AP: "Amapá",
+  AM: "Amazonas",
+  BA: "Bahia",
+  CE: "Ceará",
+  DF: "Distrito Federal",
+  ES: "Espírito Santo",
+  GO: "Goiás",
+  MA: "Maranhão",
+  MT: "Mato Grosso",
+  MS: "Mato Grosso do Sul",
+  MG: "Minas Gerais",
+  PA: "Pará",
+  PB: "Paraíba",
+  PR: "Paraná",
+  PE: "Pernambuco",
+  PI: "Piauí",
+  RJ: "Rio de Janeiro",
+  RN: "Rio Grande do Norte",
+  RS: "Rio Grande do Sul",
+  RO: "Rondônia",
+  RR: "Roraima",
+  SC: "Santa Catarina",
+  SP: "São Paulo",
+  SE: "Sergipe",
+  TO: "Tocantins",
+};
+
+function normalizarChave(value?: string | null) {
+  return (value ?? "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function resolverEstadoParaSelect(value?: string | null): string {
+  const raw = (value ?? "").trim();
+
+  if (!raw) return "";
+
+  const direto = estadosBrasil.find((estado) => estado === raw);
+
+  if (direto) return direto;
+
+  const rawUpper = raw.toUpperCase();
+
+  if (rawUpper.length === 2) {
+    const ufDireta = estadosBrasil.find(
+      (estado) => estado.toUpperCase() === rawUpper,
+    );
+
+    if (ufDireta) return ufDireta;
+
+    const nomeEstado = estadosPorUf[rawUpper];
+
+    if (nomeEstado) {
+      const porNome = estadosBrasil.find(
+        (estado) => normalizarChave(estado) === normalizarChave(nomeEstado),
+      );
+
+      if (porNome) return porNome;
+    }
+  }
+
+  const ufPorNome = Object.entries(estadosPorUf).find(
+    ([, nome]) => normalizarChave(nome) === normalizarChave(raw),
+  )?.[0];
+
+  if (ufPorNome) {
+    const opcaoPorUf = estadosBrasil.find(
+      (estado) => estado.toUpperCase() === ufPorNome,
+    );
+
+    if (opcaoPorUf) return opcaoPorUf;
+
+    const opcaoPorNome = estadosBrasil.find(
+      (estado) =>
+        normalizarChave(estado) === normalizarChave(estadosPorUf[ufPorNome]),
+    );
+
+    if (opcaoPorNome) return opcaoPorNome;
+  }
+
+  const porNomeNormalizado = estadosBrasil.find(
+    (estado) => normalizarChave(estado) === normalizarChave(raw),
+  );
+
+  return porNomeNormalizado ?? "";
+}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -260,48 +354,6 @@ function maskRGFlex(value: string): string {
   return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, (_, a, b, c, d) =>
     d ? `${a}.${b}.${c}-${d}` : `${a}.${b}.${c}`,
   );
-}
-
-function mapUfToEstado(uf?: string | null): string {
-  const mapa: Record<string, string> = {
-    AC: "Acre",
-    AL: "Alagoas",
-    AP: "Amapá",
-    AM: "Amazonas",
-    BA: "Bahia",
-    CE: "Ceará",
-    DF: "Distrito Federal",
-    ES: "Espírito Santo",
-    GO: "Goiás",
-    MA: "Maranhão",
-    MT: "Mato Grosso",
-    MS: "Mato Grosso do Sul",
-    MG: "Minas Gerais",
-    PA: "Pará",
-    PB: "Paraíba",
-    PR: "Paraná",
-    PE: "Pernambuco",
-    PI: "Piauí",
-    RJ: "Rio de Janeiro",
-    RN: "Rio Grande do Norte",
-    RS: "Rio Grande do Sul",
-    RO: "Rondônia",
-    RR: "Roraima",
-    SC: "Santa Catarina",
-    SP: "São Paulo",
-    SE: "Sergipe",
-    TO: "Tocantins",
-  };
-
-  if (!uf) return "";
-
-  const value = uf.trim();
-
-  if (estadosBrasil.includes(value)) {
-    return value;
-  }
-
-  return mapa[value.toUpperCase()] ?? "";
 }
 
 function isValidEmail(value: string) {
@@ -509,7 +561,7 @@ export default function AgenteForm() {
           complemento: normalizeText(data.complemento),
           bairro: normalizeText(data.bairro),
           cidade: normalizeText(data.cidade),
-          estado: mapUfToEstado(data.estado),
+          estado: resolverEstadoParaSelect(data.estado),
         });
       } catch (error) {
         const message =
@@ -562,7 +614,7 @@ export default function AgenteForm() {
         complemento: prev.complemento || data.complemento || "",
         bairro: data.bairro ?? "",
         cidade: data.localidade ?? "",
-        estado: mapUfToEstado(data.estado),
+        estado: resolverEstadoParaSelect(data.uf ?? data.estado),
       }));
     } catch (error) {
       console.error(error);

@@ -95,6 +95,7 @@ interface ViaCepResponse {
   complemento?: string;
   bairro?: string;
   localidade?: string;
+  uf?: string;
   estado?: string;
   erro?: boolean;
 }
@@ -114,6 +115,99 @@ const requiredFields: Array<[keyof DiretoriaData, string]> = [
   ["cidade", "Cidade"],
   ["estado", "Estado"],
 ];
+
+const estadosPorUf: Record<string, string> = {
+  AC: "Acre",
+  AL: "Alagoas",
+  AP: "Amapá",
+  AM: "Amazonas",
+  BA: "Bahia",
+  CE: "Ceará",
+  DF: "Distrito Federal",
+  ES: "Espírito Santo",
+  GO: "Goiás",
+  MA: "Maranhão",
+  MT: "Mato Grosso",
+  MS: "Mato Grosso do Sul",
+  MG: "Minas Gerais",
+  PA: "Pará",
+  PB: "Paraíba",
+  PR: "Paraná",
+  PE: "Pernambuco",
+  PI: "Piauí",
+  RJ: "Rio de Janeiro",
+  RN: "Rio Grande do Norte",
+  RS: "Rio Grande do Sul",
+  RO: "Rondônia",
+  RR: "Roraima",
+  SC: "Santa Catarina",
+  SP: "São Paulo",
+  SE: "Sergipe",
+  TO: "Tocantins",
+};
+
+function normalizarChave(value?: string | null) {
+  return (value ?? "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function resolverEstadoParaSelect(value?: string | null): string {
+  const raw = (value ?? "").trim();
+
+  if (!raw) return "";
+
+  const direto = estadosBrasil.find((estado) => estado === raw);
+
+  if (direto) return direto;
+
+  const rawUpper = raw.toUpperCase();
+
+  if (rawUpper.length === 2) {
+    const opcaoUf = estadosBrasil.find(
+      (estado) => estado.toUpperCase() === rawUpper,
+    );
+
+    if (opcaoUf) return opcaoUf;
+
+    const nomeEstado = estadosPorUf[rawUpper];
+
+    if (nomeEstado) {
+      const opcaoNome = estadosBrasil.find(
+        (estado) => normalizarChave(estado) === normalizarChave(nomeEstado),
+      );
+
+      if (opcaoNome) return opcaoNome;
+    }
+  }
+
+  const ufPorNome = Object.entries(estadosPorUf).find(
+    ([, nome]) => normalizarChave(nome) === normalizarChave(raw),
+  )?.[0];
+
+  if (ufPorNome) {
+    const opcaoUf = estadosBrasil.find(
+      (estado) => estado.toUpperCase() === ufPorNome,
+    );
+
+    if (opcaoUf) return opcaoUf;
+
+    const opcaoNome = estadosBrasil.find(
+      (estado) =>
+        normalizarChave(estado) === normalizarChave(estadosPorUf[ufPorNome]),
+    );
+
+    if (opcaoNome) return opcaoNome;
+  }
+
+  const porNomeNormalizado = estadosBrasil.find(
+    (estado) => normalizarChave(estado) === normalizarChave(raw),
+  );
+
+  return porNomeNormalizado ?? "";
+}
 
 function maskRGFlex(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -140,40 +234,6 @@ function maskRGFlex(value: string): string {
   return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, (_, a, b, c, d) =>
     d ? `${a}.${b}.${c}-${d}` : `${a}.${b}.${c}`,
   );
-}
-
-function mapUfToEstado(uf?: string): string {
-  const mapa: Record<string, string> = {
-    AC: "Acre",
-    AL: "Alagoas",
-    AP: "Amapá",
-    AM: "Amazonas",
-    BA: "Bahia",
-    CE: "Ceará",
-    DF: "Distrito Federal",
-    ES: "Espírito Santo",
-    GO: "Goiás",
-    MA: "Maranhão",
-    MT: "Mato Grosso",
-    MS: "Mato Grosso do Sul",
-    MG: "Minas Gerais",
-    PA: "Pará",
-    PB: "Paraíba",
-    PR: "Paraná",
-    PE: "Pernambuco",
-    PI: "Piauí",
-    RJ: "Rio de Janeiro",
-    RN: "Rio Grande do Norte",
-    RS: "Rio Grande do Sul",
-    RO: "Rondônia",
-    RR: "Roraima",
-    SC: "Santa Catarina",
-    SP: "São Paulo",
-    SE: "Sergipe",
-    TO: "Tocantins",
-  };
-
-  return uf ? mapa[uf] ?? "" : "";
 }
 
 const isValidEmail = (value: string) =>
@@ -324,6 +384,7 @@ export default function Diretoria() {
           telefone: item.telefone ? maskPhone(item.telefone) : "",
           cep: item.cep ? maskCEP(item.cep) : "",
           rg: item.rg ? maskRGFlex(item.rg) : "",
+          estado: resolverEstadoParaSelect(item.estado),
         })),
       );
 
@@ -344,7 +405,7 @@ export default function Diretoria() {
   const organizacaoNome = (organizacaoId?: string) =>
     organizacaoId
       ? organizacoes.find((entry) => String(entry.id) === String(organizacaoId))
-        ?.nome ?? "—"
+          ?.nome ?? "—"
       : "—";
 
   const filteredRegistros = useMemo(() => {
@@ -391,7 +452,10 @@ export default function Diretoria() {
     }
 
     setSelectedId(record.id);
-    setForm(record);
+    setForm({
+      ...record,
+      estado: resolverEstadoParaSelect(record.estado),
+    });
     setMode(nextMode);
     setShowForm(true);
   };
@@ -527,7 +591,7 @@ export default function Diretoria() {
         complemento: prev.complemento || data.complemento || "",
         bairro: data.bairro ?? "",
         cidade: data.localidade ?? "",
-        estado: mapUfToEstado(data.estado),
+        estado: resolverEstadoParaSelect(data.uf ?? data.estado),
       }));
     } catch (error) {
       console.error(error);
@@ -633,6 +697,7 @@ export default function Diretoria() {
         telefone: saved.telefone ? maskPhone(saved.telefone) : "",
         cep: saved.cep ? maskCEP(saved.cep) : "",
         rg: saved.rg ? maskRGFlex(saved.rg) : "",
+        estado: resolverEstadoParaSelect(saved.estado),
       };
 
       setRegistros((prev) => {
@@ -695,8 +760,9 @@ export default function Diretoria() {
   return (
     <AppLayout>
       <div
-        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"
-          } py-6 sm:py-8`}
+        className={`container ${
+          showForm ? "max-w-4xl" : "max-w-7xl"
+        } py-6 sm:py-8`}
       >
         {showForm && (
           <button
