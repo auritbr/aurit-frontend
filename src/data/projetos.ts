@@ -2,216 +2,96 @@ import { getJsonHeaders } from "@/lib/apiHeaders";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
-export const statusPropostaEditalOptions = [
-  { value: "EM_PREPARACAO", label: "Em preparação" },
-  { value: "SUBMETIDA", label: "Submetida" },
-  { value: "EM_HABILITACAO", label: "Em habilitação" },
-  { value: "EM_DILIGENCIA", label: "Em diligência" },
-  { value: "APROVADA", label: "Aprovada" },
-  { value: "SUPLENTE", label: "Suplente" },
-  { value: "REPROVADA", label: "Reprovada" },
-  { value: "CANCELADA", label: "Cancelada" },
-  { value: "EM_EXECUCAO", label: "Em execução" },
-  { value: "EM_PRESTACAO_DE_CONTAS", label: "Em prestação de contas" },
-  { value: "FINALIZADA", label: "Finalizada" },
-] as const;
+export type StatusProjeto = "ATIVO" | "INATIVO" | "PENDENTE" | "CONCLUIDO";
 
-export type StatusPropostaEdital =
-  (typeof statusPropostaEditalOptions)[number]["value"];
+export type AreaAtuacao =
+  | "CULTURA_ARTE"
+  | "EDUCACAO"
+  | "ASSISTENCIA_SOCIAL"
+  | "ESPORTE"
+  | "MEIO_AMBIENTE"
+  | "ECONOMIA"
+  | "DIREITOS_HUMANOS"
+  | "SAUDE"
+  | "TECNOLOGIA"
+  | "OUTRO";
 
-export const statusPropostaEditalLabel = (value?: string) =>
-  statusPropostaEditalOptions.find((item) => item.value === value)?.label ??
-  "—";
+export type OrigemProjeto =
+  | "EDITAL"
+  | "RECURSO_PROPRIO"
+  | "PARCERIA"
+  | "PATROCINIO"
+  | "DOACAO"
+  | "VOLUNTARIO"
+  | "INSTITUCIONAL"
+  | "OUTRO";
 
-export const statusPropostaEditalTone = (
-  value?: string,
-): "neutral" | "info" | "warning" | "success" | "danger" => {
-  switch (value) {
-    case "APROVADA":
-    case "FINALIZADA":
-      return "success";
+export const statusProjetoOptions: { value: StatusProjeto; label: string }[] = [
+  { value: "ATIVO", label: "Ativo" },
+  { value: "INATIVO", label: "Inativo" },
+  { value: "PENDENTE", label: "Pendente" },
+  { value: "CONCLUIDO", label: "Concluído" },
+];
 
-    case "REPROVADA":
-    case "CANCELADA":
-      return "danger";
+export const areaAtuacaoOptions: { value: AreaAtuacao; label: string }[] = [
+  { value: "CULTURA_ARTE", label: "Cultura e Arte" },
+  { value: "EDUCACAO", label: "Educação" },
+  { value: "ASSISTENCIA_SOCIAL", label: "Assistência Social" },
+  { value: "ESPORTE", label: "Esporte" },
+  { value: "MEIO_AMBIENTE", label: "Meio Ambiente" },
+  { value: "ECONOMIA", label: "Economia" },
+  { value: "DIREITOS_HUMANOS", label: "Direitos Humanos" },
+  { value: "SAUDE", label: "Saúde" },
+  { value: "TECNOLOGIA", label: "Tecnologia" },
+  { value: "OUTRO", label: "Outro" },
+];
 
-    case "EM_PREPARACAO":
-    case "SUPLENTE":
-    case "EM_DILIGENCIA":
-      return "warning";
+export const origemProjetoOptions: { value: OrigemProjeto; label: string }[] = [
+  { value: "EDITAL", label: "Edital" },
+  { value: "RECURSO_PROPRIO", label: "Recurso Próprio" },
+  { value: "PARCERIA", label: "Parceria" },
+  { value: "PATROCINIO", label: "Patrocínio" },
+  { value: "DOACAO", label: "Doação" },
+  { value: "VOLUNTARIO", label: "Voluntário" },
+  { value: "INSTITUCIONAL", label: "Institucional" },
+  { value: "OUTRO", label: "Outro" },
+];
 
-    case "SUBMETIDA":
-    case "EM_HABILITACAO":
-    case "EM_EXECUCAO":
-    case "EM_PRESTACAO_DE_CONTAS":
-      return "info";
+export const statusProjetoLabel = (v?: StatusProjeto | string) =>
+  statusProjetoOptions.find((s) => s.value === v)?.label ?? v ?? "—";
 
-    default:
-      return "neutral";
-  }
-};
+export const areaAtuacaoLabel = (v?: AreaAtuacao | string) =>
+  areaAtuacaoOptions.find((a) => a.value === v)?.label ?? v ?? "—";
 
-export interface PropostaEditalDTO {
-  id?: number;
-  tituloProjeto: string;
-  resumoProjeto: string;
-  justificativaProjeto: string;
-  metodologiaExecucao: string;
-  democratizacaoAcesso: string;
-  acoesAcessibilidade: string;
-  impactoEsperado: string;
-  observacoesInternas?: string | null;
-  motivoReprovacao?: string | null;
-  valorSolicitado: number;
-  valorContrapartida?: number | null;
-  dataSubmissao?: string | null;
-  statusPropostaEdital: StatusPropostaEdital;
+export const origemProjetoLabel = (v?: OrigemProjeto | string) =>
+  origemProjetoOptions.find((o) => o.value === v)?.label ?? v ?? "—";
 
-  organizacaoId?: number | string | null;
-  editalId?: number | string | null;
-  projetoId?: number | string | null;
-  agenteId?: number | string | null;
-  equipesEditaisIds?: Array<number | string> | null;
+function isoToBr(date?: string | null) {
+  if (!date) return "";
 
-  organizacao?: { id?: number | string } | number | string | null;
-  edital?: { id?: number | string } | number | string | null;
-  projeto?: { id?: number | string } | number | string | null;
-  agente?: { id?: number | string } | number | string | null;
-  equipesEditais?: Array<{ id?: number | string } | number | string> | null;
+  const [year, month, day] = date.split("-");
+
+  if (!year || !month || !day) return date;
+
+  return `${day}/${month}/${year}`;
 }
 
-export interface PropostaEdital {
-  id: string;
-  tituloProjeto: string;
-  resumoProjeto: string;
-  justificativaProjeto: string;
-  metodologiaExecucao: string;
-  democratizacaoAcesso: string;
-  acoesAcessibilidade: string;
-  impactoEsperado: string;
-  valorSolicitado: number;
-  valorContrapartida?: number;
-  dataSubmissao: string;
-  statusPropostaEdital: StatusPropostaEdital;
-  organizacao: string;
-  edital: string;
-  projeto: string;
-  agente: string;
-  observacoesInternas: string;
-  motivoReprovacao: string;
-  equipesEditaisIds: string[];
-}
+function brToIso(date?: string | null) {
+  if (!date) return "";
 
-export interface SimpleOption {
-  id: string;
-  nome: string;
-}
+  const clean = date.trim();
 
-export interface EquipeEditalOption {
-  id: string;
-  propostaEditalId?: string;
-  colaboradorId?: string;
-  integranteId?: string;
-  funcaoProjeto?: string;
-  cargaHorariaPrevista?: number;
-  valorPrevisto?: number;
-}
-
-interface AgenteApi {
-  id?: number | string;
-  nomePrincipal?: string | null;
-  nomeCompleto?: string | null;
-  nomeColetivo?: string | null;
-  nomeFantasia?: string | null;
-  razaoSocial?: string | null;
-  nome?: string | null;
-}
-
-interface ProjetoApi {
-  id?: number | string;
-  nomeProjeto?: string | null;
-  nome?: string | null;
-  titulo?: string | null;
-}
-
-interface EditalApi {
-  id?: number | string;
-  nomeEdital?: string | null;
-  tituloEdital?: string | null;
-  nome?: string | null;
-  titulo?: string | null;
-}
-
-interface OrganizacaoApi {
-  id?: number | string;
-  nomeOrganizacao?: string | null;
-  nomeFantasia?: string | null;
-  razaoSocial?: string | null;
-  nome?: string | null;
-}
-
-interface EquipeEditalApi {
-  id?: number | string;
-  propostaEditalId?: number | string | null;
-  propostaEdital?: { id?: number | string } | number | string | null;
-  colaboradorId?: number | string | null;
-  colaborador?: { id?: number | string } | number | string | null;
-  integranteId?: number | string | null;
-  integrante?: { id?: number | string } | number | string | null;
-  funcaoProjeto?: string | null;
-  cargaHorariaPrevista?: number | string | null;
-  valorPrevisto?: number | string | null;
-}
-
-function normalizeId(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "";
-
-  if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-
-    if (record.id !== null && record.id !== undefined) {
-      return String(record.id);
-    }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+    return clean;
   }
 
-  return String(value);
-}
+  const [day, month, year] = clean.split("/");
 
-function normalizeNumber(value: unknown): number | undefined {
-  if (value === null || value === undefined || value === "") return undefined;
-
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : undefined;
+  if (!day || !month || !year) {
+    return clean;
   }
 
-  if (typeof value === "string") {
-    const normalized = value
-      .replace(/[^\d,.-]/g, "")
-      .replace(/\./g, "")
-      .replace(",", ".");
-
-    const parsed = Number(normalized);
-
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-
-  return undefined;
-}
-
-function normalizeIdsList(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-
-  return value.map(normalizeId).filter(Boolean);
-}
-
-function pickText(...values: Array<unknown>) {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
-  }
-
-  return "";
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
 async function parseError(response: Response): Promise<string> {
@@ -248,204 +128,149 @@ async function parseError(response: Response): Promise<string> {
   }
 }
 
-export function formatDateBr(iso?: string) {
-  if (!iso) return "—";
+function normalizeId(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
 
-  const [year, month, day] = iso.split("-");
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
 
-  if (!year || !month || !day) return "—";
+    if (record.id !== null && record.id !== undefined) {
+      const id = Number(record.id);
+      return Number.isFinite(id) ? id : null;
+    }
+  }
 
-  return `${day}/${month}/${year}`;
+  const id = Number(value);
+
+  return Number.isFinite(id) ? id : null;
 }
 
-export function formatBRLNumber(value?: number) {
-  return typeof value === "number" && Number.isFinite(value)
-    ? value.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
-    : "—";
+function pickText(...values: Array<unknown>) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "";
 }
 
-export function mapProposta(dto: PropostaEditalDTO): PropostaEdital {
-  const organizacaoId = normalizeId(dto.organizacaoId ?? dto.organizacao);
-  const editalId = normalizeId(dto.editalId ?? dto.edital);
-  const projetoId = normalizeId(dto.projetoId ?? dto.projeto);
-  const agenteId = normalizeId(dto.agenteId ?? dto.agente);
+export interface ObjetivoDTO {
+  id?: number;
+  objetivoEspecifico: string;
+  projetoId?: number;
+}
 
-  const equipesIds = normalizeIdsList(
-    dto.equipesEditaisIds ?? dto.equipesEditais ?? [],
-  );
+export interface ProjetoDTO {
+  id?: number;
+  nomeProjeto: string;
+  descricao: string;
+  objetivoGeral: string;
+  publicoAlvo: string;
+  acoesAcessibilidade: string;
+  localExecucao: string;
+  dataInicio: string;
+  dataFim: string;
+  areaAtuacao: AreaAtuacao;
+  status: StatusProjeto;
+  origemProjeto: OrigemProjeto;
+  organizacaoId: number;
+  objetivos: ObjetivoDTO[];
+  colaboradoresIds: number[];
+}
+
+export interface Projeto {
+  id: number;
+  nomeProjeto: string;
+  descricao: string;
+  objetivoGeral: string;
+  publicoAlvo: string;
+  acoesAcessibilidade: string;
+  localExecucao: string;
+  dataInicio: string;
+  dataFim: string;
+  status: StatusProjeto;
+  areaAtuacao: AreaAtuacao;
+  origemProjeto: OrigemProjeto;
+  organizacaoId: number | null;
+  colaboradoresIds: number[];
+  objetivos: ObjetivoDTO[];
+}
+
+export interface OrganizacaoOption {
+  id: number;
+  nome: string;
+}
+
+interface OrganizacaoApiResponse {
+  id?: number;
+  razaoSocial?: string | null;
+  nomeFantasia?: string | null;
+  nomeOrganizacao?: string | null;
+  nome?: string | null;
+}
+
+export function mapProjeto(dto: ProjetoDTO): Projeto {
+  const organizacaoId = normalizeId(dto.organizacaoId);
 
   return {
-    id: normalizeId(dto.id),
-    tituloProjeto: dto.tituloProjeto ?? "",
-    resumoProjeto: dto.resumoProjeto ?? "",
-    justificativaProjeto: dto.justificativaProjeto ?? "",
-    metodologiaExecucao: dto.metodologiaExecucao ?? "",
-    democratizacaoAcesso: dto.democratizacaoAcesso ?? "",
+    id: Number(dto.id ?? 0),
+    nomeProjeto: dto.nomeProjeto ?? "",
+    descricao: dto.descricao ?? "",
+    objetivoGeral: dto.objetivoGeral ?? "",
+    publicoAlvo: dto.publicoAlvo ?? "",
     acoesAcessibilidade: dto.acoesAcessibilidade ?? "",
-    impactoEsperado: dto.impactoEsperado ?? "",
-    observacoesInternas: dto.observacoesInternas ?? "",
-    motivoReprovacao: dto.motivoReprovacao ?? "",
-    valorSolicitado: Number(dto.valorSolicitado ?? 0),
-    valorContrapartida: normalizeNumber(dto.valorContrapartida),
-    dataSubmissao: dto.dataSubmissao ?? "",
-    statusPropostaEdital: dto.statusPropostaEdital ?? "EM_PREPARACAO",
-    organizacao: organizacaoId,
-    edital: editalId,
-    projeto: projetoId,
-    agente: agenteId,
-    equipesEditaisIds: equipesIds,
+    localExecucao: dto.localExecucao ?? "",
+    dataInicio: isoToBr(dto.dataInicio),
+    dataFim: isoToBr(dto.dataFim),
+    status: dto.status ?? "ATIVO",
+    areaAtuacao: dto.areaAtuacao ?? "OUTRO",
+    origemProjeto: dto.origemProjeto ?? "OUTRO",
+    organizacaoId,
+    colaboradoresIds: (dto.colaboradoresIds ?? [])
+      .map(Number)
+      .filter((id) => Number.isFinite(id)),
+    objetivos: (dto.objetivos ?? []).map((objetivo) => ({
+      id: objetivo.id,
+      objetivoEspecifico: objetivo.objetivoEspecifico ?? "",
+      projetoId: objetivo.projetoId,
+    })),
   };
 }
 
-export function buildPropostaPayload(
-  item: PropostaEdital,
-): PropostaEditalDTO {
+export function buildProjetoPayload(projeto: Projeto): ProjetoDTO {
+  if (projeto.organizacaoId === null || projeto.organizacaoId === undefined) {
+    throw new Error("Organização é obrigatória.");
+  }
+
   return {
-    id: item.id ? Number(item.id) : undefined,
-    tituloProjeto: item.tituloProjeto.trim(),
-    resumoProjeto: item.resumoProjeto.trim(),
-    justificativaProjeto: item.justificativaProjeto.trim(),
-    metodologiaExecucao: item.metodologiaExecucao.trim(),
-    democratizacaoAcesso: item.democratizacaoAcesso.trim(),
-    acoesAcessibilidade: item.acoesAcessibilidade.trim(),
-    impactoEsperado: item.impactoEsperado.trim(),
-    observacoesInternas: item.observacoesInternas?.trim() || null,
-    motivoReprovacao: item.motivoReprovacao?.trim() || null,
-    valorSolicitado: Number(item.valorSolicitado || 0),
-    valorContrapartida:
-      typeof item.valorContrapartida === "number" &&
-      Number.isFinite(item.valorContrapartida)
-        ? item.valorContrapartida
-        : null,
-    dataSubmissao: item.dataSubmissao?.trim() || null,
-    statusPropostaEdital: item.statusPropostaEdital,
-    organizacaoId: item.organizacao ? Number(item.organizacao) : null,
-    editalId: item.edital ? Number(item.edital) : null,
-    projetoId: item.projeto ? Number(item.projeto) : null,
-    agenteId: item.agente ? Number(item.agente) : null,
-    equipesEditaisIds: (item.equipesEditaisIds ?? [])
-      .filter(Boolean)
+    id: projeto.id ? Number(projeto.id) : undefined,
+    nomeProjeto: projeto.nomeProjeto.trim(),
+    descricao: projeto.descricao.trim(),
+    objetivoGeral: projeto.objetivoGeral.trim(),
+    publicoAlvo: projeto.publicoAlvo.trim(),
+    acoesAcessibilidade: projeto.acoesAcessibilidade.trim(),
+    localExecucao: projeto.localExecucao.trim(),
+    dataInicio: brToIso(projeto.dataInicio),
+    dataFim: brToIso(projeto.dataFim),
+    status: projeto.status,
+    areaAtuacao: projeto.areaAtuacao,
+    origemProjeto: projeto.origemProjeto,
+    organizacaoId: Number(projeto.organizacaoId),
+    objetivos: (projeto.objetivos ?? [])
+      .map((objetivo) => ({
+        id: objetivo.id,
+        objetivoEspecifico: objetivo.objetivoEspecifico.trim(),
+        projetoId: objetivo.projetoId,
+      }))
+      .filter((objetivo) => objetivo.objetivoEspecifico),
+    colaboradoresIds: (projeto.colaboradoresIds ?? [])
       .map(Number)
       .filter((id) => Number.isFinite(id)),
   };
 }
 
-export async function getPropostasEditais(): Promise<PropostaEdital[]> {
-  const response = await fetch(`${API_URL}/propostas-editais`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: PropostaEditalDTO[] = await response.json();
-
-  return (Array.isArray(data) ? data : []).map(mapProposta);
-}
-
-export async function getPropostaEditalById(
-  id: number,
-): Promise<PropostaEdital> {
-  const response = await fetch(`${API_URL}/propostas-editais/${id}`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: PropostaEditalDTO = await response.json();
-
-  return mapProposta(data);
-}
-
-export async function createPropostaEdital(
-  payload: PropostaEditalDTO,
-): Promise<PropostaEdital> {
-  const response = await fetch(`${API_URL}/propostas-editais`, {
-    method: "POST",
-    headers: getJsonHeaders(),
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: PropostaEditalDTO = await response.json();
-
-  return mapProposta(data);
-}
-
-export async function updatePropostaEdital(
-  id: number,
-  payload: PropostaEditalDTO,
-): Promise<PropostaEdital> {
-  const response = await fetch(`${API_URL}/propostas-editais/${id}`, {
-    method: "PUT",
-    headers: getJsonHeaders(),
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: PropostaEditalDTO = await response.json();
-
-  return mapProposta(data);
-}
-
-export async function deletePropostaEdital(id: number): Promise<void> {
-  const response = await fetch(`${API_URL}/propostas-editais/${id}`, {
-    method: "DELETE",
-    headers: getJsonHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-}
-
-export async function getAgentesOptions(): Promise<SimpleOption[]> {
-  const response = await fetch(`${API_URL}/agentes`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: AgenteApi[] = await response.json();
-
-  return (Array.isArray(data) ? data : [])
-    .map((item) => {
-      const id = normalizeId(item.id);
-
-      return {
-        id,
-        nome:
-          pickText(
-            item.nomePrincipal,
-            item.nomeCompleto,
-            item.nomeColetivo,
-            item.nomeFantasia,
-            item.razaoSocial,
-            item.nome,
-          ) || `Agente ${id}`,
-      };
-    })
-    .filter((item) => item.id);
-}
-
-export async function getProjetosOptions(): Promise<SimpleOption[]> {
+export async function getProjetos(): Promise<Projeto[]> {
   const response = await fetch(`${API_URL}/projetos`, {
     method: "GET",
     headers: getJsonHeaders(),
@@ -455,24 +280,13 @@ export async function getProjetosOptions(): Promise<SimpleOption[]> {
     throw new Error(await parseError(response));
   }
 
-  const data: ProjetoApi[] = await response.json();
+  const data: ProjetoDTO[] = await response.json();
 
-  return (Array.isArray(data) ? data : [])
-    .map((item) => {
-      const id = normalizeId(item.id);
-
-      return {
-        id,
-        nome:
-          pickText(item.nomeProjeto, item.nome, item.titulo) ||
-          `Projeto ${id}`,
-      };
-    })
-    .filter((item) => item.id);
+  return (Array.isArray(data) ? data : []).map(mapProjeto);
 }
 
-export async function getEditaisOptions(): Promise<SimpleOption[]> {
-  const response = await fetch(`${API_URL}/editais`, {
+export async function getProjetoById(id: number): Promise<Projeto> {
+  const response = await fetch(`${API_URL}/projetos/${id}`, {
     method: "GET",
     headers: getJsonHeaders(),
   });
@@ -481,23 +295,58 @@ export async function getEditaisOptions(): Promise<SimpleOption[]> {
     throw new Error(await parseError(response));
   }
 
-  const data: EditalApi[] = await response.json();
+  const data: ProjetoDTO = await response.json();
 
-  return (Array.isArray(data) ? data : [])
-    .map((item) => {
-      const id = normalizeId(item.id);
-
-      return {
-        id,
-        nome:
-          pickText(item.nomeEdital, item.tituloEdital, item.nome, item.titulo) ||
-          `Edital ${id}`,
-      };
-    })
-    .filter((item) => item.id);
+  return mapProjeto(data);
 }
 
-export async function getOrganizacoesOptions(): Promise<SimpleOption[]> {
+export async function createProjeto(payload: ProjetoDTO): Promise<Projeto> {
+  const response = await fetch(`${API_URL}/projetos`, {
+    method: "POST",
+    headers: getJsonHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data: ProjetoDTO = await response.json();
+
+  return mapProjeto(data);
+}
+
+export async function updateProjeto(
+  id: number,
+  payload: ProjetoDTO,
+): Promise<Projeto> {
+  const response = await fetch(`${API_URL}/projetos/${id}`, {
+    method: "PUT",
+    headers: getJsonHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data: ProjetoDTO = await response.json();
+
+  return mapProjeto(data);
+}
+
+export async function deleteProjeto(id: number): Promise<void> {
+  const response = await fetch(`${API_URL}/projetos/${id}`, {
+    method: "DELETE",
+    headers: getJsonHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+}
+
+export async function getOrganizacoes(): Promise<OrganizacaoOption[]> {
   const response = await fetch(`${API_URL}/organizacoes`, {
     method: "GET",
     headers: getJsonHeaders(),
@@ -507,58 +356,18 @@ export async function getOrganizacoesOptions(): Promise<SimpleOption[]> {
     throw new Error(await parseError(response));
   }
 
-  const data: OrganizacaoApi[] = await response.json();
+  const data: OrganizacaoApiResponse[] = await response.json();
 
   return (Array.isArray(data) ? data : [])
-    .map((item) => {
-      const id = normalizeId(item.id);
-
-      return {
-        id,
-        nome:
-          pickText(
-            item.nomeOrganizacao,
-            item.razaoSocial,
-            item.nomeFantasia,
-            item.nome,
-          ) || `Organização ${id}`,
-      };
-    })
-    .filter((item) => item.id);
-}
-
-export async function getEquipesEditaisOptions(): Promise<EquipeEditalOption[]> {
-  const response = await fetch(`${API_URL}/equipes-editais`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: EquipeEditalApi[] = await response.json();
-
-  return (Array.isArray(data) ? data : [])
-    .map((item) => {
-      const id = normalizeId(item.id);
-      const propostaEditalId = normalizeId(
-        item.propostaEditalId ?? item.propostaEdital,
-      );
-      const colaboradorId = normalizeId(item.colaboradorId ?? item.colaborador);
-      const integranteId = normalizeId(item.integranteId ?? item.integrante);
-      const cargaHorariaPrevista = normalizeNumber(item.cargaHorariaPrevista);
-      const valorPrevisto = normalizeNumber(item.valorPrevisto);
-
-      return {
-        id,
-        propostaEditalId: propostaEditalId || undefined,
-        colaboradorId: colaboradorId || undefined,
-        integranteId: integranteId || undefined,
-        funcaoProjeto: item.funcaoProjeto ?? "",
-        cargaHorariaPrevista,
-        valorPrevisto,
-      };
-    })
-    .filter((item) => item.id);
+    .filter((item) => item.id !== null && item.id !== undefined)
+    .map((item) => ({
+      id: Number(item.id),
+      nome:
+        pickText(
+          item.razaoSocial,
+          item.nomeFantasia,
+          item.nomeOrganizacao,
+          item.nome,
+        ) || `Organização ${item.id}`,
+    }));
 }
