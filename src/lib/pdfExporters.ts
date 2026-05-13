@@ -1,10 +1,6 @@
 import { generateInstitutionalPdf, fmtList, type PdfClause } from "./pdfGenerator";
 import type { Turma } from "@/data/turmas";
 import { statusTurmaLabel, diaLabel } from "@/data/turmas";
-import {
-  statusProjetoLabel,
-  areaAtuacaoLabel,
-} from "@/data/projetos";
 import { tipoEventoLabel, statusValueToLabel as evtStatus } from "@/data/eventosCulturais";
 import {
   estrategiaLabel,
@@ -102,6 +98,58 @@ function labelOrValue(value?: string | null) {
   return v(value);
 }
 
+
+function statusAtividadePdfLabel(value?: string | null) {
+  const labels: Record<string, string> = {
+    PLANEJADA: "Planejada",
+    EM_ANDAMENTO: "Em andamento",
+    CONCLUIDA: "Concluída",
+    CANCELADA: "Cancelada",
+  };
+
+  const key = String(value ?? "").trim().toUpperCase();
+
+  return labels[key] ?? v(value);
+}
+
+function tipoAtividadePdfLabel(value?: string | null) {
+  const labels: Record<string, string> = {
+    OFICINA: "Oficina",
+    CURSO: "Curso",
+    PALESTRA: "Palestra",
+    ENCONTRO: "Encontro",
+    REUNIAO: "Reunião",
+    APRESENTACAO: "Apresentação",
+    EVENTO: "Evento",
+    ENSAIO: "Ensaio",
+    OUTRO: "Outro",
+  };
+
+  const key = String(value ?? "").trim().toUpperCase();
+
+  return labels[key] ?? v(value);
+}
+
+function areaAtuacaoProjetoPdfLabel(value?: string | null) {
+  const labels: Record<string, string> = {
+    ARTES_CENICAS: "Artes Cênicas",
+    ARTES_VISUAIS: "Artes Visuais",
+    AUDIOVISUAL: "Audiovisual",
+    CULTURA_POPULAR: "Cultura Popular",
+    CULTURA_DIGITAL: "Cultura Digital",
+    LITERATURA: "Literatura",
+    MUSICA: "Música",
+    PATRIMONIO_CULTURAL: "Patrimônio Cultural",
+    PRODUCAO_CULTURAL: "Produção Cultural",
+    FORMACAO_CULTURAL: "Formação Cultural",
+    OUTRA: "Outra",
+    OUTRO: "Outro",
+  };
+
+  const key = String(value ?? "").trim().toUpperCase();
+
+  return labels[key] ?? v(value);
+}
 
 // =====================================================================
 // TIPOS LOCAIS PARA PDF
@@ -990,10 +1038,10 @@ export async function exportProjetoPdf(p: ProjetoPdf) {
       ? statusValueToLabel(p.status as any)
       : PLACEHOLDER;
 
-  const AREA_ATUACAO =
-    p.areaAtuacao && String(p.areaAtuacao).trim()
-      ? areaAtuacaoLabel(p.areaAtuacao as any)
-      : PLACEHOLDER;
+const AREA_ATUACAO =
+  p.areaAtuacao && String(p.areaAtuacao).trim()
+    ? areaAtuacaoProjetoPdfLabel(p.areaAtuacao)
+    : PLACEHOLDER;
 
   const ORIGEM_PROJETO =
     p.origemProjeto?.trim() || PLACEHOLDER;
@@ -3076,11 +3124,11 @@ export async function exportAtividadePdf(a: AtividadePdf) {
   const NOME_ATIVIDADE = a.nomeAtividade?.trim() || PLACEHOLDER;
 
   const TIPO_ATIVIDADE = a.tipoAtividade
-    ? tipoLabel(a.tipoAtividade as any)
+    ? tipoAtividadePdfLabel(a.tipoAtividade)
     : PLACEHOLDER;
 
   const STATUS_ATIVIDADE = a.status
-    ? statusValueToLabel(a.status as any)
+    ? statusAtividadePdfLabel(a.status)
     : PLACEHOLDER;
 
   const PROJETO = a.projeto?.trim() || PLACEHOLDER;
