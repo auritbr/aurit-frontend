@@ -28,14 +28,13 @@ import { estadosBrasil } from "@/data/colaboradores";
 import { toast } from "sonner";
 import {
   fetchConfiguracaoEmpresa,
+  fetchConfiguracaoEmpresaLogoUrl,
   createOrUpdateConfiguracaoEmpresa,
   saveConfiguracaoEmpresa,
   type ConfiguracaoEmpresaData,
   type ConfiguracaoEmpresaRequestDTO,
   type TipoPlanoApi,
 } from "@/lib/configuracaoEmpresaStore";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const maskDoc = (v: string) => {
   const d = v.replace(/\D/g, "").slice(0, 14);
@@ -54,22 +53,6 @@ const maskDoc = (v: string) => {
     .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
 };
 
-function getLogoUrl(caminhoLogo?: string | null) {
-  if (!caminhoLogo) return null;
-
-  if (
-    caminhoLogo.startsWith("http://") ||
-    caminhoLogo.startsWith("https://") ||
-    caminhoLogo.startsWith("data:")
-  ) {
-    return caminhoLogo;
-  }
-
-  const path = caminhoLogo.startsWith("/") ? caminhoLogo : `/${caminhoLogo}`;
-
-  return `${API_URL}${path}`;
-}
-
 interface ViaCepResponse {
   cep?: string;
   logradouro?: string;
@@ -83,6 +66,7 @@ interface ViaCepResponse {
 interface ConfigEmpresaForm {
   id: number | null;
   nomeEmpresa: string;
+  slug: string;
   documentoIdentificacao: string;
   emailContato: string;
   telefoneContato: string;
@@ -103,6 +87,7 @@ interface ConfigEmpresaForm {
 const empty: ConfigEmpresaForm = {
   id: null,
   nomeEmpresa: "",
+  slug: "",
   documentoIdentificacao: "",
   emailContato: "",
   telefoneContato: "",
@@ -173,6 +158,7 @@ function mapDataToForm(data: ConfiguracaoEmpresaData): ConfigEmpresaForm {
   return {
     id: data.id ?? null,
     nomeEmpresa: data.nomeEmpresa ?? "",
+    slug: data.slug ?? "",
     documentoIdentificacao: data.documentoIdentificacao ?? "",
     emailContato: data.emailContato ?? "",
     telefoneContato: data.telefoneContato ?? "",
@@ -194,6 +180,7 @@ function mapDataToForm(data: ConfiguracaoEmpresaData): ConfigEmpresaForm {
 function buildPayload(form: ConfigEmpresaForm): ConfiguracaoEmpresaRequestDTO {
   return {
     nomeEmpresa: form.nomeEmpresa.trim(),
+    slug: form.slug,
     caminhoLogo: form.caminhoLogo,
     emailContato: form.emailContato.trim(),
     telefoneContato: form.telefoneContato.trim(),
@@ -239,6 +226,8 @@ export default function ConfiguracaoEmpresa() {
   ) => setForm((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
+    let active = true;
+
     async function load() {
       try {
         setLoading(true);
@@ -246,15 +235,23 @@ export default function ConfiguracaoEmpresa() {
         const config = await fetchConfiguracaoEmpresa();
         const mapped = mapDataToForm(config);
 
+        if (!active) return;
+
         setForm(mapped);
 
-        const logoUrl = getLogoUrl(mapped.caminhoLogo);
+        if (mapped.id && mapped.caminhoLogo) {
+          const logoUrl = await fetchConfiguracaoEmpresaLogoUrl(mapped.id);
 
-        if (logoUrl) {
-          setLogoPreview({
-            dataUrl: logoUrl,
-            name: "logo",
-          });
+          if (!active) return;
+
+          if (logoUrl) {
+            setLogoPreview({
+              dataUrl: logoUrl,
+              name: "logo",
+            });
+          } else {
+            setLogoPreview(null);
+          }
         } else {
           setLogoPreview(null);
         }
@@ -267,11 +264,15 @@ export default function ConfiguracaoEmpresa() {
             : "Erro ao carregar configuração da empresa.",
         );
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
 
     void load();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -402,13 +403,17 @@ export default function ConfiguracaoEmpresa() {
 
       setForm(mapped);
 
-      const logoUrl = getLogoUrl(saved.caminhoLogo);
+      if (mapped.id && mapped.caminhoLogo) {
+        const logoUrl = await fetchConfiguracaoEmpresaLogoUrl(mapped.id);
 
-      if (logoUrl) {
-        setLogoPreview({
-          dataUrl: logoUrl,
-          name: logoFile?.name ?? "logo",
-        });
+        if (logoUrl) {
+          setLogoPreview({
+            dataUrl: logoUrl,
+            name: logoFile?.name ?? "logo",
+          });
+        } else {
+          setLogoPreview(null);
+        }
       } else {
         setLogoPreview(null);
       }
@@ -922,7 +927,6 @@ export default function ConfiguracaoEmpresa() {
         ]}
       />
     </ProprietarioLayout>
-
   );
 }
 

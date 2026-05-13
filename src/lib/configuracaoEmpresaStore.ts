@@ -29,14 +29,7 @@ export interface ConfiguracaoEmpresaResponseDTO {
 
 export interface ConfiguracaoEmpresaRequestDTO {
   nomeEmpresa: string;
-
-  /**
-   * Opcional porque a tela de configuração não deve obrigar edição/envio
-   * de subdomínio. O slug deve ser criado no cadastro inicial da empresa
-   * e preservado no backend quando não vier no payload.
-   */
   slug?: string | null;
-
   caminhoLogo?: string | null;
   emailContato: string;
   telefoneContato: string;
@@ -105,7 +98,14 @@ const DEFAULT_DATA: ConfiguracaoEmpresaData = {
 };
 
 function getToken() {
-  return localStorage.getItem("token") || sessionStorage.getItem("token");
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken") ||
+    localStorage.getItem("accessToken") ||
+    sessionStorage.getItem("token") ||
+    sessionStorage.getItem("authToken") ||
+    sessionStorage.getItem("accessToken")
+  );
 }
 
 function getJsonHeaders() {
@@ -181,6 +181,14 @@ async function parseError(response: Response): Promise<string> {
     const text = await response.text();
 
     if (!text) {
+      if (response.status === 401) {
+        return "Sessão expirada ou token inválido. Faça login novamente.";
+      }
+
+      if (response.status === 403) {
+        return "Acesso negado.";
+      }
+
       return `Erro ${response.status} ao processar requisição.`;
     }
 
@@ -208,12 +216,7 @@ function buildMultipartBody(
 ) {
   const formData = new FormData();
 
-  formData.append(
-    "dados",
-    new Blob([JSON.stringify(payload)], {
-      type: "application/json",
-    }),
-  );
+  formData.append("dados", JSON.stringify(payload));
 
   if (logo) {
     formData.append("logo", logo);
@@ -241,12 +244,6 @@ export function saveConfiguracaoEmpresa(
   return next;
 }
 
-/**
- * Busca a configuração padrão.
- *
- * Usada pela página antiga/geral de Configuração da Empresa.
- * Como o backend retorna uma lista, esta função pega a primeira configuração.
- */
 export async function fetchConfiguracaoEmpresa(): Promise<ConfiguracaoEmpresaData> {
   const response = await fetch(`${API_URL}/configuracoes-empresa`, {
     method: "GET",
@@ -272,12 +269,6 @@ export async function fetchConfiguracaoEmpresa(): Promise<ConfiguracaoEmpresaDat
   return mapped;
 }
 
-/**
- * Busca uma configuração específica por ID.
- *
- * Usada pelo painel do ADMIN_PROPRIETARIO:
- * /controle-proprietario/empresas/:empresaId/configuracao/:configuracaoEmpresaId
- */
 export async function fetchConfiguracaoEmpresaById(
   id: number,
 ): Promise<ConfiguracaoEmpresaData> {
@@ -302,13 +293,27 @@ export async function fetchConfiguracaoEmpresaById(
   return mapped;
 }
 
-/**
- * Cria ou atualiza configuração da empresa.
- *
- * Usada no fluxo antigo:
- * - POST /configuracoes-empresa
- * - PUT /configuracoes-empresa/{id}
- */
+export async function fetchConfiguracaoEmpresaLogoUrl(
+  id?: number | null,
+): Promise<string | null> {
+  if (!id || Number.isNaN(id)) {
+    return null;
+  }
+
+  const response = await fetch(`${API_URL}/configuracoes-empresa/${id}/logo`, {
+    method: "GET",
+    headers: getJsonHeaders(),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const url = await response.text();
+
+  return url?.trim() || null;
+}
+
 export async function createOrUpdateConfiguracaoEmpresa(
   payload: ConfiguracaoEmpresaRequestDTO,
   id?: number | null,
@@ -348,12 +353,6 @@ export async function createOrUpdateConfiguracaoEmpresa(
   return mapped;
 }
 
-/**
- * Atualiza uma configuração específica por ID.
- *
- * Usada pelo ADMIN_PROPRIETARIO para editar qualquer empresa,
- * inclusive trocar/adicionar logo para aparecer nos PDFs.
- */
 export async function updateConfiguracaoEmpresaById(
   id: number,
   payload: ConfiguracaoEmpresaRequestDTO,
@@ -393,9 +392,6 @@ export async function updateConfiguracaoEmpresaById(
   return mapped;
 }
 
-/**
- * Compatibilidade com chamadas antigas.
- */
 export async function refreshConfiguracaoEmpresa(): Promise<ConfiguracaoEmpresaData> {
   return fetchConfiguracaoEmpresa();
 }
