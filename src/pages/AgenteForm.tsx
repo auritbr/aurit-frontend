@@ -140,7 +140,7 @@ interface ViaCepResponse {
   complemento?: string;
   bairro?: string;
   localidade?: string;
-  uf?: string;
+  estado?: string;
   erro?: boolean;
 }
 
@@ -562,7 +562,7 @@ export default function AgenteForm() {
         complemento: prev.complemento || data.complemento || "",
         bairro: data.bairro ?? "",
         cidade: data.localidade ?? "",
-        estado: mapUfToEstado(data.uf),
+        estado: mapUfToEstado(data.estado),
       }));
     } catch (error) {
       console.error(error);

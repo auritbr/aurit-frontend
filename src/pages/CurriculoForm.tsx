@@ -56,9 +56,9 @@ export default function CurriculoForm() {
   const visualizando = !!id && !location.pathname.endsWith("/editar");
   const editando = !!id && location.pathname.endsWith("/editar");
 
-  const [form, setForm] = useState<CurriculoFormData>(
-    initialCurriculoFormData,
-  );
+  const [form, setForm] = useState<CurriculoFormData>({
+    ...initialCurriculoFormData,
+  });
   const [existingDto, setExistingDto] = useState<CurriculoDTO | null>(null);
   const [colaboradores, setColaboradores] = useState<
     ColaboradorCurriculoOption[]
@@ -87,14 +87,41 @@ export default function CurriculoForm() {
 
         if (!active) return;
 
-        setColaboradores(colaboradoresData);
+        let colaboradoresNormalizados = [...colaboradoresData];
 
         if (curriculoData) {
+          const formData = dtoToForm(curriculoData);
+
+          const colaboradorId = String(
+            curriculoData.colaboradorId ?? formData.colaboradorId ?? "",
+          );
+
+          if (
+            colaboradorId &&
+            !colaboradoresNormalizados.some((c) => c.id === colaboradorId)
+          ) {
+            colaboradoresNormalizados = [
+              {
+                id: colaboradorId,
+                nome:
+                  curriculoData.nomeCompleto?.trim() ||
+                  `Colaborador ${colaboradorId}`,
+              },
+              ...colaboradoresNormalizados,
+            ];
+          }
+
+          setColaboradores(colaboradoresNormalizados);
           setExistingDto(curriculoData);
-          setForm(dtoToForm(curriculoData));
+
+          setForm({
+            ...formData,
+            colaboradorId,
+          });
         } else {
+          setColaboradores(colaboradoresNormalizados);
           setExistingDto(null);
-          setForm(initialCurriculoFormData);
+          setForm({ ...initialCurriculoFormData });
         }
       } catch (error) {
         const message =
@@ -139,7 +166,10 @@ export default function CurriculoForm() {
 
     if (visualizando) return;
 
-    if (!form.colaboradorId) {
+    const colaboradorId =
+      form.colaboradorId || String(existingDto?.colaboradorId ?? "");
+
+    if (!colaboradorId) {
       toast.error("Selecione o colaborador.");
       return;
     }
@@ -156,7 +186,13 @@ export default function CurriculoForm() {
     try {
       setLoading(true);
 
-      const payload = formToDto(form, existingDto ?? undefined);
+      const payload = formToDto(
+        {
+          ...form,
+          colaboradorId,
+        },
+        existingDto ?? undefined,
+      );
 
       if (editando && id) {
         await updateCurriculo(Number(id), payload);

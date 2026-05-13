@@ -171,7 +171,7 @@ type ViaCepResponse = {
   complemento?: string;
   bairro?: string;
   localidade?: string;
-  uf?: string;
+  estado?: string;
   erro?: boolean;
 };
 
@@ -251,7 +251,7 @@ export default function AgenteForm() {
         complemento: prev.complemento || data.complemento || "",
         bairro: data.bairro ?? prev.bairro,
         cidade: data.localidade ?? prev.cidade,
-        estado: mapUfToEstado(data.uf) || prev.estado,
+        estado: mapUfToEstado(data.estado) || prev.estado,
       }));
     } catch (error) {
       console.error("Erro ao buscar CEP:", error);

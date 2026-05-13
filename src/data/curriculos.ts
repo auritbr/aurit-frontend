@@ -204,9 +204,13 @@ export function formToDto(
     pushSection(secao, getTipoBySecao(secao), form[secao]);
   }
 
+  const colaboradorId = Number(
+    form.colaboradorId || existing?.colaboradorId || 0,
+  );
+
   return {
     id: existing?.id,
-    colaboradorId: Number(form.colaboradorId),
+    colaboradorId,
     itens,
   };
 }

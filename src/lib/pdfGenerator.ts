@@ -56,9 +56,9 @@ const CENTER_W = CENTER_RIGHT - CENTER_LEFT;
 
 type LoadedLogo =
   | {
-    dataUrl: string;
-    format: "PNG" | "JPEG";
-  }
+      dataUrl: string;
+      format: "PNG" | "JPEG";
+    }
   | null;
 
 type EmpresaPdfData = {
@@ -117,6 +117,30 @@ type PdfContext = {
   logo: LoadedLogo;
 };
 
+function getTenantSlug() {
+  const hostname = window.location.hostname;
+
+  if (hostname === "localhost") {
+    return "";
+  }
+
+  if (!hostname.endsWith(".aurit.com.br")) {
+    return "";
+  }
+
+  const slug = hostname.replace(".aurit.com.br", "");
+
+  if (!slug || slug.includes(".")) {
+    return "";
+  }
+
+  if (["www", "admin", "api", "mail", "webmail", "cpanel"].includes(slug)) {
+    return "";
+  }
+
+  return slug;
+}
+
 function getAuthHeaders() {
   const token =
     localStorage.getItem("token") ||
@@ -126,8 +150,11 @@ function getAuthHeaders() {
     sessionStorage.getItem("authToken") ||
     sessionStorage.getItem("accessToken");
 
+  const tenantSlug = getTenantSlug();
+
   return {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}),
   };
 }
 
@@ -213,7 +240,57 @@ function normalizeImageUrl(path?: string | null): string | null {
   }
 
   const normalized = path.startsWith("/") ? path : `/${path}`;
+
   return `${API_URL}${normalized}`;
+}
+
+function isApiUrl(url: string): boolean {
+  return url.startsWith(API_URL);
+}
+
+async function buscarUrlLogoEmpresa(
+  empresa: EmpresaPdfData,
+): Promise<string | null> {
+  if (!empresa?.id) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/configuracoes-empresa/${empresa.id}/logo`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      console.error("Erro ao buscar URL temporária da logo:", response.status);
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (contentType.includes("application/json")) {
+      const data = await parseJsonSafe<string | { url?: string; logoUrl?: string }>(
+        response,
+      );
+
+      if (typeof data === "string") {
+        return data.trim() || null;
+      }
+
+      if (data && typeof data === "object") {
+        return data.url?.trim() || data.logoUrl?.trim() || null;
+      }
+
+      return null;
+    }
+
+    const text = await response.text();
+
+    return text.replace(/^"|"$/g, "").trim() || null;
+  } catch (error) {
+    console.error("Erro ao buscar URL temporária da logo:", error);
+    return null;
+  }
 }
 
 function guessImageFormat(src: string, mime?: string): "PNG" | "JPEG" {
@@ -227,7 +304,9 @@ function guessImageFormat(src: string, mime?: string): "PNG" | "JPEG" {
     return "JPEG";
   }
 
-  if (lower.startsWith("data:image/png")) return "PNG";
+  if (lower.startsWith("data:image/png")) {
+    return "PNG";
+  }
 
   if (lower.includes(".jpg") || lower.includes(".jpeg")) return "JPEG";
 
@@ -340,7 +419,7 @@ async function loadImageAsDataUrl(src: string): Promise<LoadedLogo> {
 
     const response = await fetch(src, {
       method: "GET",
-      headers: getAuthHeaders(),
+      headers: isApiUrl(src) ? getAuthHeaders() : {},
     });
 
     if (!response.ok) {
@@ -373,7 +452,16 @@ async function resolvePdfContext(): Promise<PdfContext> {
     empresa.logoUrl ||
     null;
 
-  const logoUrl = normalizeImageUrl(caminhoLogo);
+  let logoUrl: string | null = null;
+
+  if (empresa.id && caminhoLogo && !caminhoLogo.startsWith("data:")) {
+    logoUrl = await buscarUrlLogoEmpresa(empresa);
+  }
+
+  if (!logoUrl) {
+    logoUrl = normalizeImageUrl(caminhoLogo);
+  }
+
   const logo = logoUrl ? await loadImageAsDataUrl(logoUrl) : null;
 
   return {
@@ -959,7 +1047,8 @@ function drawSideBySideSignatures(
   if (signatures.length === 0) return cursor;
 
   const COL_GAP = 10;
-  const COL_W = signatures.length === 1 ? CONTENT_WIDTH : (CONTENT_WIDTH - COL_GAP) / 2;
+  const COL_W =
+    signatures.length === 1 ? CONTENT_WIDTH : (CONTENT_WIDTH - COL_GAP) / 2;
   const leftX = MARGIN_LEFT;
   const rightX = MARGIN_LEFT + COL_W + COL_GAP;
 
@@ -1151,7 +1240,9 @@ export async function generateInstitutionalPdf(opts: PdfOptions) {
 
     const paragraphs = normalizeParagraphBlocks(section.paragraphs);
 
-    const justifiedParagraphs = normalizeParagraphBlocks(section.justifiedParagraphs);
+    const justifiedParagraphs = normalizeParagraphBlocks(
+      section.justifiedParagraphs,
+    );
 
     const clauses = (section.clauses ?? []).filter(
       (c) => c.titulo && c.itens.some((i) => i?.trim()),
