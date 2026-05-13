@@ -1,632 +1,321 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ClipboardList, Users2, Tags, Link2 } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, User, MapPin, Building2, UserCog, Info, Users2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { MultiSelect } from "@/components/MultiSelect";
-import {
-  buildAtividadePayload,
-  createAtividade,
-  getAtividadeById,
-  getColaboradoresOptions,
-  getProjetosOptions,
-  statusAtividade,
-  tiposAtividade,
-  updateAtividade,
-  type Atividade,
-  type ColaboradorOption,
-  type ProjetoOption,
-} from "@/data/atividades";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
+import { maskCPF, maskPhone, maskCEP, maskDate, maskRG } from "@/lib/masks";
+import { estadosBrasil } from "@/data/colaboradores";
+import { TipoAgente, tipoAgenteLabels, tipoAgenteDescricoes } from "@/data/agentes";
 import { toast } from "sonner";
 
-const ATIVIDADE_NEXT_STEP_KEY = "aurit:atividades:next-step-card";
+const maskCNPJ = (v: string) =>
+  v.replace(/\D/g, "").slice(0, 14)
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
 
-interface AtividadeNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+interface PessoaFisica {
+  nomeCompleto: string; dataNascimento: string; cpf: string; rg: string;
+  telefone: string; email: string;
 }
-
-function salvarProximaAcaoAtividade() {
-  const card: AtividadeNextStepCardData = {
-    titulo: "Após cadastrar as atividades, organize as turmas",
-    descricao:
-      "As turmas ajudam a dividir uma atividade em grupos por horário, dia, faixa etária, nível, território ou responsável, facilitando matrículas, acompanhamento dos participantes e registro de presenças.",
-    acaoLabel: "Cadastrar turmas",
-    acaoUrl: "/turmas/novo",
-    acaoSecundariaLabel: "Ver atividades",
-    acaoSecundariaUrl: "/atividades",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(ATIVIDADE_NEXT_STEP_KEY, JSON.stringify(card));
+interface Endereco {
+  cep: string; logradouro: string; numero: string; complemento: string;
+  bairro: string; cidade: string; estado: string;
 }
-
-interface FormState {
-  id: string;
-  nomeAtividade: string;
-  descricaoAtividade: string;
-  publicoBeneficiadoAtividade: string;
-  localAtividade: string;
-  dataInicio: string;
-  dataFim: string;
-  quantidadeVagas: string;
-  tipoAtividade: string;
-  status: string;
-  projeto: string;
-  colaboradores: string[];
+interface PessoaJuridica {
+  razaoSocial: string; nomeFantasia: string; cnpj: string; dataFundacao: string;
 }
+interface Coletivo { nome: string; dataCriacao: string; }
 
-const initial: FormState = {
-  id: "",
-  nomeAtividade: "",
-  descricaoAtividade: "",
-  publicoBeneficiadoAtividade: "",
-  localAtividade: "",
-  dataInicio: "",
-  dataFim: "",
-  quantidadeVagas: "",
-  tipoAtividade: "",
-  status: "",
-  projeto: "",
-  colaboradores: [],
-};
+const emptyPF: PessoaFisica = { nomeCompleto: "", dataNascimento: "", cpf: "", rg: "", telefone: "", email: "" };
+const emptyEnd: Endereco = { cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "" };
+const emptyPJ: PessoaJuridica = { razaoSocial: "", nomeFantasia: "", cnpj: "", dataFundacao: "" };
+const emptyCol: Coletivo = { nome: "", dataCriacao: "" };
 
-const onlyDigits = (v: string, max = 6) => v.replace(/\D/g, "").slice(0, max);
-
-function mapAtividadeToForm(atividade: Atividade): FormState {
-  return {
-    id: atividade.id ?? "",
-    nomeAtividade: atividade.nomeAtividade ?? "",
-    descricaoAtividade: atividade.descricaoAtividade ?? "",
-    publicoBeneficiadoAtividade:
-      atividade.publicoBeneficiadoAtividade ?? "",
-    localAtividade: atividade.localAtividade ?? "",
-    dataInicio: atividade.dataInicio ?? "",
-    dataFim: atividade.dataFim ?? "",
-    quantidadeVagas: atividade.quantidadeVagas ?? "",
-    tipoAtividade: atividade.tipoAtividade ?? "",
-    status: atividade.status ?? "",
-    projeto: atividade.projetoId ?? "",
-    colaboradores: atividade.colaboradoresIds ?? [],
-  };
-}
-
-export default function AtividadeForm() {
+export default function AgenteForm() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { id } = useParams();
+  const [tipo, setTipo] = useState<TipoAgente | "">("");
+  const [pf, setPf] = useState<PessoaFisica>(emptyPF);
+  const [pj, setPj] = useState<PessoaJuridica>(emptyPJ);
+  const [coletivo, setColetivo] = useState<Coletivo>(emptyCol);
+  const [representante, setRepresentante] = useState<PessoaFisica>(emptyPF);
+  const [endereco, setEndereco] = useState<Endereco>(emptyEnd);
 
-  const visualizando = !!id && !location.pathname.endsWith("/editar");
-  const isEdit = !!id && location.pathname.endsWith("/editar");
+  const setPF = <K extends keyof PessoaFisica>(k: K, v: PessoaFisica[K]) => setPf((p) => ({ ...p, [k]: v }));
+  const setPJ = <K extends keyof PessoaJuridica>(k: K, v: PessoaJuridica[K]) => setPj((p) => ({ ...p, [k]: v }));
+  const setCol = <K extends keyof Coletivo>(k: K, v: Coletivo[K]) => setColetivo((p) => ({ ...p, [k]: v }));
+  const setRep = <K extends keyof PessoaFisica>(k: K, v: PessoaFisica[K]) => setRepresentante((p) => ({ ...p, [k]: v }));
+  const setEnd = <K extends keyof Endereco>(k: K, v: Endereco[K]) => setEndereco((p) => ({ ...p, [k]: v }));
 
-  const [form, setForm] = useState<FormState>(initial);
-  const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
-  const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const bloqueado = loading || saving || visualizando;
-
-  const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
-    setForm((p) => ({ ...p, [k]: v }));
-
-  useEffect(() => {
-    let active = true;
-
-    async function carregar() {
-      try {
-        setLoading(true);
-
-        const [projetosData, colaboradoresData, atividadeData] =
-          await Promise.all([
-            getProjetosOptions(),
-            getColaboradoresOptions(),
-            id ? getAtividadeById(Number(id)) : Promise.resolve(null),
-          ]);
-
-        if (!active) return;
-
-        setProjetos(projetosData);
-        setColaboradores(colaboradoresData);
-
-        if (atividadeData) {
-          setForm(mapAtividadeToForm(atividadeData));
-        } else {
-          setForm(initial);
-        }
-      } catch (error) {
-        console.error(error);
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Não foi possível carregar o formulário.",
-        );
-        navigate("/atividades");
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    void carregar();
-
-    return () => {
-      active = false;
-    };
-  }, [id, navigate]);
-
-  const colaboradoresOptions = colaboradores.map((c) => c.id);
-
-  const colaboradorLabel = (colaboradorId: string) =>
-    colaboradores.find((c) => c.id === colaboradorId)?.nome ?? colaboradorId;
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (visualizando) return;
-
-    if (!form.nomeAtividade.trim()) {
-      toast.error("Informe o nome da atividade.");
+    if (!tipo) {
+      toast.error("Selecione o tipo de agente.");
       return;
     }
-
-    if (!form.descricaoAtividade.trim()) {
-      toast.error("Informe a descrição da atividade.");
-      return;
-    }
-
-    if (!form.publicoBeneficiadoAtividade.trim()) {
-      toast.error("Informe o público beneficiado.");
-      return;
-    }
-
-    if (!form.dataInicio) {
-      toast.error("Informe a data de início da atividade.");
-      return;
-    }
-
-    if (form.dataInicio && form.dataFim && form.dataFim < form.dataInicio) {
-      toast.error("A data de término deve ser posterior à data de início.");
-      return;
-    }
-
-    if (form.status === "CONCLUIDO" && !form.dataFim) {
-      toast.error(
-        "Informe a data de término quando a atividade estiver concluída.",
-      );
-      return;
-    }
-
-    if (form.quantidadeVagas.trim() && Number(form.quantidadeVagas) < 0) {
-      toast.error("A quantidade de vagas não pode ser negativa.");
-      return;
-    }
-
-    if (!form.tipoAtividade) {
-      toast.error("Selecione o tipo de atividade.");
-      return;
-    }
-
-    if (!form.status) {
-      toast.error("Selecione o status da atividade.");
-      return;
-    }
-
-    if (!form.projeto) {
-      toast.error("Selecione o projeto.");
-      return;
-    }
-
-    const atividade: Atividade = {
-      id: id ?? "",
-      nomeAtividade: form.nomeAtividade.trim(),
-      descricaoAtividade: form.descricaoAtividade.trim(),
-      publicoBeneficiadoAtividade: form.publicoBeneficiadoAtividade.trim(),
-      localAtividade: form.localAtividade.trim(),
-      quantidadeVagas: form.quantidadeVagas.trim(),
-      dataInicio: form.dataInicio,
-      dataFim: form.dataFim,
-      tipoAtividade: form.tipoAtividade,
-      status: form.status,
-      projetoId: form.projeto,
-      projetoNome: "",
-      colaboradoresIds: form.colaboradores,
-      colaboradoresNomes: [],
-    };
-
-    try {
-      setSaving(true);
-
-      const payload = buildAtividadePayload(atividade);
-
-      if (isEdit && id) {
-        await updateAtividade(Number(id), payload);
-        toast.success("Atividade atualizada com sucesso.");
-      } else {
-        await createAtividade(payload);
-        salvarProximaAcaoAtividade();
-        toast.success("Atividade salva com sucesso.");
-      }
-
-      navigate("/atividades");
-    } catch (error) {
-      console.error(error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível salvar a atividade.",
-      );
-    } finally {
-      setSaving(false);
-    }
+    toast.success("Agente salvo com sucesso.");
+    setTimeout(() => navigate("/agentes"), 600);
   };
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="container max-w-4xl py-6 sm:py-8">
-          <p className="text-sm text-muted-foreground">
-            Carregando formulário...
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
+  const isPJ = tipo === "MEI" || tipo === "PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS" || tipo === "PESSOA_JURIDICA_COM_FINS_LUCRATIVOS";
+  const isPF = tipo === "PESSOA_FISICA";
+  const isColetivo = tipo === "GRUPO_COLETIVO";
 
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
         <button
-          type="button"
-          onClick={() => navigate("/atividades")}
+          onClick={() => navigate("/agentes")}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
         >
           <ArrowLeft className="h-4 w-4" /> Voltar
         </button>
 
         <PageTitle
-          title="Atividade"
-          tooltip="Cadastre e acompanhe as atividades vinculadas aos projetos da organização. Informe nome, descrição, público atendido, local, período, vagas e equipe envolvida para organizar a execução, registrar presenças, gerar evidências e apoiar relatórios e prestações de contas."
+          title="Agente Cultural"
+          tooltip="Cadastre o agente cultural responsável pela iniciativa. O agente é quem responde pelas informações, execução do projeto e prestação de contas."
         />
 
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
+        {/* Bloco explicativo */}
+        <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
+          <Info className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" strokeWidth={2.2} />
+          <p className="text-[13px] leading-relaxed text-foreground">
+            <span className="font-semibold">Agente cultural</span> é a pessoa responsável pela iniciativa cultural.
+            É quem responde pelas informações, execução do projeto e prestação de contas, mesmo quando a atividade
+            está vinculada a uma organização, coletivo ou empresa.
+          </p>
+        </div>
 
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={ClipboardList} title="Dados principais">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel
-                  htmlFor="nomeAtividade"
-                  required
-                  tooltip="Informe um nome claro para identificar a atividade dentro do projeto. Ex.: oficina de violão para iniciantes."
-                >
-                  Nome da Atividade
-                </FieldLabel>
-                <Input
-                  id="nomeAtividade"
-                  value={form.nomeAtividade}
-                  onChange={(e) => set("nomeAtividade", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="descricaoAtividade"
-                  required
-                  tooltip="Descreva o que será realizado na atividade, explicando seu objetivo, metodologia, principais ações, conteúdos trabalhados e relação com o projeto. Ex.: Oficina semanal de violão voltada à iniciação musical, com atividades práticas de ritmo, acordes, escuta musical e preparação para apresentação coletiva."
-                >
-                  Descrição da Atividade
-                </FieldLabel>
-                <Textarea
-                  id="descricaoAtividade"
-                  value={form.descricaoAtividade}
-                  onChange={(e) => set("descricaoAtividade", e.target.value)}
-                  rows={4}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Users2} title="Público, período e vagas">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel
-                  htmlFor="publico"
-                  required
-                  tooltip="Descreva quem será diretamente atendido pela atividade, informando faixa etária, perfil, comunidade, território, grupo prioritário ou vínculo com o projeto. Ex.: Crianças e adolescentes de 8 a 16 anos, moradores do bairro Santa Rita, participantes das oficinas culturais do projeto."
-                >
-                  Público Beneficiado
-                </FieldLabel>
-                <Textarea
-                  id="publico"
-                  value={form.publicoBeneficiadoAtividade}
-                  onChange={(e) =>
-                    set("publicoBeneficiadoAtividade", e.target.value)
-                  }
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="localAtividade"
-                  tooltip="Informe onde a atividade será realizada. Pode ser um espaço físico, ambiente digital, instituição parceira, comunidade, bairro ou cidade. Ex.: Ponto de Cultura Viva Vida, Escola Municipal João XXIII, Praça Central ou atividade online."
-                >
-                  Local da Atividade
-                </FieldLabel>
-                <Textarea
-                  id="localAtividade"
-                  value={form.localAtividade}
-                  onChange={(e) => set("localAtividade", e.target.value)}
-                  rows={2}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="dataInicio"
-                  required
-                  tooltip="Informe a data prevista ou efetiva de início da atividade."
-                >
-                  Data de Início da Atividade
-                </FieldLabel>
-                <Input
-                  id="dataInicio"
-                  type="date"
-                  value={form.dataInicio}
-                  onChange={(e) => set("dataInicio", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="dataFim"
-                  tooltip="Informe a data prevista ou efetiva de término da atividade, quando houver. Este campo deve ser preenchido quando o status estiver como “Concluído”."
-                >
-                  Data de Término da Atividade
-                </FieldLabel>
-                <Input
-                  id="dataFim"
-                  type="date"
-                  value={form.dataFim}
-                  onChange={(e) => set("dataFim", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="vagas"
-                  tooltip="Informe a quantidade máxima de participantes que poderão ser atendidos nesta atividade, quando houver limite definido. Ex.: 25."
-                >
-                  Quantidade de Vagas
-                </FieldLabel>
-                <Input
-                  id="vagas"
-                  value={form.quantidadeVagas}
-                  onChange={(e) =>
-                    set("quantidadeVagas", onlyDigits(e.target.value, 5))
-                  }
-                  inputMode="numeric"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Tags} title="Classificação da atividade">
+          <Section icon={UserCog} title="Tipo de agente">
             <div className="grid sm:grid-cols-2 gap-4">
               <Field>
-                <FieldLabel
-                  htmlFor="tipoAtividade"
-                  required
-                  tooltip="Selecione o tipo que melhor representa a atividade realizada. Ex.: oficina, curso, palestra, seminário, formação continuada ou atividade educativa."
-                >
-                  Tipo de Atividade
-                </FieldLabel>
-                <Select
-                  value={form.tipoAtividade}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-                    set("tipoAtividade", v);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="tipoAtividade">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {tiposAtividade.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="status"
-                  required
-                  tooltip="Indique a situação atual da atividade no sistema. Use “Ativo” para atividades em execução ou acompanhamento, “Pendente” para atividades em organização ou conferência, “Concluído” para atividades finalizadas conforme previsto e “Inativo” para atividades que não devem mais ser consideradas ativas."
-                >
-                  Status da Atividade
-                </FieldLabel>
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-                    set("status", v);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
+                <FieldLabel htmlFor="tipoAgente" required tooltip="Selecione o tipo de agente cultural que será cadastrado.">Tipo de agente</FieldLabel>
+                <Select value={tipo} onValueChange={(v) => setTipo(v as TipoAgente)}>
+                  <SelectTrigger id="tipoAgente"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {statusAtividade.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
+                    {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map((k) => (
+                      <SelectItem key={k} value={k}>{tipoAgenteLabels[k]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </Field>
             </div>
-          </Section>
 
-          <Section icon={Link2} title="Vínculos e equipe">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel
-                  htmlFor="projeto"
-                  required
-                  tooltip="Selecione o projeto ao qual esta atividade pertence. Esse vínculo organiza a execução e permite relacionar a atividade a metas, cronograma, presenças, evidências, relatórios e prestação de contas."
-                >
-                  Projeto
-                </FieldLabel>
-                <Select
-                  value={form.projeto}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-                    set("projeto", v);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="projeto">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projetos.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="colaboradores"
-                  tooltip="Selecione os colaboradores responsáveis pela execução, coordenação, apoio, registro ou acompanhamento da atividade, quando houver. Se a equipe ainda não estiver definida, este campo pode ser preenchido depois."
-                >
-                  Colaboradores
-                </FieldLabel>
+            {/* Bloco explicativo dos tipos */}
+            <div className="mt-5 grid sm:grid-cols-2 gap-2.5">
+              {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map((k) => (
                 <div
-                  className={
-                    visualizando ? "pointer-events-none opacity-80" : ""
-                  }
+                  key={k}
+                  className={`rounded border px-3 py-2.5 text-[12px] leading-relaxed transition-colors ${tipo === k
+                      ? "border-primary/40 bg-primary-soft"
+                      : "border-border bg-muted/30"
+                    }`}
                 >
-                  <MultiSelect
-                    id="colaboradores"
-                    options={colaboradoresOptions}
-                    value={form.colaboradores}
-                    onChange={(v) => {
-                      if (visualizando) return;
-                      set("colaboradores", v);
-                    }}
-                    getOptionLabel={colaboradorLabel}
-                  />
+                  <p className="font-semibold text-foreground text-[12.5px] mb-0.5">{tipoAgenteLabels[k]}</p>
+                  <p className="text-muted-foreground">{tipoAgenteDescricoes[k]}</p>
                 </div>
-              </Field>
+              ))}
             </div>
           </Section>
+
+          {/* Pessoa Física */}
+          {isPF && (
+            <>
+              <Section icon={User} title="Dados pessoais">
+                <PessoaFisicaFields data={pf} set={setPF} />
+              </Section>
+              <Section icon={MapPin} title="Endereço">
+                <EnderecoFields data={endereco} set={setEnd} />
+              </Section>
+            </>
+          )}
+
+          {/* Pessoa Jurídica / MEI */}
+          {isPJ && (
+            <>
+              <Section icon={Building2} title={tipo === "MEI" ? "Dados da pessoa jurídica" : "Dados da organização"}>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Field full>
+                    <FieldLabel htmlFor="razaoSocial" required>Razão social</FieldLabel>
+                    <Input id="razaoSocial" value={pj.razaoSocial} onChange={(e) => setPJ("razaoSocial", e.target.value)} />
+                  </Field>
+                  <Field full>
+                    <FieldLabel htmlFor="nomeFantasia">Nome fantasia</FieldLabel>
+                    <Input id="nomeFantasia" value={pj.nomeFantasia} onChange={(e) => setPJ("nomeFantasia", e.target.value)} />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="cnpj" required>CNPJ</FieldLabel>
+                    <Input id="cnpj" value={pj.cnpj} onChange={(e) => setPJ("cnpj", maskCNPJ(e.target.value))} inputMode="numeric" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="dataFundacao" required>Data de fundação</FieldLabel>
+                    <Input id="dataFundacao" value={pj.dataFundacao} onChange={(e) => setPJ("dataFundacao", maskDate(e.target.value))} inputMode="numeric" />
+                  </Field>
+                </div>
+              </Section>
+
+              <Section icon={MapPin} title="Endereço">
+                <EnderecoFields data={endereco} set={setEnd} />
+              </Section>
+
+              <Section icon={User} title="Dados do representante">
+                <PessoaFisicaFields data={representante} set={setRep} prefix="rep" />
+              </Section>
+            </>
+          )}
+
+          {/* Coletivo */}
+          {isColetivo && (
+            <>
+              <Section icon={Users2} title="Dados do coletivo">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Field full>
+                    <FieldLabel htmlFor="nomeColetivo" required>Nome do coletivo</FieldLabel>
+                    <Input id="nomeColetivo" value={coletivo.nome} onChange={(e) => setCol("nome", e.target.value)} />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="dataCriacao" required>Data de criação</FieldLabel>
+                    <Input id="dataCriacao" value={coletivo.dataCriacao} onChange={(e) => setCol("dataCriacao", maskDate(e.target.value))} inputMode="numeric" />
+                  </Field>
+                </div>
+              </Section>
+
+              <Section icon={User} title="Dados do representante">
+                <PessoaFisicaFields data={representante} set={setRep} prefix="rep" />
+              </Section>
+            </>
+          )}
 
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/atividades")}
-              disabled={saving}
-            >
-              {visualizando ? "Voltar" : "Cancelar"}
+            <Button type="button" variant="outline" onClick={() => navigate("/agentes")}>
+              Cancelar
             </Button>
-
-            {!visualizando && (
-              <Button type="submit" className="sm:min-w-32" disabled={saving}>
-                {saving ? "Salvando..." : "Salvar"}
-              </Button>
-            )}
+            <Button type="submit" className="sm:min-w-32">
+              Salvar
+            </Button>
           </div>
         </form>
       </div>
+
+      <WikiFloatingButton
+        pageTitle="Cadastro de Agente Cultural"
+        sections={[
+          { title: "O que é um agente cultural?", content: "É a pessoa responsável pela iniciativa cultural — quem responde pelas informações, execução e prestação de contas." },
+          { title: "Como escolher o tipo?", content: "Selecione o tipo que melhor representa o responsável: pessoa física, MEI, pessoa jurídica (com ou sem fins) ou coletivo." },
+          { title: "Quem é o representante?", content: "Para empresas, organizações ou coletivos, o representante é a pessoa física que responde pela iniciativa." },
+          { title: "Salvando", content: "Após preencher os campos, clique em 'Salvar' no final da página." },
+        ]}
+      />
     </AppLayout>
   );
 }
 
-function Section({
-  icon: Icon,
-  title,
-  children,
+function PessoaFisicaFields({
+  data, set, prefix = "",
 }: {
-  icon: any;
-  title: string;
-  children: React.ReactNode;
+  data: PessoaFisica;
+  set: <K extends keyof PessoaFisica>(k: K, v: PessoaFisica[K]) => void;
+  prefix?: string;
 }) {
+  const id = (s: string) => prefix ? `${prefix}-${s}` : s;
+  return (
+    <div className="grid sm:grid-cols-2 gap-4">
+      <Field full>
+        <FieldLabel htmlFor={id("nomeCompleto")} required>Nome completo</FieldLabel>
+        <Input id={id("nomeCompleto")} value={data.nomeCompleto} onChange={(e) => set("nomeCompleto", e.target.value)} />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={id("dataNascimento")} required>Data de nascimento</FieldLabel>
+        <Input id={id("dataNascimento")} value={data.dataNascimento} onChange={(e) => set("dataNascimento", maskDate(e.target.value))} inputMode="numeric" />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={id("cpf")} required>CPF</FieldLabel>
+        <Input id={id("cpf")} value={data.cpf} onChange={(e) => set("cpf", maskCPF(e.target.value))} inputMode="numeric" />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={id("rg")}>RG</FieldLabel>
+        <Input id={id("rg")} value={data.rg} onChange={(e) => set("rg", maskRG(e.target.value))} />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={id("telefone")} required>Telefone</FieldLabel>
+        <Input id={id("telefone")} value={data.telefone} onChange={(e) => set("telefone", maskPhone(e.target.value))} inputMode="tel" />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={id("email")}>E-mail</FieldLabel>
+        <Input id={id("email")} type="email" value={data.email} onChange={(e) => set("email", e.target.value)} />
+      </Field>
+    </div>
+  );
+}
+
+function EnderecoFields({
+  data, set,
+}: {
+  data: Endereco;
+  set: <K extends keyof Endereco>(k: K, v: Endereco[K]) => void;
+}) {
+  return (
+    <div className="grid sm:grid-cols-6 gap-4">
+      <Field className="sm:col-span-2">
+        <FieldLabel htmlFor="cep" required>CEP</FieldLabel>
+        <Input id="cep" value={data.cep} onChange={(e) => set("cep", maskCEP(e.target.value))} inputMode="numeric" />
+      </Field>
+      <Field className="sm:col-span-4">
+        <FieldLabel htmlFor="logradouro" required>Logradouro</FieldLabel>
+        <Input id="logradouro" value={data.logradouro} onChange={(e) => set("logradouro", e.target.value)} />
+      </Field>
+      <Field className="sm:col-span-2">
+        <FieldLabel htmlFor="numero" required>Número</FieldLabel>
+        <Input id="numero" value={data.numero} onChange={(e) => set("numero", e.target.value)} inputMode="numeric" />
+      </Field>
+      <Field className="sm:col-span-4">
+        <FieldLabel htmlFor="complemento">Complemento</FieldLabel>
+        <Input id="complemento" value={data.complemento} onChange={(e) => set("complemento", e.target.value)} />
+      </Field>
+      <Field className="sm:col-span-2">
+        <FieldLabel htmlFor="bairro" required>Bairro</FieldLabel>
+        <Input id="bairro" value={data.bairro} onChange={(e) => set("bairro", e.target.value)} />
+      </Field>
+      <Field className="sm:col-span-2">
+        <FieldLabel htmlFor="cidade" required>Cidade</FieldLabel>
+        <Input id="cidade" value={data.cidade} onChange={(e) => set("cidade", e.target.value)} />
+      </Field>
+      <Field className="sm:col-span-2">
+        <FieldLabel htmlFor="estado" required>Estado</FieldLabel>
+        <Select value={data.estado} onValueChange={(v) => set("estado", v)}>
+          <SelectTrigger id="estado"><SelectValue /></SelectTrigger>
+          <SelectContent className="max-h-72">
+            {estadosBrasil.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </Field>
+    </div>
+  );
+}
+
+function Section({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
   return (
     <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
       <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
         <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
-          {title}
-        </h2>
+        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">{title}</h2>
       </div>
       {children}
     </Card>
   );
 }
 
-function Field({
-  children,
-  full,
-  className,
-}: {
-  children: React.ReactNode;
-  full?: boolean;
-  className?: string;
-}) {
-  return (
-    <div className={`${full ? "sm:col-span-2" : ""} ${className ?? ""}`}>
-      {children}
-    </div>
-  );
+function Field({ children, full, className }: { children: React.ReactNode; full?: boolean; className?: string }) {
+  return <div className={`${full ? "sm:col-span-2" : ""} ${className ?? ""}`}>{children}</div>;
 }
