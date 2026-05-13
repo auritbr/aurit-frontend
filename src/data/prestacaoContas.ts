@@ -1,24 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -115,7 +97,6 @@ export interface PrestacaoContasDTO {
   propostaEditalId?: number | string | null;
   planejamentosFinanceirosIds?: Array<number | string> | null;
 
-  // Compatibilidade com nomes antigos/alternativos.
   planejamentoFinanceiroIds?: Array<number | string> | null;
   planejamentoFinanceiroId?: number | string | null;
 
@@ -314,7 +295,7 @@ export function buildPrestacaoPayload(
 export async function getPrestacoesContas(): Promise<PrestacaoContas[]> {
   const response = await fetch(`${API_URL}/prestacoes-contas`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -331,7 +312,7 @@ export async function getPrestacaoContasById(
 ): Promise<PrestacaoContas> {
   const response = await fetch(`${API_URL}/prestacoes-contas/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -348,7 +329,7 @@ export async function createPrestacaoContas(
 ): Promise<PrestacaoContas> {
   const response = await fetch(`${API_URL}/prestacoes-contas`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -367,7 +348,7 @@ export async function updatePrestacaoContas(
 ): Promise<PrestacaoContas> {
   const response = await fetch(`${API_URL}/prestacoes-contas/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -383,7 +364,7 @@ export async function updatePrestacaoContas(
 export async function deletePrestacaoContas(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/prestacoes-contas/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -396,7 +377,7 @@ export async function getPropostasEditalOptions(): Promise<
 > {
   const response = await fetch(`${API_URL}/propostas-editais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -432,7 +413,7 @@ export async function getPlanejamentosFinanceirosOptions(): Promise<
 > {
   const response = await fetch(`${API_URL}/planejamentos-financeiros`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

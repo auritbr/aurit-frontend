@@ -1,3 +1,5 @@
+import { getJsonHeaders, getMultipartHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export const tipoPatrimonioOptions = [
@@ -160,34 +162,6 @@ interface OrganizacaoApiDTO {
   nome?: string | null;
 }
 
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
-function getMultipartHeaders() {
-  const token = getToken();
-
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
 async function parseError(response: Response): Promise<string> {
   try {
     const text = await response.text();
@@ -346,7 +320,7 @@ export function buildPatrimonioPayload(
 export async function getPatrimonios(): Promise<Patrimonio[]> {
   const response = await fetch(`${API_URL}/patrimonios`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -361,7 +335,7 @@ export async function getPatrimonios(): Promise<Patrimonio[]> {
 export async function getPatrimonioById(id: number): Promise<Patrimonio> {
   const response = await fetch(`${API_URL}/patrimonios/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -431,7 +405,7 @@ export async function updatePatrimonio(
 export async function deletePatrimonio(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/patrimonios/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -442,7 +416,7 @@ export async function deletePatrimonio(id: number): Promise<void> {
 export async function getOrganizacoesPatrimonio(): Promise<OrganizacaoOption[]> {
   const response = await fetch(`${API_URL}/organizacoes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -464,7 +438,7 @@ export async function getOrganizacoesPatrimonio(): Promise<OrganizacaoOption[]> 
 export async function getProjetosPatrimonio(): Promise<ProjetoOption[]> {
   const response = await fetch(`${API_URL}/projetos`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -476,8 +450,7 @@ export async function getProjetosPatrimonio(): Promise<ProjetoOption[]> {
   return (Array.isArray(data) ? data : [])
     .map((p) => ({
       id: Number(p.id),
-      nome:
-        pickText(p.nomeProjeto, p.nome, p.titulo) || `Projeto ${p.id}`,
+      nome: pickText(p.nomeProjeto, p.nome, p.titulo) || `Projeto ${p.id}`,
     }))
     .filter((p) => Number.isFinite(p.id));
 }
@@ -502,7 +475,7 @@ export async function getPatrimonioNotaFiscalDownloadUrl(
 ): Promise<string> {
   const response = await fetch(`${API_URL}/patrimonios/${id}/download`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

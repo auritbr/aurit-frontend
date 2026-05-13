@@ -1,19 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getAuthHeaders() {
-  const token =
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken");
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -320,7 +307,7 @@ export function buildEditalPayload(data: EditalData): EditalPayloadDTO {
 export async function getEditais(): Promise<EditalData[]> {
   const response = await fetch(`${API_URL}/editais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -335,7 +322,7 @@ export async function getEditais(): Promise<EditalData[]> {
 export async function getEditalById(id: number): Promise<EditalData> {
   const response = await fetch(`${API_URL}/editais/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -352,7 +339,7 @@ export async function createEdital(
 ): Promise<EditalData> {
   const response = await fetch(`${API_URL}/editais`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -371,7 +358,7 @@ export async function updateEdital(
 ): Promise<EditalData> {
   const response = await fetch(`${API_URL}/editais/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -387,7 +374,7 @@ export async function updateEdital(
 export async function deleteEdital(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/editais/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

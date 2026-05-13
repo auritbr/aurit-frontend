@@ -1,24 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -172,7 +154,7 @@ export async function getTrajetoriasCulturais(): Promise<
 > {
   const response = await fetch(`${API_URL}/trajetorias-culturais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -189,7 +171,7 @@ export async function getTrajetoriaCulturalById(
 ): Promise<TrajetoriaCultural> {
   const response = await fetch(`${API_URL}/trajetorias-culturais/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -206,7 +188,7 @@ export async function createTrajetoriaCultural(
 ): Promise<TrajetoriaCultural> {
   const response = await fetch(`${API_URL}/trajetorias-culturais`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -225,7 +207,7 @@ export async function updateTrajetoriaCultural(
 ): Promise<TrajetoriaCultural> {
   const response = await fetch(`${API_URL}/trajetorias-culturais/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -241,7 +223,7 @@ export async function updateTrajetoriaCultural(
 export async function deleteTrajetoriaCultural(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/trajetorias-culturais/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -252,7 +234,7 @@ export async function deleteTrajetoriaCultural(id: number): Promise<void> {
 export async function getColaboradoresOptions(): Promise<ColaboradorOption[]> {
   const response = await fetch(`${API_URL}/colaboradores`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

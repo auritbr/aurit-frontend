@@ -1,32 +1,6 @@
+import { getJsonHeaders, getMultipartHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getJsonHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
-function getMultipartHeaders() {
-  const token = getToken();
-
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -556,8 +530,9 @@ export function vinculoRelacionadoTexto(
   }
 }
 
-
-export async function getEvidenciaArquivoDownloadUrl(id: number): Promise<string> {
+export async function getEvidenciaArquivoDownloadUrl(
+  id: number,
+): Promise<string> {
   const response = await fetch(`${API_URL}/evidencias-execucao/${id}/download`, {
     method: "GET",
     headers: getJsonHeaders(),

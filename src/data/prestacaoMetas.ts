@@ -1,24 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -175,19 +157,19 @@ export interface PrestacaoMetaDTO {
 
   metaProjetoId?: number | string | null;
   metaProjeto?:
-  | number
-  | string
-  | {
-    id?: number | string | null;
-    tituloMeta?: string | null;
-    descricaoMeta?: string | null;
-    quantidadePrevista?: number | string | null;
-    formaComprovacao?: string | null;
-    ordem?: number | null;
-    projetoId?: number | string | null;
-    propostaEditalId?: number | string | null;
-  }
-  | null;
+    | number
+    | string
+    | {
+        id?: number | string | null;
+        tituloMeta?: string | null;
+        descricaoMeta?: string | null;
+        quantidadePrevista?: number | string | null;
+        formaComprovacao?: string | null;
+        ordem?: number | null;
+        projetoId?: number | string | null;
+        propostaEditalId?: number | string | null;
+      }
+    | null;
   metaId?: number | string | null;
   meta?: number | string | { id?: number | string | null } | null;
 
@@ -200,21 +182,21 @@ export interface PrestacaoMetaDTO {
   evidenciasIds?: Array<number | string> | null;
   evidenciasExecucaoIds?: Array<number | string> | null;
   evidencias?:
-  | Array<
-    | number
-    | string
-    | {
-      id?: number | string | null;
-      evidenciaId?: number | string | null;
-      evidenciaExecucaoId?: number | string | null;
-      tituloEvidencia?: string | null;
-      titulo?: string | null;
-      descricaoEvidencia?: string | null;
-      observacaoEvidencia?: string | null;
-      nomeEvidencia?: string | null;
-    }
-  >
-  | null;
+    | Array<
+        | number
+        | string
+        | {
+            id?: number | string | null;
+            evidenciaId?: number | string | null;
+            evidenciaExecucaoId?: number | string | null;
+            tituloEvidencia?: string | null;
+            titulo?: string | null;
+            descricaoEvidencia?: string | null;
+            observacaoEvidencia?: string | null;
+            nomeEvidencia?: string | null;
+          }
+      >
+    | null;
 }
 
 export interface PrestacaoMeta {
@@ -304,9 +286,9 @@ export function formatQuantidadeExecutada(value?: number) {
 export function mapPrestacaoMeta(dto: PrestacaoMetaDTO): PrestacaoMeta {
   const prestacaoContasId = normalizeId(
     dto.prestacaoContasId ??
-    dto.prestacaoContas ??
-    dto.prestacaoContaId ??
-    dto.prestacaoConta,
+      dto.prestacaoContas ??
+      dto.prestacaoContaId ??
+      dto.prestacaoConta,
   );
 
   const metaProjetoId = normalizeId(
@@ -314,10 +296,7 @@ export function mapPrestacaoMeta(dto: PrestacaoMetaDTO): PrestacaoMeta {
   );
 
   const evidencias =
-    dto.evidenciasIds ??
-    dto.evidenciasExecucaoIds ??
-    dto.evidencias ??
-    [];
+    dto.evidenciasIds ?? dto.evidenciasExecucaoIds ?? dto.evidencias ?? [];
 
   return {
     id: normalizeId(dto.id),
@@ -349,13 +328,13 @@ export function buildPrestacaoMetaPayload(
 
     quantidadeExecutada:
       item.quantidadeExecutada == null ||
-        Number.isNaN(Number(item.quantidadeExecutada))
+      Number.isNaN(Number(item.quantidadeExecutada))
         ? null
         : Number(item.quantidadeExecutada),
 
     percentualExecutado:
       item.percentualExecutado == null ||
-        Number.isNaN(Number(item.percentualExecutado))
+      Number.isNaN(Number(item.percentualExecutado))
         ? null
         : Number(item.percentualExecutado),
 
@@ -374,7 +353,7 @@ export function buildPrestacaoMetaPayload(
 export async function getPrestacaoMetas(): Promise<PrestacaoMeta[]> {
   const response = await fetch(`${API_URL}/prestacao-metas`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -391,7 +370,7 @@ export async function getPrestacaoMetaById(
 ): Promise<PrestacaoMeta> {
   const response = await fetch(`${API_URL}/prestacao-metas/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -408,7 +387,7 @@ export async function createPrestacaoMeta(
 ): Promise<PrestacaoMeta> {
   const response = await fetch(`${API_URL}/prestacao-metas`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -427,7 +406,7 @@ export async function updatePrestacaoMeta(
 ): Promise<PrestacaoMeta> {
   const response = await fetch(`${API_URL}/prestacao-metas/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -443,7 +422,7 @@ export async function updatePrestacaoMeta(
 export async function deletePrestacaoMeta(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/prestacao-metas/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -454,7 +433,7 @@ export async function deletePrestacaoMeta(id: number): Promise<void> {
 async function getPropostasMap(): Promise<Map<string, string>> {
   const response = await fetch(`${API_URL}/propostas-editais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -493,7 +472,7 @@ export async function getPrestacoesContasOptions(): Promise<
   const [prestacoesRes, propostasMap] = await Promise.all([
     fetch(`${API_URL}/prestacoes-contas`, {
       method: "GET",
-      headers: getAuthHeaders(),
+      headers: getJsonHeaders(),
     }),
     getPropostasMap(),
   ]);
@@ -526,7 +505,7 @@ export async function getPrestacoesContasOptions(): Promise<
 export async function getMetasProjetoOptions(): Promise<MetaProjetoOption[]> {
   const response = await fetch(`${API_URL}/metas-projeto`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -554,7 +533,7 @@ export async function getEvidenciasExecucaoOptions(): Promise<
 > {
   const response = await fetch(`${API_URL}/evidencias-execucao`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

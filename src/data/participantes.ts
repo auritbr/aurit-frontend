@@ -1,3 +1,5 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export type ParticipanteStatus =
@@ -208,26 +210,6 @@ interface OrganizacaoApiDTO {
   nome?: string | null;
 }
 
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-export function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
 export async function parseError(response: Response): Promise<string> {
   try {
     const text = await response.text();
@@ -423,7 +405,7 @@ export function buildParticipantePayload(
 export async function getParticipantes(): Promise<Participante[]> {
   const response = await fetch(`${API_URL}/participantes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -438,7 +420,7 @@ export async function getParticipantes(): Promise<Participante[]> {
 export async function getParticipanteById(id: number): Promise<Participante> {
   const response = await fetch(`${API_URL}/participantes/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -455,7 +437,7 @@ export async function createParticipante(
 ): Promise<Participante> {
   const response = await fetch(`${API_URL}/participantes`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -474,7 +456,7 @@ export async function updateParticipante(
 ): Promise<Participante> {
   const response = await fetch(`${API_URL}/participantes/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -490,7 +472,7 @@ export async function updateParticipante(
 export async function deleteParticipante(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/participantes/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -501,7 +483,7 @@ export async function deleteParticipante(id: number): Promise<void> {
 export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
   const response = await fetch(`${API_URL}/atividades`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -522,7 +504,7 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
 export async function getTurmasOptions(): Promise<TurmaOption[]> {
   const response = await fetch(`${API_URL}/turmas`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -545,7 +527,7 @@ export async function getOrganizacoesParticipante(): Promise<
 > {
   const response = await fetch(`${API_URL}/organizacoes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

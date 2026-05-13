@@ -1,24 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 export const statusHabilitacaoOptions = [
   { value: "NAO_INICIADO", label: "Não iniciado" },
@@ -313,7 +295,7 @@ export function buildHabilitacaoPayload(
 export async function getHabilitacoes(): Promise<Habilitacao[]> {
   const response = await fetch(`${API_URL}/habilitacoes-propostas`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -328,7 +310,7 @@ export async function getHabilitacoes(): Promise<Habilitacao[]> {
 export async function getHabilitacaoById(id: number): Promise<Habilitacao> {
   const response = await fetch(`${API_URL}/habilitacoes-propostas/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -345,7 +327,7 @@ export async function createHabilitacao(
 ): Promise<Habilitacao> {
   const response = await fetch(`${API_URL}/habilitacoes-propostas`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -364,7 +346,7 @@ export async function updateHabilitacao(
 ): Promise<Habilitacao> {
   const response = await fetch(`${API_URL}/habilitacoes-propostas/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -380,7 +362,7 @@ export async function updateHabilitacao(
 export async function deleteHabilitacao(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/habilitacoes-propostas/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -393,7 +375,7 @@ export async function getPropostasEditalOptions(): Promise<PropostaOption[]> {
     [`${API_URL}/propostas-editais`, `${API_URL}/propostas-edital`],
     {
       method: "GET",
-      headers: getAuthHeaders(),
+      headers: getJsonHeaders(),
     },
   );
 
@@ -420,7 +402,7 @@ export async function getPropostasEditalOptions(): Promise<PropostaOption[]> {
 export async function getAgentesOptions(): Promise<AgenteOption[]> {
   const response = await fetch(`${API_URL}/agentes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

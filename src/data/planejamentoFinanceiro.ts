@@ -1,25 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token =
-    localStorage.getItem("token") || sessionStorage.getItem("token");
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -256,7 +237,7 @@ export async function getPlanejamentosFinanceiros(): Promise<
 > {
   const response = await fetch(`${API_URL}/planejamentos-financeiros`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -273,7 +254,7 @@ export async function getPlanejamentoFinanceiroById(
 ): Promise<PlanejamentoFinanceiroData> {
   const response = await fetch(`${API_URL}/planejamentos-financeiros/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -290,7 +271,7 @@ export async function createPlanejamentoFinanceiro(
 ): Promise<PlanejamentoFinanceiroData> {
   const response = await fetch(`${API_URL}/planejamentos-financeiros`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -309,7 +290,7 @@ export async function updatePlanejamentoFinanceiro(
 ): Promise<PlanejamentoFinanceiroData> {
   const response = await fetch(`${API_URL}/planejamentos-financeiros/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -325,7 +306,7 @@ export async function updatePlanejamentoFinanceiro(
 export async function deletePlanejamentoFinanceiro(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/planejamentos-financeiros/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -338,7 +319,7 @@ export async function getPropostasEditalOptions(): Promise<
 > {
   const response = await fetch(`${API_URL}/propostas-editais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -366,15 +347,15 @@ export async function getEquipesEditalOptions(): Promise<EquipeEditalOption[]> {
   const [equipesRes, colaboradoresRes, integrantesRes] = await Promise.all([
     fetch(`${API_URL}/equipes-editais`, {
       method: "GET",
-      headers: getAuthHeaders(),
+      headers: getJsonHeaders(),
     }),
     fetch(`${API_URL}/colaboradores`, {
       method: "GET",
-      headers: getAuthHeaders(),
+      headers: getJsonHeaders(),
     }),
     fetch(`${API_URL}/integrantes`, {
       method: "GET",
-      headers: getAuthHeaders(),
+      headers: getJsonHeaders(),
     }),
   ]);
 
@@ -410,7 +391,8 @@ export async function getEquipesEditalOptions(): Promise<EquipeEditalOption[]> {
     (integrantesData ?? [])
       .map((item) => {
         const id = normalizeId(item.id);
-        const nome = pickText(item.nomeCompleto, item.nome) || `Integrante ${id}`;
+        const nome =
+          pickText(item.nomeCompleto, item.nome) || `Integrante ${id}`;
 
         return id ? [id, nome] : null;
       })

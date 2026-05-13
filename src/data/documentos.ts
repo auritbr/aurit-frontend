@@ -1,32 +1,6 @@
+import { getJsonHeaders, getMultipartHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getJsonHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
-function getMultipartHeaders() {
-  const token = getToken();
-
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -208,10 +182,6 @@ export function getNomeArquivoDocumento(url?: string | null): string {
   }
 }
 
-/**
- * Mantida apenas para compatibilidade com telas antigas.
- * Para arquivos privados no Cloudflare R2, use getDocumentoDownloadUrl(id).
- */
 export function getArquivoUrl(url?: string | null): string {
   if (!url) return "";
 

@@ -1,26 +1,7 @@
 import { maskCPF, maskDate, maskPhone, maskRG, maskCEP } from "@/lib/masks";
+import { getJsonHeaders } from "@/lib/apiHeaders";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -269,7 +250,7 @@ export function mapAgenteDetalhado(
 export async function getAgentes(): Promise<Agente[]> {
   const response = await fetch(`${API_URL}/agentes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -283,7 +264,7 @@ export async function getAgentes(): Promise<Agente[]> {
 export async function getAgenteById(id: number): Promise<Agente> {
   const response = await fetch(`${API_URL}/agentes/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -299,7 +280,7 @@ export async function getAgenteDetalhadoById(
 ): Promise<AgenteDetalhadoResponseDTO> {
   const response = await fetch(`${API_URL}/agentes/${id}/detalhado`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -315,7 +296,7 @@ export async function createAgente(
 ): Promise<Agente> {
   const response = await fetch(`${API_URL}/agentes`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -333,7 +314,7 @@ export async function updateAgente(
 ): Promise<Agente> {
   const response = await fetch(`${API_URL}/agentes/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -348,7 +329,7 @@ export async function updateAgente(
 export async function deleteAgente(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/agentes/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

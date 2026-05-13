@@ -1,24 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -215,7 +197,7 @@ function sortCronogramas(items: CronogramaData[]) {
 export async function getCronogramas(): Promise<CronogramaData[]> {
   const response = await fetch(`${API_URL}/cronogramas`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -230,7 +212,7 @@ export async function getCronogramas(): Promise<CronogramaData[]> {
 export async function getCronogramaById(id: number): Promise<CronogramaData> {
   const response = await fetch(`${API_URL}/cronogramas/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -247,7 +229,7 @@ export async function getCronogramasByProjeto(
 ): Promise<CronogramaData[]> {
   const response = await fetch(`${API_URL}/cronogramas/projeto/${projetoId}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -264,7 +246,7 @@ export async function createCronograma(
 ): Promise<CronogramaData> {
   const response = await fetch(`${API_URL}/cronogramas`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -283,7 +265,7 @@ export async function updateCronograma(
 ): Promise<CronogramaData> {
   const response = await fetch(`${API_URL}/cronogramas/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -299,7 +281,7 @@ export async function updateCronograma(
 export async function deleteCronograma(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/cronogramas/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -310,7 +292,7 @@ export async function deleteCronograma(id: number): Promise<void> {
 export async function getProjetosOptions(): Promise<ProjetoOption[]> {
   const response = await fetch(`${API_URL}/projetos`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -330,7 +312,7 @@ export async function getProjetosOptions(): Promise<ProjetoOption[]> {
 export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
   const response = await fetch(`${API_URL}/atividades`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -356,7 +338,7 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
 export async function getEventosOptions(): Promise<EventoOption[]> {
   const response = await fetch(`${API_URL}/eventos-culturais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -382,7 +364,7 @@ export async function getEventosOptions(): Promise<EventoOption[]> {
 export async function getAcoesOptions(): Promise<AcaoOption[]> {
   const response = await fetch(`${API_URL}/acoes-divulgacao`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

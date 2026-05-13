@@ -1,24 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -335,7 +317,7 @@ export function createEmptyColaborador(): Colaborador {
 export async function getOrganizacoes(): Promise<OrganizacaoOption[]> {
   const response = await fetch(`${API_URL}/organizacoes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -361,7 +343,7 @@ export async function getOrganizacoes(): Promise<OrganizacaoOption[]> {
 export async function getColaboradores(): Promise<Colaborador[]> {
   const response = await fetch(`${API_URL}/colaboradores`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -376,7 +358,7 @@ export async function getColaboradores(): Promise<Colaborador[]> {
 export async function getColaboradorById(id: number): Promise<Colaborador> {
   const response = await fetch(`${API_URL}/colaboradores/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -393,7 +375,7 @@ export async function createColaborador(
 ): Promise<Colaborador> {
   const response = await fetch(`${API_URL}/colaboradores`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -412,7 +394,7 @@ export async function updateColaborador(
 ): Promise<Colaborador> {
   const response = await fetch(`${API_URL}/colaboradores/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -428,7 +410,7 @@ export async function updateColaborador(
 export async function deleteColaborador(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/colaboradores/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

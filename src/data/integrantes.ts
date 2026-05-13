@@ -1,24 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 export type IntegranteStatusApi =
   | "ATIVO"
@@ -215,7 +197,7 @@ async function parseError(response: Response): Promise<string> {
 export async function getOrganizacoes(): Promise<OrganizacaoOption[]> {
   const response = await fetch(`${API_URL}/organizacoes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -241,7 +223,7 @@ export async function getOrganizacoes(): Promise<OrganizacaoOption[]> {
 export async function getIntegrantes(): Promise<Integrante[]> {
   const response = await fetch(`${API_URL}/integrantes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -256,7 +238,7 @@ export async function getIntegrantes(): Promise<Integrante[]> {
 export async function getIntegranteById(id: number): Promise<Integrante> {
   const response = await fetch(`${API_URL}/integrantes/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -273,7 +255,7 @@ export async function createIntegrante(
 ): Promise<Integrante> {
   const response = await fetch(`${API_URL}/integrantes`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -292,7 +274,7 @@ export async function updateIntegrante(
 ): Promise<Integrante> {
   const response = await fetch(`${API_URL}/integrantes/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -308,7 +290,7 @@ export async function updateIntegrante(
 export async function deleteIntegrante(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/integrantes/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

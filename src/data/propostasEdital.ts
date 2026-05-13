@@ -1,58 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
-async function parseError(response: Response): Promise<string> {
-  try {
-    const text = await response.text();
-
-    if (!text) {
-      if (response.status === 401) {
-        return "Sessão expirada ou token inválido. Faça login novamente.";
-      }
-
-      if (response.status === 403) {
-        return "Acesso negado.";
-      }
-
-      return `Erro ${response.status} ao processar requisição.`;
-    }
-
-    try {
-      const json = JSON.parse(text);
-
-      return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
-      );
-    } catch {
-      return text;
-    }
-  } catch {
-    return `Erro ${response.status} ao processar requisição.`;
-  }
-}
 
 export const statusPropostaEditalOptions = [
   { value: "EM_PREPARACAO", label: "Em preparação" },
@@ -266,6 +214,40 @@ function pickText(...values: Array<unknown>) {
   return "";
 }
 
+async function parseError(response: Response): Promise<string> {
+  try {
+    const text = await response.text();
+
+    if (!text) {
+      if (response.status === 401) {
+        return "Sessão expirada ou token inválido. Faça login novamente.";
+      }
+
+      if (response.status === 403) {
+        return "Acesso negado.";
+      }
+
+      return `Erro ${response.status} ao processar requisição.`;
+    }
+
+    try {
+      const json = JSON.parse(text);
+
+      return (
+        json?.message ||
+        json?.error ||
+        json?.detail ||
+        json?.mensagem ||
+        text
+      );
+    } catch {
+      return text;
+    }
+  } catch {
+    return `Erro ${response.status} ao processar requisição.`;
+  }
+}
+
 export function formatDateBr(iso?: string) {
   if (!iso) return "—";
 
@@ -354,7 +336,7 @@ export function buildPropostaPayload(
 export async function getPropostasEditais(): Promise<PropostaEdital[]> {
   const response = await fetch(`${API_URL}/propostas-editais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -371,7 +353,7 @@ export async function getPropostaEditalById(
 ): Promise<PropostaEdital> {
   const response = await fetch(`${API_URL}/propostas-editais/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -388,7 +370,7 @@ export async function createPropostaEdital(
 ): Promise<PropostaEdital> {
   const response = await fetch(`${API_URL}/propostas-editais`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -407,7 +389,7 @@ export async function updatePropostaEdital(
 ): Promise<PropostaEdital> {
   const response = await fetch(`${API_URL}/propostas-editais/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -423,7 +405,7 @@ export async function updatePropostaEdital(
 export async function deletePropostaEdital(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/propostas-editais/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -434,7 +416,7 @@ export async function deletePropostaEdital(id: number): Promise<void> {
 export async function getAgentesOptions(): Promise<SimpleOption[]> {
   const response = await fetch(`${API_URL}/agentes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -466,7 +448,7 @@ export async function getAgentesOptions(): Promise<SimpleOption[]> {
 export async function getProjetosOptions(): Promise<SimpleOption[]> {
   const response = await fetch(`${API_URL}/projetos`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -481,7 +463,9 @@ export async function getProjetosOptions(): Promise<SimpleOption[]> {
 
       return {
         id,
-        nome: pickText(item.nomeProjeto, item.nome, item.titulo) || `Projeto ${id}`,
+        nome:
+          pickText(item.nomeProjeto, item.nome, item.titulo) ||
+          `Projeto ${id}`,
       };
     })
     .filter((item) => item.id);
@@ -490,7 +474,7 @@ export async function getProjetosOptions(): Promise<SimpleOption[]> {
 export async function getEditaisOptions(): Promise<SimpleOption[]> {
   const response = await fetch(`${API_URL}/editais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -516,7 +500,7 @@ export async function getEditaisOptions(): Promise<SimpleOption[]> {
 export async function getOrganizacoesOptions(): Promise<SimpleOption[]> {
   const response = await fetch(`${API_URL}/organizacoes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -546,7 +530,7 @@ export async function getOrganizacoesOptions(): Promise<SimpleOption[]> {
 export async function getEquipesEditaisOptions(): Promise<EquipeEditalOption[]> {
   const response = await fetch(`${API_URL}/equipes-editais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

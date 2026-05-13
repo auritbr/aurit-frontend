@@ -1,24 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -217,7 +199,9 @@ function extractColaboradoresIds(dto: TurmaDTO): string[] {
   }
 
   if (Array.isArray(dto.colaboradores)) {
-    return dto.colaboradores.map((colaborador) => normalizeId(colaborador.id)).filter(Boolean);
+    return dto.colaboradores
+      .map((colaborador) => normalizeId(colaborador.id))
+      .filter(Boolean);
   }
 
   return [];
@@ -275,7 +259,7 @@ export function buildTurmaPayload(
 export async function getTurmas(): Promise<Turma[]> {
   const response = await fetch(`${API_URL}/turmas`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -290,7 +274,7 @@ export async function getTurmas(): Promise<Turma[]> {
 export async function getTurmaById(id: number): Promise<Turma> {
   const response = await fetch(`${API_URL}/turmas/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -305,7 +289,7 @@ export async function getTurmaById(id: number): Promise<Turma> {
 export async function createTurma(payload: TurmaPayload): Promise<Turma> {
   const response = await fetch(`${API_URL}/turmas`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -324,7 +308,7 @@ export async function updateTurma(
 ): Promise<Turma> {
   const response = await fetch(`${API_URL}/turmas/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -340,7 +324,7 @@ export async function updateTurma(
 export async function deleteTurma(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/turmas/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -351,7 +335,7 @@ export async function deleteTurma(id: number): Promise<void> {
 export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
   const response = await fetch(`${API_URL}/atividades`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -381,7 +365,7 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
 export async function getColaboradoresOptions(): Promise<ColaboradorOption[]> {
   const response = await fetch(`${API_URL}/colaboradores`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

@@ -1,24 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -207,7 +189,7 @@ export function buildMetaProjetoPayload(
 export async function getMetasProjeto(): Promise<MetaProjeto[]> {
   const response = await fetch(`${API_URL}/metas-projeto`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -224,7 +206,7 @@ export async function getMetasProjetoByProjeto(
 ): Promise<MetaProjeto[]> {
   const response = await fetch(`${API_URL}/metas-projeto/projeto/${projetoId}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -243,7 +225,7 @@ export async function getMetasProjetoByProposta(
     `${API_URL}/metas-projeto/proposta/${propostaEditalId}`,
     {
       method: "GET",
-      headers: getAuthHeaders(),
+      headers: getJsonHeaders(),
     },
   );
 
@@ -259,7 +241,7 @@ export async function getMetasProjetoByProposta(
 export async function getMetaProjetoById(id: number): Promise<MetaProjeto> {
   const response = await fetch(`${API_URL}/metas-projeto/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -276,7 +258,7 @@ export async function createMetaProjeto(
 ): Promise<MetaProjeto> {
   const response = await fetch(`${API_URL}/metas-projeto`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -295,7 +277,7 @@ export async function updateMetaProjeto(
 ): Promise<MetaProjeto> {
   const response = await fetch(`${API_URL}/metas-projeto/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -311,7 +293,7 @@ export async function updateMetaProjeto(
 export async function deleteMetaProjeto(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/metas-projeto/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -322,7 +304,7 @@ export async function deleteMetaProjeto(id: number): Promise<void> {
 export async function getProjetosOptions(): Promise<ProjetoOption[]> {
   const response = await fetch(`${API_URL}/projetos`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -348,7 +330,7 @@ export async function getPropostasEditalOptions(): Promise<
 > {
   const response = await fetch(`${API_URL}/propostas-editais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

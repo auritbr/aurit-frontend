@@ -1,16 +1,8 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export type TipoPessoaEquipe = "COLABORADOR" | "INTEGRANTE";
-
-function getAuthHeaders() {
-  const token =
-    localStorage.getItem("token") || sessionStorage.getItem("token");
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 export interface EquipeEditalDTO {
   id?: number;
@@ -96,14 +88,6 @@ function normalizeId(value: unknown): string {
   }
 
   return String(value);
-}
-
-function parseMaybeNumber(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") return null;
-
-  const n = Number(value);
-
-  return Number.isFinite(n) ? n : null;
 }
 
 function parseMoneyToNumber(value: unknown): number {
@@ -217,7 +201,7 @@ export function buildEquipeEditalPayload(form: EquipeEdital): EquipeEditalDTO {
 export async function getEquipesEditais(): Promise<EquipeEdital[]> {
   const response = await fetch(`${API_URL}/equipes-editais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -232,7 +216,7 @@ export async function getEquipesEditais(): Promise<EquipeEdital[]> {
 export async function getEquipeEditalById(id: number): Promise<EquipeEdital> {
   const response = await fetch(`${API_URL}/equipes-editais/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -249,7 +233,7 @@ export async function createEquipeEdital(
 ): Promise<EquipeEdital> {
   const response = await fetch(`${API_URL}/equipes-editais`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -268,7 +252,7 @@ export async function updateEquipeEdital(
 ): Promise<EquipeEdital> {
   const response = await fetch(`${API_URL}/equipes-editais/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -284,7 +268,7 @@ export async function updateEquipeEdital(
 export async function deleteEquipeEdital(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/equipes-editais/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -327,7 +311,7 @@ export async function getPropostasEditalOptions(): Promise<
 > {
   const response = await fetch(`${API_URL}/propostas-editais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -358,7 +342,7 @@ export async function getPropostasEditalOptions(): Promise<
 export async function getAgentesOptions(): Promise<AgenteOption[]> {
   const response = await fetch(`${API_URL}/agentes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -389,7 +373,7 @@ export async function getAgentesOptions(): Promise<AgenteOption[]> {
 export async function getColaboradoresOptions(): Promise<PessoaOption[]> {
   const response = await fetch(`${API_URL}/colaboradores`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -414,7 +398,7 @@ export async function getColaboradoresOptions(): Promise<PessoaOption[]> {
 export async function getIntegrantesOptions(): Promise<PessoaOption[]> {
   const response = await fetch(`${API_URL}/integrantes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

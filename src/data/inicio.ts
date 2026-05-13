@@ -1,3 +1,4 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
 import {
   getUsuarioLogado,
   type UsuarioLogado,
@@ -76,27 +77,6 @@ interface PageResponse<T> {
   results?: T[];
 }
 
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken") ||
-    ""
-  );
-}
-
-function getAuthHeaders(): Record<string, string> {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
 async function parseError(response: Response): Promise<string> {
   try {
     const text = await response.text();
@@ -157,7 +137,7 @@ function isPlanoOuPermissaoMessage(message: string) {
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -195,13 +175,6 @@ function extractList<T>(data: unknown): T[] {
   return [];
 }
 
-/**
- * Busca lista sem quebrar a página inicial.
- *
- * A tela inicial precisa funcionar em todos os planos.
- * Se algum módulo pago retornar bloqueio de plano/permissão,
- * o contador daquele módulo fica 0, mas a página continua carregando.
- */
 async function fetchListSafe<T = unknown>(path: string): Promise<T[]> {
   try {
     const data = await fetchJson<unknown>(path);
@@ -219,11 +192,6 @@ async function fetchListSafe<T = unknown>(path: string): Promise<T[]> {
   }
 }
 
-/**
- * Tenta mais de uma rota para o mesmo módulo.
- * Útil porque alguns módulos aparecem com nomes próximos,
- * como /propostas-edital e /propostas-editais.
- */
 async function fetchFirstAvailableList<T = unknown>(
   paths: string[],
 ): Promise<T[]> {
@@ -395,10 +363,7 @@ export async function getInicioDados(): Promise<InicioDados> {
     fetchFirstAvailableList(["/financeiros", "/financeiro"]),
 
     fetchListSafe("/editais"),
-    fetchFirstAvailableList([
-      "/propostas-editais",
-      "/propostas-edital",
-    ]),
+    fetchFirstAvailableList(["/propostas-editais", "/propostas-edital"]),
     fetchFirstAvailableList([
       "/resultados-propostas",
       "/resultado-propostas",
@@ -411,38 +376,23 @@ export async function getInicioDados(): Promise<InicioDados> {
       "/habilitacoes",
       "/habilitacao",
     ]),
-    fetchFirstAvailableList([
-      "/equipes-editais",
-      "/equipe-edital",
-    ]),
+    fetchFirstAvailableList(["/equipes-editais", "/equipe-edital"]),
     fetchFirstAvailableList([
       "/planejamentos-financeiros",
       "/planejamento-financeiro",
     ]),
 
-    fetchFirstAvailableList([
-      "/evidencias-execucao",
-      "/evidencias",
-    ]),
+    fetchFirstAvailableList(["/evidencias-execucao", "/evidencias"]),
 
-    fetchFirstAvailableList([
-      "/prestacoes-contas",
-      "/prestacao-contas",
-    ]),
-    fetchFirstAvailableList([
-      "/prestacao-metas",
-      "/prestacoes-metas",
-    ]),
+    fetchFirstAvailableList(["/prestacoes-contas", "/prestacao-contas"]),
+    fetchFirstAvailableList(["/prestacao-metas", "/prestacoes-metas"]),
 
     fetchFirstAvailableList(["/patrimonios", "/patrimonio"]),
     fetchFirstAvailableList(["/emprestimos", "/emprestimos-patrimonio"]),
   ]);
 
-  const {
-    documentosAtualizados,
-    documentosVencidos,
-    documentosPendentes,
-  } = contarDocumentos(documentos);
+  const { documentosAtualizados, documentosVencidos, documentosPendentes } =
+    contarDocumentos(documentos);
 
   return {
     nomeUsuario,

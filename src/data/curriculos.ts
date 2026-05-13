@@ -1,14 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getAuthHeaders() {
-  const token =
-    localStorage.getItem("token") || sessionStorage.getItem("token");
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -245,7 +237,7 @@ export function dtoToListItem(dto: CurriculoDTO): CurriculoListItem {
 export async function getCurriculos(): Promise<CurriculoListItem[]> {
   const response = await fetch(`${API_URL}/curriculos`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -260,7 +252,7 @@ export async function getCurriculos(): Promise<CurriculoListItem[]> {
 export async function getCurriculoById(id: number): Promise<CurriculoDTO> {
   const response = await fetch(`${API_URL}/curriculos/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -275,7 +267,7 @@ export async function createCurriculo(
 ): Promise<CurriculoDTO> {
   const response = await fetch(`${API_URL}/curriculos`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -292,7 +284,7 @@ export async function updateCurriculo(
 ): Promise<CurriculoDTO> {
   const response = await fetch(`${API_URL}/curriculos/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -306,7 +298,7 @@ export async function updateCurriculo(
 export async function deleteCurriculo(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/curriculos/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -319,7 +311,7 @@ export async function getColaboradoresCurriculo(): Promise<
 > {
   const response = await fetch(`${API_URL}/colaboradores`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

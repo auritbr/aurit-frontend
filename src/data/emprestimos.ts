@@ -1,24 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -346,7 +328,7 @@ export function buildEmprestimoPayload(form: Emprestimo): EmprestimoDTO {
 export async function getEmprestimos(): Promise<Emprestimo[]> {
   const response = await fetch(`${API_URL}/emprestimos`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -361,7 +343,7 @@ export async function getEmprestimos(): Promise<Emprestimo[]> {
 export async function getEmprestimoById(id: number): Promise<Emprestimo> {
   const response = await fetch(`${API_URL}/emprestimos/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -378,7 +360,7 @@ export async function createEmprestimo(
 ): Promise<Emprestimo> {
   const response = await fetch(`${API_URL}/emprestimos`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -397,7 +379,7 @@ export async function updateEmprestimo(
 ): Promise<Emprestimo> {
   const response = await fetch(`${API_URL}/emprestimos/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -413,7 +395,7 @@ export async function updateEmprestimo(
 export async function deleteEmprestimo(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/emprestimos/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

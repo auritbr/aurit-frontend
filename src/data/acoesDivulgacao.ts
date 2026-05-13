@@ -1,24 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -265,7 +247,7 @@ export const colaboradoresTextoAcao = (
 export async function getAcoesDivulgacao(): Promise<AcaoDivulgacao[]> {
   const response = await fetch(`${API_URL}/acoes-divulgacao`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -282,7 +264,7 @@ export async function getAcaoDivulgacaoById(
 ): Promise<AcaoDivulgacao> {
   const response = await fetch(`${API_URL}/acoes-divulgacao/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -299,7 +281,7 @@ export async function createAcaoDivulgacao(
 ): Promise<AcaoDivulgacao> {
   const response = await fetch(`${API_URL}/acoes-divulgacao`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify({
       nomeAcao: payload.nomeAcao,
       descricaoAcao: payload.descricaoAcao,
@@ -332,7 +314,7 @@ export async function updateAcaoDivulgacao(
 ): Promise<AcaoDivulgacao> {
   const response = await fetch(`${API_URL}/acoes-divulgacao/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify({
       nomeAcao: payload.nomeAcao,
       descricaoAcao: payload.descricaoAcao,
@@ -362,7 +344,7 @@ export async function updateAcaoDivulgacao(
 export async function deleteAcaoDivulgacao(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/acoes-divulgacao/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -373,7 +355,7 @@ export async function deleteAcaoDivulgacao(id: number): Promise<void> {
 export async function getProjetosOptions(): Promise<ProjetoOption[]> {
   const response = await fetch(`${API_URL}/projetos`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -393,7 +375,7 @@ export async function getProjetosOptions(): Promise<ProjetoOption[]> {
 export async function getColaboradoresOptions(): Promise<ColaboradorOption[]> {
   const response = await fetch(`${API_URL}/colaboradores`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

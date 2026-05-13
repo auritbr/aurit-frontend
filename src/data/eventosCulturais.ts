@@ -1,19 +1,6 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getAuthHeaders() {
-  const token =
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken");
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -324,7 +311,7 @@ export function enrichEventoCultural(
 export async function getEventosCulturais(): Promise<EventoCultural[]> {
   const response = await fetch(`${API_URL}/eventos-culturais`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -341,7 +328,7 @@ export async function getEventoCulturalById(
 ): Promise<EventoCultural> {
   const response = await fetch(`${API_URL}/eventos-culturais/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -358,7 +345,7 @@ export async function createEventoCultural(
 ): Promise<EventoCultural> {
   const response = await fetch(`${API_URL}/eventos-culturais`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -377,7 +364,7 @@ export async function updateEventoCultural(
 ): Promise<EventoCultural> {
   const response = await fetch(`${API_URL}/eventos-culturais/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -393,7 +380,7 @@ export async function updateEventoCultural(
 export async function deleteEventoCultural(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/eventos-culturais/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -404,7 +391,7 @@ export async function deleteEventoCultural(id: number): Promise<void> {
 export async function getProjetosOptions(): Promise<ProjetoOption[]> {
   const response = await fetch(`${API_URL}/projetos`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -429,7 +416,7 @@ export async function getProjetosOptions(): Promise<ProjetoOption[]> {
 export async function getColaboradoresOptions(): Promise<ColaboradorOption[]> {
   const response = await fetch(`${API_URL}/colaboradores`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {

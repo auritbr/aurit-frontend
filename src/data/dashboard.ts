@@ -1,3 +1,5 @@
+import { getJsonHeaders } from "@/lib/apiHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export interface DashboardResponse<T> {
@@ -62,21 +64,6 @@ export interface ProjetoRaw {
   status?: string;
 }
 
-function getAuthHeaders() {
-  const token =
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken");
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
 async function parseError(response: Response): Promise<string> {
   try {
     const text = await response.text();
@@ -103,7 +90,7 @@ async function fetchList<T>(path: string): Promise<DashboardResponse<T[]>> {
   try {
     const response = await fetch(`${API_URL}${path}`, {
       method: "GET",
-      headers: getAuthHeaders(),
+      headers: getJsonHeaders(),
     });
 
     if (!response.ok) {
@@ -276,8 +263,8 @@ export function groupParticipantesPorAtividade(
       participante.id != null
         ? String(participante.id)
         : participante.nomeCompleto?.trim() ||
-        participante.nome?.trim() ||
-        crypto.randomUUID();
+          participante.nome?.trim() ||
+          crypto.randomUUID();
 
     const vinculos = getVinculosParticipante(participante);
 

@@ -1,16 +1,7 @@
 import type { Status } from "@/components/StatusPill";
+import { getJsonHeaders } from "@/lib/apiHeaders";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-function getAuthHeaders() {
-  const token =
-    localStorage.getItem("token") || sessionStorage.getItem("token");
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -198,7 +189,7 @@ export function buildPlanoComunicacaoPayload(
 export async function getPlanosComunicacao(): Promise<PlanoComunicacao[]> {
   const response = await fetch(`${API_URL}/planos-comunicacao`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -215,7 +206,7 @@ export async function getPlanoComunicacaoById(
 ): Promise<PlanoComunicacao> {
   const response = await fetch(`${API_URL}/planos-comunicacao/${id}`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -232,7 +223,7 @@ export async function createPlanoComunicacao(
 ): Promise<PlanoComunicacao> {
   const response = await fetch(`${API_URL}/planos-comunicacao`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -251,7 +242,7 @@ export async function updatePlanoComunicacao(
 ): Promise<PlanoComunicacao> {
   const response = await fetch(`${API_URL}/planos-comunicacao/${id}`, {
     method: "PUT",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -267,7 +258,7 @@ export async function updatePlanoComunicacao(
 export async function deletePlanoComunicacao(id: number): Promise<void> {
   const response = await fetch(`${API_URL}/planos-comunicacao/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -280,7 +271,7 @@ export async function getAcoesDivulgacaoOptions(): Promise<
 > {
   const response = await fetch(`${API_URL}/acoes-divulgacao`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
@@ -310,7 +301,7 @@ export async function getAcoesDivulgacaoOptions(): Promise<
 export async function getOrganizacoesOptions(): Promise<OrganizacaoOption[]> {
   const response = await fetch(`${API_URL}/organizacoes`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getJsonHeaders(),
   });
 
   if (!response.ok) {
