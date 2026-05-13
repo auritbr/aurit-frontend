@@ -193,7 +193,6 @@ type FinanceiroPdf = {
   organizacao?: string | null;
   numeroDocumento?: string | null;
   descricao?: string | null;
-  comprovante?: string | null;
 
   dataPagamento?: string | null;
   dataVencimento?: string | null;
@@ -3320,10 +3319,6 @@ export async function exportFinanceiroPdf(f: FinanceiroPdf) {
         {
           label: "Descrição",
           value: v(f.descricao),
-        },
-        {
-          label: "Comprovante",
-          value: v(f.comprovante),
         },
       ],
     },
