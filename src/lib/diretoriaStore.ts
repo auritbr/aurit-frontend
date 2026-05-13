@@ -1,5 +1,29 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
+function getTenantSlug() {
+  const hostname = window.location.hostname;
+
+  if (hostname === "localhost") {
+    return "";
+  }
+
+  if (!hostname.endsWith(".aurit.com.br")) {
+    return "";
+  }
+
+  const slug = hostname.replace(".aurit.com.br", "");
+
+  if (!slug || slug.includes(".")) {
+    return "";
+  }
+
+  if (["www", "admin", "api", "mail", "webmail", "cpanel"].includes(slug)) {
+    return "";
+  }
+
+  return slug;
+}
+
 function getAuthHeaders() {
   const token =
     localStorage.getItem("token") ||
@@ -9,9 +33,12 @@ function getAuthHeaders() {
     sessionStorage.getItem("authToken") ||
     sessionStorage.getItem("accessToken");
 
+  const tenantSlug = getTenantSlug();
+
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}),
   };
 }
 
