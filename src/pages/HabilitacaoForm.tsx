@@ -444,414 +444,408 @@ export default function HabilitacaoForm() {
 
         {!visualizando && <FormLegend />}
 
-        {loading ? (
-          <div className="rounded border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            Carregando Habilitação Documental...
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <Section icon={FileSignature} title="Proposta e responsável">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="propostaEdital"
-                    required
-                    tooltip="Selecione a proposta que está passando pela etapa de habilitação documental. Cada proposta deve possuir apenas um registro de habilitação."
-                  >
-                    Proposta de Edital
-                  </FieldLabel>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Section icon={FileSignature} title="Proposta e responsável">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="propostaEdital"
+                  required
+                  tooltip="Selecione a proposta que está passando pela etapa de habilitação documental. Cada proposta deve possuir apenas um registro de habilitação."
+                >
+                  Proposta de Edital
+                </FieldLabel>
 
-                  <Select
-                    value={form.propostaEdital}
-                    onValueChange={(value) => set("propostaEdital", value)}
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="propostaEdital">
-                      <SelectValue placeholder="Selecione a proposta" />
-                    </SelectTrigger>
+                <Select
+                  value={form.propostaEdital}
+                  onValueChange={(value) => set("propostaEdital", value)}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="propostaEdital">
+                    <SelectValue placeholder="Selecione a proposta" />
+                  </SelectTrigger>
 
-                    <SelectContent>
-                      {!!form.propostaEdital && !propostaSelecionadaExiste && (
-                        <SelectItem value={form.propostaEdital}>
-                          Proposta vinculada #{form.propostaEdital}
+                  <SelectContent>
+                    {!!form.propostaEdital && !propostaSelecionadaExiste && (
+                      <SelectItem value={form.propostaEdital}>
+                        Proposta vinculada #{form.propostaEdital}
+                      </SelectItem>
+                    )}
+
+                    {propostasDisponiveis.length === 0 ? (
+                      <SelectItem value="__none" disabled>
+                        Nenhuma proposta disponível
+                      </SelectItem>
+                    ) : (
+                      propostasDisponiveis.map((proposta) => (
+                        <SelectItem key={proposta.id} value={proposta.id}>
+                          {proposta.nome}
                         </SelectItem>
-                      )}
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
 
-                      {propostasDisponiveis.length === 0 ? (
-                        <SelectItem value="__none" disabled>
-                          Nenhuma proposta disponível
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Cada proposta possui apenas uma Habilitação Documental.
+                </p>
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="agente"
+                  required
+                  tooltip="Selecione o agente cultural responsável pela inscrição, habilitação ou representação da proposta no edital."
+                >
+                  Agente Responsável
+                </FieldLabel>
+
+                <Select
+                  value={form.agente}
+                  onValueChange={(value) => set("agente", value)}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="agente">
+                    <SelectValue placeholder="Selecione o agente" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {!!form.agente && !agenteSelecionadoExiste && (
+                      <SelectItem value={form.agente}>
+                        Agente vinculado #{form.agente}
+                      </SelectItem>
+                    )}
+
+                    {agentes.length === 0 ? (
+                      <SelectItem value="__none" disabled>
+                        Nenhum agente cadastrado
+                      </SelectItem>
+                    ) : (
+                      agentes.map((agente) => (
+                        <SelectItem key={agente.id} value={agente.id}>
+                          {agente.nome}
                         </SelectItem>
-                      ) : (
-                        propostasDisponiveis.map((proposta) => (
-                          <SelectItem key={proposta.id} value={proposta.id}>
-                            {proposta.nome}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-
-                  <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    Cada proposta possui apenas uma Habilitação Documental.
-                  </p>
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="agente"
-                    required
-                    tooltip="Selecione o agente cultural responsável pela inscrição, habilitação ou representação da proposta no edital."
-                  >
-                    Agente Responsável
-                  </FieldLabel>
-
-                  <Select
-                    value={form.agente}
-                    onValueChange={(value) => set("agente", value)}
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="agente">
-                      <SelectValue placeholder="Selecione o agente" />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {!!form.agente && !agenteSelecionadoExiste && (
-                        <SelectItem value={form.agente}>
-                          Agente vinculado #{form.agente}
-                        </SelectItem>
-                      )}
-
-                      {agentes.length === 0 ? (
-                        <SelectItem value="__none" disabled>
-                          Nenhum agente cadastrado
-                        </SelectItem>
-                      ) : (
-                        agentes.map((agente) => (
-                          <SelectItem key={agente.id} value={agente.id}>
-                            {agente.nome}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-            </Section>
-
-            <Section icon={CalendarClock} title="Convocação, prazo e envio">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <Field>
-                  <FieldLabel
-                    htmlFor="dataInicioHabilitacao"
-                    tooltip="Informe a data de convocação para habilitação ou a data em que a organização iniciou a preparação da documentação."
-                  >
-                    Data de Convocação/Início
-                  </FieldLabel>
-
-                  <Input
-                    id="dataInicioHabilitacao"
-                    type="date"
-                    value={form.dataInicioHabilitacao}
-                    onChange={(e) =>
-                      set("dataInicioHabilitacao", e.target.value)
-                    }
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="dataLimiteHabilitacao"
-                    tooltip="Informe o prazo final definido pelo edital ou plataforma para envio, correção ou regularização da documentação de habilitação."
-                  >
-                    Prazo Final da Habilitação
-                  </FieldLabel>
-
-                  <Input
-                    id="dataLimiteHabilitacao"
-                    type="date"
-                    value={form.dataLimiteHabilitacao}
-                    onChange={(e) =>
-                      set("dataLimiteHabilitacao", e.target.value)
-                    }
-                    className="border-primary/40 bg-primary/[0.03] focus-visible:ring-primary/40"
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-
-                  <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    Prazo oficial — atenção redobrada.
-                  </p>
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="dataEnvioDocumentacao"
-                    tooltip="Informe a data em que os documentos de habilitação foram enviados na plataforma, sistema externo ou canal oficial do edital."
-                  >
-                    Data de Envio da Documentação
-                  </FieldLabel>
-
-                  <Input
-                    id="dataEnvioDocumentacao"
-                    type="date"
-                    value={form.dataEnvioDocumentacao}
-                    onChange={(e) =>
-                      set("dataEnvioDocumentacao", e.target.value)
-                    }
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-              </div>
-
-              {(limiteAntesInicio || envioAntesInicio || envioAposLimite) && (
-                <div className="mt-4 space-y-2">
-                  {limiteAntesInicio && (
-                    <Aviso tone="danger">
-                      O prazo final da habilitação não pode ser anterior à data
-                      de convocação/início.
-                    </Aviso>
-                  )}
-
-                  {envioAntesInicio && (
-                    <Aviso tone="danger">
-                      A data de envio da documentação não pode ser anterior à
-                      data de convocação/início.
-                    </Aviso>
-                  )}
-
-                  {envioAposLimite && (
-                    <Aviso tone="warning">
-                      A data de envio está após o prazo final da habilitação.
-                      Verifique se houve prorrogação, reabertura de prazo ou
-                      envio em fase de regularização/recurso.
-                    </Aviso>
-                  )}
-                </div>
-              )}
-            </Section>
-
-            <Section icon={ClipboardList} title="Análise, pendência e recurso">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="statusHabilitacao"
-                    required
-                    tooltip="Indique a situação atual da habilitação documental. Use este campo para acompanhar preparação, envio, análise, pendência, regularização, recurso documental, habilitação ou inabilitação."
-                  >
-                    Status da Habilitação
-                  </FieldLabel>
-
-                  <Select
-                    value={form.statusHabilitacao}
-                    onValueChange={(value) =>
-                      set("statusHabilitacao", value as StatusHabilitacao)
-                    }
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="statusHabilitacao">
-                      <SelectValue placeholder="Selecione o status" />
-                    </SelectTrigger>
-
-                    <SelectContent className="max-h-72">
-                      {statusHabilitacaoOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="dataRetornoAnalise"
-                    tooltip="Informe a data em que houve retorno da análise da habilitação, como exigência, pendência, aprovação documental, inabilitação ou solicitação de regularização."
-                  >
-                    Data de Retorno da Análise
-                  </FieldLabel>
-
-                  <Input
-                    id="dataRetornoAnalise"
-                    type="date"
-                    value={form.dataRetornoAnalise}
-                    onChange={(e) =>
-                      set("dataRetornoAnalise", e.target.value)
-                    }
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field full>
-                  <FieldLabel
-                    htmlFor="exigenciaOuPendencia"
-                    required={exigePendencia}
-                    tooltip="Registre a exigência ou pendência apontada na análise de habilitação, como documento vencido, documento ausente, divergência cadastral, assinatura pendente, conta bancária incorreta ou necessidade de reenvio."
-                  >
-                    Exigência ou Pendência
-                  </FieldLabel>
-
-                  <Textarea
-                    id="exigenciaOuPendencia"
-                    value={form.exigenciaOuPendencia}
-                    onChange={(e) =>
-                      set("exigenciaOuPendencia", e.target.value)
-                    }
-                    rows={3}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field full>
-                  <FieldLabel
-                    htmlFor="providenciaTomada"
-                    required={exigeProvidencia}
-                    tooltip="Descreva o que foi feito para resolver a exigência ou contestar a análise, como atualização de documento, reenvio na plataforma, correção de informação, contato com o órgão responsável ou envio de recurso documental."
-                  >
-                    Providência Tomada/Recurso Enviado
-                  </FieldLabel>
-
-                  <Textarea
-                    id="providenciaTomada"
-                    value={form.providenciaTomada}
-                    onChange={(e) => set("providenciaTomada", e.target.value)}
-                    rows={3}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="dataRegularizacao"
-                    tooltip="Informe a data em que a pendência foi regularizada, corrigida, reenviada ou a data em que o recurso documental foi protocolado."
-                  >
-                    Data de Regularização/Recurso
-                  </FieldLabel>
-
-                  <Input
-                    id="dataRegularizacao"
-                    type="date"
-                    value={form.dataRegularizacao}
-                    onChange={(e) => set("dataRegularizacao", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-              </div>
-
-              {(retornoAntesEnvio || regularizacaoAntesRetorno) && (
-                <div className="mt-4 space-y-2">
-                  {retornoAntesEnvio && (
-                    <Aviso tone="danger">
-                      A data de retorno da análise não pode ser anterior à data
-                      de envio da documentação.
-                    </Aviso>
-                  )}
-
-                  {regularizacaoAntesRetorno && (
-                    <Aviso tone="danger">
-                      A data de regularização/recurso não pode ser anterior à
-                      data de retorno da análise.
-                    </Aviso>
-                  )}
-                </div>
-              )}
-            </Section>
-
-            <Section icon={CheckCircle2} title="Resultado da habilitação">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="dataConclusaoHabilitacao"
-                    required={exigeDataConclusao}
-                    tooltip="Informe a data em que a habilitação documental foi concluída, seja por habilitação, inabilitação, habilitação após recurso, inabilitação definitiva, cancelamento ou encerramento do processo."
-                  >
-                    Data de Conclusão da Habilitação
-                  </FieldLabel>
-
-                  <Input
-                    id="dataConclusaoHabilitacao"
-                    type="date"
-                    value={form.dataConclusaoHabilitacao}
-                    onChange={(e) =>
-                      set("dataConclusaoHabilitacao", e.target.value)
-                    }
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field full>
-                  <FieldLabel
-                    htmlFor="motivoInabilitacao"
-                    required={exigeMotivoInabilitacao}
-                    tooltip="Preencha apenas se a proposta tiver sido inabilitada. Informe o motivo apresentado na análise documental ou no resultado definitivo após recurso."
-                  >
-                    Motivo da Inabilitação
-                  </FieldLabel>
-
-                  <Textarea
-                    id="motivoInabilitacao"
-                    value={form.motivoInabilitacao}
-                    onChange={(e) => set("motivoInabilitacao", e.target.value)}
-                    rows={3}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field full>
-                  <FieldLabel
-                    htmlFor="observacoes"
-                    tooltip="Registre informações complementares sobre a habilitação documental, como protocolos, publicações oficiais, orientações recebidas, links externos, situação do termo de compromisso, dados bancários ou observações internas."
-                  >
-                    Observações Gerais
-                  </FieldLabel>
-
-                  <Textarea
-                    id="observacoes"
-                    value={form.observacoes}
-                    onChange={(e) => set("observacoes", e.target.value)}
-                    rows={4}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-              </div>
-
-              {conclusaoAntesInicio && (
-                <div className="mt-4">
-                  <Aviso tone="danger">
-                    A data de conclusão não pode ser anterior à data de
-                    convocação/início.
-                  </Aviso>
-                </div>
-              )}
-            </Section>
-
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate("/habilitacoes-propostas")}
-                disabled={saving}
-              >
-                {visualizando ? "Voltar" : "Cancelar"}
-              </Button>
-
-              {!visualizando && (
-                <Button type="submit" className="sm:min-w-40" disabled={saving}>
-                  {saving ? "Salvando..." : "Salvar"}
-                </Button>
-              )}
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </Field>
             </div>
-          </form>
-        )}
+          </Section>
+
+          <Section icon={CalendarClock} title="Convocação, prazo e envio">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field>
+                <FieldLabel
+                  htmlFor="dataInicioHabilitacao"
+                  tooltip="Informe a data de convocação para habilitação ou a data em que a organização iniciou a preparação da documentação."
+                >
+                  Data de Convocação/Início
+                </FieldLabel>
+
+                <Input
+                  id="dataInicioHabilitacao"
+                  type="date"
+                  value={form.dataInicioHabilitacao}
+                  onChange={(e) =>
+                    set("dataInicioHabilitacao", e.target.value)
+                  }
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="dataLimiteHabilitacao"
+                  tooltip="Informe o prazo final definido pelo edital ou plataforma para envio, correção ou regularização da documentação de habilitação."
+                >
+                  Prazo Final da Habilitação
+                </FieldLabel>
+
+                <Input
+                  id="dataLimiteHabilitacao"
+                  type="date"
+                  value={form.dataLimiteHabilitacao}
+                  onChange={(e) =>
+                    set("dataLimiteHabilitacao", e.target.value)
+                  }
+                  className="border-primary/40 bg-primary/[0.03] focus-visible:ring-primary/40"
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Prazo oficial — atenção redobrada.
+                </p>
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="dataEnvioDocumentacao"
+                  tooltip="Informe a data em que os documentos de habilitação foram enviados na plataforma, sistema externo ou canal oficial do edital."
+                >
+                  Data de Envio da Documentação
+                </FieldLabel>
+
+                <Input
+                  id="dataEnvioDocumentacao"
+                  type="date"
+                  value={form.dataEnvioDocumentacao}
+                  onChange={(e) =>
+                    set("dataEnvioDocumentacao", e.target.value)
+                  }
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </div>
+
+            {(limiteAntesInicio || envioAntesInicio || envioAposLimite) && (
+              <div className="mt-4 space-y-2">
+                {limiteAntesInicio && (
+                  <Aviso tone="danger">
+                    O prazo final da habilitação não pode ser anterior à data
+                    de convocação/início.
+                  </Aviso>
+                )}
+
+                {envioAntesInicio && (
+                  <Aviso tone="danger">
+                    A data de envio da documentação não pode ser anterior à
+                    data de convocação/início.
+                  </Aviso>
+                )}
+
+                {envioAposLimite && (
+                  <Aviso tone="warning">
+                    A data de envio está após o prazo final da habilitação.
+                    Verifique se houve prorrogação, reabertura de prazo ou
+                    envio em fase de regularização/recurso.
+                  </Aviso>
+                )}
+              </div>
+            )}
+          </Section>
+
+          <Section icon={ClipboardList} title="Análise, pendência e recurso">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="statusHabilitacao"
+                  required
+                  tooltip="Indique a situação atual da habilitação documental. Use este campo para acompanhar preparação, envio, análise, pendência, regularização, recurso documental, habilitação ou inabilitação."
+                >
+                  Status da Habilitação
+                </FieldLabel>
+
+                <Select
+                  value={form.statusHabilitacao}
+                  onValueChange={(value) =>
+                    set("statusHabilitacao", value as StatusHabilitacao)
+                  }
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="statusHabilitacao">
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+
+                  <SelectContent className="max-h-72">
+                    {statusHabilitacaoOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="dataRetornoAnalise"
+                  tooltip="Informe a data em que houve retorno da análise da habilitação, como exigência, pendência, aprovação documental, inabilitação ou solicitação de regularização."
+                >
+                  Data de Retorno da Análise
+                </FieldLabel>
+
+                <Input
+                  id="dataRetornoAnalise"
+                  type="date"
+                  value={form.dataRetornoAnalise}
+                  onChange={(e) =>
+                    set("dataRetornoAnalise", e.target.value)
+                  }
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field full>
+                <FieldLabel
+                  htmlFor="exigenciaOuPendencia"
+                  required={exigePendencia}
+                  tooltip="Registre a exigência ou pendência apontada na análise de habilitação, como documento vencido, documento ausente, divergência cadastral, assinatura pendente, conta bancária incorreta ou necessidade de reenvio."
+                >
+                  Exigência ou Pendência
+                </FieldLabel>
+
+                <Textarea
+                  id="exigenciaOuPendencia"
+                  value={form.exigenciaOuPendencia}
+                  onChange={(e) =>
+                    set("exigenciaOuPendencia", e.target.value)
+                  }
+                  rows={3}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field full>
+                <FieldLabel
+                  htmlFor="providenciaTomada"
+                  required={exigeProvidencia}
+                  tooltip="Descreva o que foi feito para resolver a exigência ou contestar a análise, como atualização de documento, reenvio na plataforma, correção de informação, contato com o órgão responsável ou envio de recurso documental."
+                >
+                  Providência Tomada/Recurso Enviado
+                </FieldLabel>
+
+                <Textarea
+                  id="providenciaTomada"
+                  value={form.providenciaTomada}
+                  onChange={(e) => set("providenciaTomada", e.target.value)}
+                  rows={3}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="dataRegularizacao"
+                  tooltip="Informe a data em que a pendência foi regularizada, corrigida, reenviada ou a data em que o recurso documental foi protocolado."
+                >
+                  Data de Regularização/Recurso
+                </FieldLabel>
+
+                <Input
+                  id="dataRegularizacao"
+                  type="date"
+                  value={form.dataRegularizacao}
+                  onChange={(e) => set("dataRegularizacao", e.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </div>
+
+            {(retornoAntesEnvio || regularizacaoAntesRetorno) && (
+              <div className="mt-4 space-y-2">
+                {retornoAntesEnvio && (
+                  <Aviso tone="danger">
+                    A data de retorno da análise não pode ser anterior à data
+                    de envio da documentação.
+                  </Aviso>
+                )}
+
+                {regularizacaoAntesRetorno && (
+                  <Aviso tone="danger">
+                    A data de regularização/recurso não pode ser anterior à
+                    data de retorno da análise.
+                  </Aviso>
+                )}
+              </div>
+            )}
+          </Section>
+
+          <Section icon={CheckCircle2} title="Resultado da habilitação">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="dataConclusaoHabilitacao"
+                  required={exigeDataConclusao}
+                  tooltip="Informe a data em que a habilitação documental foi concluída, seja por habilitação, inabilitação, habilitação após recurso, inabilitação definitiva, cancelamento ou encerramento do processo."
+                >
+                  Data de Conclusão da Habilitação
+                </FieldLabel>
+
+                <Input
+                  id="dataConclusaoHabilitacao"
+                  type="date"
+                  value={form.dataConclusaoHabilitacao}
+                  onChange={(e) =>
+                    set("dataConclusaoHabilitacao", e.target.value)
+                  }
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field full>
+                <FieldLabel
+                  htmlFor="motivoInabilitacao"
+                  required={exigeMotivoInabilitacao}
+                  tooltip="Preencha apenas se a proposta tiver sido inabilitada. Informe o motivo apresentado na análise documental ou no resultado definitivo após recurso."
+                >
+                  Motivo da Inabilitação
+                </FieldLabel>
+
+                <Textarea
+                  id="motivoInabilitacao"
+                  value={form.motivoInabilitacao}
+                  onChange={(e) => set("motivoInabilitacao", e.target.value)}
+                  rows={3}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field full>
+                <FieldLabel
+                  htmlFor="observacoes"
+                  tooltip="Registre informações complementares sobre a habilitação documental, como protocolos, publicações oficiais, orientações recebidas, links externos, situação do termo de compromisso, dados bancários ou observações internas."
+                >
+                  Observações Gerais
+                </FieldLabel>
+
+                <Textarea
+                  id="observacoes"
+                  value={form.observacoes}
+                  onChange={(e) => set("observacoes", e.target.value)}
+                  rows={4}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </div>
+
+            {conclusaoAntesInicio && (
+              <div className="mt-4">
+                <Aviso tone="danger">
+                  A data de conclusão não pode ser anterior à data de
+                  convocação/início.
+                </Aviso>
+              </div>
+            )}
+          </Section>
+
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/habilitacoes-propostas")}
+              disabled={saving}
+            >
+              {visualizando ? "Voltar" : "Cancelar"}
+            </Button>
+
+            {!visualizando && (
+              <Button type="submit" className="sm:min-w-40" disabled={saving}>
+                {saving ? "Salvando..." : "Salvar"}
+              </Button>
+            )}
+          </div>
+        </form>
       </div>
     </AppLayout>
   );

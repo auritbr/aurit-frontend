@@ -107,6 +107,7 @@ const requiredFields: Array<[keyof DiretoriaData, string]> = [
   ["telefone", "Telefone"],
   ["cargoDiretoria", "Cargo na Diretoria"],
   ["dataInicioMandato", "Data de Início do Mandato"],
+  ["dataFimMandato", "Data de Fim do Mandato"],
   ["statusDiretoria", "Status da Diretoria"],
   ["cep", "CEP"],
   ["logradouro", "Logradouro"],
@@ -405,7 +406,7 @@ export default function Diretoria() {
   const organizacaoNome = (organizacaoId?: string) =>
     organizacaoId
       ? organizacoes.find((entry) => String(entry.id) === String(organizacaoId))
-          ?.nome ?? "—"
+        ?.nome ?? "—"
       : "—";
 
   const filteredRegistros = useMemo(() => {
@@ -760,9 +761,8 @@ export default function Diretoria() {
   return (
     <AppLayout>
       <div
-        className={`container ${
-          showForm ? "max-w-4xl" : "max-w-7xl"
-        } py-6 sm:py-8`}
+        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"
+          } py-6 sm:py-8`}
       >
         {showForm && (
           <button
@@ -1128,8 +1128,8 @@ export default function Diretoria() {
                   <Field>
                     <FieldLabel
                       htmlFor="dataFimMandato"
-                      required={!readOnly && statusEncerrado}
-                      tooltip="Informe a data prevista ou efetiva de encerramento do mandato. Este campo deve ser preenchido quando o status da diretoria estiver como “Encerrado”. Ex.: 31/12/2026."
+                      required={!readOnly}
+                      tooltip="Informe a data prevista ou efetiva de encerramento do mandato. Este campo é obrigatório para todos os membros da diretoria, independentemente do status."
                     >
                       Data de Fim do Mandato
                     </FieldLabel>

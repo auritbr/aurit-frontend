@@ -540,12 +540,6 @@ export default function PrestacaoMetaForm() {
           </p>
         </div>
 
-        {loading && (
-          <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-            Carregando dados do cumprimento de metas...
-          </div>
-        )}
-
         {visualizando && (
           <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             Esta tela está em modo de visualização. Para alterar os dados,

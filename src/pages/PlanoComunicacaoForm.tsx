@@ -295,262 +295,256 @@ export default function PlanoComunicacaoForm() {
 
         {!visualizando && <FormLegend />}
 
-        {loading ? (
-          <div className="rounded border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            Carregando Execução da Divulgação...
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <Section icon={ClipboardList} title="Informações da execução">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="quantidade"
-                    required={!visualizando}
-                    tooltip="Informe a quantidade prevista ou realizada para este formato de comunicação. Ex.: 10 cartazes, 5 publicações, 2 vídeos, 100 panfletos ou 3 chamadas de rádio."
-                  >
-                    Quantidade
-                  </FieldLabel>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Section icon={ClipboardList} title="Informações da execução">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="quantidade"
+                  required={!visualizando}
+                  tooltip="Informe a quantidade prevista ou realizada para este formato de comunicação. Ex.: 10 cartazes, 5 publicações, 2 vídeos, 100 panfletos ou 3 chamadas de rádio."
+                >
+                  Quantidade
+                </FieldLabel>
 
-                  <Input
-                    id="quantidade"
-                    value={form.quantidade}
-                    onChange={(e) => set("quantidade", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
+                <Input
+                  id="quantidade"
+                  value={form.quantidade}
+                  onChange={(e) => set("quantidade", e.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
 
-                <Field>
-                  <FieldLabel
-                    htmlFor="formatoPlanoComunicacao"
-                    required={!visualizando}
-                    tooltip="Selecione o formato principal da comunicação. Ex.: material gráfico, redes sociais, vídeo, rádio, site institucional, WhatsApp ou imprensa local."
-                  >
-                    Formato da Comunicação
-                  </FieldLabel>
+              <Field>
+                <FieldLabel
+                  htmlFor="formatoPlanoComunicacao"
+                  required={!visualizando}
+                  tooltip="Selecione o formato principal da comunicação. Ex.: material gráfico, redes sociais, vídeo, rádio, site institucional, WhatsApp ou imprensa local."
+                >
+                  Formato da Comunicação
+                </FieldLabel>
 
-                  <Select
-                    value={form.formatoPlanoComunicacao}
-                    onValueChange={(value) =>
-                      set("formatoPlanoComunicacao", value)
-                    }
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="formatoPlanoComunicacao">
-                      <SelectValue placeholder="Selecione um formato" />
-                    </SelectTrigger>
+                <Select
+                  value={form.formatoPlanoComunicacao}
+                  onValueChange={(value) =>
+                    set("formatoPlanoComunicacao", value)
+                  }
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="formatoPlanoComunicacao">
+                    <SelectValue placeholder="Selecione um formato" />
+                  </SelectTrigger>
 
-                    <SelectContent>
-                      {formatosComunicacaoOptions.map((formato) => (
-                        <SelectItem key={formato} value={formato}>
-                          {formato}
+                  <SelectContent>
+                    {formatosComunicacaoOptions.map((formato) => (
+                      <SelectItem key={formato} value={formato}>
+                        {formato}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field full>
+                <FieldLabel
+                  htmlFor="localCirculacaoComunicacao"
+                  required={!visualizando}
+                  tooltip="Informe onde esta comunicação será divulgada ou distribuída. Pode ser um canal digital, espaço físico, território, instituição, mídia ou local de circulação do público. Ex.: Instagram da organização, grupos de WhatsApp da comunidade, escolas parceiras, rádio local, praça central, comércio do bairro ou site institucional."
+                >
+                  Local de Circulação
+                </FieldLabel>
+
+                <Input
+                  id="localCirculacaoComunicacao"
+                  value={form.localCirculacaoComunicacao}
+                  onChange={(e) =>
+                    set("localCirculacaoComunicacao", e.target.value)
+                  }
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <Section icon={CalendarRange} title="Período">
+            <div className="mb-4 rounded-md border border-border bg-secondary/50 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
+              Informe o período em que esta ação de comunicação será
+              executada. Esse dado ajuda a relacionar a divulgação ao
+              cronograma do projeto e às evidências geradas.
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="dataInicio"
+                  required={!visualizando}
+                  tooltip="Informe a data prevista ou efetiva de início da execução desta ação de comunicação."
+                >
+                  Data de Início
+                </FieldLabel>
+
+                <Input
+                  id="dataInicio"
+                  type="date"
+                  value={form.dataInicio}
+                  onChange={(e) => set("dataInicio", e.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="dataFim"
+                  required={!visualizando}
+                  tooltip="Informe a data prevista ou efetiva de encerramento desta ação de comunicação."
+                >
+                  Data de Fim
+                </FieldLabel>
+
+                <Input
+                  id="dataFim"
+                  type="date"
+                  value={form.dataFim}
+                  onChange={(e) => set("dataFim", e.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <Section icon={Link2} title="Vínculos">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="acaoDivulgacao"
+                  required={!visualizando}
+                  tooltip="Selecione a ação de divulgação à qual esta Execução da Divulgação está vinculada. Esse vínculo conecta a execução prática ao planejamento da divulgação."
+                >
+                  Ação de Divulgação
+                </FieldLabel>
+
+                <Select
+                  value={form.acaoDivulgacao}
+                  onValueChange={(value) => set("acaoDivulgacao", value)}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="acaoDivulgacao">
+                    <SelectValue placeholder="Selecione a ação vinculada" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {acoesComFallback.length === 0 ? (
+                      <SelectItem value="sem-acao" disabled>
+                        Nenhuma ação de divulgação cadastrada
+                      </SelectItem>
+                    ) : (
+                      acoesComFallback.map((acao) => (
+                        <SelectItem key={acao.id} value={acao.id}>
+                          {acao.nome}
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </Field>
 
-                <Field full>
-                  <FieldLabel
-                    htmlFor="localCirculacaoComunicacao"
-                    required={!visualizando}
-                    tooltip="Informe onde esta comunicação será divulgada ou distribuída. Pode ser um canal digital, espaço físico, território, instituição, mídia ou local de circulação do público. Ex.: Instagram da organização, grupos de WhatsApp da comunidade, escolas parceiras, rádio local, praça central, comércio do bairro ou site institucional."
-                  >
-                    Local de Circulação
-                  </FieldLabel>
+              <Field>
+                <FieldLabel
+                  htmlFor="organizacao"
+                  tooltip="Selecione a organização responsável por esta execução de comunicação, quando aplicável. Quando não informado, o backend deve vincular pelo tenant da empresa logada."
+                >
+                  Organização
+                </FieldLabel>
 
-                  <Input
-                    id="localCirculacaoComunicacao"
-                    value={form.localCirculacaoComunicacao}
-                    onChange={(e) =>
-                      set("localCirculacaoComunicacao", e.target.value)
-                    }
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-              </div>
-            </Section>
+                <Select
+                  value={form.organizacao}
+                  onValueChange={(value) => set("organizacao", value)}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="organizacao">
+                    <SelectValue placeholder="Vinculada pela empresa logada" />
+                  </SelectTrigger>
 
-            <Section icon={CalendarRange} title="Período">
-              <div className="mb-4 rounded-md border border-border bg-secondary/50 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-                Informe o período em que esta ação de comunicação será
-                executada. Esse dado ajuda a relacionar a divulgação ao
-                cronograma do projeto e às evidências geradas.
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="dataInicio"
-                    required={!visualizando}
-                    tooltip="Informe a data prevista ou efetiva de início da execução desta ação de comunicação."
-                  >
-                    Data de Início
-                  </FieldLabel>
-
-                  <Input
-                    id="dataInicio"
-                    type="date"
-                    value={form.dataInicio}
-                    onChange={(e) => set("dataInicio", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="dataFim"
-                    required={!visualizando}
-                    tooltip="Informe a data prevista ou efetiva de encerramento desta ação de comunicação."
-                  >
-                    Data de Fim
-                  </FieldLabel>
-
-                  <Input
-                    id="dataFim"
-                    type="date"
-                    value={form.dataFim}
-                    onChange={(e) => set("dataFim", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-              </div>
-            </Section>
-
-            <Section icon={Link2} title="Vínculos">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="acaoDivulgacao"
-                    required={!visualizando}
-                    tooltip="Selecione a ação de divulgação à qual esta Execução da Divulgação está vinculada. Esse vínculo conecta a execução prática ao planejamento da divulgação."
-                  >
-                    Ação de Divulgação
-                  </FieldLabel>
-
-                  <Select
-                    value={form.acaoDivulgacao}
-                    onValueChange={(value) => set("acaoDivulgacao", value)}
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="acaoDivulgacao">
-                      <SelectValue placeholder="Selecione a ação vinculada" />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {acoesComFallback.length === 0 ? (
-                        <SelectItem value="sem-acao" disabled>
-                          Nenhuma ação de divulgação cadastrada
+                  <SelectContent>
+                    {organizacoesComFallback.length === 0 ? (
+                      <SelectItem value="sem-organizacao" disabled>
+                        Nenhuma organização cadastrada
+                      </SelectItem>
+                    ) : (
+                      organizacoesComFallback.map((organizacao) => (
+                        <SelectItem
+                          key={organizacao.id}
+                          value={organizacao.id}
+                        >
+                          {organizacao.nome}
                         </SelectItem>
-                      ) : (
-                        acoesComFallback.map((acao) => (
-                          <SelectItem key={acao.id} value={acao.id}>
-                            {acao.nome}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </Section>
 
-                <Field>
-                  <FieldLabel
-                    htmlFor="organizacao"
-                    tooltip="Selecione a organização responsável por esta execução de comunicação, quando aplicável. Quando não informado, o backend deve vincular pelo tenant da empresa logada."
-                  >
-                    Organização
-                  </FieldLabel>
+          <Section icon={CircleDot} title="Status">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="status"
+                  required={!visualizando}
+                  tooltip="Indique a situação atual deste registro de comunicação. Use “Ativo” para ações em execução ou acompanhamento, “Pendente” para ações não iniciadas ou em conferência, “Concluído” para ações finalizadas conforme previsto e “Inativo” para registros que não devem mais ser considerados ativos."
+                >
+                  Status do Registro
+                </FieldLabel>
 
-                  <Select
-                    value={form.organizacao}
-                    onValueChange={(value) => set("organizacao", value)}
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="organizacao">
-                      <SelectValue placeholder="Vinculada pela empresa logada" />
-                    </SelectTrigger>
+                <Select
+                  value={form.status}
+                  onValueChange={(value) =>
+                    set("status", value as StatusPlanoComunicacao)
+                  }
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
 
-                    <SelectContent>
-                      {organizacoesComFallback.length === 0 ? (
-                        <SelectItem value="sem-organizacao" disabled>
-                          Nenhuma organização cadastrada
-                        </SelectItem>
-                      ) : (
-                        organizacoesComFallback.map((organizacao) => (
-                          <SelectItem
-                            key={organizacao.id}
-                            value={organizacao.id}
-                          >
-                            {organizacao.nome}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-            </Section>
+                  <SelectContent>
+                    {statusPlanoComunicacaoOptions.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </Section>
 
-            <Section icon={CircleDot} title="Status">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="status"
-                    required={!visualizando}
-                    tooltip="Indique a situação atual deste registro de comunicação. Use “Ativo” para ações em execução ou acompanhamento, “Pendente” para ações não iniciadas ou em conferência, “Concluído” para ações finalizadas conforme previsto e “Inativo” para registros que não devem mais ser considerados ativos."
-                  >
-                    Status do Registro
-                  </FieldLabel>
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/plano-comunicacao")}
+              disabled={saving}
+            >
+              {visualizando ? "Voltar" : "Cancelar"}
+            </Button>
 
-                  <Select
-                    value={form.status}
-                    onValueChange={(value) =>
-                      set("status", value as StatusPlanoComunicacao)
-                    }
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="status">
-                      <SelectValue placeholder="Selecione o status" />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {statusPlanoComunicacaoOptions.map((status) => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-            </Section>
-
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
+            {!visualizando && (
               <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate("/plano-comunicacao")}
+                type="submit"
+                className="sm:min-w-40"
                 disabled={saving}
               >
-                {visualizando ? "Voltar" : "Cancelar"}
+                {saving ? "Salvando..." : "Salvar registro"}
               </Button>
-
-              {!visualizando && (
-                <Button
-                  type="submit"
-                  className="sm:min-w-40"
-                  disabled={saving}
-                >
-                  {saving ? "Salvando..." : "Salvar registro"}
-                </Button>
-              )}
-            </div>
-          </form>
-        )}
+            )}
+          </div>
+        </form>
       </div>
     </AppLayout>
   );

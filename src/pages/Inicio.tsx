@@ -552,12 +552,6 @@ export default function Inicio() {
                 financeiros se conectam para apoiar decisões, preparar editais e
                 facilitar prestações de contas com mais clareza e confiança.
               </p>
-
-              {loading && (
-                <p className="pt-1 text-xs text-muted-foreground">
-                  Carregando dados da organização...
-                </p>
-              )}
             </div>
           </div>
         </section>

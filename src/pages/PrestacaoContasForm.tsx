@@ -456,255 +456,108 @@ export default function PrestacaoContasForm() {
 
         {!visualizando && <FormLegend />}
 
-        {loading ? (
-          <div className="rounded border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            Carregando prestação de contas...
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <Section icon={Link2} title="Vínculos da prestação">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel
-                    htmlFor="propostaEdital"
-                    required
-                    tooltip="Selecione a proposta de edital relacionada a esta prestação de contas. Esse vínculo conecta a prestação ao projeto inscrito, edital, agente responsável, equipe, metas e demais registros da candidatura."
-                  >
-                    Proposta de Edital
-                  </FieldLabel>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Section icon={Link2} title="Vínculos da prestação">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel
+                  htmlFor="propostaEdital"
+                  required
+                  tooltip="Selecione a proposta de edital relacionada a esta prestação de contas. Esse vínculo conecta a prestação ao projeto inscrito, edital, agente responsável, equipe, metas e demais registros da candidatura."
+                >
+                  Proposta de Edital
+                </FieldLabel>
 
-                  {visualizando ? (
-                    <Input
-                      id="propostaEdital"
-                      value={propostaSelecionadaNome || "—"}
-                      disabled
-                      readOnly
-                      className="bg-muted/40 cursor-not-allowed"
-                    />
-                  ) : (
-                    <Select
-                      key={`proposta-${form.propostaEdital}-${propostasComSelecao.length}`}
-                      value={String(form.propostaEdital || "")}
-                      onValueChange={(value) =>
-                        set("propostaEdital", String(value))
-                      }
-                      disabled={bloqueado}
-                    >
-                      <SelectTrigger id="propostaEdital">
-                        <SelectValue placeholder="Selecione a proposta" />
-                      </SelectTrigger>
-
-                      <SelectContent className="max-h-72">
-                        {propostasComSelecao.length === 0 ? (
-                          <SelectItem value="sem-proposta" disabled>
-                            Nenhuma proposta cadastrada
-                          </SelectItem>
-                        ) : (
-                          propostasComSelecao.map((item) => (
-                            <SelectItem
-                              key={String(item.id)}
-                              value={String(item.id)}
-                            >
-                              {item.nome}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="planejamentosFinanceiros"
-                    required
-                    tooltip="Selecione um ou mais itens de planejamento financeiro relacionados a esta prestação de contas. Esse vínculo ajuda a comparar valores previstos, movimentações realizadas, comprovantes e aplicação dos recursos."
-                  >
-                    Planejamentos Financeiros
-                  </FieldLabel>
-
-                  <div
-                    className={
-                      visualizando ? "pointer-events-none opacity-80" : ""
+                {visualizando ? (
+                  <Input
+                    id="propostaEdital"
+                    value={propostaSelecionadaNome || "—"}
+                    disabled
+                    readOnly
+                    className="bg-muted/40 cursor-not-allowed"
+                  />
+                ) : (
+                  <Select
+                    key={`proposta-${form.propostaEdital}-${propostasComSelecao.length}`}
+                    value={String(form.propostaEdital || "")}
+                    onValueChange={(value) =>
+                      set("propostaEdital", String(value))
                     }
+                    disabled={bloqueado}
                   >
-                    <MultiSelect
-                      id="planejamentosFinanceiros"
-                      options={planejamentosOptions}
-                      value={form.planejamentosFinanceiros}
-                      onChange={(value) => {
-                        if (visualizando) return;
+                    <SelectTrigger id="propostaEdital">
+                      <SelectValue placeholder="Selecione a proposta" />
+                    </SelectTrigger>
 
-                        set(
-                          "planejamentosFinanceiros",
-                          value.filter(Boolean).map(String),
-                        );
-                      }}
-                      getOptionLabel={planejamentoLabel}
-                    />
-                  </div>
-                </Field>
-              </div>
-            </Section>
+                    <SelectContent className="max-h-72">
+                      {propostasComSelecao.length === 0 ? (
+                        <SelectItem value="sem-proposta" disabled>
+                          Nenhuma proposta cadastrada
+                        </SelectItem>
+                      ) : (
+                        propostasComSelecao.map((item) => (
+                          <SelectItem
+                            key={String(item.id)}
+                            value={String(item.id)}
+                          >
+                            {item.nome}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
 
-            <Section icon={CalendarRange} title="Período e datas importantes">
-              <div className="space-y-4">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel
-                      htmlFor="periodoInicio"
-                      tooltip="Informe a data inicial do período que será considerado nesta prestação de contas. Pode corresponder ao início da execução, do uso dos recursos ou do período exigido pelo edital."
-                    >
-                      Período Inicial
-                    </FieldLabel>
+              <Field>
+                <FieldLabel
+                  htmlFor="planejamentosFinanceiros"
+                  required
+                  tooltip="Selecione um ou mais itens de planejamento financeiro relacionados a esta prestação de contas. Esse vínculo ajuda a comparar valores previstos, movimentações realizadas, comprovantes e aplicação dos recursos."
+                >
+                  Planejamentos Financeiros
+                </FieldLabel>
 
-                    <Input
-                      id="periodoInicio"
-                      type="date"
-                      value={form.periodoInicio}
-                      onChange={(e) => set("periodoInicio", e.target.value)}
-                      disabled={bloqueado}
-                      readOnly={visualizando}
-                    />
-                  </Field>
+                <div
+                  className={
+                    visualizando ? "pointer-events-none opacity-80" : ""
+                  }
+                >
+                  <MultiSelect
+                    id="planejamentosFinanceiros"
+                    options={planejamentosOptions}
+                    value={form.planejamentosFinanceiros}
+                    onChange={(value) => {
+                      if (visualizando) return;
 
-                  <Field>
-                    <FieldLabel
-                      htmlFor="periodoFim"
-                      tooltip="Informe a data final do período considerado nesta prestação de contas. Essa data ajuda a delimitar quais ações, despesas e evidências fazem parte do processo."
-                    >
-                      Período Final
-                    </FieldLabel>
-
-                    <Input
-                      id="periodoFim"
-                      type="date"
-                      value={form.periodoFim}
-                      onChange={(e) => set("periodoFim", e.target.value)}
-                      disabled={bloqueado}
-                      readOnly={visualizando}
-                      className={
-                        periodoInvertido
-                          ? "border-amber-500/40 focus-visible:ring-amber-500/30"
-                          : ""
-                      }
-                    />
-                  </Field>
+                      set(
+                        "planejamentosFinanceiros",
+                        value.filter(Boolean).map(String),
+                      );
+                    }}
+                    getOptionLabel={planejamentoLabel}
+                  />
                 </div>
+              </Field>
+            </div>
+          </Section>
 
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel
-                      htmlFor="dataEnvio"
-                      tooltip="Informe a data em que a prestação de contas foi enviada, protocolada ou submetida ao órgão responsável."
-                    >
-                      Data de Envio
-                    </FieldLabel>
-
-                    <Input
-                      id="dataEnvio"
-                      type="date"
-                      value={form.dataEnvio}
-                      onChange={(e) => set("dataEnvio", e.target.value)}
-                      disabled={bloqueado}
-                      readOnly={visualizando}
-                      className={
-                        envioAntesPeriodo
-                          ? "border-amber-500/40 focus-visible:ring-amber-500/30"
-                          : ""
-                      }
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel
-                      htmlFor="dataAprovacao"
-                      tooltip="Informe a data em que a prestação de contas foi aprovada, quando houver confirmação formal."
-                    >
-                      Data de Aprovação
-                    </FieldLabel>
-
-                    <Input
-                      id="dataAprovacao"
-                      type="date"
-                      value={form.dataAprovacao}
-                      onChange={(e) => set("dataAprovacao", e.target.value)}
-                      disabled={bloqueado}
-                      readOnly={visualizando}
-                      className={
-                        aprovacaoAntesEnvio
-                          ? "border-amber-500/40 focus-visible:ring-amber-500/30"
-                          : ""
-                      }
-                    />
-                  </Field>
-                </div>
-              </div>
-            </Section>
-
-            <Section icon={ClipboardCheck} title="Status e acompanhamento">
+          <Section icon={CalendarRange} title="Período e datas importantes">
+            <div className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <Field>
                   <FieldLabel
-                    htmlFor="statusPrestacaoContas"
-                    required
-                    tooltip="Indique a situação atual da prestação de contas, como não iniciada, em elaboração, aguardando documentos, pronta para envio, enviada, em análise, aprovada, aprovada com ressalvas ou reprovada."
+                    htmlFor="periodoInicio"
+                    tooltip="Informe a data inicial do período que será considerado nesta prestação de contas. Pode corresponder ao início da execução, do uso dos recursos ou do período exigido pelo edital."
                   >
-                    Status da Prestação
+                    Período Inicial
                   </FieldLabel>
 
-                  {visualizando ? (
-                    <Input
-                      id="statusPrestacaoContas"
-                      value={statusSelecionadoNome || "—"}
-                      disabled
-                      readOnly
-                      className="bg-muted/40 cursor-not-allowed"
-                    />
-                  ) : (
-                    <Select
-                      key={`status-${form.statusPrestacaoContas}`}
-                      value={String(form.statusPrestacaoContas || "")}
-                      onValueChange={(value) =>
-                        set(
-                          "statusPrestacaoContas",
-                          value as StatusPrestacaoContas,
-                        )
-                      }
-                      disabled={bloqueado}
-                    >
-                      <SelectTrigger id="statusPrestacaoContas">
-                        <SelectValue placeholder="Selecione o status" />
-                      </SelectTrigger>
-
-                      <SelectContent className="max-h-72">
-                        {statusPrestacaoContasOptions.map((item) => (
-                          <SelectItem key={item.value} value={item.value}>
-                            {item.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </Field>
-              </div>
-            </Section>
-
-            <Section icon={MessageSquareText} title="Pareceres e observações">
-              <div className="space-y-4">
-                <Field>
-                  <FieldLabel
-                    htmlFor="parecerInterno"
-                    tooltip="Registre a análise interna da organização sobre a prestação de contas, como conferências realizadas, pendências identificadas, justificativas, riscos, ajustes necessários ou avaliação da equipe."
-                  >
-                    Parecer Interno
-                  </FieldLabel>
-
-                  <Textarea
-                    id="parecerInterno"
-                    value={form.parecerInterno}
-                    onChange={(e) => set("parecerInterno", e.target.value)}
-                    rows={3}
+                  <Input
+                    id="periodoInicio"
+                    type="date"
+                    value={form.periodoInicio}
+                    onChange={(e) => set("periodoInicio", e.target.value)}
                     disabled={bloqueado}
                     readOnly={visualizando}
                   />
@@ -712,64 +565,205 @@ export default function PrestacaoContasForm() {
 
                 <Field>
                   <FieldLabel
-                    htmlFor="parecerExterno"
-                    tooltip="Registre o parecer, retorno, diligência, aprovação, ressalva ou observação enviada pelo órgão responsável, patrocinador ou instituição avaliadora."
+                    htmlFor="periodoFim"
+                    tooltip="Informe a data final do período considerado nesta prestação de contas. Essa data ajuda a delimitar quais ações, despesas e evidências fazem parte do processo."
                   >
-                    Parecer Externo
+                    Período Final
                   </FieldLabel>
 
-                  <Textarea
-                    id="parecerExterno"
-                    value={form.parecerExterno}
-                    onChange={(e) => set("parecerExterno", e.target.value)}
-                    rows={3}
+                  <Input
+                    id="periodoFim"
+                    type="date"
+                    value={form.periodoFim}
+                    onChange={(e) => set("periodoFim", e.target.value)}
                     disabled={bloqueado}
                     readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="observacoesGerais"
-                    tooltip="Registre informações complementares sobre o processo, como contatos, documentos pendentes, justificativas, decisões internas ou próximos passos."
-                  >
-                    Observações Gerais
-                  </FieldLabel>
-
-                  <Textarea
-                    id="observacoesGerais"
-                    value={form.observacoesGerais}
-                    onChange={(e) => set("observacoesGerais", e.target.value)}
-                    rows={3}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
+                    className={
+                      periodoInvertido
+                        ? "border-amber-500/40 focus-visible:ring-amber-500/30"
+                        : ""
+                    }
                   />
                 </Field>
               </div>
-            </Section>
 
-            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataEnvio"
+                    tooltip="Informe a data em que a prestação de contas foi enviada, protocolada ou submetida ao órgão responsável."
+                  >
+                    Data de Envio
+                  </FieldLabel>
+
+                  <Input
+                    id="dataEnvio"
+                    type="date"
+                    value={form.dataEnvio}
+                    onChange={(e) => set("dataEnvio", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                    className={
+                      envioAntesPeriodo
+                        ? "border-amber-500/40 focus-visible:ring-amber-500/30"
+                        : ""
+                    }
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataAprovacao"
+                    tooltip="Informe a data em que a prestação de contas foi aprovada, quando houver confirmação formal."
+                  >
+                    Data de Aprovação
+                  </FieldLabel>
+
+                  <Input
+                    id="dataAprovacao"
+                    type="date"
+                    value={form.dataAprovacao}
+                    onChange={(e) => set("dataAprovacao", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                    className={
+                      aprovacaoAntesEnvio
+                        ? "border-amber-500/40 focus-visible:ring-amber-500/30"
+                        : ""
+                    }
+                  />
+                </Field>
+              </div>
+            </div>
+          </Section>
+
+          <Section icon={ClipboardCheck} title="Status e acompanhamento">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel
+                  htmlFor="statusPrestacaoContas"
+                  required
+                  tooltip="Indique a situação atual da prestação de contas, como não iniciada, em elaboração, aguardando documentos, pronta para envio, enviada, em análise, aprovada, aprovada com ressalvas ou reprovada."
+                >
+                  Status da Prestação
+                </FieldLabel>
+
+                {visualizando ? (
+                  <Input
+                    id="statusPrestacaoContas"
+                    value={statusSelecionadoNome || "—"}
+                    disabled
+                    readOnly
+                    className="bg-muted/40 cursor-not-allowed"
+                  />
+                ) : (
+                  <Select
+                    key={`status-${form.statusPrestacaoContas}`}
+                    value={String(form.statusPrestacaoContas || "")}
+                    onValueChange={(value) =>
+                      set(
+                        "statusPrestacaoContas",
+                        value as StatusPrestacaoContas,
+                      )
+                    }
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="statusPrestacaoContas">
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+
+                    <SelectContent className="max-h-72">
+                      {statusPrestacaoContasOptions.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
+            </div>
+          </Section>
+
+          <Section icon={MessageSquareText} title="Pareceres e observações">
+            <div className="space-y-4">
+              <Field>
+                <FieldLabel
+                  htmlFor="parecerInterno"
+                  tooltip="Registre a análise interna da organização sobre a prestação de contas, como conferências realizadas, pendências identificadas, justificativas, riscos, ajustes necessários ou avaliação da equipe."
+                >
+                  Parecer Interno
+                </FieldLabel>
+
+                <Textarea
+                  id="parecerInterno"
+                  value={form.parecerInterno}
+                  onChange={(e) => set("parecerInterno", e.target.value)}
+                  rows={3}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="parecerExterno"
+                  tooltip="Registre o parecer, retorno, diligência, aprovação, ressalva ou observação enviada pelo órgão responsável, patrocinador ou instituição avaliadora."
+                >
+                  Parecer Externo
+                </FieldLabel>
+
+                <Textarea
+                  id="parecerExterno"
+                  value={form.parecerExterno}
+                  onChange={(e) => set("parecerExterno", e.target.value)}
+                  rows={3}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="observacoesGerais"
+                  tooltip="Registre informações complementares sobre o processo, como contatos, documentos pendentes, justificativas, decisões internas ou próximos passos."
+                >
+                  Observações Gerais
+                </FieldLabel>
+
+                <Textarea
+                  id="observacoesGerais"
+                  value={form.observacoesGerais}
+                  onChange={(e) => set("observacoesGerais", e.target.value)}
+                  rows={3}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/prestacao-contas")}
+              disabled={saving}
+            >
+              {visualizando ? "Voltar" : "Cancelar"}
+            </Button>
+
+            {!visualizando && (
               <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate("/prestacao-contas")}
+                type="submit"
+                className="sm:min-w-40"
                 disabled={saving}
               >
-                {visualizando ? "Voltar" : "Cancelar"}
+                {saving ? "Salvando..." : "Salvar"}
               </Button>
-
-              {!visualizando && (
-                <Button
-                  type="submit"
-                  className="sm:min-w-40"
-                  disabled={saving}
-                >
-                  {saving ? "Salvando..." : "Salvar"}
-                </Button>
-              )}
-            </div>
-          </form>
-        )}
+            )}
+          </div>
+        </form>
       </div>
     </AppLayout>
   );

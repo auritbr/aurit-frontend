@@ -840,279 +840,271 @@ export default function AgenteForm() {
         )}
 
         {!visualizando && <FormLegend />}
-
-        {loadingInitialData ? (
-          <div className="rounded border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            Carregando agente cultural...
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <Section icon={UserCog} title="Tipo de agente">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel
-                    htmlFor="tipoAgente"
-                    required
-                    tooltip="Selecione o tipo de agente cultural que será cadastrado."
-                  >
-                    Tipo de Agente
-                  </FieldLabel>
-
-                  <Select
-                    value={tipo}
-                    onValueChange={(v) => {
-                      if (visualizando) return;
-                      setTipo(v as TipoAgente);
-                    }}
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="tipoAgente">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map(
-                        (k) => (
-                          <SelectItem key={k} value={k}>
-                            {tipoAgenteLabels[k]}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-
-              <div className="mt-5 grid sm:grid-cols-2 gap-2.5">
-                {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map((k) => (
-                  <button
-                    type="button"
-                    key={k}
-                    disabled={bloqueado}
-                    onClick={() => {
-                      if (visualizando) return;
-                      setTipo(k);
-                    }}
-                    className={`rounded border px-3 py-2.5 text-left text-[12px] leading-relaxed transition-colors disabled:cursor-default ${
-                      tipo === k
-                        ? "border-primary/40 bg-primary-soft"
-                        : "border-border bg-muted/30"
-                    }`}
-                  >
-                    <p className="font-semibold text-foreground text-[12.5px] mb-0.5">
-                      {tipoAgenteLabels[k]}
-                    </p>
-
-                    <p className="text-muted-foreground">
-                      {tipoAgenteDescricoes[k]}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </Section>
-
-            {isPF && (
-              <>
-                <Section icon={User} title="Dados pessoais">
-                  <PessoaFisicaFields
-                    data={pf}
-                    set={setPF}
-                    disabled={bloqueado}
-                    visualizando={visualizando}
-                  />
-                </Section>
-
-                <Section icon={MapPin} title="Endereço">
-                  <EnderecoFields
-                    data={endereco}
-                    set={setEnd}
-                    disabled={bloqueado}
-                    visualizando={visualizando}
-                    loadingCep={loadingCep}
-                    onCepChange={(cep) => void buscarEnderecoPorCep(cep)}
-                  />
-                </Section>
-              </>
-            )}
-
-            {isPJ && (
-              <>
-                <Section
-                  icon={Building2}
-                  title={
-                    tipo === "MEI"
-                      ? "Dados da pessoa jurídica"
-                      : "Dados da organização"
-                  }
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Section icon={UserCog} title="Tipo de agente">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel
+                  htmlFor="tipoAgente"
+                  required
+                  tooltip="Selecione o tipo de agente cultural que será cadastrado."
                 >
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <Field full>
-                      <FieldLabel htmlFor="razaoSocial" required>
-                        Razão Social
-                      </FieldLabel>
+                  Tipo de Agente
+                </FieldLabel>
 
-                      <Input
-                        id="razaoSocial"
-                        value={pj.razaoSocial}
-                        onChange={(e) => setPJ("razaoSocial", e.target.value)}
-                        disabled={bloqueado}
-                        readOnly={visualizando}
-                      />
-                    </Field>
-
-                    <Field full>
-                      <FieldLabel htmlFor="nomeFantasia">
-                        Nome Fantasia
-                      </FieldLabel>
-
-                      <Input
-                        id="nomeFantasia"
-                        value={pj.nomeFantasia}
-                        onChange={(e) => setPJ("nomeFantasia", e.target.value)}
-                        disabled={bloqueado}
-                        readOnly={visualizando}
-                      />
-                    </Field>
-
-                    <Field>
-                      <FieldLabel htmlFor="cnpj" required>
-                        CNPJ
-                      </FieldLabel>
-
-                      <Input
-                        id="cnpj"
-                        value={pj.cnpj}
-                        onChange={(e) => setPJ("cnpj", maskCNPJ(e.target.value))}
-                        inputMode="numeric"
-                        disabled={bloqueado}
-                        readOnly={visualizando}
-                      />
-                    </Field>
-
-                    <Field>
-                      <FieldLabel htmlFor="dataFundacao" required>
-                        Data de Fundação
-                      </FieldLabel>
-
-                      <Input
-                        id="dataFundacao"
-                        value={pj.dataFundacao}
-                        onChange={(e) =>
-                          setPJ("dataFundacao", maskDate(e.target.value))
-                        }
-                        inputMode="numeric"
-                        disabled={bloqueado}
-                        readOnly={visualizando}
-                      />
-                    </Field>
-                  </div>
-                </Section>
-
-                <Section icon={MapPin} title="Endereço">
-                  <EnderecoFields
-                    data={endereco}
-                    set={setEnd}
-                    disabled={bloqueado}
-                    visualizando={visualizando}
-                    loadingCep={loadingCep}
-                    onCepChange={(cep) => void buscarEnderecoPorCep(cep)}
-                  />
-                </Section>
-
-                <Section icon={User} title="Dados do representante">
-                  <PessoaFisicaFields
-                    data={representante}
-                    set={setRep}
-                    prefix="rep"
-                    disabled={bloqueado}
-                    visualizando={visualizando}
-                  />
-                </Section>
-              </>
-            )}
-
-            {isColetivo && (
-              <>
-                <Section icon={Users2} title="Dados do coletivo">
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <Field full>
-                      <FieldLabel htmlFor="nomeColetivo" required>
-                        Nome do Coletivo
-                      </FieldLabel>
-
-                      <Input
-                        id="nomeColetivo"
-                        value={coletivo.nome}
-                        onChange={(e) => setCol("nome", e.target.value)}
-                        disabled={bloqueado}
-                        readOnly={visualizando}
-                      />
-                    </Field>
-
-                    <Field>
-                      <FieldLabel htmlFor="dataCriacao" required>
-                        Data de Criação
-                      </FieldLabel>
-
-                      <Input
-                        id="dataCriacao"
-                        value={coletivo.dataCriacao}
-                        onChange={(e) =>
-                          setCol("dataCriacao", maskDate(e.target.value))
-                        }
-                        inputMode="numeric"
-                        disabled={bloqueado}
-                        readOnly={visualizando}
-                      />
-                    </Field>
-                  </div>
-                </Section>
-
-                <Section icon={MapPin} title="Endereço">
-                  <EnderecoFields
-                    data={endereco}
-                    set={setEnd}
-                    disabled={bloqueado}
-                    visualizando={visualizando}
-                    loadingCep={loadingCep}
-                    onCepChange={(cep) => void buscarEnderecoPorCep(cep)}
-                  />
-                </Section>
-
-                <Section icon={User} title="Dados do representante">
-                  <PessoaFisicaFields
-                    data={representante}
-                    set={setRep}
-                    prefix="rep"
-                    disabled={bloqueado}
-                    visualizando={visualizando}
-                  />
-                </Section>
-              </>
-            )}
-
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate("/agentes")}
-                disabled={loading}
-              >
-                {visualizando ? "Voltar" : "Cancelar"}
-              </Button>
-
-              {!visualizando && (
-                <Button
-                  type="submit"
-                  className="sm:min-w-32"
-                  disabled={loading || loadingInitialData || loadingCep}
+                <Select
+                  value={tipo}
+                  onValueChange={(v) => {
+                    if (visualizando) return;
+                    setTipo(v as TipoAgente);
+                  }}
+                  disabled={bloqueado}
                 >
-                  {loading ? "Salvando..." : "Salvar"}
-                </Button>
-              )}
+                  <SelectTrigger id="tipoAgente">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map(
+                      (k) => (
+                        <SelectItem key={k} value={k}>
+                          {tipoAgenteLabels[k]}
+                        </SelectItem>
+                      ),
+                    )}
+                  </SelectContent>
+                </Select>
+              </Field>
             </div>
-          </form>
-        )}
+
+            <div className="mt-5 grid sm:grid-cols-2 gap-2.5">
+              {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map((k) => (
+                <button
+                  type="button"
+                  key={k}
+                  disabled={bloqueado}
+                  onClick={() => {
+                    if (visualizando) return;
+                    setTipo(k);
+                  }}
+                  className={`rounded border px-3 py-2.5 text-left text-[12px] leading-relaxed transition-colors disabled:cursor-default ${tipo === k
+                      ? "border-primary/40 bg-primary-soft"
+                      : "border-border bg-muted/30"
+                    }`}
+                >
+                  <p className="font-semibold text-foreground text-[12.5px] mb-0.5">
+                    {tipoAgenteLabels[k]}
+                  </p>
+
+                  <p className="text-muted-foreground">
+                    {tipoAgenteDescricoes[k]}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </Section>
+
+          {isPF && (
+            <>
+              <Section icon={User} title="Dados pessoais">
+                <PessoaFisicaFields
+                  data={pf}
+                  set={setPF}
+                  disabled={bloqueado}
+                  visualizando={visualizando}
+                />
+              </Section>
+
+              <Section icon={MapPin} title="Endereço">
+                <EnderecoFields
+                  data={endereco}
+                  set={setEnd}
+                  disabled={bloqueado}
+                  visualizando={visualizando}
+                  loadingCep={loadingCep}
+                  onCepChange={(cep) => void buscarEnderecoPorCep(cep)}
+                />
+              </Section>
+            </>
+          )}
+
+          {isPJ && (
+            <>
+              <Section
+                icon={Building2}
+                title={
+                  tipo === "MEI"
+                    ? "Dados da pessoa jurídica"
+                    : "Dados da organização"
+                }
+              >
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Field full>
+                    <FieldLabel htmlFor="razaoSocial" required>
+                      Razão Social
+                    </FieldLabel>
+
+                    <Input
+                      id="razaoSocial"
+                      value={pj.razaoSocial}
+                      onChange={(e) => setPJ("razaoSocial", e.target.value)}
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
+
+                  <Field full>
+                    <FieldLabel htmlFor="nomeFantasia">
+                      Nome Fantasia
+                    </FieldLabel>
+
+                    <Input
+                      id="nomeFantasia"
+                      value={pj.nomeFantasia}
+                      onChange={(e) => setPJ("nomeFantasia", e.target.value)}
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="cnpj" required>
+                      CNPJ
+                    </FieldLabel>
+
+                    <Input
+                      id="cnpj"
+                      value={pj.cnpj}
+                      onChange={(e) => setPJ("cnpj", maskCNPJ(e.target.value))}
+                      inputMode="numeric"
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="dataFundacao" required>
+                      Data de Fundação
+                    </FieldLabel>
+
+                    <Input
+                      id="dataFundacao"
+                      value={pj.dataFundacao}
+                      onChange={(e) =>
+                        setPJ("dataFundacao", maskDate(e.target.value))
+                      }
+                      inputMode="numeric"
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
+                </div>
+              </Section>
+
+              <Section icon={MapPin} title="Endereço">
+                <EnderecoFields
+                  data={endereco}
+                  set={setEnd}
+                  disabled={bloqueado}
+                  visualizando={visualizando}
+                  loadingCep={loadingCep}
+                  onCepChange={(cep) => void buscarEnderecoPorCep(cep)}
+                />
+              </Section>
+
+              <Section icon={User} title="Dados do representante">
+                <PessoaFisicaFields
+                  data={representante}
+                  set={setRep}
+                  prefix="rep"
+                  disabled={bloqueado}
+                  visualizando={visualizando}
+                />
+              </Section>
+            </>
+          )}
+
+          {isColetivo && (
+            <>
+              <Section icon={Users2} title="Dados do coletivo">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Field full>
+                    <FieldLabel htmlFor="nomeColetivo" required>
+                      Nome do Coletivo
+                    </FieldLabel>
+
+                    <Input
+                      id="nomeColetivo"
+                      value={coletivo.nome}
+                      onChange={(e) => setCol("nome", e.target.value)}
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="dataCriacao" required>
+                      Data de Criação
+                    </FieldLabel>
+
+                    <Input
+                      id="dataCriacao"
+                      value={coletivo.dataCriacao}
+                      onChange={(e) =>
+                        setCol("dataCriacao", maskDate(e.target.value))
+                      }
+                      inputMode="numeric"
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
+                </div>
+              </Section>
+
+              <Section icon={MapPin} title="Endereço">
+                <EnderecoFields
+                  data={endereco}
+                  set={setEnd}
+                  disabled={bloqueado}
+                  visualizando={visualizando}
+                  loadingCep={loadingCep}
+                  onCepChange={(cep) => void buscarEnderecoPorCep(cep)}
+                />
+              </Section>
+
+              <Section icon={User} title="Dados do representante">
+                <PessoaFisicaFields
+                  data={representante}
+                  set={setRep}
+                  prefix="rep"
+                  disabled={bloqueado}
+                  visualizando={visualizando}
+                />
+              </Section>
+            </>
+          )}
+
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/agentes")}
+              disabled={loading}
+            >
+              {visualizando ? "Voltar" : "Cancelar"}
+            </Button>
+
+            {!visualizando && (
+              <Button
+                type="submit"
+                className="sm:min-w-32"
+                disabled={loading || loadingInitialData || loadingCep}
+              >
+                {loading ? "Salvando..." : "Salvar"}
+              </Button>
+            )}
+          </div>
+        </form>
       </div>
 
       <WikiFloatingButton

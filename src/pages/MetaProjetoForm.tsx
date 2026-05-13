@@ -300,197 +300,190 @@ export default function MetaProjetoForm() {
         )}
 
         {!visualizando && <FormLegend />}
-
-        {loading ? (
-          <div className="rounded border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            Carregando meta...
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <Section icon={Target} title="Dados da meta">
-              <div className="space-y-4">
-                <Field>
-                  <FieldLabel
-                    htmlFor="tituloMeta"
-                    required={!visualizando}
-                    tooltip="Informe um título curto e claro para identificar a meta. Ex.: realização de oficinas culturais."
-                  >
-                    Título da Meta
-                  </FieldLabel>
-
-                  <Input
-                    id="tituloMeta"
-                    value={form.tituloMeta}
-                    onChange={(e) => set("tituloMeta", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="descricaoMeta"
-                    required={!visualizando}
-                    tooltip="Descreva a entrega prevista de forma objetiva, explicando o que será realizado e qual resultado mensurável se espera alcançar. Ex.: Realizar 24 oficinas de música para crianças e adolescentes ao longo de 6 meses."
-                  >
-                    Descrição da Meta
-                  </FieldLabel>
-
-                  <Textarea
-                    id="descricaoMeta"
-                    value={form.descricaoMeta}
-                    onChange={(e) => set("descricaoMeta", e.target.value)}
-                    rows={3}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="quantidadePrevista"
-                    required={!visualizando}
-                    tooltip="Informe apenas o número previsto para esta meta. A unidade deve estar clara na descrição da meta ou em campo próprio. Ex.: 24, 3, 50 ou 1."
-                  >
-                    Quantidade Prevista
-                  </FieldLabel>
-
-                  <Input
-                    id="quantidadePrevista"
-                    inputMode="decimal"
-                    value={form.quantidadePrevista}
-                    onChange={(e) =>
-                      set(
-                        "quantidadePrevista",
-                        sanitizeQuantidade(e.target.value),
-                      )
-                    }
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-              </div>
-            </Section>
-
-            <Section icon={ClipboardCheck} title="Comprovação prevista">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Section icon={Target} title="Dados da meta">
+            <div className="space-y-4">
               <Field>
                 <FieldLabel
-                  htmlFor="formaComprovacao"
-                  tooltip="Descreva quais evidências poderão comprovar o cumprimento da meta, como listas de presença, fotos, vídeos, relatórios, certificados, materiais produzidos ou registros de divulgação."
+                  htmlFor="tituloMeta"
+                  required={!visualizando}
+                  tooltip="Informe um título curto e claro para identificar a meta. Ex.: realização de oficinas culturais."
                 >
-                  Forma de Comprovação
+                  Título da Meta
+                </FieldLabel>
+
+                <Input
+                  id="tituloMeta"
+                  value={form.tituloMeta}
+                  onChange={(e) => set("tituloMeta", e.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="descricaoMeta"
+                  required={!visualizando}
+                  tooltip="Descreva a entrega prevista de forma objetiva, explicando o que será realizado e qual resultado mensurável se espera alcançar. Ex.: Realizar 24 oficinas de música para crianças e adolescentes ao longo de 6 meses."
+                >
+                  Descrição da Meta
                 </FieldLabel>
 
                 <Textarea
-                  id="formaComprovacao"
-                  value={form.formaComprovacao}
-                  onChange={(e) => set("formaComprovacao", e.target.value)}
+                  id="descricaoMeta"
+                  value={form.descricaoMeta}
+                  onChange={(e) => set("descricaoMeta", e.target.value)}
                   rows={3}
                   disabled={bloqueado}
                   readOnly={visualizando}
                 />
               </Field>
-            </Section>
 
-            <Section icon={Link2} title="Vínculos">
-              <p className="mb-4 text-xs leading-5 text-muted-foreground">
-                Toda meta deve estar vinculada a um projeto. A proposta de edital
-                é opcional e deve ser selecionada apenas quando a meta também
-                fizer parte de uma candidatura específica.
-              </p>
+              <Field>
+                <FieldLabel
+                  htmlFor="quantidadePrevista"
+                  required={!visualizando}
+                  tooltip="Informe apenas o número previsto para esta meta. A unidade deve estar clara na descrição da meta ou em campo próprio. Ex.: 24, 3, 50 ou 1."
+                >
+                  Quantidade Prevista
+                </FieldLabel>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="projeto"
-                    required={!visualizando}
-                    tooltip="Selecione o projeto ao qual esta meta pertence. Esse vínculo é obrigatório e permite acompanhar a meta dentro da execução geral do projeto."
-                  >
-                    Projeto
-                  </FieldLabel>
+                <Input
+                  id="quantidadePrevista"
+                  inputMode="decimal"
+                  value={form.quantidadePrevista}
+                  onChange={(e) =>
+                    set(
+                      "quantidadePrevista",
+                      sanitizeQuantidade(e.target.value),
+                    )
+                  }
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </div>
+          </Section>
 
-                  <Select
-                    value={form.projeto}
-                    onValueChange={handleProjetoChange}
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="projeto">
-                      <SelectValue placeholder="Selecione o projeto" />
-                    </SelectTrigger>
+          <Section icon={ClipboardCheck} title="Comprovação prevista">
+            <Field>
+              <FieldLabel
+                htmlFor="formaComprovacao"
+                tooltip="Descreva quais evidências poderão comprovar o cumprimento da meta, como listas de presença, fotos, vídeos, relatórios, certificados, materiais produzidos ou registros de divulgação."
+              >
+                Forma de Comprovação
+              </FieldLabel>
 
-                    <SelectContent>
-                      {projetos.length === 0 ? (
-                        <SelectItem value="sem-projeto" disabled>
-                          Nenhum projeto disponível
+              <Textarea
+                id="formaComprovacao"
+                value={form.formaComprovacao}
+                onChange={(e) => set("formaComprovacao", e.target.value)}
+                rows={3}
+                disabled={bloqueado}
+                readOnly={visualizando}
+              />
+            </Field>
+          </Section>
+
+          <Section icon={Link2} title="Vínculos">
+            <p className="mb-4 text-xs leading-5 text-muted-foreground">
+              Toda meta deve estar vinculada a um projeto. A proposta de edital
+              é opcional e deve ser selecionada apenas quando a meta também
+              fizer parte de uma candidatura específica.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="projeto"
+                  required={!visualizando}
+                  tooltip="Selecione o projeto ao qual esta meta pertence. Esse vínculo é obrigatório e permite acompanhar a meta dentro da execução geral do projeto."
+                >
+                  Projeto
+                </FieldLabel>
+
+                <Select
+                  value={form.projeto}
+                  onValueChange={handleProjetoChange}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="projeto">
+                    <SelectValue placeholder="Selecione o projeto" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {projetos.length === 0 ? (
+                      <SelectItem value="sem-projeto" disabled>
+                        Nenhum projeto disponível
+                      </SelectItem>
+                    ) : (
+                      projetos.map((projeto) => (
+                        <SelectItem key={projeto.id} value={projeto.id}>
+                          {projeto.nome}
                         </SelectItem>
-                      ) : (
-                        projetos.map((projeto) => (
-                          <SelectItem key={projeto.id} value={projeto.id}>
-                            {projeto.nome}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </Field>
 
-                <Field>
-                  <FieldLabel
-                    htmlFor="propostaEdital"
-                    tooltip="Selecione uma proposta de edital somente se esta meta também estiver vinculada a uma candidatura específica."
-                  >
-                    Proposta de Edital
-                  </FieldLabel>
+              <Field>
+                <FieldLabel
+                  htmlFor="propostaEdital"
+                  tooltip="Selecione uma proposta de edital somente se esta meta também estiver vinculada a uma candidatura específica."
+                >
+                  Proposta de Edital
+                </FieldLabel>
 
-                  <Select
-                    value={form.propostaEdital}
-                    onValueChange={handlePropostaChange}
-                    disabled={bloqueado || !form.projeto}
-                  >
-                    <SelectTrigger id="propostaEdital">
-                      <SelectValue placeholder="Opcional" />
-                    </SelectTrigger>
+                <Select
+                  value={form.propostaEdital}
+                  onValueChange={handlePropostaChange}
+                  disabled={bloqueado || !form.projeto}
+                >
+                  <SelectTrigger id="propostaEdital">
+                    <SelectValue placeholder="Opcional" />
+                  </SelectTrigger>
 
-                    <SelectContent>
-                      {propostasFiltradas.length === 0 ? (
-                        <SelectItem value="sem-proposta" disabled>
-                          Nenhuma proposta disponível
+                  <SelectContent>
+                    {propostasFiltradas.length === 0 ? (
+                      <SelectItem value="sem-proposta" disabled>
+                        Nenhuma proposta disponível
+                      </SelectItem>
+                    ) : (
+                      propostasFiltradas.map((proposta) => (
+                        <SelectItem key={proposta.id} value={proposta.id}>
+                          {proposta.nome}
                         </SelectItem>
-                      ) : (
-                        propostasFiltradas.map((proposta) => (
-                          <SelectItem key={proposta.id} value={proposta.id}>
-                            {proposta.nome}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-            </Section>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </Section>
 
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/metas-projeto")}
+              disabled={loading || saving}
+            >
+              {visualizando ? "Voltar" : "Cancelar"}
+            </Button>
+
+            {!visualizando && (
               <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate("/metas-projeto")}
+                type="submit"
+                className="sm:min-w-40"
                 disabled={loading || saving}
               >
-                {visualizando ? "Voltar" : "Cancelar"}
+                {saving ? "Salvando..." : "Salvar"}
               </Button>
-
-              {!visualizando && (
-                <Button
-                  type="submit"
-                  className="sm:min-w-40"
-                  disabled={loading || saving}
-                >
-                  {saving ? "Salvando..." : "Salvar"}
-                </Button>
-              )}
-            </div>
-          </form>
-        )}
+            )}
+          </div>
+        </form>
       </div>
     </AppLayout>
   );

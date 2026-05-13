@@ -293,11 +293,6 @@ export default function TrajetoriaCulturalForm() {
 
         {!visualizando && <FormLegend />}
 
-        {loading ? (
-          <div className="rounded border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            Carregando trajetória cultural...
-          </div>
-        ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <Section icon={User} title="Identificação">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -389,7 +384,6 @@ export default function TrajetoriaCulturalForm() {
               )}
             </div>
           </form>
-        )}
       </div>
     </AppLayout>
   );
