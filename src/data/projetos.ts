@@ -135,16 +135,13 @@ async function parseError(response: Response): Promise<string> {
 }
 
 function normalizeId(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
+  if (value === null || value === undefined || value === "") return null;
 
   if (typeof value === "object") {
     const record = value as Record<string, unknown>;
 
     if (record.id !== null && record.id !== undefined) {
       const id = Number(record.id);
-
       return Number.isFinite(id) ? id : null;
     }
   }
@@ -169,6 +166,7 @@ function resolveOrganizacaoId(dto: ProjetoApiResponse): number | null {
     dto.organizacaoId ??
       dto.idOrganizacao ??
       dto.organizacao_id ??
+      dto.organizacaoID ??
       dto.organizacao ??
       dto.empresaId ??
       dto.configuracaoEmpresaId,
@@ -267,6 +265,7 @@ interface ProjetoApiResponse {
   organizacaoId?: number | string | null;
   idOrganizacao?: number | string | null;
   organizacao_id?: number | string | null;
+  organizacaoID?: number | string | null;
   organizacao?: unknown;
   empresaId?: number | string | null;
   configuracaoEmpresaId?: number | string | null;
@@ -311,26 +310,8 @@ interface OrganizacaoApiResponse {
   nome?: string | null;
 }
 
-function isStatusProjeto(value: unknown): value is StatusProjeto {
-  return statusProjetoOptions.some((item) => item.value === value);
-}
-
-function isAreaAtuacao(value: unknown): value is AreaAtuacao {
-  return areaAtuacaoOptions.some((item) => item.value === value);
-}
-
-function isOrigemProjeto(value: unknown): value is OrigemProjeto {
-  return origemProjetoOptions.some((item) => item.value === value);
-}
-
 export function mapProjeto(dto: ProjetoApiResponse): Projeto {
-  const status = isStatusProjeto(dto.status) ? dto.status : "ATIVO";
-  const areaAtuacao = isAreaAtuacao(dto.areaAtuacao)
-    ? dto.areaAtuacao
-    : "OUTRO";
-  const origemProjeto = isOrigemProjeto(dto.origemProjeto)
-    ? dto.origemProjeto
-    : "OUTRO";
+  const organizacaoId = resolveOrganizacaoId(dto);
 
   return {
     id: Number(dto.id ?? 0),
@@ -342,10 +323,10 @@ export function mapProjeto(dto: ProjetoApiResponse): Projeto {
     localExecucao: dto.localExecucao ?? "",
     dataInicio: isoToBr(dto.dataInicio),
     dataFim: isoToBr(dto.dataFim),
-    status,
-    areaAtuacao,
-    origemProjeto,
-    organizacaoId: resolveOrganizacaoId(dto),
+    status: (dto.status ?? "ATIVO") as StatusProjeto,
+    areaAtuacao: (dto.areaAtuacao ?? "OUTRO") as AreaAtuacao,
+    origemProjeto: (dto.origemProjeto ?? "OUTRO") as OrigemProjeto,
+    organizacaoId,
     colaboradoresIds: resolveColaboradoresIds(dto),
     objetivos: resolveObjetivos(dto),
   };
