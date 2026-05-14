@@ -248,51 +248,6 @@ function isApiUrl(url: string): boolean {
   return url.startsWith(API_URL);
 }
 
-async function buscarUrlLogoEmpresa(
-  empresa: EmpresaPdfData,
-): Promise<string | null> {
-  if (!empresa?.id) {
-    return null;
-  }
-
-  try {
-    const response = await fetch(`${API_URL}/configuracoes-empresa/${empresa.id}/logo`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      console.error("Erro ao buscar URL temporária da logo:", response.status);
-      return null;
-    }
-
-    const contentType = response.headers.get("content-type") ?? "";
-
-    if (contentType.includes("application/json")) {
-      const data = await parseJsonSafe<string | { url?: string; logoUrl?: string }>(
-        response,
-      );
-
-      if (typeof data === "string") {
-        return data.trim() || null;
-      }
-
-      if (data && typeof data === "object") {
-        return data.url?.trim() || data.logoUrl?.trim() || null;
-      }
-
-      return null;
-    }
-
-    const text = await response.text();
-
-    return text.replace(/^"|"$/g, "").trim() || null;
-  } catch (error) {
-    console.error("Erro ao buscar URL temporária da logo:", error);
-    return null;
-  }
-}
-
 function guessImageFormat(src: string, mime?: string): "PNG" | "JPEG" {
   const lower = src.toLowerCase();
   const m = mime?.toLowerCase() ?? "";
@@ -441,28 +396,87 @@ async function loadImageAsDataUrl(src: string): Promise<LoadedLogo> {
   }
 }
 
+async function buscarLogoBase64Empresa(
+  empresa: EmpresaPdfData,
+): Promise<LoadedLogo> {
+  if (!empresa?.id) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/configuracoes-empresa/${empresa.id}/logo-base64`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      },
+    );
+
+    if (!response.ok) {
+      console.error("Erro ao buscar logo em base64:", response.status);
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+    let dataUrl = "";
+
+    if (contentType.includes("application/json")) {
+      const data = await parseJsonSafe<
+        string | { logoBase64?: string; dataUrl?: string; logo?: string }
+      >(response);
+
+      if (typeof data === "string") {
+        dataUrl = data.trim();
+      } else if (data && typeof data === "object") {
+        dataUrl =
+          data.logoBase64?.trim() ||
+          data.dataUrl?.trim() ||
+          data.logo?.trim() ||
+          "";
+      }
+    } else {
+      dataUrl = (await response.text()).replace(/^"|"$/g, "").trim();
+    }
+
+    if (!dataUrl || !dataUrl.startsWith("data:image/")) {
+      console.error("Logo em base64 inválida ou ausente.");
+      return null;
+    }
+
+    const compressed = await compressImageDataUrl(dataUrl);
+
+    return {
+      dataUrl: compressed.dataUrl,
+      format: compressed.format,
+    };
+  } catch (error) {
+    console.error("Erro ao carregar logo em base64 para o PDF:", error);
+    return null;
+  }
+}
+
 async function resolvePdfContext(): Promise<PdfContext> {
   const empresa = await buscarEmpresaPrincipal();
   const organizacao = await buscarOrganizacaoPrincipal();
 
-  const caminhoLogo =
-    empresa.caminhoLogo ||
-    empresa.caminho_logo ||
-    empresa.logo ||
-    empresa.logoUrl ||
-    null;
+  let logo: LoadedLogo = null;
 
-  let logoUrl: string | null = null;
-
-  if (empresa.id && caminhoLogo && !caminhoLogo.startsWith("data:")) {
-    logoUrl = await buscarUrlLogoEmpresa(empresa);
+  if (empresa.id) {
+    logo = await buscarLogoBase64Empresa(empresa);
   }
 
-  if (!logoUrl) {
-    logoUrl = normalizeImageUrl(caminhoLogo);
-  }
+  if (!logo) {
+    const caminhoLogo =
+      empresa.caminhoLogo ||
+      empresa.caminho_logo ||
+      empresa.logo ||
+      empresa.logoUrl ||
+      null;
 
-  const logo = logoUrl ? await loadImageAsDataUrl(logoUrl) : null;
+    const logoUrl = normalizeImageUrl(caminhoLogo);
+
+    logo = logoUrl ? await loadImageAsDataUrl(logoUrl) : null;
+  }
 
   return {
     empresa,

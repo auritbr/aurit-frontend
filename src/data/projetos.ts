@@ -69,9 +69,15 @@ export const origemProjetoLabel = (v?: OrigemProjeto | string) =>
 function isoToBr(date?: string | null) {
   if (!date) return "";
 
-  const [year, month, day] = date.split("-");
+  const clean = String(date).trim();
 
-  if (!year || !month || !day) return date;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(clean)) {
+    return clean;
+  }
+
+  const [year, month, day] = clean.split("-");
+
+  if (!year || !month || !day) return clean;
 
   return `${day}/${month}/${year}`;
 }
@@ -155,6 +161,66 @@ function pickText(...values: Array<unknown>) {
   return "";
 }
 
+function resolveOrganizacaoId(dto: ProjetoApiResponse): number | null {
+  return normalizeId(
+    dto.organizacaoId ??
+      dto.idOrganizacao ??
+      dto.organizacao_id ??
+      dto.organizacao ??
+      dto.empresaId ??
+      dto.configuracaoEmpresaId,
+  );
+}
+
+function resolveColaboradoresIds(dto: ProjetoApiResponse): number[] {
+  const raw =
+    dto.colaboradoresIds ??
+    dto.colaboradorIds ??
+    dto.colaboradores_ids ??
+    dto.colaboradores ??
+    [];
+
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw
+    .map((item) => normalizeId(item))
+    .filter((id): id is number => id !== null);
+}
+
+function resolveObjetivos(dto: ProjetoApiResponse): ObjetivoDTO[] {
+  const raw = dto.objetivos ?? dto.objetivosEspecificos ?? [];
+
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw
+    .map((objetivo) => {
+      if (typeof objetivo === "string") {
+        return {
+          objetivoEspecifico: objetivo,
+        };
+      }
+
+      const record = objetivo as Record<string, unknown>;
+
+      return {
+        id: normalizeId(record.id) ?? undefined,
+        objetivoEspecifico:
+          pickText(
+            record.objetivoEspecifico,
+            record.descricao,
+            record.texto,
+            record.nome,
+          ) ?? "",
+        projetoId: normalizeId(record.projetoId ?? record.projeto) ?? undefined,
+      };
+    })
+    .filter((objetivo) => objetivo.objetivoEspecifico.trim());
+}
+
 export interface ObjetivoDTO {
   id?: number;
   objetivoEspecifico: string;
@@ -177,6 +243,39 @@ export interface ProjetoDTO {
   organizacaoId: number;
   objetivos: ObjetivoDTO[];
   colaboradoresIds: number[];
+}
+
+interface ProjetoApiResponse {
+  id?: number | string;
+
+  nomeProjeto?: string | null;
+  descricao?: string | null;
+  objetivoGeral?: string | null;
+  publicoAlvo?: string | null;
+  acoesAcessibilidade?: string | null;
+  localExecucao?: string | null;
+
+  dataInicio?: string | null;
+  dataFim?: string | null;
+
+  areaAtuacao?: AreaAtuacao | string | null;
+  status?: StatusProjeto | string | null;
+  origemProjeto?: OrigemProjeto | string | null;
+
+  organizacaoId?: number | string | null;
+  idOrganizacao?: number | string | null;
+  organizacao_id?: number | string | null;
+  organizacao?: unknown;
+  empresaId?: number | string | null;
+  configuracaoEmpresaId?: number | string | null;
+
+  objetivos?: unknown[];
+  objetivosEspecificos?: unknown[];
+
+  colaboradoresIds?: unknown[];
+  colaboradorIds?: unknown[];
+  colaboradores_ids?: unknown[];
+  colaboradores?: unknown[];
 }
 
 export interface Projeto {
@@ -203,16 +302,14 @@ export interface OrganizacaoOption {
 }
 
 interface OrganizacaoApiResponse {
-  id?: number;
+  id?: number | string;
   razaoSocial?: string | null;
   nomeFantasia?: string | null;
   nomeOrganizacao?: string | null;
   nome?: string | null;
 }
 
-export function mapProjeto(dto: ProjetoDTO): Projeto {
-  const organizacaoId = normalizeId(dto.organizacaoId);
-
+export function mapProjeto(dto: ProjetoApiResponse): Projeto {
   return {
     id: Number(dto.id ?? 0),
     nomeProjeto: dto.nomeProjeto ?? "",
@@ -223,18 +320,12 @@ export function mapProjeto(dto: ProjetoDTO): Projeto {
     localExecucao: dto.localExecucao ?? "",
     dataInicio: isoToBr(dto.dataInicio),
     dataFim: isoToBr(dto.dataFim),
-    status: dto.status ?? "ATIVO",
-    areaAtuacao: dto.areaAtuacao ?? "OUTRO",
-    origemProjeto: dto.origemProjeto ?? "OUTRO",
-    organizacaoId,
-    colaboradoresIds: (dto.colaboradoresIds ?? [])
-      .map(Number)
-      .filter((id) => Number.isFinite(id)),
-    objetivos: (dto.objetivos ?? []).map((objetivo) => ({
-      id: objetivo.id,
-      objetivoEspecifico: objetivo.objetivoEspecifico ?? "",
-      projetoId: objetivo.projetoId,
-    })),
+    status: (dto.status ?? "ATIVO") as StatusProjeto,
+    areaAtuacao: (dto.areaAtuacao ?? "OUTRO") as AreaAtuacao,
+    origemProjeto: (dto.origemProjeto ?? "OUTRO") as OrigemProjeto,
+    organizacaoId: resolveOrganizacaoId(dto),
+    colaboradoresIds: resolveColaboradoresIds(dto),
+    objetivos: resolveObjetivos(dto),
   };
 }
 
@@ -280,7 +371,7 @@ export async function getProjetos(): Promise<Projeto[]> {
     throw new Error(await parseError(response));
   }
 
-  const data: ProjetoDTO[] = await response.json();
+  const data: ProjetoApiResponse[] = await response.json();
 
   return (Array.isArray(data) ? data : []).map(mapProjeto);
 }
@@ -295,7 +386,7 @@ export async function getProjetoById(id: number): Promise<Projeto> {
     throw new Error(await parseError(response));
   }
 
-  const data: ProjetoDTO = await response.json();
+  const data: ProjetoApiResponse = await response.json();
 
   return mapProjeto(data);
 }
@@ -311,7 +402,7 @@ export async function createProjeto(payload: ProjetoDTO): Promise<Projeto> {
     throw new Error(await parseError(response));
   }
 
-  const data: ProjetoDTO = await response.json();
+  const data: ProjetoApiResponse = await response.json();
 
   return mapProjeto(data);
 }
@@ -330,7 +421,7 @@ export async function updateProjeto(
     throw new Error(await parseError(response));
   }
 
-  const data: ProjetoDTO = await response.json();
+  const data: ProjetoApiResponse = await response.json();
 
   return mapProjeto(data);
 }
