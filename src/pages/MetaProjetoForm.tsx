@@ -95,6 +95,28 @@ const parseQuantidade = (value: string) => {
   return Number.isFinite(parsed) ? parsed : NaN;
 };
 
+function toStringId(value: unknown): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  return String(value);
+}
+
+function getProjetoNome(projetos: ProjetoOption[], projetoId: string) {
+  return (
+    projetos.find((projeto) => String(projeto.id) === String(projetoId))
+      ?.nome || `Projeto ${projetoId}`
+  );
+}
+
+function getPropostaNome(propostas: PropostaEditalOption[], propostaId: string) {
+  return (
+    propostas.find((proposta) => String(proposta.id) === String(propostaId))
+      ?.nome || `Proposta ${propostaId}`
+  );
+}
+
 export default function MetaProjetoForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -104,6 +126,7 @@ export default function MetaProjetoForm() {
   const editando = !!id && location.pathname.endsWith("/editar");
 
   const [form, setForm] = useState<FormState>(initial);
+  const [existingMeta, setExistingMeta] = useState<MetaProjeto | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
@@ -112,13 +135,63 @@ export default function MetaProjetoForm() {
 
   const bloqueado = visualizando || loading || saving;
 
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  const projetoSelectValue =
+    form.projeto || String(existingMeta?.projeto ?? "");
+
+  const propostaSelectValue =
+    form.propostaEdital || String(existingMeta?.propostaEdital ?? "");
+
+  const projetosComFallback = useMemo(() => {
+    const options = [...projetos];
+
+    const projetoId = projetoSelectValue;
+
+    if (
+      projetoId &&
+      !options.some((projeto) => String(projeto.id) === String(projetoId))
+    ) {
+      options.unshift({
+        id: projetoId,
+        nome: getProjetoNome(projetos, projetoId),
+      });
+    }
+
+    return options;
+  }, [projetos, projetoSelectValue]);
+
   const propostasFiltradas = useMemo(() => {
-    if (!form.projeto) return propostas;
+    const projetoId = projetoSelectValue;
+
+    if (!projetoId) return propostas;
 
     return propostas.filter(
-      (proposta) => !proposta.projetoId || proposta.projetoId === form.projeto,
+      (proposta) =>
+        !proposta.projetoId ||
+        String(proposta.projetoId) === String(projetoId),
     );
-  }, [propostas, form.projeto]);
+  }, [propostas, projetoSelectValue]);
+
+  const propostasComFallback = useMemo(() => {
+    const options = [...propostasFiltradas];
+
+    const propostaId = propostaSelectValue;
+
+    if (
+      propostaId &&
+      !options.some((proposta) => String(proposta.id) === String(propostaId))
+    ) {
+      options.unshift({
+        id: propostaId,
+        nome: getPropostaNome(propostas, propostaId),
+        projetoId: projetoSelectValue || undefined,
+      });
+    }
+
+    return options;
+  }, [propostasFiltradas, propostas, propostaSelectValue, projetoSelectValue]);
 
   useEffect(() => {
     let active = true;
@@ -141,6 +214,15 @@ export default function MetaProjetoForm() {
         setPropostas(propostasData);
 
         if (metaData) {
+          const projetoId = toStringId(metaData.projeto);
+          const propostaEditalId = toStringId(metaData.propostaEdital);
+
+          setExistingMeta({
+            ...metaData,
+            projeto: projetoId,
+            propostaEdital: propostaEditalId,
+          });
+
           setForm({
             tituloMeta: metaData.tituloMeta ?? "",
             descricaoMeta: metaData.descricaoMeta ?? "",
@@ -149,8 +231,8 @@ export default function MetaProjetoForm() {
                 ? String(metaData.quantidadePrevista).replace(".", ",")
                 : "",
             formaComprovacao: metaData.formaComprovacao ?? "",
-            projeto: metaData.projeto ?? "",
-            propostaEdital: metaData.propostaEdital ?? "",
+            projeto: projetoId,
+            propostaEdital: propostaEditalId,
           });
 
           setOrdemAtual(metaData.ordem || 1);
@@ -160,6 +242,7 @@ export default function MetaProjetoForm() {
             0,
           );
 
+          setExistingMeta(null);
           setForm(initial);
           setOrdemAtual(maiorOrdem + 1);
         }
@@ -169,6 +252,7 @@ export default function MetaProjetoForm() {
             ? error.message
             : "Erro ao carregar dados da meta.",
         );
+
         navigate("/metas-projeto");
       } finally {
         if (active) setLoading(false);
@@ -182,15 +266,12 @@ export default function MetaProjetoForm() {
     };
   }, [id, navigate]);
 
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
-
   const handleProjetoChange = (value: string) => {
     if (visualizando) return;
 
     setForm((prev) => ({
       ...prev,
-      projeto: value,
+      projeto: String(value),
       propostaEdital: "",
     }));
   };
@@ -198,32 +279,42 @@ export default function MetaProjetoForm() {
   const handlePropostaChange = (value: string) => {
     if (visualizando) return;
 
-    set("propostaEdital", value);
+    set("propostaEdital", String(value));
   };
+
+  function getFormComVinculos(): FormState {
+    return {
+      ...form,
+      projeto: projetoSelectValue,
+      propostaEdital: propostaSelectValue,
+    };
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (visualizando) return;
 
-    if (!form.tituloMeta.trim()) {
+    const formComVinculos = getFormComVinculos();
+
+    if (!formComVinculos.tituloMeta.trim()) {
       toast.error("Informe o título da meta.");
       return;
     }
 
-    if (!form.descricaoMeta.trim()) {
+    if (!formComVinculos.descricaoMeta.trim()) {
       toast.error("Informe a descrição da meta.");
       return;
     }
 
-    const quantidade = parseQuantidade(form.quantidadePrevista);
+    const quantidade = parseQuantidade(formComVinculos.quantidadePrevista);
 
     if (!Number.isFinite(quantidade) || quantidade <= 0) {
       toast.error("Informe uma quantidade prevista válida e maior que zero.");
       return;
     }
 
-    if (!form.projeto) {
+    if (!formComVinculos.projeto) {
       toast.error("Selecione o projeto da meta.");
       return;
     }
@@ -233,13 +324,13 @@ export default function MetaProjetoForm() {
 
       const meta: MetaProjeto = {
         id: id ?? "",
-        tituloMeta: form.tituloMeta.trim(),
-        descricaoMeta: form.descricaoMeta.trim(),
+        tituloMeta: formComVinculos.tituloMeta.trim(),
+        descricaoMeta: formComVinculos.descricaoMeta.trim(),
         quantidadePrevista: quantidade,
-        formaComprovacao: form.formaComprovacao.trim(),
+        formaComprovacao: formComVinculos.formaComprovacao.trim(),
         ordem: ordemAtual,
-        projeto: form.projeto,
-        propostaEdital: form.propostaEdital,
+        projeto: formComVinculos.projeto,
+        propostaEdital: formComVinculos.propostaEdital,
       };
 
       const payload = buildMetaProjetoPayload(meta);
@@ -300,6 +391,7 @@ export default function MetaProjetoForm() {
         )}
 
         {!visualizando && <FormLegend />}
+
         <form onSubmit={handleSubmit} className="space-y-5">
           <Section icon={Target} title="Dados da meta">
             <div className="space-y-4">
@@ -404,7 +496,7 @@ export default function MetaProjetoForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.projeto}
+                  value={projetoSelectValue}
                   onValueChange={handleProjetoChange}
                   disabled={bloqueado}
                 >
@@ -413,13 +505,16 @@ export default function MetaProjetoForm() {
                   </SelectTrigger>
 
                   <SelectContent>
-                    {projetos.length === 0 ? (
+                    {projetosComFallback.length === 0 ? (
                       <SelectItem value="sem-projeto" disabled>
                         Nenhum projeto disponível
                       </SelectItem>
                     ) : (
-                      projetos.map((projeto) => (
-                        <SelectItem key={projeto.id} value={projeto.id}>
+                      projetosComFallback.map((projeto) => (
+                        <SelectItem
+                          key={String(projeto.id)}
+                          value={String(projeto.id)}
+                        >
                           {projeto.nome}
                         </SelectItem>
                       ))
@@ -437,22 +532,25 @@ export default function MetaProjetoForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.propostaEdital}
+                  value={propostaSelectValue}
                   onValueChange={handlePropostaChange}
-                  disabled={bloqueado || !form.projeto}
+                  disabled={bloqueado || !projetoSelectValue}
                 >
                   <SelectTrigger id="propostaEdital">
                     <SelectValue placeholder="Opcional" />
                   </SelectTrigger>
 
                   <SelectContent>
-                    {propostasFiltradas.length === 0 ? (
+                    {propostasComFallback.length === 0 ? (
                       <SelectItem value="sem-proposta" disabled>
                         Nenhuma proposta disponível
                       </SelectItem>
                     ) : (
-                      propostasFiltradas.map((proposta) => (
-                        <SelectItem key={proposta.id} value={proposta.id}>
+                      propostasComFallback.map((proposta) => (
+                        <SelectItem
+                          key={String(proposta.id)}
+                          value={String(proposta.id)}
+                        >
                           {proposta.nome}
                         </SelectItem>
                       ))

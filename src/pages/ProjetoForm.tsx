@@ -105,6 +105,10 @@ function toStringId(value: unknown): string {
   return String(value);
 }
 
+function getOrganizacaoNome(organizacao?: OrganizacaoOption | null) {
+  return organizacao?.nome ?? "";
+}
+
 function resolverOrganizacaoId(
   projeto: Projeto | null | undefined,
   organizacoes: OrganizacaoOption[],
@@ -261,6 +265,7 @@ export default function ProjetoForm() {
   const editando = !!id && location.pathname.endsWith("/editar");
 
   const [form, setForm] = useState<FormState>(initial);
+  const [existingProjeto, setExistingProjeto] = useState<Projeto | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
@@ -270,6 +275,37 @@ export default function ProjetoForm() {
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const organizacaoSelectValue =
+    form.organizacaoId ||
+    String(existingProjeto?.organizacaoId ?? "") ||
+    String(organizacoes[0]?.id ?? "");
+
+  const organizacoesComFallback = useMemo(() => {
+    const options = [...organizacoes];
+
+    const organizacaoId =
+      form.organizacaoId ||
+      String(existingProjeto?.organizacaoId ?? "") ||
+      String(organizacoes[0]?.id ?? "");
+
+    if (!organizacaoId) {
+      return options;
+    }
+
+    const existe = options.some(
+      (organizacao) => String(organizacao.id) === String(organizacaoId),
+    );
+
+    if (!existe) {
+      options.unshift({
+        id: organizacaoId as any,
+        nome: `Organização ${organizacaoId}`,
+      });
+    }
+
+    return options;
+  }, [organizacoes, form.organizacaoId, existingProjeto]);
 
   useEffect(() => {
     let active = true;
@@ -301,8 +337,32 @@ export default function ProjetoForm() {
               (projeto) => Number(projeto.id) === Number(id),
             ) ?? null;
 
-          setForm(projetoToForm(projetoData, organizacoesData, projetoFallback));
+          const formData = projetoToForm(
+            projetoData,
+            organizacoesData,
+            projetoFallback,
+          );
+
+          const organizacaoId =
+            formData.organizacaoId ||
+            String(projetoData.organizacaoId ?? "") ||
+            String(projetoFallback?.organizacaoId ?? "") ||
+            (organizacoesData.length === 1
+              ? String(organizacoesData[0].id)
+              : "");
+
+          setExistingProjeto({
+            ...projetoData,
+            organizacaoId: organizacaoId ? Number(organizacaoId) : null,
+          });
+
+          setForm({
+            ...formData,
+            organizacaoId,
+          });
         } else {
+          setExistingProjeto(null);
+
           setForm({
             ...initial,
             organizacaoId:
@@ -317,6 +377,7 @@ export default function ProjetoForm() {
             ? error.message
             : "Erro ao carregar dados do projeto.",
         );
+
         navigate("/projetos");
       } finally {
         if (active) setLoading(false);
@@ -380,73 +441,83 @@ export default function ProjetoForm() {
     });
   };
 
-  function validar() {
-    if (!form.nomeProjeto.trim()) {
+  function getFormComOrganizacao(): FormState {
+    return {
+      ...form,
+      organizacaoId:
+        form.organizacaoId ||
+        String(existingProjeto?.organizacaoId ?? "") ||
+        String(organizacoes[0]?.id ?? ""),
+    };
+  }
+
+  function validar(formValidacao: FormState) {
+    if (!formValidacao.nomeProjeto.trim()) {
       toast.error("Informe o nome do projeto.");
       return false;
     }
 
-    if (!form.descricao.trim()) {
+    if (!formValidacao.descricao.trim()) {
       toast.error("Informe a descrição do projeto.");
       return false;
     }
 
-    if (!form.objetivoGeral.trim()) {
+    if (!formValidacao.objetivoGeral.trim()) {
       toast.error("Informe o objetivo geral.");
       return false;
     }
 
-    if (!form.publicoAlvo.trim()) {
+    if (!formValidacao.publicoAlvo.trim()) {
       toast.error("Informe o público-alvo.");
       return false;
     }
 
-    if (!form.acoesAcessibilidade.trim()) {
+    if (!formValidacao.acoesAcessibilidade.trim()) {
       toast.error("Informe as ações de acessibilidade.");
       return false;
     }
 
-    if (!form.localExecucao.trim()) {
+    if (!formValidacao.localExecucao.trim()) {
       toast.error("Informe o local de execução.");
       return false;
     }
 
-    if (!form.dataInicio.trim()) {
+    if (!formValidacao.dataInicio.trim()) {
       toast.error("Informe a data de início.");
       return false;
     }
 
-    if (!form.dataFim.trim()) {
+    if (!formValidacao.dataFim.trim()) {
       toast.error("Informe a data de término.");
       return false;
     }
 
-    if (isDataFimAnterior(form.dataInicio, form.dataFim)) {
+    if (isDataFimAnterior(formValidacao.dataInicio, formValidacao.dataFim)) {
       toast.error("A data de término não pode ser anterior à data de início.");
       return false;
     }
 
-    if (!form.status) {
+    if (!formValidacao.status) {
       toast.error("Selecione o status.");
       return false;
     }
 
-    if (!form.areaAtuacao) {
+    if (!formValidacao.areaAtuacao) {
       toast.error("Selecione a área de atuação.");
       return false;
     }
 
-    if (!form.origemProjeto) {
+    if (!formValidacao.origemProjeto) {
       toast.error("Selecione a origem do projeto.");
       return false;
     }
 
-    if (!form.organizacaoId) {
+    if (!formValidacao.organizacaoId) {
       toast.error("Selecione a organização.");
       return false;
     }
 
-    const objetivosPreenchidos = form.objetivos
+    const objetivosPreenchidos = formValidacao.objetivos
       .map((objetivo) => objetivo.objetivoEspecifico.trim())
       .filter(Boolean);
 
@@ -462,12 +533,15 @@ export default function ProjetoForm() {
     e.preventDefault();
 
     if (visualizando) return;
-    if (!validar()) return;
+
+    const formComOrganizacao = getFormComOrganizacao();
+
+    if (!validar(formComOrganizacao)) return;
 
     try {
       setSaving(true);
 
-      const objetivos: ObjetivoDTO[] = form.objetivos
+      const objetivos: ObjetivoDTO[] = formComOrganizacao.objetivos
         .map((objetivo) => ({
           id: objetivo.id,
           objetivoEspecifico: objetivo.objetivoEspecifico.trim(),
@@ -477,19 +551,19 @@ export default function ProjetoForm() {
 
       const projetoPayload: Projeto = {
         id: id ? Number(id) : 0,
-        nomeProjeto: form.nomeProjeto.trim(),
-        descricao: form.descricao.trim(),
-        objetivoGeral: form.objetivoGeral.trim(),
-        publicoAlvo: form.publicoAlvo.trim(),
-        acoesAcessibilidade: form.acoesAcessibilidade.trim(),
-        localExecucao: form.localExecucao.trim(),
-        dataInicio: form.dataInicio,
-        dataFim: form.dataFim,
-        status: form.status as StatusProjeto,
-        areaAtuacao: form.areaAtuacao as AreaAtuacao,
-        origemProjeto: form.origemProjeto as OrigemProjeto,
-        organizacaoId: Number(form.organizacaoId),
-        colaboradoresIds: form.colaboradoresIds
+        nomeProjeto: formComOrganizacao.nomeProjeto.trim(),
+        descricao: formComOrganizacao.descricao.trim(),
+        objetivoGeral: formComOrganizacao.objetivoGeral.trim(),
+        publicoAlvo: formComOrganizacao.publicoAlvo.trim(),
+        acoesAcessibilidade: formComOrganizacao.acoesAcessibilidade.trim(),
+        localExecucao: formComOrganizacao.localExecucao.trim(),
+        dataInicio: formComOrganizacao.dataInicio,
+        dataFim: formComOrganizacao.dataFim,
+        status: formComOrganizacao.status as StatusProjeto,
+        areaAtuacao: formComOrganizacao.areaAtuacao as AreaAtuacao,
+        origemProjeto: formComOrganizacao.origemProjeto as OrigemProjeto,
+        organizacaoId: Number(formComOrganizacao.organizacaoId),
+        colaboradoresIds: formComOrganizacao.colaboradoresIds
           .map(Number)
           .filter((colaboradorId) => Number.isFinite(colaboradorId)),
         objetivos,
@@ -858,26 +932,26 @@ export default function ProjetoForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.organizacaoId}
+                  value={organizacaoSelectValue}
                   onValueChange={(value) => {
                     if (visualizando) return;
-                    set("organizacaoId", value);
+                    set("organizacaoId", String(value));
                   }}
-                  disabled={bloqueado || organizacoes.length === 0}
+                  disabled={bloqueado || organizacoesComFallback.length === 0}
                 >
                   <SelectTrigger id="organizacao">
                     <SelectValue placeholder="Selecione uma organização" />
                   </SelectTrigger>
 
                   <SelectContent>
-                    {organizacoes.length === 0 ? (
+                    {organizacoesComFallback.length === 0 ? (
                       <SelectItem value="sem-organizacao" disabled>
                         Nenhuma organização cadastrada
                       </SelectItem>
                     ) : (
-                      organizacoes.map((organizacao) => (
+                      organizacoesComFallback.map((organizacao) => (
                         <SelectItem
-                          key={organizacao.id}
+                          key={String(organizacao.id)}
                           value={String(organizacao.id)}
                         >
                           {organizacao.nome}
