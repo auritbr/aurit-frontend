@@ -786,7 +786,7 @@ export default function ParticipanteForm() {
             <TabsList className="grid w-full grid-cols-2 sm:inline-flex sm:w-auto">
               <TabsTrigger value="dados">Dados do Participante</TabsTrigger>
               <TabsTrigger value="vinculos">
-                Matrículas em Atividades e Turmas
+                Matrículas
               </TabsTrigger>
             </TabsList>
 

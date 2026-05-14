@@ -35,6 +35,13 @@ interface FormState {
   textoTrajetoria: string;
 }
 
+interface TrajetoriaCarregada {
+  colaboradorId?: string | number | null;
+  colaboradorNome?: string | null;
+  nomeCompleto?: string | null;
+  textoTrajetoria?: string | null;
+}
+
 const initial: FormState = {
   colaboradorId: "",
   colaboradorNome: "",
@@ -57,6 +64,16 @@ function salvarProximaAcaoTrajetoriaCultural() {
   sessionStorage.setItem(TRAJETORIA_NEXT_STEP_KEY, JSON.stringify(card));
 }
 
+function resolverNomeColaborador(trajetoria?: TrajetoriaCarregada | null) {
+  if (!trajetoria) return "";
+
+  return (
+    trajetoria.colaboradorNome?.trim() ||
+    trajetoria.nomeCompleto?.trim() ||
+    ""
+  );
+}
+
 export default function TrajetoriaCulturalForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -66,6 +83,8 @@ export default function TrajetoriaCulturalForm() {
   const editando = !!id && location.pathname.endsWith("/editar");
 
   const [form, setForm] = useState<FormState>(initial);
+  const [existingTrajetoria, setExistingTrajetoria] =
+    useState<TrajetoriaCarregada | null>(null);
   const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState(false);
@@ -82,29 +101,42 @@ export default function TrajetoriaCulturalForm() {
     }));
   };
 
+  const colaboradorSelectValue =
+    form.colaboradorId || String(existingTrajetoria?.colaboradorId ?? "");
+
   const colaboradoresComFallback = useMemo(() => {
     const options = [...colaboradores];
 
-    if (!form.colaboradorId) {
+    const colaboradorId =
+      form.colaboradorId || String(existingTrajetoria?.colaboradorId ?? "");
+
+    const colaboradorNome =
+      form.colaboradorNome ||
+      resolverNomeColaborador(existingTrajetoria) ||
+      (colaboradorId ? `Colaborador ${colaboradorId}` : "");
+
+    if (!colaboradorId) {
       return options;
     }
 
     const existe = options.some(
-      (colaborador) =>
-        String(colaborador.id) === String(form.colaboradorId),
+      (colaborador) => String(colaborador.id) === String(colaboradorId),
     );
 
     if (!existe) {
       options.unshift({
-        id: form.colaboradorId,
-        nome:
-          form.colaboradorNome?.trim() ||
-          `Colaborador ${form.colaboradorId}`,
+        id: colaboradorId,
+        nome: colaboradorNome,
       });
     }
 
     return options;
-  }, [colaboradores, form.colaboradorId, form.colaboradorNome]);
+  }, [
+    colaboradores,
+    form.colaboradorId,
+    form.colaboradorNome,
+    existingTrajetoria,
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -124,14 +156,13 @@ export default function TrajetoriaCulturalForm() {
         setColaboradores(colaboradoresData);
 
         if (trajetoriaData) {
-          let colaboradorId = trajetoriaData.colaboradorId
-            ? String(trajetoriaData.colaboradorId)
+          const trajetoria = trajetoriaData as TrajetoriaCarregada;
+
+          let colaboradorId = trajetoria.colaboradorId
+            ? String(trajetoria.colaboradorId)
             : "";
 
-          const colaboradorNome =
-            trajetoriaData.colaboradorNome?.trim() ||
-            trajetoriaData.nomeCompleto?.trim() ||
-            "";
+          const colaboradorNome = resolverNomeColaborador(trajetoria);
 
           if (!colaboradorId && colaboradorNome) {
             const colaboradorEncontrado = colaboradoresData.find(
@@ -140,21 +171,30 @@ export default function TrajetoriaCulturalForm() {
                 colaboradorNome.trim().toLowerCase(),
             );
 
-            colaboradorId = colaboradorEncontrado?.id ?? "";
+            colaboradorId = colaboradorEncontrado
+              ? String(colaboradorEncontrado.id)
+              : "";
           }
+
+          const colaboradorSelecionado = colaboradoresData.find(
+            (colaborador) => String(colaborador.id) === String(colaboradorId),
+          );
+
+          setExistingTrajetoria({
+            ...trajetoria,
+            colaboradorId,
+            colaboradorNome:
+              colaboradorNome || colaboradorSelecionado?.nome || "",
+          });
 
           setForm({
             colaboradorId,
             colaboradorNome:
-              colaboradorNome ||
-              colaboradoresData.find(
-                (colaborador) =>
-                  String(colaborador.id) === String(colaboradorId),
-              )?.nome ||
-              "",
-            textoTrajetoria: trajetoriaData.textoTrajetoria ?? "",
+              colaboradorNome || colaboradorSelecionado?.nome || "",
+            textoTrajetoria: trajetoria.textoTrajetoria ?? "",
           });
         } else {
+          setExistingTrajetoria(null);
           setForm(initial);
         }
       } catch (error) {
@@ -192,17 +232,33 @@ export default function TrajetoriaCulturalForm() {
 
     if (visualizando) return;
 
-    if (!form.colaboradorId) {
+    const colaboradorId =
+      form.colaboradorId || String(existingTrajetoria?.colaboradorId ?? "");
+
+    const colaboradorSelecionado = colaboradoresComFallback.find(
+      (colaborador) => String(colaborador.id) === String(colaboradorId),
+    );
+
+    const formComColaborador: FormState = {
+      ...form,
+      colaboradorId,
+      colaboradorNome:
+        form.colaboradorNome ||
+        colaboradorSelecionado?.nome ||
+        resolverNomeColaborador(existingTrajetoria),
+    };
+
+    if (!formComColaborador.colaboradorId) {
       toast.error("Preencha o campo obrigatório: Colaborador.");
       return;
     }
 
-    if (!form.textoTrajetoria.trim()) {
+    if (!formComColaborador.textoTrajetoria.trim()) {
       toast.error("Preencha o campo obrigatório: Texto da trajetória.");
       return;
     }
 
-    if (form.textoTrajetoria.trim().length < 300) {
+    if (formComColaborador.textoTrajetoria.trim().length < 300) {
       toast.error(
         "A trajetória cultural precisa ter pelo menos 300 caracteres.",
       );
@@ -214,8 +270,8 @@ export default function TrajetoriaCulturalForm() {
       setAccessDeniedMessage(null);
 
       const payload = {
-        colaboradorId: Number(form.colaboradorId),
-        textoTrajetoria: form.textoTrajetoria.trim(),
+        colaboradorId: Number(formComColaborador.colaboradorId),
+        textoTrajetoria: formComColaborador.textoTrajetoria.trim(),
       };
 
       if (editando && id) {
@@ -326,7 +382,7 @@ export default function TrajetoriaCulturalForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.colaboradorId}
+                  value={colaboradorSelectValue}
                   onValueChange={(value) => {
                     if (visualizando) return;
 
@@ -338,7 +394,7 @@ export default function TrajetoriaCulturalForm() {
 
                     setForm((prev) => ({
                       ...prev,
-                      colaboradorId: value,
+                      colaboradorId: String(value),
                       colaboradorNome:
                         colaboradorSelecionado?.nome ??
                         prev.colaboradorNome,
@@ -358,8 +414,8 @@ export default function TrajetoriaCulturalForm() {
                     ) : (
                       colaboradoresComFallback.map((colaborador) => (
                         <SelectItem
-                          key={colaborador.id}
-                          value={colaborador.id}
+                          key={String(colaborador.id)}
+                          value={String(colaborador.id)}
                         >
                           {colaborador.nome}
                         </SelectItem>

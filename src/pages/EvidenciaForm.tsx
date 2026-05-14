@@ -156,6 +156,8 @@ export default function EvidenciaForm() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState<Evidencia>(() => createEmptyEvidencia());
+  const [existingEvidencia, setExistingEvidencia] =
+    useState<Evidencia | null>(null);
   const [loading, setLoading] = useState(true);
   const [arquivoFile, setArquivoFile] = useState<File | null>(null);
 
@@ -168,10 +170,59 @@ export default function EvidenciaForm() {
   const [presencas, setPresencas] = useState<OptionItem[]>([]);
 
   const bloqueado = loading || visualizando;
-  const tv = form.tipoVinculoEvidencia;
 
   const set = <K extends keyof Evidencia>(key: K, value: Evidencia[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const projetoSelectValue =
+    String(form.projeto || existingEvidencia?.projeto || "");
+
+  const projetoOriginalAtivo =
+    !!existingEvidencia &&
+    (!form.projeto ||
+      String(form.projeto) === String(existingEvidencia.projeto || ""));
+
+  const tipoVinculoSelectValue = String(
+    form.tipoVinculoEvidencia ||
+      existingEvidencia?.tipoVinculoEvidencia ||
+      "",
+  ) as TipoVinculoEvidencia | "";
+
+  const tv = tipoVinculoSelectValue;
+
+  const propostaEditalSelectValue = String(
+    form.propostaEdital ||
+      (projetoOriginalAtivo ? existingEvidencia?.propostaEdital : "") ||
+      "",
+  );
+
+  const atividadeSelectValue = String(
+    form.atividade ||
+      (projetoOriginalAtivo ? existingEvidencia?.atividade : "") ||
+      "",
+  );
+
+  const turmaSelectValue = String(
+    form.turma || (projetoOriginalAtivo ? existingEvidencia?.turma : "") || "",
+  );
+
+  const eventoCulturalSelectValue = String(
+    form.eventoCultural ||
+      (projetoOriginalAtivo ? existingEvidencia?.eventoCultural : "") ||
+      "",
+  );
+
+  const acaoDivulgacaoSelectValue = String(
+    form.acaoDivulgacao ||
+      (projetoOriginalAtivo ? existingEvidencia?.acaoDivulgacao : "") ||
+      "",
+  );
+
+  const presencaSelectValue = String(
+    form.presenca ||
+      (projetoOriginalAtivo ? existingEvidencia?.presenca : "") ||
+      "",
+  );
 
   useEffect(() => {
     let active = true;
@@ -210,15 +261,6 @@ export default function EvidenciaForm() {
         const acoesNormalizadas = normalizeOptions(acoesData);
         const presencasNormalizadas = normalizeOptions(presencasData);
 
-        if (registroData) {
-          setForm({
-            ...registroData,
-            urlArquivo: registroData.urlArquivo ?? "",
-          });
-        } else {
-          setForm(createEmptyEvidencia());
-        }
-
         setProjetos(projetosNormalizados);
         setPropostasEdital(propostasNormalizadas);
         setAtividades(atividadesNormalizadas);
@@ -226,6 +268,28 @@ export default function EvidenciaForm() {
         setEventos(eventosNormalizados);
         setAcoes(acoesNormalizadas);
         setPresencas(presencasNormalizadas);
+
+        if (registroData) {
+          const registroNormalizado: Evidencia = {
+            ...registroData,
+            id: registroData.id,
+            projeto: String(registroData.projeto || ""),
+            propostaEdital: String(registroData.propostaEdital || ""),
+            atividade: String(registroData.atividade || ""),
+            turma: String(registroData.turma || ""),
+            eventoCultural: String(registroData.eventoCultural || ""),
+            acaoDivulgacao: String(registroData.acaoDivulgacao || ""),
+            presenca: String(registroData.presenca || ""),
+            tipoVinculoEvidencia: registroData.tipoVinculoEvidencia,
+            urlArquivo: registroData.urlArquivo ?? "",
+          };
+
+          setExistingEvidencia(registroNormalizado);
+          setForm(registroNormalizado);
+        } else {
+          setExistingEvidencia(null);
+          setForm(createEmptyEvidencia());
+        }
       } catch (error) {
         toast.error(
           error instanceof Error
@@ -249,70 +313,70 @@ export default function EvidenciaForm() {
   }, [id, navigate]);
 
   const projetosComSelecao = useMemo(
-    () => withSelectedOption(projetos, projetos, form.projeto, "Projeto"),
-    [projetos, form.projeto],
+    () => withSelectedOption(projetos, projetos, projetoSelectValue, "Projeto"),
+    [projetos, projetoSelectValue],
   );
 
   const propostasFiltradas = useMemo(() => {
-    const filtradas = filtrarPorProjeto(propostasEdital, form.projeto);
+    const filtradas = filtrarPorProjeto(propostasEdital, projetoSelectValue);
 
     return withSelectedOption(
       filtradas,
       propostasEdital,
-      form.propostaEdital,
+      propostaEditalSelectValue,
       "Proposta",
     );
-  }, [propostasEdital, form.projeto, form.propostaEdital]);
+  }, [propostasEdital, projetoSelectValue, propostaEditalSelectValue]);
 
   const atividadesFiltradas = useMemo(() => {
-    const filtradas = filtrarPorProjeto(atividades, form.projeto);
+    const filtradas = filtrarPorProjeto(atividades, projetoSelectValue);
 
     return withSelectedOption(
       filtradas,
       atividades,
-      form.atividade,
+      atividadeSelectValue,
       "Atividade",
     );
-  }, [atividades, form.projeto, form.atividade]);
+  }, [atividades, projetoSelectValue, atividadeSelectValue]);
 
   const turmasFiltradas = useMemo(() => {
-    const filtradas = filtrarPorProjeto(turmas, form.projeto);
+    const filtradas = filtrarPorProjeto(turmas, projetoSelectValue);
 
-    return withSelectedOption(filtradas, turmas, form.turma, "Turma");
-  }, [turmas, form.projeto, form.turma]);
+    return withSelectedOption(filtradas, turmas, turmaSelectValue, "Turma");
+  }, [turmas, projetoSelectValue, turmaSelectValue]);
 
   const eventosFiltrados = useMemo(() => {
-    const filtrados = filtrarPorProjeto(eventos, form.projeto);
+    const filtrados = filtrarPorProjeto(eventos, projetoSelectValue);
 
     return withSelectedOption(
       filtrados,
       eventos,
-      form.eventoCultural,
+      eventoCulturalSelectValue,
       "Evento",
     );
-  }, [eventos, form.projeto, form.eventoCultural]);
+  }, [eventos, projetoSelectValue, eventoCulturalSelectValue]);
 
   const acoesFiltradas = useMemo(() => {
-    const filtradas = filtrarPorProjeto(acoes, form.projeto);
+    const filtradas = filtrarPorProjeto(acoes, projetoSelectValue);
 
     return withSelectedOption(
       filtradas,
       acoes,
-      form.acaoDivulgacao,
+      acaoDivulgacaoSelectValue,
       "Ação",
     );
-  }, [acoes, form.projeto, form.acaoDivulgacao]);
+  }, [acoes, projetoSelectValue, acaoDivulgacaoSelectValue]);
 
   const presencasFiltradas = useMemo(() => {
-    const filtradas = filtrarPorProjeto(presencas, form.projeto);
+    const filtradas = filtrarPorProjeto(presencas, projetoSelectValue);
 
     return withSelectedOption(
       filtradas,
       presencas,
-      form.presenca,
+      presencaSelectValue,
       "Presença",
     );
-  }, [presencas, form.projeto, form.presenca]);
+  }, [presencas, projetoSelectValue, presencaSelectValue]);
 
   function setProjeto(projetoId: string) {
     setForm((prev) => ({
@@ -331,12 +395,15 @@ export default function EvidenciaForm() {
     setForm((prev) => ({
       ...prev,
       tipoVinculoEvidencia: tipo,
-      propostaEdital: tipo === "PROPOSTA_EDITAL" ? prev.propostaEdital : "",
-      atividade: tipo === "ATIVIDADE" ? prev.atividade : "",
-      turma: tipo === "TURMA" ? prev.turma : "",
-      eventoCultural: tipo === "EVENTO_CULTURAL" ? prev.eventoCultural : "",
-      acaoDivulgacao: tipo === "ACAO_DIVULGACAO" ? prev.acaoDivulgacao : "",
-      presenca: tipo === "PRESENCA" ? prev.presenca : "",
+      propostaEdital:
+        tipo === "PROPOSTA_EDITAL" ? propostaEditalSelectValue : "",
+      atividade: tipo === "ATIVIDADE" ? atividadeSelectValue : "",
+      turma: tipo === "TURMA" ? turmaSelectValue : "",
+      eventoCultural:
+        tipo === "EVENTO_CULTURAL" ? eventoCulturalSelectValue : "",
+      acaoDivulgacao:
+        tipo === "ACAO_DIVULGACAO" ? acaoDivulgacaoSelectValue : "",
+      presenca: tipo === "PRESENCA" ? presencaSelectValue : "",
     }));
   }
 
@@ -370,63 +437,86 @@ export default function EvidenciaForm() {
     }
   }
 
-  function validar() {
-    if (!form.tituloEvidencia.trim()) {
+  function montarEvidenciaParaEnvio(): Evidencia {
+    return {
+      ...form,
+      projeto: projetoSelectValue,
+      tipoVinculoEvidencia: tipoVinculoSelectValue as TipoVinculoEvidencia,
+      propostaEdital: propostaEditalSelectValue,
+      atividade: atividadeSelectValue,
+      turma: turmaSelectValue,
+      eventoCultural: eventoCulturalSelectValue,
+      acaoDivulgacao: acaoDivulgacaoSelectValue,
+      presenca: presencaSelectValue,
+    };
+  }
+
+  function validar(evidencia: Evidencia) {
+    if (!evidencia.tituloEvidencia.trim()) {
       toast.error("Informe o título da evidência.");
       return false;
     }
 
-    if (!form.tipoEvidencia) {
+    if (!evidencia.tipoEvidencia) {
       toast.error("Selecione o tipo de evidência.");
       return false;
     }
 
-    if (!form.tipoVinculoEvidencia) {
+    if (!evidencia.tipoVinculoEvidencia) {
       toast.error("Selecione o tipo de vínculo.");
       return false;
     }
 
-    if (!form.projeto) {
+    if (!evidencia.projeto) {
       toast.error("Selecione o projeto.");
       return false;
     }
 
-    if (tv === "PROPOSTA_EDITAL" && !form.propostaEdital) {
+    if (
+      evidencia.tipoVinculoEvidencia === "PROPOSTA_EDITAL" &&
+      !evidencia.propostaEdital
+    ) {
       toast.error("Selecione a proposta de edital correspondente.");
       return false;
     }
 
-    if (tv === "ATIVIDADE" && !form.atividade) {
+    if (evidencia.tipoVinculoEvidencia === "ATIVIDADE" && !evidencia.atividade) {
       toast.error("Selecione a atividade correspondente.");
       return false;
     }
 
-    if (tv === "TURMA" && !form.turma) {
+    if (evidencia.tipoVinculoEvidencia === "TURMA" && !evidencia.turma) {
       toast.error("Selecione a turma correspondente.");
       return false;
     }
 
-    if (tv === "EVENTO_CULTURAL" && !form.eventoCultural) {
+    if (
+      evidencia.tipoVinculoEvidencia === "EVENTO_CULTURAL" &&
+      !evidencia.eventoCultural
+    ) {
       toast.error("Selecione o evento cultural correspondente.");
       return false;
     }
 
-    if (tv === "ACAO_DIVULGACAO" && !form.acaoDivulgacao) {
+    if (
+      evidencia.tipoVinculoEvidencia === "ACAO_DIVULGACAO" &&
+      !evidencia.acaoDivulgacao
+    ) {
       toast.error("Selecione a ação de divulgação correspondente.");
       return false;
     }
 
-    if (tv === "PRESENCA" && !form.presenca) {
+    if (evidencia.tipoVinculoEvidencia === "PRESENCA" && !evidencia.presenca) {
       toast.error("Selecione a presença correspondente.");
       return false;
     }
 
-    if (!form.urlArquivo.trim() && !form.urlPublicacao.trim()) {
+    if (!evidencia.urlArquivo.trim() && !evidencia.urlPublicacao.trim()) {
       toast.error("Informe pelo menos um arquivo ou link de publicação.");
       return false;
     }
 
-    if (form.urlPublicacao.trim() && !isUrl(form.urlPublicacao.trim())) {
+    if (evidencia.urlPublicacao.trim() && !isUrl(evidencia.urlPublicacao.trim())) {
       toast.error("Informe um link válido com http:// ou https://.");
       return false;
     }
@@ -459,12 +549,15 @@ export default function EvidenciaForm() {
     event.preventDefault();
 
     if (visualizando) return;
-    if (!validar()) return;
+
+    const evidenciaParaEnvio = montarEvidenciaParaEnvio();
+
+    if (!validar(evidenciaParaEnvio)) return;
 
     try {
       setLoading(true);
 
-      const payload = buildEvidenciaPayload(form);
+      const payload = buildEvidenciaPayload(evidenciaParaEnvio);
 
       if (editando && id) {
         await updateEvidenciaExecucao(Number(id), payload, arquivoFile);
@@ -616,7 +709,8 @@ export default function EvidenciaForm() {
                       <Paperclip className="h-4 w-4 flex-shrink-0 text-primary" />
 
                       <span className="truncate text-sm text-foreground">
-                        {arquivoFile?.name || getNomeArquivoEvidencia(form.urlArquivo)}
+                        {arquivoFile?.name ||
+                          getNomeArquivoEvidencia(form.urlArquivo)}
                       </span>
                     </div>
 
@@ -733,7 +827,7 @@ export default function EvidenciaForm() {
               </FieldLabel>
 
               <Select
-                value={String(form.projeto || "")}
+                value={projetoSelectValue}
                 onValueChange={setProjeto}
                 disabled={bloqueado}
               >
@@ -777,7 +871,7 @@ export default function EvidenciaForm() {
                 </FieldLabel>
 
                 <Select
-                  value={String(form.tipoVinculoEvidencia || "")}
+                  value={String(tipoVinculoSelectValue || "")}
                   onValueChange={(value) =>
                     setTipoVinculo(value as TipoVinculoEvidencia)
                   }
@@ -801,9 +895,9 @@ export default function EvidenciaForm() {
                 <VinculoSelect
                   id="propostaEdital"
                   label="Proposta de Edital"
-                  value={form.propostaEdital}
+                  value={propostaEditalSelectValue}
                   options={propostasFiltradas}
-                  disabled={bloqueado || !form.projeto}
+                  disabled={bloqueado || !projetoSelectValue}
                   onChange={(value) => set("propostaEdital", value)}
                 />
               )}
@@ -812,9 +906,9 @@ export default function EvidenciaForm() {
                 <VinculoSelect
                   id="atividade"
                   label="Atividade"
-                  value={form.atividade}
+                  value={atividadeSelectValue}
                   options={atividadesFiltradas}
-                  disabled={bloqueado || !form.projeto}
+                  disabled={bloqueado || !projetoSelectValue}
                   onChange={(value) => set("atividade", value)}
                 />
               )}
@@ -823,9 +917,9 @@ export default function EvidenciaForm() {
                 <VinculoSelect
                   id="turma"
                   label="Turma"
-                  value={form.turma}
+                  value={turmaSelectValue}
                   options={turmasFiltradas}
-                  disabled={bloqueado || !form.projeto}
+                  disabled={bloqueado || !projetoSelectValue}
                   onChange={(value) => set("turma", value)}
                 />
               )}
@@ -834,9 +928,9 @@ export default function EvidenciaForm() {
                 <VinculoSelect
                   id="eventoCultural"
                   label="Evento Cultural"
-                  value={form.eventoCultural}
+                  value={eventoCulturalSelectValue}
                   options={eventosFiltrados}
-                  disabled={bloqueado || !form.projeto}
+                  disabled={bloqueado || !projetoSelectValue}
                   onChange={(value) => set("eventoCultural", value)}
                 />
               )}
@@ -845,9 +939,9 @@ export default function EvidenciaForm() {
                 <VinculoSelect
                   id="acaoDivulgacao"
                   label="Ação de Divulgação"
-                  value={form.acaoDivulgacao}
+                  value={acaoDivulgacaoSelectValue}
                   options={acoesFiltradas}
-                  disabled={bloqueado || !form.projeto}
+                  disabled={bloqueado || !projetoSelectValue}
                   onChange={(value) => set("acaoDivulgacao", value)}
                 />
               )}
@@ -856,9 +950,9 @@ export default function EvidenciaForm() {
                 <VinculoSelect
                   id="presenca"
                   label="Presença"
-                  value={form.presenca}
+                  value={presencaSelectValue}
                   options={presencasFiltradas}
-                  disabled={bloqueado || !form.projeto}
+                  disabled={bloqueado || !projetoSelectValue}
                   onChange={(value) => set("presenca", value)}
                 />
               )}
@@ -908,7 +1002,11 @@ function VinculoSelect({
         {label}
       </FieldLabel>
 
-      <Select value={String(value || "")} onValueChange={onChange} disabled={disabled}>
+      <Select
+        value={String(value || "")}
+        onValueChange={onChange}
+        disabled={disabled}
+      >
         <SelectTrigger id={id}>
           <SelectValue placeholder={`Selecione ${label.toLowerCase()}`} />
         </SelectTrigger>
