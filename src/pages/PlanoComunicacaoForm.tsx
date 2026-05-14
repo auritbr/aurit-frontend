@@ -72,6 +72,41 @@ function salvarProximaAcaoExecucaoDivulgacao() {
   );
 }
 
+function normalizeId(value: unknown): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  return String(value).trim();
+}
+
+function getAcaoNome(
+  acoes: AcaoDivulgacaoOption[],
+  acaoId: string,
+  plano?: PlanoComunicacao | null,
+) {
+  return (
+    acoes.find((acao) => normalizeId(acao.id) === acaoId)?.nome ||
+    (plano as any)?.nomeAcaoDivulgacao?.trim?.() ||
+    (plano as any)?.acaoDivulgacaoNome?.trim?.() ||
+    `Ação vinculada #${acaoId}`
+  );
+}
+
+function getOrganizacaoNome(
+  organizacoes: OrganizacaoOption[],
+  organizacaoId: string,
+  plano?: PlanoComunicacao | null,
+) {
+  return (
+    organizacoes.find((organizacao) => normalizeId(organizacao.id) === organizacaoId)
+      ?.nome ||
+    (plano as any)?.nomeOrganizacao?.trim?.() ||
+    (plano as any)?.organizacaoNome?.trim?.() ||
+    `Organização vinculada #${organizacaoId}`
+  );
+}
+
 export default function PlanoComunicacaoForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -83,12 +118,21 @@ export default function PlanoComunicacaoForm() {
   const [form, setForm] = useState<PlanoComunicacao>(() =>
     createEmptyPlanoComunicacao(),
   );
+  const [existingPlano, setExistingPlano] =
+    useState<PlanoComunicacao | null>(null);
   const [loading, setLoading] = useState<boolean>(!!id);
   const [saving, setSaving] = useState(false);
   const [acoes, setAcoes] = useState<AcaoDivulgacaoOption[]>([]);
   const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
 
   const bloqueado = visualizando || loading || saving;
+
+  const acaoSelectValue =
+    normalizeId(form.acaoDivulgacao) ||
+    normalizeId(existingPlano?.acaoDivulgacao);
+
+  const organizacaoSelectValue =
+    normalizeId(form.organizacao) || normalizeId(existingPlano?.organizacao);
 
   useEffect(() => {
     let active = true;
@@ -109,12 +153,22 @@ export default function PlanoComunicacaoForm() {
         setOrganizacoes(organizacoesData);
 
         if (registroData) {
-          setForm(registroData);
+          const registroNormalizado: PlanoComunicacao = {
+            ...registroData,
+            acaoDivulgacao: normalizeId(registroData.acaoDivulgacao),
+            organizacao: normalizeId(registroData.organizacao),
+          };
+
+          setExistingPlano(registroNormalizado);
+          setForm(registroNormalizado);
         } else {
+          setExistingPlano(null);
           setForm({
             ...createEmptyPlanoComunicacao(),
             organizacao:
-              organizacoesData.length === 1 ? organizacoesData[0].id : "",
+              organizacoesData.length === 1
+                ? normalizeId(organizacoesData[0].id)
+                : "",
           });
         }
       } catch (error) {
@@ -145,78 +199,92 @@ export default function PlanoComunicacaoForm() {
   };
 
   const acoesComFallback = useMemo(() => {
-    if (!form.acaoDivulgacao) return acoes;
+    const options = [...acoes];
+    const acaoId = acaoSelectValue;
 
-    const existe = acoes.some((a) => a.id === form.acaoDivulgacao);
+    if (
+      acaoId &&
+      !options.some((acao) => normalizeId(acao.id) === acaoId)
+    ) {
+      options.unshift({
+        id: acaoId,
+        nome: getAcaoNome(acoes, acaoId, existingPlano),
+      });
+    }
 
-    if (existe) return acoes;
-
-    return [
-      ...acoes,
-      {
-        id: form.acaoDivulgacao,
-        nome: `Ação vinculada #${form.acaoDivulgacao}`,
-      },
-    ];
-  }, [acoes, form.acaoDivulgacao]);
+    return options;
+  }, [acoes, acaoSelectValue, existingPlano]);
 
   const organizacoesComFallback = useMemo(() => {
-    if (!form.organizacao) return organizacoes;
+    const options = [...organizacoes];
+    const organizacaoId = organizacaoSelectValue;
 
-    const existe = organizacoes.some((o) => o.id === form.organizacao);
+    if (
+      organizacaoId &&
+      !options.some(
+        (organizacao) => normalizeId(organizacao.id) === organizacaoId,
+      )
+    ) {
+      options.unshift({
+        id: organizacaoId,
+        nome: getOrganizacaoNome(organizacoes, organizacaoId, existingPlano),
+      });
+    }
 
-    if (existe) return organizacoes;
+    return options;
+  }, [organizacoes, organizacaoSelectValue, existingPlano]);
 
-    return [
-      ...organizacoes,
-      {
-        id: form.organizacao,
-        nome: `Organização vinculada #${form.organizacao}`,
-      },
-    ];
-  }, [organizacoes, form.organizacao]);
+  function getFormComVinculos(): PlanoComunicacao {
+    return {
+      ...form,
+      acaoDivulgacao: acaoSelectValue,
+      organizacao: organizacaoSelectValue,
+    };
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (visualizando) return;
 
-    if (!form.quantidade.trim()) {
+    const formComVinculos = getFormComVinculos();
+
+    if (!formComVinculos.quantidade.trim()) {
       toast.error("Informe a quantidade.");
       return;
     }
 
-    if (!form.formatoPlanoComunicacao.trim()) {
+    if (!formComVinculos.formatoPlanoComunicacao.trim()) {
       toast.error("Selecione o formato da comunicação.");
       return;
     }
 
-    if (!form.localCirculacaoComunicacao.trim()) {
+    if (!formComVinculos.localCirculacaoComunicacao.trim()) {
       toast.error("Informe o local de circulação.");
       return;
     }
 
-    if (!form.dataInicio) {
+    if (!formComVinculos.dataInicio) {
       toast.error("Informe a data de início.");
       return;
     }
 
-    if (!form.dataFim) {
+    if (!formComVinculos.dataFim) {
       toast.error("Informe a data de fim.");
       return;
     }
 
-    if (form.dataFim < form.dataInicio) {
+    if (formComVinculos.dataFim < formComVinculos.dataInicio) {
       toast.error("A data de fim não pode ser anterior à data de início.");
       return;
     }
 
-    if (!form.acaoDivulgacao) {
+    if (!formComVinculos.acaoDivulgacao) {
       toast.error("Selecione a ação de divulgação vinculada.");
       return;
     }
 
-    if (!form.status) {
+    if (!formComVinculos.status) {
       toast.error("Selecione o status do registro.");
       return;
     }
@@ -224,7 +292,7 @@ export default function PlanoComunicacaoForm() {
     try {
       setSaving(true);
 
-      const payload = buildPlanoComunicacaoPayload(form);
+      const payload = buildPlanoComunicacaoPayload(formComVinculos);
 
       if (editando && id) {
         await updatePlanoComunicacao(Number(id), payload);
@@ -428,8 +496,10 @@ export default function PlanoComunicacaoForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.acaoDivulgacao}
-                  onValueChange={(value) => set("acaoDivulgacao", value)}
+                  value={acaoSelectValue}
+                  onValueChange={(value) =>
+                    set("acaoDivulgacao", normalizeId(value))
+                  }
                   disabled={bloqueado}
                 >
                   <SelectTrigger id="acaoDivulgacao">
@@ -443,7 +513,10 @@ export default function PlanoComunicacaoForm() {
                       </SelectItem>
                     ) : (
                       acoesComFallback.map((acao) => (
-                        <SelectItem key={acao.id} value={acao.id}>
+                        <SelectItem
+                          key={normalizeId(acao.id)}
+                          value={normalizeId(acao.id)}
+                        >
                           {acao.nome}
                         </SelectItem>
                       ))
@@ -461,8 +534,10 @@ export default function PlanoComunicacaoForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.organizacao}
-                  onValueChange={(value) => set("organizacao", value)}
+                  value={organizacaoSelectValue}
+                  onValueChange={(value) =>
+                    set("organizacao", normalizeId(value))
+                  }
                   disabled={bloqueado}
                 >
                   <SelectTrigger id="organizacao">
@@ -477,8 +552,8 @@ export default function PlanoComunicacaoForm() {
                     ) : (
                       organizacoesComFallback.map((organizacao) => (
                         <SelectItem
-                          key={organizacao.id}
-                          value={organizacao.id}
+                          key={normalizeId(organizacao.id)}
+                          value={normalizeId(organizacao.id)}
                         >
                           {organizacao.nome}
                         </SelectItem>
@@ -535,11 +610,7 @@ export default function PlanoComunicacaoForm() {
             </Button>
 
             {!visualizando && (
-              <Button
-                type="submit"
-                className="sm:min-w-40"
-                disabled={saving}
-              >
+              <Button type="submit" className="sm:min-w-40" disabled={saving}>
                 {saving ? "Salvando..." : "Salvar registro"}
               </Button>
             )}

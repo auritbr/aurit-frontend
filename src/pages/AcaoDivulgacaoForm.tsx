@@ -6,7 +6,6 @@ import {
   Target,
   Share2,
   Link2,
-  CalendarClock,
   PackageCheck,
 } from "lucide-react";
 
@@ -78,9 +77,17 @@ const initial: FormState = {
   colaboradoresIds: [],
 };
 
+function normalizeId(value: unknown): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  return String(value).trim();
+}
+
 function mapAcaoToForm(acao: AcaoDivulgacao): FormState {
   return {
-    id: acao.id ?? "",
+    id: normalizeId(acao.id),
     nomeAcao: acao.nomeAcao ?? "",
     descricaoAcao: acao.descricaoAcao ?? "",
     realizacaoAcao: acao.realizacaoAcao ?? "",
@@ -92,8 +99,8 @@ function mapAcaoToForm(acao: AcaoDivulgacao): FormState {
     dataFim: acao.dataFim ?? "",
     estrategiasDivulgacao: acao.estrategiasDivulgacao ?? [],
     status: acao.status ?? "",
-    projetoId: acao.projetoId ?? "",
-    colaboradoresIds: acao.colaboradoresIds ?? [],
+    projetoId: normalizeId(acao.projetoId),
+    colaboradoresIds: (acao.colaboradoresIds ?? []).map(String),
   };
 }
 
@@ -131,6 +138,19 @@ function statusPermiteDataFimPassada(status: string) {
   return status === "INATIVO" || status === "CONCLUIDO";
 }
 
+function getProjetoNome(
+  projetos: ProjetoOption[],
+  projetoId: string,
+  acao?: AcaoDivulgacao | null,
+) {
+  return (
+    projetos.find((projeto) => normalizeId(projeto.id) === projetoId)?.nome ||
+    (acao as any)?.projetoNome?.trim?.() ||
+    (acao as any)?.nomeProjeto?.trim?.() ||
+    `Projeto ${projetoId}`
+  );
+}
+
 export default function AcaoDivulgacaoForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -140,6 +160,7 @@ export default function AcaoDivulgacaoForm() {
   const editando = !!id && location.pathname.endsWith("/editar");
 
   const [form, setForm] = useState<FormState>(initial);
+  const [existingAcao, setExistingAcao] = useState<AcaoDivulgacao | null>(null);
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
   const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,6 +170,9 @@ export default function AcaoDivulgacaoForm() {
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((p) => ({ ...p, [k]: v }));
+
+  const projetoSelectValue =
+    form.projetoId || normalizeId(existingAcao?.projetoId);
 
   useEffect(() => {
     let active = true;
@@ -169,8 +193,19 @@ export default function AcaoDivulgacaoForm() {
         setColaboradores(colaboradoresData);
 
         if (acaoData) {
-          setForm(mapAcaoToForm(acaoData));
+          const projetoId = normalizeId(acaoData.projetoId);
+
+          const acaoNormalizada: AcaoDivulgacao = {
+            ...acaoData,
+            id: normalizeId(acaoData.id),
+            projetoId,
+            colaboradoresIds: (acaoData.colaboradoresIds ?? []).map(String),
+          };
+
+          setExistingAcao(acaoNormalizada);
+          setForm(mapAcaoToForm(acaoNormalizada));
         } else {
+          setExistingAcao(null);
           setForm(initial);
         }
       } catch (error) {
@@ -199,19 +234,20 @@ export default function AcaoDivulgacaoForm() {
 
   const projetosComFallback = useMemo(() => {
     const options = [...projetos];
+    const projetoId = projetoSelectValue;
 
     if (
-      form.projetoId &&
-      !options.some((projeto) => String(projeto.id) === String(form.projetoId))
+      projetoId &&
+      !options.some((projeto) => normalizeId(projeto.id) === projetoId)
     ) {
-      options.push({
-        id: form.projetoId,
-        nome: `Projeto ${form.projetoId}`,
+      options.unshift({
+        id: projetoId,
+        nome: getProjetoNome(projetos, projetoId, existingAcao),
       });
     }
 
     return options;
-  }, [projetos, form.projetoId]);
+  }, [projetos, projetoSelectValue, existingAcao]);
 
   const colaboradoresComFallback = useMemo(() => {
     const options = [...colaboradores];
@@ -220,7 +256,7 @@ export default function AcaoDivulgacaoForm() {
       (colaboradorId) =>
         colaboradorId &&
         !options.some(
-          (colaborador) => String(colaborador.id) === String(colaboradorId),
+          (colaborador) => normalizeId(colaborador.id) === colaboradorId,
         ),
     );
 
@@ -247,7 +283,7 @@ export default function AcaoDivulgacaoForm() {
   const colaboradoresSelecionadosLabels = form.colaboradoresIds.map(
     (colaboradorId) =>
       colaboradoresComFallback.find(
-        (colaborador) => String(colaborador.id) === String(colaboradorId),
+        (colaborador) => normalizeId(colaborador.id) === colaboradorId,
       )?.nome ?? colaboradorId,
   );
 
@@ -271,9 +307,17 @@ export default function AcaoDivulgacaoForm() {
             (colaborador) => colaborador.nome === label,
           )?.id ?? label,
       )
+      .map(String)
       .filter(Boolean);
 
     set("colaboradoresIds", ids);
+  }
+
+  function getFormComProjeto(): FormState {
+    return {
+      ...form,
+      projetoId: projetoSelectValue,
+    };
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -281,60 +325,62 @@ export default function AcaoDivulgacaoForm() {
 
     if (visualizando) return;
 
-    if (!form.nomeAcao.trim()) {
+    const formComProjeto = getFormComProjeto();
+
+    if (!formComProjeto.nomeAcao.trim()) {
       toast.error("Informe o nome da ação.");
       return;
     }
 
-    if (!form.descricaoAcao.trim()) {
+    if (!formComProjeto.descricaoAcao.trim()) {
       toast.error("Informe a descrição da ação.");
       return;
     }
 
-    if (!form.realizacaoAcao.trim()) {
+    if (!formComProjeto.realizacaoAcao.trim()) {
       toast.error("Informe a realização da ação.");
       return;
     }
 
-    if (!form.objetivoAcao.trim()) {
+    if (!formComProjeto.objetivoAcao.trim()) {
       toast.error("Informe o objetivo da ação.");
       return;
     }
 
-    if (!form.acoesAcessibilidade.trim()) {
+    if (!formComProjeto.acoesAcessibilidade.trim()) {
       toast.error("Informe as ações de acessibilidade.");
       return;
     }
 
-    if (!form.resultadoEsperado.trim()) {
+    if (!formComProjeto.resultadoEsperado.trim()) {
       toast.error("Informe o resultado esperado.");
       return;
     }
 
-    if (!form.produtosGerados.trim()) {
+    if (!formComProjeto.produtosGerados.trim()) {
       toast.error("Informe os produtos gerados.");
       return;
     }
 
-    if (!form.dataInicio) {
+    if (!formComProjeto.dataInicio) {
       toast.error("Informe a data de início.");
       return;
     }
 
-    if (!form.dataFim) {
+    if (!formComProjeto.dataFim) {
       toast.error("Informe a data de término.");
       return;
     }
 
-    if (form.dataFim < form.dataInicio) {
+    if (formComProjeto.dataFim < formComProjeto.dataInicio) {
       toast.error("A data de término não pode ser anterior à data de início.");
       return;
     }
 
     if (
-      form.dataFim &&
-      dataFimPassada(form.dataFim) &&
-      !statusPermiteDataFimPassada(form.status)
+      formComProjeto.dataFim &&
+      dataFimPassada(formComProjeto.dataFim) &&
+      !statusPermiteDataFimPassada(formComProjeto.status)
     ) {
       toast.error(
         "Ação com data de término passada deve estar com status Inativo ou Concluído.",
@@ -342,22 +388,22 @@ export default function AcaoDivulgacaoForm() {
       return;
     }
 
-    if (form.estrategiasDivulgacao.length === 0) {
+    if (formComProjeto.estrategiasDivulgacao.length === 0) {
       toast.error("Selecione ao menos uma estratégia de divulgação.");
       return;
     }
 
-    if (!form.status) {
+    if (!formComProjeto.status) {
       toast.error("Selecione o status da ação.");
       return;
     }
 
-    if (!form.projetoId) {
+    if (!formComProjeto.projetoId) {
       toast.error("Selecione o projeto.");
       return;
     }
 
-    if (form.colaboradoresIds.length === 0) {
+    if (formComProjeto.colaboradoresIds.length === 0) {
       toast.error("Vincule ao menos um colaborador responsável pela ação.");
       return;
     }
@@ -365,7 +411,9 @@ export default function AcaoDivulgacaoForm() {
     try {
       setSaving(true);
 
-      const payload = buildAcaoDivulgacaoPayload(mapFormToAcao(form));
+      const payload = buildAcaoDivulgacaoPayload(
+        mapFormToAcao(formComProjeto),
+      );
 
       if (editando && id) {
         await updateAcaoDivulgacao(Number(id), payload);
@@ -402,41 +450,44 @@ export default function AcaoDivulgacaoForm() {
         </button>
 
         <PageTitle
-          title={
-            visualizando
-              ? "Visualizar Ação de Divulgação"
-              : editando
-                ? "Editar Ação de Divulgação"
-                : "Ação de Divulgação"
-          }
+          title="Ação de Divulgação"
           tooltip="Planeje como as ações culturais serão divulgadas, realizadas e documentadas. Informe estratégias de comunicação, período, responsáveis, produtos gerados e resultados esperados."
         />
 
-        <FormLegend />
+        {!visualizando && <FormLegend />}
+
+        {visualizando && (
+          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Esta tela está em modo de visualização. Para alterar os dados,
+            utilize a opção Editar.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Section icon={Megaphone} title="Dados principais">
             <div className="grid sm:grid-cols-2 gap-4">
               <Field full>
                 <FieldLabel htmlFor="nomeAcao" required>
-                  Nome da ação
+                  Nome da Ação
                 </FieldLabel>
                 <Input
                   id="nomeAcao"
                   value={form.nomeAcao}
                   disabled={bloqueado}
+                  readOnly={visualizando}
                   onChange={(e) => set("nomeAcao", e.target.value)}
                 />
               </Field>
 
               <Field full>
                 <FieldLabel htmlFor="descricaoAcao" required>
-                  Descrição da ação
+                  Descrição da Ação
                 </FieldLabel>
                 <Textarea
                   id="descricaoAcao"
                   value={form.descricaoAcao}
                   disabled={bloqueado}
+                  readOnly={visualizando}
                   onChange={(e) => set("descricaoAcao", e.target.value)}
                   rows={4}
                 />
@@ -448,12 +499,13 @@ export default function AcaoDivulgacaoForm() {
                   required
                   tooltip="Descreva como a ação será realizada na prática: etapas, responsáveis, dinâmica, canais utilizados e forma de execução."
                 >
-                  Realização da ação
+                  Realização da Ação
                 </FieldLabel>
                 <Textarea
                   id="realizacaoAcao"
                   value={form.realizacaoAcao}
                   disabled={bloqueado}
+                  readOnly={visualizando}
                   onChange={(e) => set("realizacaoAcao", e.target.value)}
                   rows={4}
                 />
@@ -469,12 +521,13 @@ export default function AcaoDivulgacaoForm() {
                   required
                   tooltip="Explique o objetivo da ação, como ampliar o público, dar visibilidade ao projeto, fortalecer a comunicação ou registrar atividades realizadas."
                 >
-                  Objetivo da ação
+                  Objetivo da Ação
                 </FieldLabel>
                 <Textarea
                   id="objetivoAcao"
                   value={form.objetivoAcao}
                   disabled={bloqueado}
+                  readOnly={visualizando}
                   onChange={(e) => set("objetivoAcao", e.target.value)}
                   rows={3}
                 />
@@ -486,12 +539,13 @@ export default function AcaoDivulgacaoForm() {
                   required
                   tooltip="Descreva as medidas de acessibilidade adotadas na ação. Ex.: legendas, audiodescrição, linguagem simples, comunicação acessível ou formatos alternativos."
                 >
-                  Ações de acessibilidade
+                  Ações de Acessibilidade
                 </FieldLabel>
                 <Textarea
                   id="acoesAcessibilidade"
                   value={form.acoesAcessibilidade}
                   disabled={bloqueado}
+                  readOnly={visualizando}
                   onChange={(e) => set("acoesAcessibilidade", e.target.value)}
                   rows={3}
                 />
@@ -503,12 +557,13 @@ export default function AcaoDivulgacaoForm() {
                   required
                   tooltip="Informe os resultados esperados com a ação, como alcance de público, engajamento, visibilidade, mobilização ou geração de registros."
                 >
-                  Resultado esperado
+                  Resultado Esperado
                 </FieldLabel>
                 <Textarea
                   id="resultadoEsperado"
                   value={form.resultadoEsperado}
                   disabled={bloqueado}
+                  readOnly={visualizando}
                   onChange={(e) => set("resultadoEsperado", e.target.value)}
                   rows={3}
                 />
@@ -524,12 +579,13 @@ export default function AcaoDivulgacaoForm() {
                   required
                   tooltip="Informe quais produtos ou registros serão gerados pela ação. Ex.: cards, vídeos, cartazes, publicações, releases, relatórios, fotografias ou materiais impressos."
                 >
-                  Produtos gerados
+                  Produtos Gerados
                 </FieldLabel>
                 <Textarea
                   id="produtosGerados"
                   value={form.produtosGerados}
                   disabled={bloqueado}
+                  readOnly={visualizando}
                   onChange={(e) => set("produtosGerados", e.target.value)}
                   rows={3}
                 />
@@ -537,26 +593,28 @@ export default function AcaoDivulgacaoForm() {
 
               <Field>
                 <FieldLabel htmlFor="dataInicio" required>
-                  Data de início
+                  Data de Início da Ação
                 </FieldLabel>
                 <Input
                   id="dataInicio"
                   type="date"
                   value={form.dataInicio}
                   disabled={bloqueado}
+                  readOnly={visualizando}
                   onChange={(e) => set("dataInicio", e.target.value)}
                 />
               </Field>
 
               <Field>
                 <FieldLabel htmlFor="dataFim" required>
-                  Data de término
+                  Data de Término da Ação
                 </FieldLabel>
                 <Input
                   id="dataFim"
                   type="date"
                   value={form.dataFim}
                   disabled={bloqueado}
+                  readOnly={visualizando}
                   onChange={(e) => set("dataFim", e.target.value)}
                 />
               </Field>
@@ -571,14 +629,18 @@ export default function AcaoDivulgacaoForm() {
                   required
                   tooltip="Selecione um ou mais meios utilizados para divulgação da ação. Ex.: redes sociais, cartazes, mídia local, rádio, parcerias ou mobilização comunitária."
                 >
-                  Estratégias de divulgação
+                  Estratégias de Divulgação
                 </FieldLabel>
-                <MultiSelect
-                  id="estrategiasDivulgacao"
-                  options={estrategiaOptions}
-                  value={estrategiasSelecionadasLabels}
-                  onChange={bloqueado ? () => { } : handleEstrategiasChange}
-                />
+                <div
+                  className={visualizando ? "pointer-events-none opacity-80" : ""}
+                >
+                  <MultiSelect
+                    id="estrategiasDivulgacao"
+                    options={estrategiaOptions}
+                    value={estrategiasSelecionadasLabels}
+                    onChange={handleEstrategiasChange}
+                  />
+                </div>
               </Field>
 
               <Field>
@@ -612,33 +674,46 @@ export default function AcaoDivulgacaoForm() {
                   Projeto
                 </FieldLabel>
                 <Select
-                  value={form.projetoId}
-                  onValueChange={(v) => set("projetoId", v)}
+                  value={projetoSelectValue}
+                  onValueChange={(v) => set("projetoId", normalizeId(v))}
                   disabled={bloqueado}
                 >
                   <SelectTrigger id="projeto">
                     <SelectValue placeholder="Selecione o projeto" />
                   </SelectTrigger>
                   <SelectContent>
-                    {projetosComFallback.map((projeto) => (
-                      <SelectItem key={projeto.id} value={String(projeto.id)}>
-                        {projeto.nome}
+                    {projetosComFallback.length === 0 ? (
+                      <SelectItem value="sem-projeto" disabled>
+                        Nenhum projeto disponível
                       </SelectItem>
-                    ))}
+                    ) : (
+                      projetosComFallback.map((projeto) => (
+                        <SelectItem
+                          key={normalizeId(projeto.id)}
+                          value={normalizeId(projeto.id)}
+                        >
+                          {projeto.nome}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </Field>
 
               <Field full>
                 <FieldLabel htmlFor="colaboradores" required>
-                  Colaboradores responsáveis
+                  Colaboradores Responsáveis
                 </FieldLabel>
-                <MultiSelect
-                  id="colaboradores"
-                  options={colaboradorOptions}
-                  value={colaboradoresSelecionadosLabels}
-                  onChange={bloqueado ? () => { } : handleColaboradoresChange}
-                />
+                <div
+                  className={visualizando ? "pointer-events-none opacity-80" : ""}
+                >
+                  <MultiSelect
+                    id="colaboradores"
+                    options={colaboradorOptions}
+                    value={colaboradoresSelecionadosLabels}
+                    onChange={handleColaboradoresChange}
+                  />
+                </div>
               </Field>
             </div>
           </Section>
