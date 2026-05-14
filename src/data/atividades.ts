@@ -102,6 +102,7 @@ export interface AtividadeDTO {
   tipoAtividade: string;
   status: string;
   projetoId: number;
+  projetoNome?: string | null;
   colaboradoresIds: number[];
 }
 
@@ -159,6 +160,7 @@ export function mapAtividade(dto: AtividadeDTO): Atividade {
     tipoAtividade: dto.tipoAtividade ?? "",
     status: dto.status ?? "",
     projetoId: dto.projetoId != null ? String(dto.projetoId) : "",
+    projetoNome: dto.projetoNome?.trim() || undefined,
     colaboradoresIds: (dto.colaboradoresIds ?? []).map(String),
     colaboradoresNomes: [],
     dataInicio: dto.dataInicio ?? "",

@@ -31,11 +31,13 @@ const TRAJETORIA_NEXT_STEP_KEY = "aurit:trajetorias-culturais:next-step-card";
 
 interface FormState {
   colaboradorId: string;
+  colaboradorNome: string;
   textoTrajetoria: string;
 }
 
 const initial: FormState = {
   colaboradorId: "",
+  colaboradorNome: "",
   textoTrajetoria: "",
 };
 
@@ -81,22 +83,28 @@ export default function TrajetoriaCulturalForm() {
   };
 
   const colaboradoresComFallback = useMemo(() => {
-    if (!form.colaboradorId) return colaboradores;
+    const options = [...colaboradores];
 
-    const existe = colaboradores.some(
-      (colaborador) => colaborador.id === form.colaboradorId,
+    if (!form.colaboradorId) {
+      return options;
+    }
+
+    const existe = options.some(
+      (colaborador) =>
+        String(colaborador.id) === String(form.colaboradorId),
     );
 
-    if (existe) return colaboradores;
-
-    return [
-      ...colaboradores,
-      {
+    if (!existe) {
+      options.unshift({
         id: form.colaboradorId,
-        nome: `Colaborador ${form.colaboradorId}`,
-      },
-    ];
-  }, [colaboradores, form.colaboradorId]);
+        nome:
+          form.colaboradorNome?.trim() ||
+          `Colaborador ${form.colaboradorId}`,
+      });
+    }
+
+    return options;
+  }, [colaboradores, form.colaboradorId, form.colaboradorNome]);
 
   useEffect(() => {
     let active = true;
@@ -120,11 +128,16 @@ export default function TrajetoriaCulturalForm() {
             ? String(trajetoriaData.colaboradorId)
             : "";
 
-          if (!colaboradorId && trajetoriaData.nomeCompleto) {
+          const colaboradorNome =
+            trajetoriaData.colaboradorNome?.trim() ||
+            trajetoriaData.nomeCompleto?.trim() ||
+            "";
+
+          if (!colaboradorId && colaboradorNome) {
             const colaboradorEncontrado = colaboradoresData.find(
               (colaborador) =>
                 colaborador.nome.trim().toLowerCase() ===
-                trajetoriaData.nomeCompleto.trim().toLowerCase(),
+                colaboradorNome.trim().toLowerCase(),
             );
 
             colaboradorId = colaboradorEncontrado?.id ?? "";
@@ -132,6 +145,13 @@ export default function TrajetoriaCulturalForm() {
 
           setForm({
             colaboradorId,
+            colaboradorNome:
+              colaboradorNome ||
+              colaboradoresData.find(
+                (colaborador) =>
+                  String(colaborador.id) === String(colaboradorId),
+              )?.nome ||
+              "",
             textoTrajetoria: trajetoriaData.textoTrajetoria ?? "",
           });
         } else {
@@ -293,97 +313,110 @@ export default function TrajetoriaCulturalForm() {
 
         {!visualizando && <FormLegend />}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <Section icon={User} title="Identificação">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field full>
-                  <FieldLabel
-                    htmlFor="colaborador"
-                    required={!visualizando}
-                    tooltip="Selecione o colaborador cuja trajetória cultural será registrada. Esse texto ficará vinculado ao cadastro da pessoa e poderá ser utilizado em currículos, propostas de edital, portfólios e relatórios institucionais."
-                  >
-                    Colaborador
-                  </FieldLabel>
-
-                  <Select
-                    value={form.colaboradorId}
-                    onValueChange={(value) => {
-                      if (visualizando) return;
-                      set("colaboradorId", value);
-                    }}
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="colaborador">
-                      <SelectValue placeholder="Selecione um colaborador" />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {colaboradoresComFallback.length === 0 ? (
-                        <SelectItem value="__none" disabled>
-                          Nenhum colaborador cadastrado
-                        </SelectItem>
-                      ) : (
-                        colaboradoresComFallback.map((colaborador) => (
-                          <SelectItem
-                            key={colaborador.id}
-                            value={colaborador.id}
-                          >
-                            {colaborador.nome}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-            </Section>
-
-            <Section icon={FileText} title="Texto da trajetória">
-              <Field>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Section icon={User} title="Identificação">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field full>
                 <FieldLabel
-                  htmlFor="textoTrajetoria"
+                  htmlFor="colaborador"
                   required={!visualizando}
-                  tooltip="Escreva a trajetória em formato narrativo, contando como a relação com a cultura começou, quais saberes foram aprendidos, quais práticas e linguagens foram desenvolvidas, em quais grupos, projetos ou territórios houve atuação e quais contribuições essa trajetória gerou. Ex.: Minha trajetória cultural começou na infância, a partir do contato com saberes, práticas e experiências que despertaram minha relação com a arte e a cultura. Ao longo do tempo, participei de grupos, projetos e formações que contribuíram para o desenvolvimento da minha atuação..."
+                  tooltip="Selecione o colaborador cuja trajetória cultural será registrada. Esse texto ficará vinculado ao cadastro da pessoa e poderá ser utilizado em currículos, propostas de edital, portfólios e relatórios institucionais."
                 >
-                  Texto da Trajetória
+                  Colaborador
                 </FieldLabel>
 
-                <Textarea
-                  id="textoTrajetoria"
-                  value={form.textoTrajetoria}
-                  onChange={(e) => set("textoTrajetoria", e.target.value)}
-                  className="min-h-[320px] text-justify leading-relaxed"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
+                <Select
+                  value={form.colaboradorId}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
 
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {form.textoTrajetoria.trim().length} caracteres
-                </p>
+                    const colaboradorSelecionado =
+                      colaboradoresComFallback.find(
+                        (colaborador) =>
+                          String(colaborador.id) === String(value),
+                      );
+
+                    setForm((prev) => ({
+                      ...prev,
+                      colaboradorId: value,
+                      colaboradorNome:
+                        colaboradorSelecionado?.nome ??
+                        prev.colaboradorNome,
+                    }));
+                  }}
+                  disabled={bloqueado || colaboradoresComFallback.length === 0}
+                >
+                  <SelectTrigger id="colaborador">
+                    <SelectValue placeholder="Selecione um colaborador" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {colaboradoresComFallback.length === 0 ? (
+                      <SelectItem value="__none" disabled>
+                        Nenhum colaborador cadastrado
+                      </SelectItem>
+                    ) : (
+                      colaboradoresComFallback.map((colaborador) => (
+                        <SelectItem
+                          key={colaborador.id}
+                          value={colaborador.id}
+                        >
+                          {colaborador.nome}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </Field>
-            </Section>
+            </div>
+          </Section>
 
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+          <Section icon={FileText} title="Texto da trajetória">
+            <Field>
+              <FieldLabel
+                htmlFor="textoTrajetoria"
+                required={!visualizando}
+                tooltip="Escreva a trajetória em formato narrativo, contando como a relação com a cultura começou, quais saberes foram aprendidos, quais práticas e linguagens foram desenvolvidas, em quais grupos, projetos ou territórios houve atuação e quais contribuições essa trajetória gerou. Ex.: Minha trajetória cultural começou na infância, a partir do contato com saberes, práticas e experiências que despertaram minha relação com a arte e a cultura. Ao longo do tempo, participei de grupos, projetos e formações que contribuíram para o desenvolvimento da minha atuação..."
+              >
+                Texto da Trajetória
+              </FieldLabel>
+
+              <Textarea
+                id="textoTrajetoria"
+                value={form.textoTrajetoria}
+                onChange={(e) => set("textoTrajetoria", e.target.value)}
+                className="min-h-[320px] text-justify leading-relaxed"
+                disabled={bloqueado}
+                readOnly={visualizando}
+              />
+
+              <p className="mt-2 text-xs text-muted-foreground">
+                {form.textoTrajetoria.trim().length} caracteres
+              </p>
+            </Field>
+          </Section>
+
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/trajetorias-culturais")}
+              disabled={saving}
+            >
+              {visualizando ? "Voltar" : "Cancelar"}
+            </Button>
+
+            {!visualizando && (
               <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate("/trajetorias-culturais")}
+                type="submit"
+                className="sm:min-w-32"
                 disabled={saving}
               >
-                {visualizando ? "Voltar" : "Cancelar"}
+                {saving ? "Salvando..." : "Salvar"}
               </Button>
-
-              {!visualizando && (
-                <Button
-                  type="submit"
-                  className="sm:min-w-32"
-                  disabled={saving}
-                >
-                  {saving ? "Salvando..." : "Salvar"}
-                </Button>
-              )}
-            </div>
-          </form>
+            )}
+          </div>
+        </form>
       </div>
     </AppLayout>
   );

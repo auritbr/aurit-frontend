@@ -69,6 +69,7 @@ export interface Participante {
 
   status: string;
   organizacaoId: string;
+  organizacaoNome?: string;
 
   vinculos: ParticipanteVinculo[];
 }
@@ -136,6 +137,7 @@ export interface ParticipanteApiDTO {
 
   status?: string | null;
   organizacaoId?: number | string | null;
+  organizacaoNome?: string | null;
 
   organizacao?: {
     id?: number | string | null;
@@ -322,6 +324,16 @@ function getVinculos(dto: ParticipanteApiDTO): ParticipanteAtividadeApiDTO[] {
   );
 }
 
+function resolveOrganizacaoNome(dto: ParticipanteApiDTO) {
+  return pickText(
+    dto.organizacaoNome,
+        dto.organizacao?.razaoSocial,
+    dto.organizacao?.nomeFantasia,
+    dto.organizacao?.nomeOrganizacao,
+    dto.organizacao?.nome,
+  );
+}
+
 export function mapParticipante(dto: ParticipanteApiDTO): Participante {
   return {
     id: normalizeId(dto.id),
@@ -347,6 +359,7 @@ export function mapParticipante(dto: ParticipanteApiDTO): Participante {
 
     status: dto.status ?? "",
     organizacaoId: normalizeId(dto.organizacaoId ?? dto.organizacao),
+    organizacaoNome: resolveOrganizacaoNome(dto),
 
     vinculos: getVinculos(dto).map((v) => ({
       id: normalizeId(v.id) || undefined,

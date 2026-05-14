@@ -5,7 +5,36 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 async function parseError(response: Response): Promise<string> {
   try {
     const text = await response.text();
-    return text || `Erro ${response.status} ao processar requisição.`;
+
+    if (!text) {
+      if (response.status === 401) {
+        return "Sessão expirada ou token inválido. Faça login novamente.";
+      }
+
+      if (response.status === 403) {
+        return "Acesso negado.";
+      }
+
+      return `Erro ${response.status} ao processar requisição.`;
+    }
+
+    try {
+      const json = JSON.parse(text);
+
+      if (typeof json === "string") {
+        return json;
+      }
+
+      return (
+        json?.message ||
+        json?.error ||
+        json?.detail ||
+        json?.mensagem ||
+        text
+      );
+    } catch {
+      return text;
+    }
   } catch {
     return `Erro ${response.status} ao processar requisição.`;
   }
@@ -29,6 +58,7 @@ export interface CurriculoItemDTO {
 export interface CurriculoDTO {
   id?: number;
   colaboradorId: number;
+  colaboradorNome?: string;
   nomeCompleto?: string;
   email?: string;
   telefone?: string;
@@ -42,6 +72,7 @@ export interface CurriculoDTO {
 
 export interface CurriculoFormData {
   colaboradorId: string;
+  colaboradorNome: string;
   formacaoAcademica: string[];
   atuacaoProfissional: string[];
   experienciasRelevantes: string[];
@@ -53,6 +84,7 @@ export interface CurriculoFormData {
 export interface CurriculoListItem {
   id: string;
   colaboradorId: string;
+  colaboradorNome: string;
   nomeCompleto: string;
   email: string;
   telefone: string;
@@ -96,6 +128,7 @@ type SecaoFormKey = (typeof SECOES_FORM)[number];
 
 export const initialCurriculoFormData: CurriculoFormData = {
   colaboradorId: "",
+  colaboradorNome: "",
   formacaoAcademica: [],
   atuacaoProfissional: [],
   experienciasRelevantes: [],
@@ -106,6 +139,34 @@ export const initialCurriculoFormData: CurriculoFormData = {
 
 export function cleanList(arr: string[]): string[] {
   return (arr ?? []).map((s) => s.trim()).filter(Boolean);
+}
+
+function normalizeId(value: unknown): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+
+    if (record.id !== null && record.id !== undefined) {
+      return String(record.id);
+    }
+
+    return "";
+  }
+
+  return String(value);
+}
+
+function pickText(...values: Array<unknown>): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "";
 }
 
 function getTipoBySecao(secao: SecaoFormKey): TipoSecaoCurriculo {
@@ -126,6 +187,12 @@ function getExistingItemId(
     .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
 
   return itensDaSecao[index]?.id;
+}
+
+function resolveNomeColaborador(dto?: CurriculoDTO | null): string {
+  if (!dto) return "";
+
+  return pickText(dto.colaboradorNome, dto.nomeCompleto, dto.nomeAssinatura);
 }
 
 export function dtoToForm(dto: CurriculoDTO): CurriculoFormData {
@@ -171,7 +238,8 @@ export function dtoToForm(dto: CurriculoDTO): CurriculoFormData {
   }
 
   return {
-    colaboradorId: String(dto.colaboradorId ?? ""),
+    colaboradorId: normalizeId(dto.colaboradorId),
+    colaboradorNome: resolveNomeColaborador(dto),
     ...grouped,
   };
 }
@@ -211,24 +279,31 @@ export function formToDto(
   return {
     id: existing?.id,
     colaboradorId,
+    colaboradorNome:
+      form.colaboradorNome ||
+      existing?.colaboradorNome ||
+      existing?.nomeCompleto ||
+      undefined,
     itens,
   };
 }
 
 export function dtoToListItem(dto: CurriculoDTO): CurriculoListItem {
   const form = dtoToForm(dto);
+  const nomeColaborador = resolveNomeColaborador(dto);
 
   return {
-    id: String(dto.id ?? ""),
-    colaboradorId: String(dto.colaboradorId ?? ""),
-    nomeCompleto: dto.nomeCompleto ?? "—",
+    id: normalizeId(dto.id),
+    colaboradorId: normalizeId(dto.colaboradorId),
+    colaboradorNome: nomeColaborador,
+    nomeCompleto: nomeColaborador || "—",
     email: dto.email ?? "",
     telefone: dto.telefone ?? "",
     enderecoCompleto: dto.enderecoCompleto ?? "",
     cidadeAssinatura: dto.cidadeAssinatura ?? "",
     estadoAssinatura: dto.estadoAssinatura ?? "",
     dataAssinaturaTexto: dto.dataAssinaturaTexto ?? "",
-    nomeAssinatura: dto.nomeAssinatura ?? dto.nomeCompleto ?? "",
+    nomeAssinatura: dto.nomeAssinatura ?? nomeColaborador,
     formacaoAcademica: form.formacaoAcademica,
     atuacaoProfissional: form.atuacaoProfissional,
     experienciasRelevantes: form.experienciasRelevantes,
@@ -250,7 +325,7 @@ export async function getCurriculos(): Promise<CurriculoListItem[]> {
 
   const data: CurriculoDTO[] = await response.json();
 
-  return (data ?? []).map(dtoToListItem);
+  return (Array.isArray(data) ? data : []).map(dtoToListItem);
 }
 
 export async function getCurriculoById(id: number): Promise<CurriculoDTO> {
@@ -322,13 +397,16 @@ export async function getColaboradoresCurriculo(): Promise<
     throw new Error(await parseError(response));
   }
 
-  const data: Array<{ id: number; nomeCompleto?: string }> =
-    await response.json();
+  const data: Array<{
+    id?: number | string | null;
+    nomeCompleto?: string | null;
+    nome?: string | null;
+  }> = await response.json();
 
-  return (data ?? [])
-    .filter((c) => c.id != null)
+  return (Array.isArray(data) ? data : [])
     .map((c) => ({
-      id: String(c.id),
-      nome: c.nomeCompleto?.trim() || `Colaborador ${c.id}`,
-    }));
+      id: normalizeId(c.id),
+      nome: pickText(c.nomeCompleto, c.nome) || `Colaborador ${c.id}`,
+    }))
+    .filter((c) => c.id);
 }

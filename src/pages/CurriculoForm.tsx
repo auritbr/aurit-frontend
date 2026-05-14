@@ -48,6 +48,17 @@ function salvarProximaAcaoCurriculo() {
   sessionStorage.setItem(CURRICULO_NEXT_STEP_KEY, JSON.stringify(card));
 }
 
+function resolveNomeColaborador(dto?: CurriculoDTO | null) {
+  if (!dto) return "";
+
+  return (
+    dto.colaboradorNome?.trim() ||
+    dto.nomeCompleto?.trim() ||
+    dto.nomeAssinatura?.trim() ||
+    ""
+  );
+}
+
 export default function CurriculoForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -59,6 +70,7 @@ export default function CurriculoForm() {
   const [form, setForm] = useState<CurriculoFormData>({
     ...initialCurriculoFormData,
   });
+
   const [existingDto, setExistingDto] = useState<CurriculoDTO | null>(null);
   const [colaboradores, setColaboradores] = useState<
     ColaboradorCurriculoOption[]
@@ -87,8 +99,6 @@ export default function CurriculoForm() {
 
         if (!active) return;
 
-        let colaboradoresNormalizados = [...colaboradoresData];
-
         if (curriculoData) {
           const formData = dtoToForm(curriculoData);
 
@@ -96,31 +106,23 @@ export default function CurriculoForm() {
             curriculoData.colaboradorId ?? formData.colaboradorId ?? "",
           );
 
-          if (
-            colaboradorId &&
-            !colaboradoresNormalizados.some((c) => c.id === colaboradorId)
-          ) {
-            colaboradoresNormalizados = [
-              {
-                id: colaboradorId,
-                nome:
-                  curriculoData.nomeCompleto?.trim() ||
-                  `Colaborador ${colaboradorId}`,
-              },
-              ...colaboradoresNormalizados,
-            ];
-          }
+          const colaboradorNome =
+            formData.colaboradorNome ||
+            resolveNomeColaborador(curriculoData) ||
+            (colaboradorId ? `Colaborador ${colaboradorId}` : "");
 
-          setColaboradores(colaboradoresNormalizados);
           setExistingDto(curriculoData);
 
           setForm({
             ...formData,
             colaboradorId,
+            colaboradorNome,
           });
+
+          setColaboradores(colaboradoresData);
         } else {
-          setColaboradores(colaboradoresNormalizados);
           setExistingDto(null);
+          setColaboradores(colaboradoresData);
           setForm({ ...initialCurriculoFormData });
         }
       } catch (error) {
@@ -142,6 +144,33 @@ export default function CurriculoForm() {
       active = false;
     };
   }, [id, navigate]);
+
+  const colaboradoresOptions = useMemo(() => {
+    const options = [...colaboradores];
+
+    const colaboradorId =
+      form.colaboradorId || String(existingDto?.colaboradorId ?? "");
+
+    const colaboradorNome =
+      form.colaboradorNome ||
+      resolveNomeColaborador(existingDto) ||
+      (colaboradorId ? `Colaborador ${colaboradorId}` : "");
+
+    if (
+      colaboradorId &&
+      !options.some((c) => String(c.id) === String(colaboradorId))
+    ) {
+      options.unshift({
+        id: colaboradorId,
+        nome: colaboradorNome,
+      });
+    }
+
+    return options;
+  }, [colaboradores, form.colaboradorId, form.colaboradorNome, existingDto]);
+
+  const colaboradorSelectValue =
+    form.colaboradorId || String(existingDto?.colaboradorId ?? "");
 
   const listFields: {
     key: keyof CurriculoFormData;
@@ -186,10 +215,18 @@ export default function CurriculoForm() {
     try {
       setLoading(true);
 
+      const colaboradorSelecionado = colaboradoresOptions.find(
+        (c) => String(c.id) === String(colaboradorId),
+      );
+
       const payload = formToDto(
         {
           ...form,
           colaboradorId,
+          colaboradorNome:
+            form.colaboradorNome ||
+            colaboradorSelecionado?.nome ||
+            resolveNomeColaborador(existingDto),
         },
         existingDto ?? undefined,
       );
@@ -269,23 +306,40 @@ export default function CurriculoForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.colaboradorId}
+                  value={colaboradorSelectValue}
                   onValueChange={(v) => {
                     if (visualizando) return;
-                    set("colaboradorId", v);
+
+                    const colaboradorSelecionado = colaboradoresOptions.find(
+                      (c) => String(c.id) === String(v),
+                    );
+
+                    setForm((prev) => ({
+                      ...prev,
+                      colaboradorId: v,
+                      colaboradorNome:
+                        colaboradorSelecionado?.nome ??
+                        prev.colaboradorNome,
+                    }));
                   }}
-                  disabled={bloqueado}
+                  disabled={bloqueado || colaboradoresOptions.length === 0}
                 >
                   <SelectTrigger id="colaborador">
                     <SelectValue placeholder="Selecione um colaborador" />
                   </SelectTrigger>
 
                   <SelectContent className="max-h-72">
-                    {colaboradores.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.nome}
+                    {colaboradoresOptions.length === 0 ? (
+                      <SelectItem value="sem-colaborador" disabled>
+                        Nenhum colaborador cadastrado
                       </SelectItem>
-                    ))}
+                    ) : (
+                      colaboradoresOptions.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nome}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </Field>

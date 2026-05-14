@@ -53,15 +53,15 @@ interface AgenteNextStepCardData {
   variante?: "pendente" | "atencao" | "concluido" | "prioridade";
 }
 
-function salvarProximaAcaoAgente() {
+function salvarProximaAcaoDivulgacao() {
   const card: AgenteNextStepCardData = {
-    titulo: "Após cadastrar os agentes culturais, comece a organizar as pessoas da equipe",
+    titulo: "Após cadastrar a ação de divulgação, registre sua execução",
     descricao:
-      "Cadastre os colaboradores que atuam na organização para registrar funções, vínculos, carga horária e participação em projetos, atividades e prestações de contas.",
-    acaoLabel: "Cadastrar colaboradores",
-    acaoUrl: "/colaboradores/novo",
-    acaoSecundariaLabel: "Ver agentes",
-    acaoSecundariaUrl: "/agentes",
+      "Com a ação de divulgação cadastrada, avance para a execução para registrar quando e como a divulgação foi realizada, quais canais foram utilizados, os responsáveis envolvidos e as informações necessárias para comprovação, relatórios e prestação de contas.",
+    acaoLabel: "Registrar execução",
+    acaoUrl: "/plano-comunicacao/novo",
+    acaoSecundariaLabel: "Ver ações de divulgação",
+    acaoSecundariaUrl: "/acoes-divulgacao",
     variante: "pendente",
   };
 
@@ -586,7 +586,7 @@ export default function AgenteForm() {
         toast.success("Agente atualizado com sucesso.");
       } else {
         await createAgente(payload);
-        salvarProximaAcaoAgente();
+        salvarProximaAcaoDivulgacao();
         toast.success("Agente salvo com sucesso.");
       }
 

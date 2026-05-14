@@ -60,6 +60,55 @@ interface AgenteNextStepCardData {
   variante?: "pendente" | "atencao" | "concluido" | "prioridade";
 }
 
+function onlyDigits(value?: string | null) {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+function formatCpf(value: string) {
+  const digits = onlyDigits(value).slice(0, 11);
+
+  if (digits.length !== 11) {
+    return value || "—";
+  }
+
+  return digits.replace(
+    /^(\d{3})(\d{3})(\d{3})(\d{2})$/,
+    "$1.$2.$3-$4",
+  );
+}
+
+function formatCnpj(value: string) {
+  const digits = onlyDigits(value).slice(0, 14);
+
+  if (digits.length !== 14) {
+    return value || "—";
+  }
+
+  return digits.replace(
+    /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+    "$1.$2.$3/$4-$5",
+  );
+}
+
+function formatDocumentoAgente(value?: string | null) {
+  const documento = value ?? "";
+  const digits = onlyDigits(documento);
+
+  if (!digits) {
+    return "—";
+  }
+
+  if (digits.length === 11) {
+    return formatCpf(digits);
+  }
+
+  if (digits.length === 14) {
+    return formatCnpj(digits);
+  }
+
+  return documento;
+}
+
 export default function Agentes() {
   const navigate = useNavigate();
 
@@ -166,16 +215,24 @@ export default function Agentes() {
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase().trim();
+    const sDigits = onlyDigits(s);
 
     if (!s) return items;
 
-    return items.filter(
-      (a) =>
+    return items.filter((a) => {
+      const documentoOriginal = a.documento ?? "";
+      const documentoFormatado = formatDocumentoAgente(documentoOriginal);
+      const documentoDigits = onlyDigits(documentoOriginal);
+
+      return (
         a.nomePrincipal.toLowerCase().includes(s) ||
         (a.representante ?? "").toLowerCase().includes(s) ||
-        a.documento.toLowerCase().includes(s) ||
-        (tipoAgenteLabels[a.tipo] ?? "").toLowerCase().includes(s),
-    );
+        documentoOriginal.toLowerCase().includes(s) ||
+        documentoFormatado.toLowerCase().includes(s) ||
+        (!!sDigits && documentoDigits.includes(sDigits)) ||
+        (tipoAgenteLabels[a.tipo] ?? "").toLowerCase().includes(s)
+      );
+    });
   }, [search, items]);
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
@@ -386,7 +443,7 @@ export default function Agentes() {
                     </td>
 
                     <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                      {a.documento}
+                      {formatDocumentoAgente(a.documento)}
                     </td>
 
                     {podeGerarPdf && (
@@ -499,7 +556,7 @@ export default function Agentes() {
                   )}
 
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {a.documento}
+                    {formatDocumentoAgente(a.documento)}
                   </p>
                 </div>
               ))

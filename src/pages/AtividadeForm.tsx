@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ClipboardList, Users2, Tags, Link2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
@@ -71,6 +71,7 @@ interface FormState {
   tipoAtividade: string;
   status: string;
   projeto: string;
+  projetoNome: string;
   colaboradores: string[];
 }
 
@@ -86,10 +87,30 @@ const initial: FormState = {
   tipoAtividade: "",
   status: "",
   projeto: "",
+  projetoNome: "",
   colaboradores: [],
 };
 
 const onlyDigits = (v: string, max = 6) => v.replace(/\D/g, "").slice(0, max);
+
+function hojeIso() {
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+  const dia = String(hoje.getDate()).padStart(2, "0");
+
+  return `${ano}-${mes}-${dia}`;
+}
+
+function dataFimPassada(dataFim: string) {
+  if (!dataFim) return false;
+
+  return dataFim < hojeIso();
+}
+
+function statusPermiteDataFimPassada(status: string) {
+  return status === "INATIVO" || status === "CONCLUIDO";
+}
 
 function mapAtividadeToForm(atividade: Atividade): FormState {
   return {
@@ -105,6 +126,7 @@ function mapAtividadeToForm(atividade: Atividade): FormState {
     tipoAtividade: atividade.tipoAtividade ?? "",
     status: atividade.status ?? "",
     projeto: atividade.projetoId ?? "",
+    projetoNome: atividade.projetoNome ?? "",
     colaboradores: atividade.colaboradoresIds ?? [],
   };
 }
@@ -174,6 +196,22 @@ export default function AtividadeForm() {
 
   const colaboradoresOptions = colaboradores.map((c) => c.id);
 
+  const projetosOptions = useMemo(() => {
+    const options = [...projetos];
+
+    if (
+      form.projeto &&
+      !options.some((projeto) => String(projeto.id) === String(form.projeto))
+    ) {
+      options.push({
+        id: form.projeto,
+        nome: form.projetoNome || "Projeto vinculado à atividade",
+      });
+    }
+
+    return options;
+  }, [projetos, form.projeto, form.projetoNome]);
+
   const colaboradorLabel = (colaboradorId: string) =>
     colaboradores.find((c) => c.id === colaboradorId)?.nome ?? colaboradorId;
 
@@ -214,6 +252,17 @@ export default function AtividadeForm() {
       return;
     }
 
+    if (
+      form.dataFim &&
+      dataFimPassada(form.dataFim) &&
+      !statusPermiteDataFimPassada(form.status)
+    ) {
+      toast.error(
+        "Atividade com data de término passada deve estar com status Inativo ou Concluído.",
+      );
+      return;
+    }
+
     if (form.quantidadeVagas.trim() && Number(form.quantidadeVagas) < 0) {
       toast.error("A quantidade de vagas não pode ser negativa.");
       return;
@@ -246,6 +295,7 @@ export default function AtividadeForm() {
       tipoAtividade: form.tipoAtividade,
       status: form.status,
       projetoId: form.projeto,
+      projetoNome: form.projetoNome,
       colaboradoresIds: form.colaboradores,
       colaboradoresNomes: [],
     };
@@ -514,7 +564,16 @@ export default function AtividadeForm() {
                   value={form.projeto}
                   onValueChange={(v) => {
                     if (visualizando) return;
-                    set("projeto", v);
+
+                    const projetoSelecionado = projetosOptions.find(
+                      (projeto) => projeto.id === v,
+                    );
+
+                    setForm((prev) => ({
+                      ...prev,
+                      projeto: v,
+                      projetoNome: projetoSelecionado?.nome ?? prev.projetoNome,
+                    }));
                   }}
                   disabled={bloqueado}
                 >
@@ -522,7 +581,7 @@ export default function AtividadeForm() {
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    {projetos.map((p) => (
+                    {projetosOptions.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.nome}
                       </SelectItem>

@@ -428,11 +428,11 @@ function buildPayload(
 
 function salvarProximaAcaoAgente() {
   const card = {
-    titulo: "Após cadastrar o agente cultural, organize os projetos vinculados",
+    titulo: "Após cadastrar o agente cultural, cadastre os colaboradores",
     descricao:
-      "Com o agente cadastrado, você pode avançar para os projetos, registrando objetivos, público, acessibilidade, equipe responsável e informações importantes para editais e documentos institucionais.",
-    acaoLabel: "Cadastrar projetos",
-    acaoUrl: "/projetos/novo",
+      "Com o agente cultural registrado, você pode avançar para o cadastro dos colaboradores que atuam na organização, organizando a equipe responsável por atividades, projetos, ações culturais e registros institucionais.",
+    acaoLabel: "Cadastrar colaborador",
+    acaoUrl: "/colaboradores/novo",
     acaoSecundariaLabel: "Ver agentes",
     acaoSecundariaUrl: "/agentes",
     variante: "pendente",

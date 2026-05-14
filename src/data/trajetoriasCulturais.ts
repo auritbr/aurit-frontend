@@ -102,6 +102,7 @@ export interface TrajetoriaCulturalPayload {
 export interface TrajetoriaCultural {
   id: number;
   colaboradorId?: number;
+  colaboradorNome: string;
   nomeCompleto: string;
   textoTrajetoria: string;
 }
@@ -140,13 +141,18 @@ export function mapTrajetoria(
   return {
     id: Number(dto.id ?? 0),
     colaboradorId,
+    colaboradorNome: nomeCompleto,
     nomeCompleto,
     textoTrajetoria: normalizeText(dto.textoTrajetoria),
   };
 }
 
 export function getColaboradorNome(item: TrajetoriaCultural): string {
-  return item.nomeCompleto?.trim() || "—";
+  return (
+    item.colaboradorNome?.trim() ||
+    item.nomeCompleto?.trim() ||
+    (item.colaboradorId ? `Colaborador ${item.colaboradorId}` : "—")
+  );
 }
 
 export async function getTrajetoriasCulturais(): Promise<

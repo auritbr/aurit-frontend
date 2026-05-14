@@ -114,6 +114,7 @@ interface FormState {
 
   status: string;
   organizacaoId: string;
+  organizacaoNome: string;
 
   vinculos: ParticipanteVinculo[];
 }
@@ -161,6 +162,7 @@ const initial: FormState = {
 
   status: "",
   organizacaoId: "",
+  organizacaoNome: "",
 
   vinculos: [],
 };
@@ -300,6 +302,7 @@ function mapParticipanteToForm(participante: Participante): FormState {
 
     status: participante.status ?? "",
     organizacaoId: participante.organizacaoId ?? "",
+    organizacaoNome: participante.organizacaoNome ?? "",
 
     vinculos: participante.vinculos ?? [],
   };
@@ -331,6 +334,7 @@ function formToParticipante(form: FormState): Participante {
 
     status: form.status,
     organizacaoId: form.organizacaoId,
+    organizacaoNome: form.organizacaoNome,
 
     vinculos: form.vinculos,
   };
@@ -387,6 +391,22 @@ export default function ParticipanteForm() {
       turmas.filter((t) => t.atividadeId === atividadeId),
     [turmas],
   );
+
+  const organizacoesOptions = useMemo(() => {
+    const options = [...organizacoes];
+
+    if (
+      form.organizacaoId &&
+      !options.some((org) => String(org.id) === String(form.organizacaoId))
+    ) {
+      options.push({
+        id: form.organizacaoId,
+        nome: form.organizacaoNome || "Organização vinculada ao participante",
+      });
+    }
+
+    return options;
+  }, [organizacoes, form.organizacaoId, form.organizacaoNome]);
 
   useEffect(() => {
     let active = true;
@@ -620,8 +640,7 @@ export default function ParticipanteForm() {
 
       if (indiceInvalido !== -1) {
         toast.error(
-          `Para marcar o participante como concluído, a matrícula do vínculo ${
-            indiceInvalido + 1
+          `Para marcar o participante como concluído, a matrícula do vínculo ${indiceInvalido + 1
           } precisa estar como Cancelado, Desistente ou Concluído.`,
         );
         return;
@@ -1041,21 +1060,31 @@ export default function ParticipanteForm() {
                       value={form.organizacaoId}
                       onValueChange={(v) => {
                         if (visualizando) return;
-                        set("organizacaoId", v);
+
+                        const organizacaoSelecionada = organizacoesOptions.find(
+                          (org) => String(org.id) === String(v),
+                        );
+
+                        setForm((prev) => ({
+                          ...prev,
+                          organizacaoId: v,
+                          organizacaoNome:
+                            organizacaoSelecionada?.nome ?? prev.organizacaoNome,
+                        }));
                       }}
-                      disabled={bloqueado || organizacoes.length === 0}
+                      disabled={bloqueado || organizacoesOptions.length === 0}
                     >
                       <SelectTrigger id="organizacaoId">
                         <SelectValue placeholder="Vincular pela empresa logada" />
                       </SelectTrigger>
 
                       <SelectContent>
-                        {organizacoes.length === 0 ? (
+                        {organizacoesOptions.length === 0 ? (
                           <SelectItem value="sem-organizacao" disabled>
                             Nenhuma organização cadastrada
                           </SelectItem>
                         ) : (
-                          organizacoes.map((org) => (
+                          organizacoesOptions.map((org) => (
                             <SelectItem key={org.id} value={org.id}>
                               {org.nome}
                             </SelectItem>

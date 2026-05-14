@@ -203,6 +203,25 @@ function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
 }
 
+function hojeIso() {
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+  const dia = String(hoje.getDate()).padStart(2, "0");
+
+  return `${ano}-${mes}-${dia}`;
+}
+
+function dataFimPassada(dataFim: string) {
+  if (!dataFim) return false;
+
+  return dataFim < hojeIso();
+}
+
+function statusPermiteDataFimPassada(status: string) {
+  return status === "INATIVO" || status === "CONCLUIDO";
+}
+
 export default function ColaboradorForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -352,6 +371,17 @@ export default function ColaboradorForm() {
       form.dataFimVinculo < form.dataInicioVinculo
     ) {
       toast.error("A data de término não pode ser anterior à data de início.");
+      return false;
+    }
+
+    if (
+      form.dataFimVinculo &&
+      dataFimPassada(form.dataFimVinculo) &&
+      !statusPermiteDataFimPassada(form.status)
+    ) {
+      toast.error(
+        "Colaborador com data de término passada deve estar com status Inativo ou Concluído.",
+      );
       return false;
     }
 
@@ -764,7 +794,7 @@ export default function ColaboradorForm() {
               <Field>
                 <FieldLabel
                   htmlFor="dataFimVinculo"
-                  tooltip="Informe a data de término apenas se o vínculo já foi encerrado ou tiver uma previsão formal de encerramento. Deixe em branco quando o colaborador ainda estiver ativo."
+                  tooltip="Informe a data de término apenas se o vínculo já foi encerrado ou tiver uma previsão formal de encerramento. Caso a data de término já tenha passado, o status deve ser Inativo ou Concluído."
                 >
                   Data de Término do Vínculo
                 </FieldLabel>
