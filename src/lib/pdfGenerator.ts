@@ -56,9 +56,9 @@ const CENTER_W = CENTER_RIGHT - CENTER_LEFT;
 
 type LoadedLogo =
   | {
-      dataUrl: string;
-      format: "PNG" | "JPEG";
-    }
+    dataUrl: string;
+    format: "PNG" | "JPEG";
+  }
   | null;
 
 type EmpresaPdfData = {
@@ -231,15 +231,23 @@ async function buscarOrganizacaoPrincipal(): Promise<OrganizacaoPdfData> {
 function normalizeImageUrl(path?: string | null): string | null {
   if (!path) return null;
 
+  const value = path.trim();
+
+  if (!value) return null;
+
   if (
-    path.startsWith("data:") ||
-    path.startsWith("http://") ||
-    path.startsWith("https://")
+    value.startsWith("data:") ||
+    value.startsWith("http://") ||
+    value.startsWith("https://")
   ) {
-    return path;
+    return value;
   }
 
-  const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (value.startsWith("empresas/")) {
+    return null;
+  }
+
+  const normalized = value.startsWith("/") ? value : `/${value}`;
 
   return `${API_URL}${normalized}`;
 }
@@ -277,6 +285,44 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 
     reader.readAsDataURL(blob);
   });
+}
+
+function inferImageMimeFromBase64(base64: string): string {
+  const clean = base64.trim();
+
+  if (clean.startsWith("/9j/")) {
+    return "image/jpeg";
+  }
+
+  if (clean.startsWith("iVBOR")) {
+    return "image/png";
+  }
+
+  if (clean.startsWith("UklGR")) {
+    return "image/webp";
+  }
+
+  return "image/png";
+}
+
+function normalizeBase64Image(value?: string | null): string {
+  if (!value) return "";
+
+  const clean = value.trim().replace(/^"|"$/g, "");
+
+  if (!clean) return "";
+
+  if (clean.startsWith("data:image/")) {
+    return clean;
+  }
+
+  if (clean.startsWith("http://") || clean.startsWith("https://")) {
+    return clean;
+  }
+
+  const mime = inferImageMimeFromBase64(clean);
+
+  return `data:${mime};base64,${clean}`;
 }
 
 async function compressImageDataUrl(
@@ -418,25 +464,40 @@ async function buscarLogoBase64Empresa(
     }
 
     const contentType = response.headers.get("content-type") ?? "";
-    let dataUrl = "";
+    let rawLogo = "";
 
     if (contentType.includes("application/json")) {
       const data = await parseJsonSafe<
-        string | { logoBase64?: string; dataUrl?: string; logo?: string }
+        | string
+        | {
+          base64?: string;
+          logoBase64?: string;
+          dataUrl?: string;
+          logo?: string;
+          imagem?: string;
+          imagemBase64?: string;
+          content?: string;
+        }
       >(response);
 
       if (typeof data === "string") {
-        dataUrl = data.trim();
+        rawLogo = data;
       } else if (data && typeof data === "object") {
-        dataUrl =
+        rawLogo =
+          data.base64?.trim() ||
           data.logoBase64?.trim() ||
           data.dataUrl?.trim() ||
           data.logo?.trim() ||
+          data.imagem?.trim() ||
+          data.imagemBase64?.trim() ||
+          data.content?.trim() ||
           "";
       }
     } else {
-      dataUrl = (await response.text()).replace(/^"|"$/g, "").trim();
+      rawLogo = await response.text();
     }
+
+    const dataUrl = normalizeBase64Image(rawLogo);
 
     if (!dataUrl || !dataUrl.startsWith("data:image/")) {
       console.error("Logo em base64 inválida ou ausente.");
@@ -455,6 +516,59 @@ async function buscarLogoBase64Empresa(
   }
 }
 
+async function buscarLogoUrlEmpresa(
+  empresa: EmpresaPdfData,
+): Promise<LoadedLogo> {
+  if (!empresa?.id) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/configuracoes-empresa/${empresa.id}/logo`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      },
+    );
+
+    if (!response.ok) {
+      console.error("Erro ao buscar URL temporária da logo:", response.status);
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+    let logoUrl = "";
+
+    if (contentType.includes("application/json")) {
+      const data = await parseJsonSafe<
+        string | { url?: string; logoUrl?: string; caminhoLogo?: string }
+      >(response);
+
+      if (typeof data === "string") {
+        logoUrl = data.trim();
+      } else if (data && typeof data === "object") {
+        logoUrl =
+          data.url?.trim() ||
+          data.logoUrl?.trim() ||
+          data.caminhoLogo?.trim() ||
+          "";
+      }
+    } else {
+      logoUrl = (await response.text()).replace(/^"|"$/g, "").trim();
+    }
+
+    if (!logoUrl) {
+      return null;
+    }
+
+    return await loadImageAsDataUrl(logoUrl);
+  } catch (error) {
+    console.error("Erro ao carregar URL temporária da logo para o PDF:", error);
+    return null;
+  }
+}
+
 async function resolvePdfContext(): Promise<PdfContext> {
   const empresa = await buscarEmpresaPrincipal();
   const organizacao = await buscarOrganizacaoPrincipal();
@@ -463,6 +577,10 @@ async function resolvePdfContext(): Promise<PdfContext> {
 
   if (empresa.id) {
     logo = await buscarLogoBase64Empresa(empresa);
+  }
+
+  if (!logo && empresa.id) {
+    logo = await buscarLogoUrlEmpresa(empresa);
   }
 
   if (!logo) {
