@@ -15,6 +15,10 @@ async function parseError(response: Response): Promise<string> {
         return "Acesso negado.";
       }
 
+      if (response.status === 409) {
+        return "Já existe um registro com essas informações.";
+      }
+
       return `Erro ${response.status} ao processar requisição.`;
     }
 
@@ -25,13 +29,34 @@ async function parseError(response: Response): Promise<string> {
         return json;
       }
 
-      return (
+      const message =
         json?.message ||
+        json?.mensagem ||
+        json?.erro ||
         json?.error ||
         json?.detail ||
-        json?.mensagem ||
-        text
-      );
+        json?.title;
+
+      if (message) {
+        return String(message);
+      }
+
+      if (Array.isArray(json?.errors) && json.errors.length > 0) {
+        const firstError = json.errors[0];
+
+        if (typeof firstError === "string") {
+          return firstError;
+        }
+
+        return (
+          firstError?.message ||
+          firstError?.defaultMessage ||
+          firstError?.field ||
+          "Erro de validação nos dados enviados."
+        );
+      }
+
+      return text;
     } catch {
       return text;
     }
