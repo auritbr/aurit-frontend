@@ -91,19 +91,36 @@ export const tipoLabel = (v: string) =>
   tiposAtividade.find((t) => t.value === v)?.label ?? v;
 
 export interface AtividadeDTO {
-  id?: number;
+  id?: number | string;
   nomeAtividade: string;
   descricaoAtividade: string;
   publicoBeneficiadoAtividade: string;
-  quantidadeVagas: number | null;
+  quantidadeVagas: number | string | null;
   dataInicio: string;
   dataFim: string | null;
   localAtividade: string | null;
   tipoAtividade: string;
   status: string;
-  projetoId: number;
+
+  projetoId?: number | string | null;
   projetoNome?: string | null;
-  colaboradoresIds: number[];
+  projeto?:
+    | {
+        id?: number | string | null;
+        nomeProjeto?: string | null;
+        nome?: string | null;
+        titulo?: string | null;
+      }
+    | number
+    | string
+    | null;
+
+  colaboradoresIds?: Array<number | string> | null;
+  colaboradores?: Array<{
+    id?: number | string | null;
+    nomeCompleto?: string | null;
+    nome?: string | null;
+  }> | null;
 }
 
 export interface Atividade {
@@ -134,13 +151,68 @@ export interface ColaboradorOption {
 }
 
 interface ProjetoApiDTO {
-  id?: number;
-  nomeProjeto?: string;
+  id?: number | string | null;
+  nomeProjeto?: string | null;
+  nome?: string | null;
+  titulo?: string | null;
 }
 
 interface ColaboradorApiDTO {
-  id?: number;
-  nomeCompleto?: string;
+  id?: number | string | null;
+  nomeCompleto?: string | null;
+  nome?: string | null;
+}
+
+function normalizeId(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "";
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+
+    if (record.id !== null && record.id !== undefined) {
+      return String(record.id);
+    }
+
+    if (record.value !== null && record.value !== undefined) {
+      return String(record.value);
+    }
+
+    return "";
+  }
+
+  return String(value);
+}
+
+function pickText(...values: Array<unknown>) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "";
+}
+
+function extractColaboradoresIds(dto: AtividadeDTO): string[] {
+  if (Array.isArray(dto.colaboradoresIds)) {
+    return dto.colaboradoresIds.map(normalizeId).filter(Boolean);
+  }
+
+  if (Array.isArray(dto.colaboradores)) {
+    return dto.colaboradores
+      .map((colaborador) => normalizeId(colaborador.id))
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function extractColaboradoresNomes(dto: AtividadeDTO): string[] {
+  if (!Array.isArray(dto.colaboradores)) return [];
+
+  return dto.colaboradores
+    .map((colaborador) => pickText(colaborador.nomeCompleto, colaborador.nome))
+    .filter(Boolean);
 }
 
 export function formatDateBr(iso?: string) {
@@ -152,17 +224,29 @@ export function formatDateBr(iso?: string) {
 }
 
 export function mapAtividade(dto: AtividadeDTO): Atividade {
+  const projetoId = normalizeId(dto.projetoId ?? dto.projeto);
+  const projetoRecord =
+    dto.projeto && typeof dto.projeto === "object"
+      ? (dto.projeto as Record<string, unknown>)
+      : null;
+
   return {
-    id: String(dto.id ?? ""),
+    id: normalizeId(dto.id),
     nomeAtividade: dto.nomeAtividade ?? "",
     descricaoAtividade: dto.descricaoAtividade ?? "",
     publicoBeneficiadoAtividade: dto.publicoBeneficiadoAtividade ?? "",
     tipoAtividade: dto.tipoAtividade ?? "",
     status: dto.status ?? "",
-    projetoId: dto.projetoId != null ? String(dto.projetoId) : "",
-    projetoNome: dto.projetoNome?.trim() || undefined,
-    colaboradoresIds: (dto.colaboradoresIds ?? []).map(String),
-    colaboradoresNomes: [],
+    projetoId,
+    projetoNome:
+      pickText(
+        dto.projetoNome,
+        projetoRecord?.nomeProjeto,
+        projetoRecord?.nome,
+        projetoRecord?.titulo,
+      ) || undefined,
+    colaboradoresIds: extractColaboradoresIds(dto),
+    colaboradoresNomes: extractColaboradoresNomes(dto),
     dataInicio: dto.dataInicio ?? "",
     dataFim: dto.dataFim ?? "",
     quantidadeVagas:
@@ -187,7 +271,9 @@ export function buildAtividadePayload(data: Atividade): AtividadeDTO {
     status: data.status,
     projetoId: Number(data.projetoId),
     colaboradoresIds: (data.colaboradoresIds ?? [])
-      .filter((id) => id !== null && id !== undefined && String(id).trim() !== "")
+      .filter(
+        (id) => id !== null && id !== undefined && String(id).trim() !== "",
+      )
       .map(Number),
   };
 }
@@ -299,12 +385,18 @@ export async function getProjetosOptions(): Promise<ProjetoOption[]> {
 
   const data: ProjetoApiDTO[] = await response.json();
 
-  return (data ?? [])
-    .filter((p) => p.id != null)
-    .map((p) => ({
-      id: String(p.id),
-      nome: p.nomeProjeto?.trim() || `Projeto ${p.id}`,
-    }));
+  return (Array.isArray(data) ? data : [])
+    .map((projeto) => {
+      const id = normalizeId(projeto.id);
+
+      return {
+        id,
+        nome:
+          pickText(projeto.nomeProjeto, projeto.nome, projeto.titulo) ||
+          `Projeto ${id}`,
+      };
+    })
+    .filter((projeto) => projeto.id);
 }
 
 export async function getColaboradoresOptions(): Promise<ColaboradorOption[]> {
@@ -319,10 +411,16 @@ export async function getColaboradoresOptions(): Promise<ColaboradorOption[]> {
 
   const data: ColaboradorApiDTO[] = await response.json();
 
-  return (data ?? [])
-    .filter((c) => c.id != null)
-    .map((c) => ({
-      id: String(c.id),
-      nome: c.nomeCompleto?.trim() || `Colaborador ${c.id}`,
-    }));
+  return (Array.isArray(data) ? data : [])
+    .map((colaborador) => {
+      const id = normalizeId(colaborador.id);
+
+      return {
+        id,
+        nome:
+          pickText(colaborador.nomeCompleto, colaborador.nome) ||
+          `Colaborador ${id}`,
+      };
+    })
+    .filter((colaborador) => colaborador.id);
 }

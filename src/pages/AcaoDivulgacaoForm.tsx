@@ -1,19 +1,20 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  User,
-  MapPin,
-  Building2,
-  UserCog,
-  Info,
-  Users2,
+  Megaphone,
+  Target,
+  Share2,
+  Link2,
+  CalendarClock,
+  PackageCheck,
 } from "lucide-react";
+
 import { AppLayout } from "@/components/AppLayout";
-import { EmailInput } from "@/components/EmailInput";
 import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import {
   Select,
@@ -24,1102 +25,695 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { estadosBrasil } from "@/data/colaboradores";
+import { MultiSelect } from "@/components/MultiSelect";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import {
-  type TipoAgente,
-  tipoAgenteLabels,
-  tipoAgenteDescricoes,
-  getAgenteDetalhadoById,
-  createAgente,
-  updateAgente,
-  sanitizePessoaFisicaInput,
-  sanitizePessoaJuridicaInput,
-  sanitizeColetivoInput,
-  sanitizeEnderecoInput,
-  inputMasks,
-  type AgenteRequestDTO,
-} from "@/data/agentes";
+  buildAcaoDivulgacaoPayload,
+  createAcaoDivulgacao,
+  getAcaoDivulgacaoById,
+  getColaboradoresOptions,
+  getProjetosOptions,
+  updateAcaoDivulgacao,
+  estrategiasDivulgacao,
+  statusAcao,
+  estrategiaLabel,
+  type AcaoDivulgacao,
+  type AcaoStatusApi,
+  type ColaboradorOption,
+  type ProjetoOption,
+} from "@/data/acoesDivulgacao";
 import { toast } from "sonner";
 
-const AGENTE_NEXT_STEP_KEY = "aurit:agentes:next-step-card";
-
-interface AgenteNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+interface FormState {
+  id: string;
+  nomeAcao: string;
+  descricaoAcao: string;
+  realizacaoAcao: string;
+  objetivoAcao: string;
+  acoesAcessibilidade: string;
+  resultadoEsperado: string;
+  produtosGerados: string;
+  dataInicio: string;
+  dataFim: string;
+  estrategiasDivulgacao: string[];
+  status: AcaoStatusApi | "";
+  projetoId: string;
+  colaboradoresIds: string[];
 }
 
-function salvarProximaAcaoDivulgacao() {
-  const card: AgenteNextStepCardData = {
-    titulo: "Após cadastrar a ação de divulgação, registre sua execução",
-    descricao:
-      "Com a ação de divulgação cadastrada, avance para a execução para registrar quando e como a divulgação foi realizada, quais canais foram utilizados, os responsáveis envolvidos e as informações necessárias para comprovação, relatórios e prestação de contas.",
-    acaoLabel: "Registrar execução",
-    acaoUrl: "/plano-comunicacao/novo",
-    acaoSecundariaLabel: "Ver ações de divulgação",
-    acaoSecundariaUrl: "/acoes-divulgacao",
-    variante: "pendente",
+const initial: FormState = {
+  id: "",
+  nomeAcao: "",
+  descricaoAcao: "",
+  realizacaoAcao: "",
+  objetivoAcao: "",
+  acoesAcessibilidade: "",
+  resultadoEsperado: "",
+  produtosGerados: "",
+  dataInicio: "",
+  dataFim: "",
+  estrategiasDivulgacao: [],
+  status: "",
+  projetoId: "",
+  colaboradoresIds: [],
+};
+
+function mapAcaoToForm(acao: AcaoDivulgacao): FormState {
+  return {
+    id: acao.id ?? "",
+    nomeAcao: acao.nomeAcao ?? "",
+    descricaoAcao: acao.descricaoAcao ?? "",
+    realizacaoAcao: acao.realizacaoAcao ?? "",
+    objetivoAcao: acao.objetivoAcao ?? "",
+    acoesAcessibilidade: acao.acoesAcessibilidade ?? "",
+    resultadoEsperado: acao.resultadoEsperado ?? "",
+    produtosGerados: acao.produtosGerados ?? "",
+    dataInicio: acao.dataInicio ?? "",
+    dataFim: acao.dataFim ?? "",
+    estrategiasDivulgacao: acao.estrategiasDivulgacao ?? [],
+    status: acao.status ?? "",
+    projetoId: acao.projetoId ?? "",
+    colaboradoresIds: acao.colaboradoresIds ?? [],
   };
-
-  sessionStorage.setItem(AGENTE_NEXT_STEP_KEY, JSON.stringify(card));
 }
 
-const maskCNPJ = (v: string) =>
-  v
-    .replace(/\D/g, "")
-    .slice(0, 14)
-    .replace(/(\d{2})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1/$2")
-    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
-
-function maskRGFlex(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-
-  if (!digits) return "";
-
-  if (digits.length <= 7) {
-    if (digits.length <= 1) return digits;
-    if (digits.length <= 4) return `${digits.slice(0, 1)}-${digits.slice(1)}`;
-    return `${digits.slice(0, 1)}-${digits.slice(1, 4)}.${digits.slice(4)}`;
-  }
-
-  if (digits.length <= 8) {
-    return digits.replace(/^(\d{2})(\d{3})(\d{0,3})$/, (_, a, b, c) =>
-      c ? `${a}.${b}.${c}` : `${a}.${b}`,
-    );
-  }
-
-  if (digits.length === 9) {
-    return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d)$/, "$1.$2.$3-$4");
-  }
-
-  return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, (_, a, b, c, d) =>
-    d ? `${a}.${b}.${c}-${d}` : `${a}.${b}.${c}`,
-  );
+function mapFormToAcao(form: FormState): AcaoDivulgacao {
+  return {
+    id: form.id,
+    nomeAcao: form.nomeAcao,
+    descricaoAcao: form.descricaoAcao,
+    realizacaoAcao: form.realizacaoAcao,
+    objetivoAcao: form.objetivoAcao,
+    acoesAcessibilidade: form.acoesAcessibilidade,
+    resultadoEsperado: form.resultadoEsperado,
+    produtosGerados: form.produtosGerados,
+    dataInicio: form.dataInicio,
+    dataFim: form.dataFim,
+    estrategiasDivulgacao: form.estrategiasDivulgacao,
+    status: form.status || "ATIVO",
+    projetoId: form.projetoId,
+    colaboradoresIds: form.colaboradoresIds,
+  };
 }
 
-interface PessoaFisicaForm {
-  nomeCompleto: string;
-  dataNascimento: string;
-  cpf: string;
-  rg: string;
-  telefone: string;
-  email: string;
+function dataFimPassada(dataFim: string) {
+  if (!dataFim) return false;
+
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+  const dia = String(hoje.getDate()).padStart(2, "0");
+
+  return dataFim < `${ano}-${mes}-${dia}`;
 }
 
-interface EnderecoForm {
-  cep: string;
-  logradouro: string;
-  numero: string;
-  complemento: string;
-  bairro: string;
-  cidade: string;
-  estado: string;
+function statusPermiteDataFimPassada(status: string) {
+  return status === "INATIVO" || status === "CONCLUIDO";
 }
 
-interface PessoaJuridicaForm {
-  razaoSocial: string;
-  nomeFantasia: string;
-  cnpj: string;
-  dataFundacao: string;
-}
-
-interface ColetivoForm {
-  nome: string;
-  dataCriacao: string;
-}
-
-const emptyPF: PessoaFisicaForm = {
-  nomeCompleto: "",
-  dataNascimento: "",
-  cpf: "",
-  rg: "",
-  telefone: "",
-  email: "",
-};
-
-const emptyEnd: EnderecoForm = {
-  cep: "",
-  logradouro: "",
-  numero: "",
-  complemento: "",
-  bairro: "",
-  cidade: "",
-  estado: "",
-};
-
-const emptyPJ: PessoaJuridicaForm = {
-  razaoSocial: "",
-  nomeFantasia: "",
-  cnpj: "",
-  dataFundacao: "",
-};
-
-const emptyCol: ColetivoForm = {
-  nome: "",
-  dataCriacao: "",
-};
-
-type ViaCepResponse = {
-  cep?: string;
-  logradouro?: string;
-  complemento?: string;
-  bairro?: string;
-  localidade?: string;
-  estado?: string;
-  erro?: boolean;
-};
-
-export default function AgenteForm() {
+export default function AcaoDivulgacaoForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
 
-  const isViewMode = !!id && !location.pathname.endsWith("/editar");
-  const isEditMode = !!id && location.pathname.endsWith("/editar");
+  const visualizando = !!id && !location.pathname.endsWith("/editar");
+  const editando = !!id && location.pathname.endsWith("/editar");
 
-  const [tipo, setTipo] = useState<TipoAgente | "">("");
-  const [pf, setPf] = useState<PessoaFisicaForm>(emptyPF);
-  const [pj, setPj] = useState<PessoaJuridicaForm>(emptyPJ);
-  const [coletivo, setColetivo] = useState<ColetivoForm>(emptyCol);
-  const [representante, setRepresentante] = useState<PessoaFisicaForm>(emptyPF);
-  const [endereco, setEndereco] = useState<EnderecoForm>(emptyEnd);
-  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState<FormState>(initial);
+  const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
+  const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [cepLoading, setCepLoading] = useState(false);
 
-  const setPF = <K extends keyof PessoaFisicaForm>(
-    k: K,
-    v: PessoaFisicaForm[K],
-  ) => setPf((p) => ({ ...p, [k]: v }));
+  const bloqueado = loading || saving || visualizando;
 
-  const setPJ = <K extends keyof PessoaJuridicaForm>(
-    k: K,
-    v: PessoaJuridicaForm[K],
-  ) => setPj((p) => ({ ...p, [k]: v }));
-
-  const setCol = <K extends keyof ColetivoForm>(
-    k: K,
-    v: ColetivoForm[K],
-  ) => setColetivo((p) => ({ ...p, [k]: v }));
-
-  const setRep = <K extends keyof PessoaFisicaForm>(
-    k: K,
-    v: PessoaFisicaForm[K],
-  ) => setRepresentante((p) => ({ ...p, [k]: v }));
-
-  const setEnd = <K extends keyof EnderecoForm>(
-    k: K,
-    v: EnderecoForm[K],
-  ) => setEndereco((p) => ({ ...p, [k]: v }));
-
-  const isPJ =
-    tipo === "MEI" ||
-    tipo === "PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS" ||
-    tipo === "PESSOA_JURIDICA_COM_FINS_LUCRATIVOS";
-
-  const isPF = tipo === "PESSOA_FISICA";
-  const isColetivo = tipo === "GRUPO_COLETIVO";
-
-  async function buscarEnderecoPorCep(cep: string) {
-    const cepLimpo = cep.replace(/\D/g, "");
-
-    if (cepLimpo.length !== 8 || isViewMode) return;
-
-    try {
-      setCepLoading(true);
-
-      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
-
-      if (!response.ok) return;
-
-      const data: ViaCepResponse = await response.json();
-
-      if (data.erro) {
-        toast.error("CEP não encontrado.");
-        return;
-      }
-
-      setEndereco((prev) => ({
-        ...prev,
-        logradouro: data.logradouro ?? prev.logradouro,
-        complemento: prev.complemento || data.complemento || "",
-        bairro: data.bairro ?? prev.bairro,
-        cidade: data.localidade ?? prev.cidade,
-        estado: mapUfToEstado(data.estado) || prev.estado,
-      }));
-    } catch (error) {
-      console.error("Erro ao buscar CEP:", error);
-      toast.error("Não foi possível buscar o CEP.");
-    } finally {
-      setCepLoading(false);
-    }
-  }
-
-  function mapUfToEstado(uf?: string) {
-    const mapa: Record<string, string> = {
-      AC: "Acre",
-      AL: "Alagoas",
-      AP: "Amapá",
-      AM: "Amazonas",
-      BA: "Bahia",
-      CE: "Ceará",
-      DF: "Distrito Federal",
-      ES: "Espírito Santo",
-      GO: "Goiás",
-      MA: "Maranhão",
-      MT: "Mato Grosso",
-      MS: "Mato Grosso do Sul",
-      MG: "Minas Gerais",
-      PA: "Pará",
-      PB: "Paraíba",
-      PR: "Paraná",
-      PE: "Pernambuco",
-      PI: "Piauí",
-      RJ: "Rio de Janeiro",
-      RN: "Rio Grande do Norte",
-      RS: "Rio Grande do Sul",
-      RO: "Rondônia",
-      RR: "Roraima",
-      SC: "Santa Catarina",
-      SP: "São Paulo",
-      SE: "Sergipe",
-      TO: "Tocantins",
-    };
-
-    return uf ? mapa[uf] ?? "" : "";
-  }
+  const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
+    setForm((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
-    async function load() {
-      if (!id) return;
+    let active = true;
 
+    async function carregar() {
       try {
         setLoading(true);
 
-        const data = await getAgenteDetalhadoById(Number(id));
+        const [projetosData, colaboradoresData, acaoData] = await Promise.all([
+          getProjetosOptions(),
+          getColaboradoresOptions(),
+          id ? getAcaoDivulgacaoById(Number(id)) : Promise.resolve(null),
+        ]);
 
-        setTipo(data.tipoAgente);
+        if (!active) return;
 
-        if (data.tipoAgente === "PESSOA_FISICA") {
-          setPf({
-            nomeCompleto: data.nomeCompleto ?? "",
-            dataNascimento: data.dataNascimento ?? "",
-            cpf: data.cpf ?? "",
-            rg: data.rg ?? "",
-            telefone: data.telefone ?? "",
-            email: data.email ?? "",
-          });
+        setProjetos(projetosData);
+        setColaboradores(colaboradoresData);
 
-          setEndereco({
-            cep: data.cep ?? "",
-            logradouro: data.logradouro ?? "",
-            numero: data.numero ?? "",
-            complemento: data.complemento ?? "",
-            bairro: data.bairro ?? "",
-            cidade: data.cidade ?? "",
-            estado: data.estado ?? "",
-          });
-        }
-
-        if (
-          data.tipoAgente === "MEI" ||
-          data.tipoAgente === "PESSOA_JURIDICA_COM_FINS_LUCRATIVOS" ||
-          data.tipoAgente === "PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS"
-        ) {
-          setPj({
-            razaoSocial: data.razaoSocial ?? "",
-            nomeFantasia: data.nomeFantasia ?? "",
-            cnpj: data.cnpj ?? "",
-            dataFundacao: data.dataFundacao ?? "",
-          });
-
-          setEndereco({
-            cep: data.cep ?? "",
-            logradouro: data.logradouro ?? "",
-            numero: data.numero ?? "",
-            complemento: data.complemento ?? "",
-            bairro: data.bairro ?? "",
-            cidade: data.cidade ?? "",
-            estado: data.estado ?? "",
-          });
-
-          setRepresentante({
-            nomeCompleto: data.nomeRepresentante ?? "",
-            dataNascimento: data.dataNascimentoRepresentante ?? "",
-            cpf: data.cpfRepresentante ?? "",
-            rg: data.rgRepresentante ?? "",
-            telefone: data.telefoneRepresentante ?? "",
-            email: data.emailRepresentante ?? "",
-          });
-        }
-
-        if (data.tipoAgente === "GRUPO_COLETIVO") {
-          setColetivo({
-            nome: data.nomeColetivo ?? "",
-            dataCriacao: data.dataCriacaoColetivo ?? "",
-          });
-
-          setEndereco({
-            cep: data.cep ?? "",
-            logradouro: data.logradouro ?? "",
-            numero: data.numero ?? "",
-            complemento: data.complemento ?? "",
-            bairro: data.bairro ?? "",
-            cidade: data.cidade ?? "",
-            estado: data.estado ?? "",
-          });
-
-          setRepresentante({
-            nomeCompleto: data.nomeRepresentante ?? "",
-            dataNascimento: data.dataNascimentoRepresentante ?? "",
-            cpf: data.cpfRepresentante ?? "",
-            rg: data.rgRepresentante ?? "",
-            telefone: data.telefoneRepresentante ?? "",
-            email: data.emailRepresentante ?? "",
-          });
+        if (acaoData) {
+          setForm(mapAcaoToForm(acaoData));
+        } else {
+          setForm(initial);
         }
       } catch (error) {
         console.error(error);
+
         toast.error(
-          error instanceof Error ? error.message : "Erro ao carregar agente.",
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar o formulário.",
         );
-        navigate("/agentes");
+
+        if (id) {
+          navigate("/acoes-divulgacao");
+        }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
 
-    void load();
+    void carregar();
+
+    return () => {
+      active = false;
+    };
   }, [id, navigate]);
 
-  function validarEnderecoObrigatorio() {
-    if (!endereco.cep.trim()) {
-      toast.error("Informe o CEP.");
-      return false;
+  const projetosComFallback = useMemo(() => {
+    const options = [...projetos];
+
+    if (
+      form.projetoId &&
+      !options.some((projeto) => String(projeto.id) === String(form.projetoId))
+    ) {
+      options.push({
+        id: form.projetoId,
+        nome: `Projeto ${form.projetoId}`,
+      });
     }
 
-    if (!endereco.logradouro.trim()) {
-      toast.error("Informe o logradouro.");
-      return false;
-    }
+    return options;
+  }, [projetos, form.projetoId]);
 
-    if (!endereco.numero.trim()) {
-      toast.error("Informe o número.");
-      return false;
-    }
+  const colaboradoresComFallback = useMemo(() => {
+    const options = [...colaboradores];
 
-    if (!endereco.bairro.trim()) {
-      toast.error("Informe o bairro.");
-      return false;
-    }
+    const faltantes = form.colaboradoresIds.filter(
+      (colaboradorId) =>
+        colaboradorId &&
+        !options.some(
+          (colaborador) => String(colaborador.id) === String(colaboradorId),
+        ),
+    );
 
-    if (!endereco.cidade.trim()) {
-      toast.error("Informe a cidade.");
-      return false;
-    }
+    faltantes.forEach((colaboradorId) => {
+      options.push({
+        id: colaboradorId,
+        nome: `Colaborador ${colaboradorId}`,
+      });
+    });
 
-    if (!endereco.estado.trim()) {
-      toast.error("Informe o estado.");
-      return false;
-    }
+    return options;
+  }, [colaboradores, form.colaboradoresIds]);
 
-    return true;
+  const estrategiasSelecionadasLabels = form.estrategiasDivulgacao.map(
+    (value) => estrategiaLabel(value),
+  );
+
+  const estrategiaOptions = estrategiasDivulgacao.map((item) => item.label);
+
+  const colaboradorOptions = colaboradoresComFallback.map(
+    (colaborador) => colaborador.nome,
+  );
+
+  const colaboradoresSelecionadosLabels = form.colaboradoresIds.map(
+    (colaboradorId) =>
+      colaboradoresComFallback.find(
+        (colaborador) => String(colaborador.id) === String(colaboradorId),
+      )?.nome ?? colaboradorId,
+  );
+
+  function handleEstrategiasChange(labels: string[]) {
+    const values = labels
+      .map(
+        (label) =>
+          estrategiasDivulgacao.find((item) => item.label === label)?.value ??
+          label,
+      )
+      .filter(Boolean);
+
+    set("estrategiasDivulgacao", values);
   }
 
-  function validateForm() {
-    if (!tipo) {
-      toast.error("Selecione o tipo de agente.");
-      return false;
-    }
+  function handleColaboradoresChange(labels: string[]) {
+    const ids = labels
+      .map(
+        (label) =>
+          colaboradoresComFallback.find(
+            (colaborador) => colaborador.nome === label,
+          )?.id ?? label,
+      )
+      .filter(Boolean);
 
-    if (isPF) {
-      if (!pf.nomeCompleto.trim()) {
-        toast.error("Informe o nome completo.");
-        return false;
-      }
-
-      if (!pf.dataNascimento.trim()) {
-        toast.error("Informe a data de nascimento.");
-        return false;
-      }
-
-      if (!pf.cpf.trim()) {
-        toast.error("Informe o CPF.");
-        return false;
-      }
-
-      if (!pf.telefone.trim()) {
-        toast.error("Informe o telefone.");
-        return false;
-      }
-
-      if (!validarEnderecoObrigatorio()) {
-        return false;
-      }
-    }
-
-    if (isPJ) {
-      if (!pj.razaoSocial.trim()) {
-        toast.error("Informe a razão social.");
-        return false;
-      }
-
-      if (!pj.cnpj.trim()) {
-        toast.error("Informe o CNPJ.");
-        return false;
-      }
-
-      if (!pj.dataFundacao.trim()) {
-        toast.error("Informe a data de fundação.");
-        return false;
-      }
-
-      if (!validarEnderecoObrigatorio()) {
-        return false;
-      }
-
-      if (!representante.nomeCompleto.trim()) {
-        toast.error("Informe o nome do representante.");
-        return false;
-      }
-
-      if (!representante.dataNascimento.trim()) {
-        toast.error("Informe a data de nascimento do representante.");
-        return false;
-      }
-
-      if (!representante.cpf.trim()) {
-        toast.error("Informe o CPF do representante.");
-        return false;
-      }
-
-      if (!representante.telefone.trim()) {
-        toast.error("Informe o telefone do representante.");
-        return false;
-      }
-    }
-
-    if (isColetivo) {
-      if (!coletivo.nome.trim()) {
-        toast.error("Informe o nome do coletivo.");
-        return false;
-      }
-
-      if (!coletivo.dataCriacao.trim()) {
-        toast.error("Informe a data de criação do coletivo.");
-        return false;
-      }
-
-      if (!validarEnderecoObrigatorio()) {
-        return false;
-      }
-
-      if (!representante.nomeCompleto.trim()) {
-        toast.error("Informe o nome do representante.");
-        return false;
-      }
-
-      if (!representante.dataNascimento.trim()) {
-        toast.error("Informe a data de nascimento do representante.");
-        return false;
-      }
-
-      if (!representante.cpf.trim()) {
-        toast.error("Informe o CPF do representante.");
-        return false;
-      }
-
-      if (!representante.telefone.trim()) {
-        toast.error("Informe o telefone do representante.");
-        return false;
-      }
-    }
-
-    return true;
+    set("colaboradoresIds", ids);
   }
 
-  function buildPayload(): AgenteRequestDTO {
-    const payload: AgenteRequestDTO = {
-      tipoAgente: tipo as TipoAgente,
-    };
-
-    if (isPF) {
-      payload.pessoaFisica = sanitizePessoaFisicaInput(pf);
-      payload.endereco = sanitizeEnderecoInput(endereco);
-    }
-
-    if (isPJ) {
-      payload.pessoaJuridica = sanitizePessoaJuridicaInput(pj);
-      payload.representante = sanitizePessoaFisicaInput(representante);
-      payload.endereco = sanitizeEnderecoInput(endereco);
-    }
-
-    if (isColetivo) {
-      payload.coletivo = sanitizeColetivoInput(coletivo);
-      payload.representante = sanitizePessoaFisicaInput(representante);
-      payload.endereco = sanitizeEnderecoInput(endereco);
-    }
-
-    return payload;
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
-    if (isViewMode) return;
+    if (visualizando) return;
 
-    if (!validateForm()) return;
+    if (!form.nomeAcao.trim()) {
+      toast.error("Informe o nome da ação.");
+      return;
+    }
+
+    if (!form.descricaoAcao.trim()) {
+      toast.error("Informe a descrição da ação.");
+      return;
+    }
+
+    if (!form.realizacaoAcao.trim()) {
+      toast.error("Informe a realização da ação.");
+      return;
+    }
+
+    if (!form.objetivoAcao.trim()) {
+      toast.error("Informe o objetivo da ação.");
+      return;
+    }
+
+    if (!form.acoesAcessibilidade.trim()) {
+      toast.error("Informe as ações de acessibilidade.");
+      return;
+    }
+
+    if (!form.resultadoEsperado.trim()) {
+      toast.error("Informe o resultado esperado.");
+      return;
+    }
+
+    if (!form.produtosGerados.trim()) {
+      toast.error("Informe os produtos gerados.");
+      return;
+    }
+
+    if (!form.dataInicio) {
+      toast.error("Informe a data de início.");
+      return;
+    }
+
+    if (!form.dataFim) {
+      toast.error("Informe a data de término.");
+      return;
+    }
+
+    if (form.dataFim < form.dataInicio) {
+      toast.error("A data de término não pode ser anterior à data de início.");
+      return;
+    }
+
+    if (
+      form.dataFim &&
+      dataFimPassada(form.dataFim) &&
+      !statusPermiteDataFimPassada(form.status)
+    ) {
+      toast.error(
+        "Ação com data de término passada deve estar com status Inativo ou Concluído.",
+      );
+      return;
+    }
+
+    if (form.estrategiasDivulgacao.length === 0) {
+      toast.error("Selecione ao menos uma estratégia de divulgação.");
+      return;
+    }
+
+    if (!form.status) {
+      toast.error("Selecione o status da ação.");
+      return;
+    }
+
+    if (!form.projetoId) {
+      toast.error("Selecione o projeto.");
+      return;
+    }
+
+    if (form.colaboradoresIds.length === 0) {
+      toast.error("Vincule ao menos um colaborador responsável pela ação.");
+      return;
+    }
 
     try {
       setSaving(true);
 
-      const payload = buildPayload();
+      const payload = buildAcaoDivulgacaoPayload(mapFormToAcao(form));
 
-      if (isEditMode && id) {
-        await updateAgente(Number(id), payload);
-        toast.success("Agente atualizado com sucesso.");
+      if (editando && id) {
+        await updateAcaoDivulgacao(Number(id), payload);
+        toast.success("Ação de divulgação atualizada com sucesso.");
       } else {
-        await createAgente(payload);
-        salvarProximaAcaoDivulgacao();
-        toast.success("Agente salvo com sucesso.");
+        await createAcaoDivulgacao(payload);
+        toast.success("Ação de divulgação cadastrada com sucesso.");
       }
 
-      navigate("/agentes");
+      navigate("/acoes-divulgacao");
     } catch (error) {
       console.error(error);
+
       toast.error(
-        error instanceof Error ? error.message : "Erro ao salvar agente.",
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar a ação de divulgação.",
       );
     } finally {
       setSaving(false);
     }
-  };
+  }
 
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
         <button
           type="button"
-          onClick={() => navigate("/agentes")}
+          onClick={() => navigate("/acoes-divulgacao")}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
         >
-          <ArrowLeft className="h-4 w-4" /> Voltar
+          <ArrowLeft className="h-4 w-4" />
+          Voltar
         </button>
 
         <PageTitle
-          title="Agente Cultural"
-          tooltip="Cadastre o agente cultural responsável pela iniciativa. Esse cadastro identifica quem representa a ação cultural e pode ser utilizado em projetos, editais, documentos e prestações de contas."
+          title={
+            visualizando
+              ? "Visualizar Ação de Divulgação"
+              : editando
+                ? "Editar Ação de Divulgação"
+                : "Ação de Divulgação"
+          }
+          tooltip="Planeje como as ações culturais serão divulgadas, realizadas e documentadas. Informe estratégias de comunicação, período, responsáveis, produtos gerados e resultados esperados."
         />
 
-        <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-          <Info
-            className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"
-            strokeWidth={2.2}
-          />
-          <p className="text-[13px] leading-relaxed text-foreground">
-            O <span className="font-semibold">Agente Cultural</span> é quem
-            representa a iniciativa cultural. Pode ser uma pessoa física, MEI,
-            empresa, organização sem fins lucrativos ou coletivo. Esse cadastro
-            ajuda a identificar quem está vinculado aos projetos, editais,
-            documentos e prestações de contas.
-          </p>
-        </div>
-
-        {isViewMode && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!isViewMode && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={UserCog} title="Tipo de agente">
+          <Section icon={Megaphone} title="Dados principais">
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel
-                  htmlFor="tipoAgente"
-                  required
-                  tooltip="Escolha a forma que melhor representa quem será cadastrado como agente cultural: pessoa física, MEI, empresa, organização sem fins lucrativos ou coletivo."
-                >
-                  Tipo de Agente
+              <Field full>
+                <FieldLabel htmlFor="nomeAcao" required>
+                  Nome da ação
                 </FieldLabel>
+                <Input
+                  id="nomeAcao"
+                  value={form.nomeAcao}
+                  disabled={bloqueado}
+                  onChange={(e) => set("nomeAcao", e.target.value)}
+                />
+              </Field>
 
-                <Select
-                  value={tipo}
-                  onValueChange={(v) => setTipo(v as TipoAgente)}
-                  disabled={loading || saving || isViewMode}
+              <Field full>
+                <FieldLabel htmlFor="descricaoAcao" required>
+                  Descrição da ação
+                </FieldLabel>
+                <Textarea
+                  id="descricaoAcao"
+                  value={form.descricaoAcao}
+                  disabled={bloqueado}
+                  onChange={(e) => set("descricaoAcao", e.target.value)}
+                  rows={4}
+                />
+              </Field>
+
+              <Field full>
+                <FieldLabel
+                  htmlFor="realizacaoAcao"
+                  required
+                  tooltip="Descreva como a ação será realizada na prática: etapas, responsáveis, dinâmica, canais utilizados e forma de execução."
                 >
-                  <SelectTrigger id="tipoAgente">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
+                  Realização da ação
+                </FieldLabel>
+                <Textarea
+                  id="realizacaoAcao"
+                  value={form.realizacaoAcao}
+                  disabled={bloqueado}
+                  onChange={(e) => set("realizacaoAcao", e.target.value)}
+                  rows={4}
+                />
+              </Field>
+            </div>
+          </Section>
 
+          <Section icon={Target} title="Objetivo e acessibilidade">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field full>
+                <FieldLabel
+                  htmlFor="objetivoAcao"
+                  required
+                  tooltip="Explique o objetivo da ação, como ampliar o público, dar visibilidade ao projeto, fortalecer a comunicação ou registrar atividades realizadas."
+                >
+                  Objetivo da ação
+                </FieldLabel>
+                <Textarea
+                  id="objetivoAcao"
+                  value={form.objetivoAcao}
+                  disabled={bloqueado}
+                  onChange={(e) => set("objetivoAcao", e.target.value)}
+                  rows={3}
+                />
+              </Field>
+
+              <Field full>
+                <FieldLabel
+                  htmlFor="acoesAcessibilidade"
+                  required
+                  tooltip="Descreva as medidas de acessibilidade adotadas na ação. Ex.: legendas, audiodescrição, linguagem simples, comunicação acessível ou formatos alternativos."
+                >
+                  Ações de acessibilidade
+                </FieldLabel>
+                <Textarea
+                  id="acoesAcessibilidade"
+                  value={form.acoesAcessibilidade}
+                  disabled={bloqueado}
+                  onChange={(e) => set("acoesAcessibilidade", e.target.value)}
+                  rows={3}
+                />
+              </Field>
+
+              <Field full>
+                <FieldLabel
+                  htmlFor="resultadoEsperado"
+                  required
+                  tooltip="Informe os resultados esperados com a ação, como alcance de público, engajamento, visibilidade, mobilização ou geração de registros."
+                >
+                  Resultado esperado
+                </FieldLabel>
+                <Textarea
+                  id="resultadoEsperado"
+                  value={form.resultadoEsperado}
+                  disabled={bloqueado}
+                  onChange={(e) => set("resultadoEsperado", e.target.value)}
+                  rows={3}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <Section icon={PackageCheck} title="Produtos e período">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field full>
+                <FieldLabel
+                  htmlFor="produtosGerados"
+                  required
+                  tooltip="Informe quais produtos ou registros serão gerados pela ação. Ex.: cards, vídeos, cartazes, publicações, releases, relatórios, fotografias ou materiais impressos."
+                >
+                  Produtos gerados
+                </FieldLabel>
+                <Textarea
+                  id="produtosGerados"
+                  value={form.produtosGerados}
+                  disabled={bloqueado}
+                  onChange={(e) => set("produtosGerados", e.target.value)}
+                  rows={3}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="dataInicio" required>
+                  Data de início
+                </FieldLabel>
+                <Input
+                  id="dataInicio"
+                  type="date"
+                  value={form.dataInicio}
+                  disabled={bloqueado}
+                  onChange={(e) => set("dataInicio", e.target.value)}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="dataFim" required>
+                  Data de término
+                </FieldLabel>
+                <Input
+                  id="dataFim"
+                  type="date"
+                  value={form.dataFim}
+                  disabled={bloqueado}
+                  onChange={(e) => set("dataFim", e.target.value)}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <Section icon={Share2} title="Estratégia de divulgação">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field full>
+                <FieldLabel
+                  htmlFor="estrategiasDivulgacao"
+                  required
+                  tooltip="Selecione um ou mais meios utilizados para divulgação da ação. Ex.: redes sociais, cartazes, mídia local, rádio, parcerias ou mobilização comunitária."
+                >
+                  Estratégias de divulgação
+                </FieldLabel>
+                <MultiSelect
+                  id="estrategiasDivulgacao"
+                  options={estrategiaOptions}
+                  value={estrategiasSelecionadasLabels}
+                  onChange={bloqueado ? () => { } : handleEstrategiasChange}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="status" required>
+                  Status
+                </FieldLabel>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => set("status", v as AcaoStatusApi)}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map((k) => (
-                      <SelectItem key={k} value={k}>
-                        {tipoAgenteLabels[k]}
+                    {statusAcao.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </Field>
             </div>
+          </Section>
 
-            <div className="mt-5 grid sm:grid-cols-2 gap-2.5">
-              {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map((k) => (
-                <div
-                  key={k}
-                  className={`rounded border px-3 py-2.5 text-[12px] leading-relaxed transition-colors ${
-                    tipo === k
-                      ? "border-primary/40 bg-primary-soft"
-                      : "border-border bg-muted/30"
-                  }`}
+          <Section icon={Link2} title="Vínculos e equipe">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field full>
+                <FieldLabel htmlFor="projeto" required>
+                  Projeto
+                </FieldLabel>
+                <Select
+                  value={form.projetoId}
+                  onValueChange={(v) => set("projetoId", v)}
+                  disabled={bloqueado}
                 >
-                  <p className="font-semibold text-foreground text-[12.5px] mb-0.5">
-                    {tipoAgenteLabels[k]}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {tipoAgenteDescricoes[k]}
-                  </p>
-                </div>
-              ))}
+                  <SelectTrigger id="projeto">
+                    <SelectValue placeholder="Selecione o projeto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projetosComFallback.map((projeto) => (
+                      <SelectItem key={projeto.id} value={String(projeto.id)}>
+                        {projeto.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field full>
+                <FieldLabel htmlFor="colaboradores" required>
+                  Colaboradores responsáveis
+                </FieldLabel>
+                <MultiSelect
+                  id="colaboradores"
+                  options={colaboradorOptions}
+                  value={colaboradoresSelecionadosLabels}
+                  onChange={bloqueado ? () => { } : handleColaboradoresChange}
+                />
+              </Field>
             </div>
           </Section>
 
-          {isPF && (
-            <>
-              <Section icon={User} title="Dados Pessoais">
-                <PessoaFisicaFields
-                  data={pf}
-                  set={setPF}
-                  disabled={loading || saving || isViewMode}
-                />
-              </Section>
-
-              <Section icon={MapPin} title="Endereço">
-                <EnderecoFields
-                  data={endereco}
-                  set={setEnd}
-                  disabled={loading || saving || isViewMode}
-                  onCepResolved={buscarEnderecoPorCep}
-                  cepLoading={cepLoading}
-                />
-              </Section>
-            </>
-          )}
-
-          {isPJ && (
-            <>
-              <Section
-                icon={Building2}
-                title={
-                  tipo === "MEI"
-                    ? "Dados da Pessoa Jurídica"
-                    : "Dados da Organização"
-                }
-              >
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="razaoSocial" required>
-                      Razão Social
-                    </FieldLabel>
-
-                    <Input
-                      id="razaoSocial"
-                      value={pj.razaoSocial}
-                      onChange={(e) => setPJ("razaoSocial", e.target.value)}
-                      disabled={loading || saving || isViewMode}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="nomeFantasia">
-                      Nome Fantasia
-                    </FieldLabel>
-
-                    <Input
-                      id="nomeFantasia"
-                      value={pj.nomeFantasia}
-                      onChange={(e) => setPJ("nomeFantasia", e.target.value)}
-                      disabled={loading || saving || isViewMode}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="cnpj" required>
-                      CNPJ
-                    </FieldLabel>
-
-                    <Input
-                      id="cnpj"
-                      value={pj.cnpj}
-                      onChange={(e) => setPJ("cnpj", maskCNPJ(e.target.value))}
-                      inputMode="numeric"
-                      disabled={loading || saving || isViewMode}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="dataFundacao" required>
-                      Data de Fundação
-                    </FieldLabel>
-
-                    <Input
-                      id="dataFundacao"
-                      value={pj.dataFundacao}
-                      onChange={(e) =>
-                        setPJ("dataFundacao", inputMasks.date(e.target.value))
-                      }
-                      inputMode="numeric"
-                      disabled={loading || saving || isViewMode}
-                    />
-                  </Field>
-                </div>
-              </Section>
-
-              <Section icon={MapPin} title="Endereço">
-                <EnderecoFields
-                  data={endereco}
-                  set={setEnd}
-                  disabled={loading || saving || isViewMode}
-                  onCepResolved={buscarEnderecoPorCep}
-                  cepLoading={cepLoading}
-                />
-              </Section>
-
-              <Section icon={User} title="Dados do Representante">
-                <PessoaFisicaFields
-                  data={representante}
-                  set={setRep}
-                  prefix="rep"
-                  disabled={loading || saving || isViewMode}
-                />
-              </Section>
-            </>
-          )}
-
-          {isColetivo && (
-            <>
-              <Section icon={Users2} title="Dados do coletivo">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="nomeColetivo" required>
-                      Nome do Coletivo
-                    </FieldLabel>
-
-                    <Input
-                      id="nomeColetivo"
-                      value={coletivo.nome}
-                      onChange={(e) => setCol("nome", e.target.value)}
-                      disabled={loading || saving || isViewMode}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="dataCriacao" required>
-                      Data de Criação
-                    </FieldLabel>
-
-                    <Input
-                      id="dataCriacao"
-                      value={coletivo.dataCriacao}
-                      onChange={(e) =>
-                        setCol("dataCriacao", inputMasks.date(e.target.value))
-                      }
-                      inputMode="numeric"
-                      disabled={loading || saving || isViewMode}
-                    />
-                  </Field>
-                </div>
-              </Section>
-
-              <Section icon={MapPin} title="Endereço">
-                <EnderecoFields
-                  data={endereco}
-                  set={setEnd}
-                  disabled={loading || saving || isViewMode}
-                  onCepResolved={buscarEnderecoPorCep}
-                  cepLoading={cepLoading}
-                />
-              </Section>
-
-              <Section icon={User} title="Dados do Representante">
-                <PessoaFisicaFields
-                  data={representante}
-                  set={setRep}
-                  prefix="rep"
-                  disabled={loading || saving || isViewMode}
-                />
-              </Section>
-            </>
-          )}
-
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/agentes")}
-              disabled={loading || saving}
-            >
-              {isViewMode ? "Voltar" : "Cancelar"}
-            </Button>
-
-            {!isViewMode && (
+          {!visualizando && (
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
               <Button
-                type="submit"
-                className="sm:min-w-32"
-                disabled={loading || saving}
+                type="button"
+                variant="outline"
+                onClick={() => navigate("/acoes-divulgacao")}
+                disabled={saving}
               >
+                Cancelar
+              </Button>
+
+              <Button type="submit" className="sm:min-w-32" disabled={saving}>
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {visualizando && (
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate("/acoes-divulgacao")}
+              >
+                Voltar
+              </Button>
+
+              {id && (
+                <Button
+                  type="button"
+                  onClick={() => navigate(`/acoes-divulgacao/${id}/editar`)}
+                >
+                  Editar
+                </Button>
+              )}
+            </div>
+          )}
         </form>
       </div>
+
+      <WikiFloatingButton
+        pageTitle="Cadastro de Ação de Divulgação"
+        sections={[
+          {
+            title: "Como preencher?",
+            content:
+              "O formulário está dividido em dados principais, objetivo e acessibilidade, produtos e período, estratégia de divulgação e vínculos. Preencha de cima para baixo.",
+          },
+          {
+            title: "Realização da ação",
+            content:
+              "Explique como a ação será executada na prática, incluindo etapas, canais utilizados, responsáveis e dinâmica de divulgação.",
+          },
+          {
+            title: "Produtos gerados",
+            content:
+              "Informe os materiais ou registros produzidos pela ação, como cards, vídeos, publicações, cartazes, releases, fotografias ou relatórios.",
+          },
+          {
+            title: "Estratégias de divulgação",
+            content:
+              "Selecione os meios utilizados para divulgar a ação. Essas informações ajudam a comprovar o planejamento de comunicação do projeto.",
+          },
+          {
+            title: "Vínculos",
+            content:
+              "Vincule a ação a um projeto e informe os colaboradores responsáveis. Esses vínculos são importantes para relatórios e prestação de contas.",
+          },
+        ]}
+      />
     </AppLayout>
-  );
-}
-
-function PessoaFisicaFields({
-  data,
-  set,
-  prefix = "",
-  disabled = false,
-}: {
-  data: PessoaFisicaForm;
-  set: <K extends keyof PessoaFisicaForm>(k: K, v: PessoaFisicaForm[K]) => void;
-  prefix?: string;
-  disabled?: boolean;
-}) {
-  const id = (s: string) => (prefix ? `${prefix}-${s}` : s);
-
-  return (
-    <div className="grid sm:grid-cols-2 gap-4">
-      <Field>
-        <FieldLabel htmlFor={id("nomeCompleto")} required>
-          Nome Completo
-        </FieldLabel>
-
-        <Input
-          id={id("nomeCompleto")}
-          value={data.nomeCompleto}
-          onChange={(e) => set("nomeCompleto", e.target.value)}
-          disabled={disabled}
-        />
-      </Field>
-
-      <Field>
-        <FieldLabel htmlFor={id("dataNascimento")} required>
-          Data de Nascimento
-        </FieldLabel>
-
-        <Input
-          id={id("dataNascimento")}
-          value={data.dataNascimento}
-          onChange={(e) =>
-            set("dataNascimento", inputMasks.date(e.target.value))
-          }
-          inputMode="numeric"
-          disabled={disabled}
-        />
-      </Field>
-
-      <Field>
-        <FieldLabel htmlFor={id("cpf")} required>
-          CPF
-        </FieldLabel>
-
-        <Input
-          id={id("cpf")}
-          value={data.cpf}
-          onChange={(e) => set("cpf", inputMasks.cpf(e.target.value))}
-          inputMode="numeric"
-          disabled={disabled}
-        />
-      </Field>
-
-      <Field>
-        <FieldLabel htmlFor={id("rg")}>RG</FieldLabel>
-
-        <Input
-          id={id("rg")}
-          value={data.rg}
-          onChange={(e) => set("rg", maskRGFlex(e.target.value))}
-          disabled={disabled}
-        />
-      </Field>
-
-      <Field>
-        <FieldLabel htmlFor={id("telefone")} required>
-          Telefone
-        </FieldLabel>
-
-        <Input
-          id={id("telefone")}
-          value={data.telefone}
-          onChange={(e) => set("telefone", inputMasks.phone(e.target.value))}
-          inputMode="tel"
-          disabled={disabled}
-        />
-      </Field>
-
-      <Field>
-        <FieldLabel htmlFor={id("email")}>E-mail</FieldLabel>
-
-        <EmailInput
-          id={id("email")}
-          value={data.email}
-          onChange={(e) => set("email", e.target.value)}
-          disabled={disabled}
-        />
-      </Field>
-    </div>
-  );
-}
-
-function EnderecoFields({
-  data,
-  set,
-  disabled = false,
-  onCepResolved,
-  cepLoading = false,
-}: {
-  data: EnderecoForm;
-  set: <K extends keyof EnderecoForm>(k: K, v: EnderecoForm[K]) => void;
-  disabled?: boolean;
-  onCepResolved: (cep: string) => Promise<void>;
-  cepLoading?: boolean;
-}) {
-  const handleCepChange = async (value: string) => {
-    const cepFormatado = inputMasks.cep(value);
-    set("cep", cepFormatado);
-
-    const cepLimpo = cepFormatado.replace(/\D/g, "");
-    if (cepLimpo.length === 8) {
-      await onCepResolved(cepFormatado);
-    }
-  };
-
-  return (
-    <div className="grid sm:grid-cols-6 gap-4">
-      <Field className="sm:col-span-2">
-        <FieldLabel htmlFor="cep" required>
-          CEP
-        </FieldLabel>
-
-        <Input
-          id="cep"
-          value={data.cep}
-          onChange={(e) => {
-            void handleCepChange(e.target.value);
-          }}
-          inputMode="numeric"
-          disabled={disabled}
-        />
-
-        {cepLoading && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Buscando endereço...
-          </p>
-        )}
-      </Field>
-
-      <Field className="sm:col-span-4">
-        <FieldLabel htmlFor="logradouro" required>
-          Logradouro
-        </FieldLabel>
-
-        <Input
-          id="logradouro"
-          value={data.logradouro}
-          onChange={(e) => set("logradouro", e.target.value)}
-          disabled={disabled}
-        />
-      </Field>
-
-      <Field className="sm:col-span-2">
-        <FieldLabel htmlFor="numero" required>
-          Número
-        </FieldLabel>
-
-        <Input
-          id="numero"
-          value={data.numero}
-          onChange={(e) => set("numero", e.target.value.replace(/\D/g, ""))}
-          inputMode="numeric"
-          disabled={disabled}
-        />
-      </Field>
-
-      <Field className="sm:col-span-4">
-        <FieldLabel htmlFor="complemento">Complemento</FieldLabel>
-
-        <Input
-          id="complemento"
-          value={data.complemento}
-          onChange={(e) => set("complemento", e.target.value)}
-          disabled={disabled}
-        />
-      </Field>
-
-      <Field className="sm:col-span-2">
-        <FieldLabel htmlFor="bairro" required>
-          Bairro
-        </FieldLabel>
-
-        <Input
-          id="bairro"
-          value={data.bairro}
-          onChange={(e) => set("bairro", e.target.value)}
-          disabled={disabled}
-        />
-      </Field>
-
-      <Field className="sm:col-span-2">
-        <FieldLabel htmlFor="cidade" required>
-          Cidade
-        </FieldLabel>
-
-        <Input
-          id="cidade"
-          value={data.cidade}
-          onChange={(e) => set("cidade", e.target.value)}
-          disabled={disabled}
-        />
-      </Field>
-
-      <Field className="sm:col-span-2">
-        <FieldLabel htmlFor="estado" required>
-          Estado
-        </FieldLabel>
-
-        <Select
-          value={data.estado}
-          onValueChange={(v) => set("estado", v)}
-          disabled={disabled}
-        >
-          <SelectTrigger id="estado">
-            <SelectValue placeholder="Selecione" />
-          </SelectTrigger>
-
-          <SelectContent className="max-h-72">
-            {estadosBrasil.map((e) => (
-              <SelectItem key={e} value={e}>
-                {e}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-    </div>
   );
 }
 
@@ -1136,7 +730,6 @@ function Section({
     <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
       <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
         <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
         <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
           {title}
         </h2>

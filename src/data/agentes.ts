@@ -95,8 +95,7 @@ export const tipoAgenteLabels: Record<TipoAgente, string> = {
 export const tipoAgenteDescricoes: Record<TipoAgente, string> = {
   PESSOA_FISICA:
     "Pessoa que atua individualmente na cultura, sem CNPJ, como artista, produtor, educador, oficineiro ou profissional cultural.",
-  MEI:
-    "Microempreendedor Individual com CNPJ próprio, utilizado para formalizar atividades culturais de forma simplificada.",
+  MEI: "Microempreendedor Individual com CNPJ próprio, utilizado para formalizar atividades culturais de forma simplificada.",
   PESSOA_JURIDICA_COM_FINS_LUCRATIVOS:
     "Empresa com CNPJ e finalidade lucrativa, como produtora, agência cultural, escola livre, prestadora de serviço ou negócio criativo.",
   PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS:
@@ -291,9 +290,7 @@ export async function getAgenteDetalhadoById(
   return mapAgenteDetalhado(data);
 }
 
-export async function createAgente(
-  payload: AgenteRequestDTO,
-): Promise<Agente> {
+export async function createAgente(payload: AgenteRequestDTO): Promise<Agente> {
   const response = await fetch(`${API_URL}/agentes`, {
     method: "POST",
     headers: getJsonHeaders(),

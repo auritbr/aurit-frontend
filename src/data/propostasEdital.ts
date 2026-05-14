@@ -172,6 +172,12 @@ function normalizeId(value: unknown): string {
     if (record.id !== null && record.id !== undefined) {
       return String(record.id);
     }
+
+    if (record.value !== null && record.value !== undefined) {
+      return String(record.value);
+    }
+
+    return "";
   }
 
   return String(value);
@@ -234,11 +240,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -300,9 +302,7 @@ export function mapProposta(dto: PropostaEditalDTO): PropostaEdital {
   };
 }
 
-export function buildPropostaPayload(
-  item: PropostaEdital,
-): PropostaEditalDTO {
+export function buildPropostaPayload(item: PropostaEdital): PropostaEditalDTO {
   return {
     id: item.id ? Number(item.id) : undefined,
     tituloProjeto: item.tituloProjeto.trim(),
@@ -464,8 +464,7 @@ export async function getProjetosOptions(): Promise<SimpleOption[]> {
       return {
         id,
         nome:
-          pickText(item.nomeProjeto, item.nome, item.titulo) ||
-          `Projeto ${id}`,
+          pickText(item.nomeProjeto, item.nome, item.titulo) || `Projeto ${id}`,
       };
     })
     .filter((item) => item.id);
@@ -490,8 +489,12 @@ export async function getEditaisOptions(): Promise<SimpleOption[]> {
       return {
         id,
         nome:
-          pickText(item.nomeEdital, item.tituloEdital, item.nome, item.titulo) ||
-          `Edital ${id}`,
+          pickText(
+            item.nomeEdital,
+            item.tituloEdital,
+            item.nome,
+            item.titulo,
+          ) || `Edital ${id}`,
       };
     })
     .filter((item) => item.id);
@@ -527,7 +530,9 @@ export async function getOrganizacoesOptions(): Promise<SimpleOption[]> {
     .filter((item) => item.id);
 }
 
-export async function getEquipesEditaisOptions(): Promise<EquipeEditalOption[]> {
+export async function getEquipesEditaisOptions(): Promise<
+  EquipeEditalOption[]
+> {
   const response = await fetch(`${API_URL}/equipes-editais`, {
     method: "GET",
     headers: getJsonHeaders(),

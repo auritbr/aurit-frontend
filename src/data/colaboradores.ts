@@ -108,8 +108,11 @@ export interface ColaboradorDTO {
   cargaHorariaSemanal?: number | null;
   descricaoAtuacao?: string | null;
 
-  organizacaoId?: number | null;
-  projetosIds?: number[] | null;
+  organizacaoId?: number | string | null;
+  organizacao?: { id?: number | string | null } | number | string | null;
+  projetosIds?: Array<number | string> | null;
+  projetoIds?: Array<number | string> | null;
+  projetos?: Array<{ id?: number | string | null } | number | string> | null;
 }
 
 export interface Colaborador {
@@ -165,12 +168,32 @@ function pickText(...values: Array<unknown>) {
   return "";
 }
 
-function toIdString(value?: number | string | null) {
+function toIdString(value?: unknown) {
   if (value === null || value === undefined || value === "") {
     return "";
   }
 
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+
+    if (record.id !== null && record.id !== undefined) {
+      return String(record.id);
+    }
+
+    if (record.value !== null && record.value !== undefined) {
+      return String(record.value);
+    }
+
+    return "";
+  }
+
   return String(value);
+}
+
+function normalizeIdsList(value?: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.map(toIdString).filter(Boolean);
 }
 
 export type StatusLabel = "Ativo" | "Inativo" | "Pendente" | "Concluído";
@@ -242,8 +265,10 @@ export function mapColaborador(dto: ColaboradorDTO): Colaborador {
       dto.cargaHorariaSemanal != null ? String(dto.cargaHorariaSemanal) : "",
     descricaoAtuacao: dto.descricaoAtuacao ?? "",
 
-    organizacaoId: toIdString(dto.organizacaoId),
-    projetosIds: (dto.projetosIds ?? []).map(String),
+    organizacaoId: toIdString(dto.organizacaoId ?? dto.organizacao),
+    projetosIds: normalizeIdsList(
+      dto.projetosIds ?? dto.projetoIds ?? dto.projetos ?? [],
+    ),
   };
 }
 
@@ -276,9 +301,11 @@ export function buildColaboradorPayload(form: Colaborador): ColaboradorDTO {
       : null,
     descricaoAtuacao: form.descricaoAtuacao.trim(),
 
-    organizacaoId: null,
+    organizacaoId: form.organizacaoId ? Number(form.organizacaoId) : null,
     projetosIds: (form.projetosIds ?? [])
-      .filter((id) => id !== null && id !== undefined && String(id).trim() !== "")
+      .filter(
+        (id) => id !== null && id !== undefined && String(id).trim() !== "",
+      )
       .map(Number),
   };
 }
