@@ -110,37 +110,69 @@ const initial: FormState = {
   observacoes: "",
 };
 
+function normalizeId(value: unknown): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  return String(value).trim();
+}
+
 function mapToForm(resultado: ResultadoProposta): FormState {
   return {
-    id: resultado.id,
+    id: normalizeId(resultado.id),
 
-    propostaEdital: resultado.propostaEdital,
-    nomePropostaEdital: resultado.nomePropostaEdital,
+    propostaEdital: normalizeId(resultado.propostaEdital),
+    nomePropostaEdital: resultado.nomePropostaEdital ?? "",
 
-    edital: resultado.edital,
-    nomeEdital: resultado.nomeEdital,
+    edital: normalizeId(resultado.edital),
+    nomeEdital: resultado.nomeEdital ?? "",
 
-    statusResultadoProposta: resultado.statusResultadoProposta,
+    statusResultadoProposta: resultado.statusResultadoProposta ?? "",
 
-    dataResultado: resultado.dataResultado,
+    dataResultado: resultado.dataResultado ?? "",
     pontuacao:
       resultado.pontuacao === null || resultado.pontuacao === undefined
         ? ""
         : String(resultado.pontuacao),
 
-    urlRelatorioAvaliacao: resultado.urlRelatorioAvaliacao,
-    nomeRelatorioAvaliacao: resultado.nomeRelatorioAvaliacao,
+    urlRelatorioAvaliacao: resultado.urlRelatorioAvaliacao ?? "",
+    nomeRelatorioAvaliacao: resultado.nomeRelatorioAvaliacao ?? "",
 
-    recursoInterposto: resultado.recursoInterposto,
+    recursoInterposto: !!resultado.recursoInterposto,
 
-    dataEnvioRecurso: resultado.dataEnvioRecurso,
-    descricaoRecurso: resultado.descricaoRecurso,
+    dataEnvioRecurso: resultado.dataEnvioRecurso ?? "",
+    descricaoRecurso: resultado.descricaoRecurso ?? "",
 
-    urlDocumentoRecurso: resultado.urlDocumentoRecurso,
-    nomeDocumentoRecurso: resultado.nomeDocumentoRecurso,
+    urlDocumentoRecurso: resultado.urlDocumentoRecurso ?? "",
+    nomeDocumentoRecurso: resultado.nomeDocumentoRecurso ?? "",
 
-    observacoes: resultado.observacoes,
+    observacoes: resultado.observacoes ?? "",
   };
+}
+
+function getPropostaNome(
+  propostas: PropostaEditalOption[],
+  propostaId: string,
+  resultado?: ResultadoProposta | null,
+) {
+  return (
+    propostas.find((proposta) => normalizeId(proposta.id) === propostaId)
+      ?.nome ||
+    resultado?.nomePropostaEdital?.trim() ||
+    `Proposta #${propostaId}`
+  );
+}
+
+function getEditalNome(
+  proposta?: PropostaEditalOption | null,
+  resultado?: ResultadoProposta | null,
+) {
+  return (
+    proposta?.nomeEdital?.trim() ||
+    resultado?.nomeEdital?.trim() ||
+    "—"
+  );
 }
 
 export default function ResultadoPropostaForm() {
@@ -153,6 +185,8 @@ export default function ResultadoPropostaForm() {
   const criando = !id;
 
   const [form, setForm] = useState<FormState>(initial);
+  const [existingResultado, setExistingResultado] =
+    useState<ResultadoProposta | null>(null);
   const [novoRelatorio, setNovoRelatorio] = useState<File | null>(null);
   const [novoDocRecurso, setNovoDocRecurso] = useState<File | null>(null);
 
@@ -181,6 +215,9 @@ export default function ResultadoPropostaForm() {
     saving ||
     (!criando && !podeEditar) ||
     (criando && !podeCriar);
+
+  const propostaSelectValue =
+    form.propostaEdital || normalizeId(existingResultado?.propostaEdital);
 
   useEffect(() => {
     let active = true;
@@ -240,8 +277,29 @@ export default function ResultadoPropostaForm() {
         setResultados(resultadosData);
 
         if (resultado) {
-          setForm(mapToForm(resultado));
+          const propostaId = normalizeId(resultado.propostaEdital);
+
+          const propostaSelecionada = propostasData.find(
+            (proposta) => normalizeId(proposta.id) === propostaId,
+          );
+
+          const resultadoNormalizado: ResultadoProposta = {
+            ...resultado,
+            propostaEdital: propostaId,
+            nomePropostaEdital:
+              resultado.nomePropostaEdital ||
+              propostaSelecionada?.nome ||
+              (propostaId ? `Proposta #${propostaId}` : ""),
+            nomeEdital:
+              resultado.nomeEdital ||
+              propostaSelecionada?.nomeEdital ||
+              "",
+          };
+
+          setExistingResultado(resultadoNormalizado);
+          setForm(mapToForm(resultadoNormalizado));
         } else {
+          setExistingResultado(null);
           setForm(initial);
         }
       } catch (error) {
@@ -275,26 +333,57 @@ export default function ResultadoPropostaForm() {
   const propostasDisponiveis = useMemo(() => {
     const ocupadas = new Set(
       resultados
-        .filter((resultado) => (id ? resultado.id !== id : true))
-        .map((resultado) => resultado.propostaEdital),
+        .filter((resultado) =>
+          id ? normalizeId(resultado.id) !== normalizeId(id) : true,
+        )
+        .map((resultado) => normalizeId(resultado.propostaEdital)),
     );
 
     return propostas.filter(
       (proposta) =>
-        !ocupadas.has(proposta.id) || proposta.id === form.propostaEdital,
+        !ocupadas.has(normalizeId(proposta.id)) ||
+        normalizeId(proposta.id) === propostaSelectValue,
     );
-  }, [id, resultados, propostas, form.propostaEdital]);
+  }, [id, resultados, propostas, propostaSelectValue]);
+
+  const propostasComFallback = useMemo(() => {
+    const options = [...propostasDisponiveis];
+
+    const propostaId = propostaSelectValue;
+
+    if (
+      propostaId &&
+      !options.some((proposta) => normalizeId(proposta.id) === propostaId)
+    ) {
+      options.unshift({
+        id: propostaId,
+        nome: getPropostaNome(propostas, propostaId, existingResultado),
+        nomeEdital:
+          existingResultado?.nomeEdital ||
+          form.nomeEdital ||
+          "Edital vinculado",
+      } as PropostaEditalOption);
+    }
+
+    return options;
+  }, [
+    propostasDisponiveis,
+    propostas,
+    propostaSelectValue,
+    existingResultado,
+    form.nomeEdital,
+  ]);
 
   const propostaSelecionada = useMemo(
     () =>
-      propostas.find(
-        (proposta) => String(proposta.id) === String(form.propostaEdital),
+      propostasComFallback.find(
+        (proposta) => normalizeId(proposta.id) === propostaSelectValue,
       ),
-    [propostas, form.propostaEdital],
+    [propostasComFallback, propostaSelectValue],
   );
 
   const editalRelacionado =
-    form.nomeEdital || propostaSelecionada?.nomeEdital || "—";
+    form.nomeEdital || getEditalNome(propostaSelecionada, existingResultado);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({
@@ -302,6 +391,44 @@ export default function ResultadoPropostaForm() {
       [key]: value,
     }));
   };
+
+  function handlePropostaChange(value: string) {
+    const propostaSelecionada = propostasComFallback.find(
+      (proposta) => normalizeId(proposta.id) === normalizeId(value),
+    );
+
+    setForm((prev) => ({
+      ...prev,
+      propostaEdital: normalizeId(value),
+      nomePropostaEdital:
+        propostaSelecionada?.nome ||
+        prev.nomePropostaEdital ||
+        existingResultado?.nomePropostaEdital ||
+        "",
+      nomeEdital:
+        propostaSelecionada?.nomeEdital ||
+        prev.nomeEdital ||
+        existingResultado?.nomeEdital ||
+        "",
+    }));
+  }
+
+  function getFormComProposta(): FormState {
+    return {
+      ...form,
+      propostaEdital: propostaSelectValue,
+      nomePropostaEdital:
+        form.nomePropostaEdital ||
+        propostaSelecionada?.nome ||
+        existingResultado?.nomePropostaEdital ||
+        "",
+      nomeEdital:
+        form.nomeEdital ||
+        propostaSelecionada?.nomeEdital ||
+        existingResultado?.nomeEdital ||
+        "",
+    };
+  }
 
   async function abrirRelatorioAvaliacao() {
     const resultadoId = Number(form.id || id);
@@ -358,17 +485,19 @@ export default function ResultadoPropostaForm() {
       return;
     }
 
-    if (!form.propostaEdital) {
+    const formComProposta = getFormComProposta();
+
+    if (!formComProposta.propostaEdital) {
       toast.error("Selecione a proposta do edital.");
       return;
     }
 
-    if (!form.statusResultadoProposta) {
+    if (!formComProposta.statusResultadoProposta) {
       toast.error("Selecione o status do resultado.");
       return;
     }
 
-    const pontuacao = parsePontuacao(form.pontuacao);
+    const pontuacao = parsePontuacao(formComProposta.pontuacao);
 
     if (pontuacao === null) {
       toast.error("Informe a pontuação.");
@@ -385,18 +514,22 @@ export default function ResultadoPropostaForm() {
       return;
     }
 
-    if (editando && !novoRelatorio && !form.urlRelatorioAvaliacao) {
+    if (
+      editando &&
+      !novoRelatorio &&
+      !formComProposta.urlRelatorioAvaliacao
+    ) {
       toast.error("Anexe o relatório de avaliação.");
       return;
     }
 
-    if (form.recursoInterposto) {
-      if (!form.dataEnvioRecurso) {
+    if (formComProposta.recursoInterposto) {
+      if (!formComProposta.dataEnvioRecurso) {
         toast.error("Informe a data de envio do recurso.");
         return;
       }
 
-      if (!form.descricaoRecurso.trim()) {
+      if (!formComProposta.descricaoRecurso.trim()) {
         toast.error("Descreva o recurso interposto.");
         return;
       }
@@ -406,7 +539,11 @@ export default function ResultadoPropostaForm() {
         return;
       }
 
-      if (editando && !novoDocRecurso && !form.urlDocumentoRecurso) {
+      if (
+        editando &&
+        !novoDocRecurso &&
+        !formComProposta.urlDocumentoRecurso
+      ) {
         toast.error("Anexe o documento do recurso.");
         return;
       }
@@ -416,37 +553,41 @@ export default function ResultadoPropostaForm() {
       setSaving(true);
 
       const resultado: ResultadoProposta = {
-        id: form.id || id || "",
+        id: formComProposta.id || id || "",
 
-        propostaEdital: form.propostaEdital,
-        nomePropostaEdital: form.nomePropostaEdital,
+        propostaEdital: formComProposta.propostaEdital,
+        nomePropostaEdital: formComProposta.nomePropostaEdital,
 
-        edital: form.edital,
-        nomeEdital: form.nomeEdital,
+        edital: formComProposta.edital,
+        nomeEdital: formComProposta.nomeEdital,
 
-        dataResultado: form.dataResultado,
+        dataResultado: formComProposta.dataResultado,
 
         pontuacao,
 
-        urlRelatorioAvaliacao: form.urlRelatorioAvaliacao,
-        nomeRelatorioAvaliacao: form.nomeRelatorioAvaliacao,
+        urlRelatorioAvaliacao: formComProposta.urlRelatorioAvaliacao,
+        nomeRelatorioAvaliacao: formComProposta.nomeRelatorioAvaliacao,
 
-        recursoInterposto: form.recursoInterposto,
+        recursoInterposto: formComProposta.recursoInterposto,
 
-        dataEnvioRecurso: form.recursoInterposto ? form.dataEnvioRecurso : "",
-        descricaoRecurso: form.recursoInterposto ? form.descricaoRecurso : "",
-
-        urlDocumentoRecurso: form.recursoInterposto
-          ? form.urlDocumentoRecurso
+        dataEnvioRecurso: formComProposta.recursoInterposto
+          ? formComProposta.dataEnvioRecurso
           : "",
-        nomeDocumentoRecurso: form.recursoInterposto
-          ? form.nomeDocumentoRecurso
+        descricaoRecurso: formComProposta.recursoInterposto
+          ? formComProposta.descricaoRecurso
           : "",
 
-        observacoes: form.observacoes,
+        urlDocumentoRecurso: formComProposta.recursoInterposto
+          ? formComProposta.urlDocumentoRecurso
+          : "",
+        nomeDocumentoRecurso: formComProposta.recursoInterposto
+          ? formComProposta.nomeDocumentoRecurso
+          : "",
+
+        observacoes: formComProposta.observacoes,
 
         statusResultadoProposta:
-          form.statusResultadoProposta as StatusResultadoProposta,
+          formComProposta.statusResultadoProposta as StatusResultadoProposta,
       };
 
       const payload = buildResultadoPropostaPayload(resultado);
@@ -463,7 +604,7 @@ export default function ResultadoPropostaForm() {
           "Resultado da Proposta atualizado com sucesso.",
           navigate,
           "/resultados-propostas",
-          form.statusResultadoProposta === "APROVADO"
+          formComProposta.statusResultadoProposta === "APROVADO"
             ? {
                 label: "Cadastrar habilitação",
                 to: "/habilitacoes-propostas/novo",
@@ -477,7 +618,7 @@ export default function ResultadoPropostaForm() {
           "Resultado da Proposta cadastrado com sucesso.",
           navigate,
           "/resultados-propostas",
-          form.statusResultadoProposta === "APROVADO"
+          formComProposta.statusResultadoProposta === "APROVADO"
             ? {
                 label: "Cadastrar habilitação",
                 to: "/habilitacoes-propostas/novo",
@@ -502,11 +643,7 @@ export default function ResultadoPropostaForm() {
     }
   };
 
-  const titulo = criando
-    ? "Resultado da Proposta"
-    : editando
-      ? "Resultado da Proposta"
-      : "Resultado da Proposta";
+  const titulo = "Resultado da Proposta";
 
   if (!podeVisualizar) {
     return (
@@ -581,8 +718,8 @@ export default function ResultadoPropostaForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.propostaEdital}
-                  onValueChange={(value) => set("propostaEdital", value)}
+                  value={propostaSelectValue}
+                  onValueChange={handlePropostaChange}
                   disabled={bloqueado}
                 >
                   <SelectTrigger id="propostaEdital">
@@ -590,23 +727,16 @@ export default function ResultadoPropostaForm() {
                   </SelectTrigger>
 
                   <SelectContent>
-                    {!!form.propostaEdital &&
-                      !propostasDisponiveis.some(
-                        (p) => p.id === form.propostaEdital,
-                      ) && (
-                        <SelectItem value={form.propostaEdital}>
-                          {form.nomePropostaEdital ||
-                            `Proposta #${form.propostaEdital}`}
-                        </SelectItem>
-                      )}
-
-                    {propostasDisponiveis.length === 0 ? (
+                    {propostasComFallback.length === 0 ? (
                       <SelectItem value="__none" disabled>
                         Nenhuma proposta disponível
                       </SelectItem>
                     ) : (
-                      propostasDisponiveis.map((proposta) => (
-                        <SelectItem key={proposta.id} value={proposta.id}>
+                      propostasComFallback.map((proposta) => (
+                        <SelectItem
+                          key={normalizeId(proposta.id)}
+                          value={normalizeId(proposta.id)}
+                        >
                           {proposta.nome}
                         </SelectItem>
                       ))
@@ -614,7 +744,7 @@ export default function ResultadoPropostaForm() {
                   </SelectContent>
                 </Select>
 
-                {form.propostaEdital && (
+                {propostaSelectValue && (
                   <p className="mt-1.5 text-[11px] text-muted-foreground">
                     Edital relacionado:{" "}
                     <span className="text-foreground">{editalRelacionado}</span>

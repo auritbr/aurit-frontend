@@ -99,6 +99,42 @@ const initial: FormState = {
   miniBiografia: "",
 };
 
+function normalizeId(value: unknown): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  return String(value).trim();
+}
+
+function getPropostaNome(
+  propostas: PropostaEditalOption[],
+  propostaId: string,
+) {
+  return (
+    propostas.find((proposta) => normalizeId(proposta.id) === propostaId)
+      ?.nome || `Proposta ${propostaId}`
+  );
+}
+
+function getAgenteNome(agentes: AgenteOption[], agenteId: string) {
+  return (
+    agentes.find((agente) => normalizeId(agente.id) === agenteId)?.nome ||
+    `Agente ${agenteId}`
+  );
+}
+
+function getPessoaNome(
+  pessoas: PessoaOption[],
+  pessoaId: string,
+  fallback: string,
+) {
+  return (
+    pessoas.find((pessoa) => normalizeId(pessoa.id) === pessoaId)?.nome ||
+    `${fallback} ${pessoaId}`
+  );
+}
+
 export default function EquipeEditalForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -108,6 +144,9 @@ export default function EquipeEditalForm() {
   const editando = !!id && location.pathname.endsWith("/editar");
 
   const [form, setForm] = useState<FormState>(initial);
+  const [existingEquipe, setExistingEquipe] = useState<EquipeEdital | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -120,6 +159,90 @@ export default function EquipeEditalForm() {
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((p) => ({ ...p, [k]: v }));
+
+  const propostaSelectValue =
+    form.propostaEdital || normalizeId(existingEquipe?.propostaEdital);
+
+  const agenteSelectValue =
+    form.agente || normalizeId(existingEquipe?.agente);
+
+  const colaboradorSelectValue =
+    form.colaborador || normalizeId(existingEquipe?.colaborador);
+
+  const integranteSelectValue =
+    form.integrante || normalizeId(existingEquipe?.integrante);
+
+  const propostasComFallback = useMemo(() => {
+    const options = [...propostas];
+    const propostaId = propostaSelectValue;
+
+    if (
+      propostaId &&
+      !options.some((proposta) => normalizeId(proposta.id) === propostaId)
+    ) {
+      options.unshift({
+        id: propostaId,
+        nome: getPropostaNome(propostas, propostaId),
+      });
+    }
+
+    return options;
+  }, [propostas, propostaSelectValue]);
+
+  const agentesComFallback = useMemo(() => {
+    const options = [...agentes];
+    const agenteId = agenteSelectValue;
+
+    if (
+      agenteId &&
+      !options.some((agente) => normalizeId(agente.id) === agenteId)
+    ) {
+      options.unshift({
+        id: agenteId,
+        nome: getAgenteNome(agentes, agenteId),
+      });
+    }
+
+    return options;
+  }, [agentes, agenteSelectValue]);
+
+  const colaboradoresComFallback = useMemo(() => {
+    const options = [...colaboradores];
+    const colaboradorId = colaboradorSelectValue;
+
+    if (
+      colaboradorId &&
+      !options.some(
+        (colaborador) => normalizeId(colaborador.id) === colaboradorId,
+      )
+    ) {
+      options.unshift({
+        id: colaboradorId,
+        nome: getPessoaNome(colaboradores, colaboradorId, "Colaborador"),
+      });
+    }
+
+    return options;
+  }, [colaboradores, colaboradorSelectValue]);
+
+  const integrantesComFallback = useMemo(() => {
+    const options = [...integrantes];
+    const integranteId = integranteSelectValue;
+
+    if (
+      integranteId &&
+      !options.some(
+        (integrante) => normalizeId(integrante.id) === integranteId,
+      )
+    ) {
+      options.unshift({
+        id: integranteId,
+        nome: getPessoaNome(integrantes, integranteId, "Integrante"),
+      });
+    }
+
+    return options;
+  }, [integrantes, integranteSelectValue]);
 
   useEffect(() => {
     let active = true;
@@ -150,12 +273,27 @@ export default function EquipeEditalForm() {
         setIntegrantes(integrantesData);
 
         if (registro) {
+          const propostaEdital = normalizeId(registro.propostaEdital);
+          const agente = normalizeId(registro.agente);
+          const colaborador = normalizeId(registro.colaborador);
+          const integrante = normalizeId(registro.integrante);
+
+          const registroNormalizado: EquipeEdital = {
+            ...registro,
+            propostaEdital,
+            agente,
+            colaborador: colaborador || undefined,
+            integrante: integrante || undefined,
+          };
+
+          setExistingEquipe(registroNormalizado);
+
           setForm({
-            propostaEdital: registro.propostaEdital ?? "",
-            agente: registro.agente ?? "",
+            propostaEdital,
+            agente,
             tipoPessoa: registro.tipoPessoa ?? "",
-            colaborador: registro.colaborador ?? "",
-            integrante: registro.integrante ?? "",
+            colaborador,
+            integrante,
             funcaoProjeto: registro.funcaoProjeto ?? "",
             cargaHorariaPrevista:
               registro.cargaHorariaPrevista != null
@@ -169,6 +307,7 @@ export default function EquipeEditalForm() {
             miniBiografia: registro.miniBiografia ?? "",
           });
         } else {
+          setExistingEquipe(null);
           setForm(initial);
         }
       } catch (error) {
@@ -188,103 +327,97 @@ export default function EquipeEditalForm() {
     };
   }, [id, navigate]);
 
-  const propostaSelecionadaExiste = useMemo(
-    () =>
-      !form.propostaEdital ||
-      propostas.some((p) => p.id === form.propostaEdital),
-    [propostas, form.propostaEdital],
-  );
-
-  const agenteSelecionadoExiste = useMemo(
-    () => !form.agente || agentes.some((a) => a.id === form.agente),
-    [agentes, form.agente],
-  );
-
-  const colaboradorSelecionadoExiste = useMemo(
-    () =>
-      !form.colaborador ||
-      colaboradores.some((c) => c.id === form.colaborador),
-    [colaboradores, form.colaborador],
-  );
-
-  const integranteSelecionadoExiste = useMemo(
-    () =>
-      !form.integrante ||
-      integrantes.some((i) => i.id === form.integrante),
-    [integrantes, form.integrante],
-  );
-
   const setTipoPessoa = (t: TipoPessoaEquipe) => {
     if (visualizando) return;
 
     setForm((p) => ({
       ...p,
       tipoPessoa: t,
-      colaborador: t === "COLABORADOR" ? p.colaborador : "",
-      integrante: t === "INTEGRANTE" ? p.integrante : "",
+      colaborador: t === "COLABORADOR" ? colaboradorSelectValue : "",
+      integrante: t === "INTEGRANTE" ? integranteSelectValue : "",
     }));
   };
+
+  function getFormComVinculos(): FormState {
+    return {
+      ...form,
+      propostaEdital: propostaSelectValue,
+      agente: agenteSelectValue,
+      colaborador:
+        form.tipoPessoa === "COLABORADOR" ? colaboradorSelectValue : "",
+      integrante:
+        form.tipoPessoa === "INTEGRANTE" ? integranteSelectValue : "",
+    };
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (visualizando) return;
 
-    if (!form.propostaEdital) {
+    const formComVinculos = getFormComVinculos();
+
+    if (!formComVinculos.propostaEdital) {
       toast.error("Selecione a proposta de edital.");
       return;
     }
 
-    if (!form.agente) {
+    if (!formComVinculos.agente) {
       toast.error("Selecione o agente responsável.");
       return;
     }
 
-    if (!form.tipoPessoa) {
+    if (!formComVinculos.tipoPessoa) {
       toast.error("Selecione o tipo de pessoa: colaborador ou integrante.");
       return;
     }
 
-    if (form.tipoPessoa === "COLABORADOR" && !form.colaborador) {
+    if (
+      formComVinculos.tipoPessoa === "COLABORADOR" &&
+      !formComVinculos.colaborador
+    ) {
       toast.error("Selecione o colaborador.");
       return;
     }
 
-    if (form.tipoPessoa === "INTEGRANTE" && !form.integrante) {
+    if (
+      formComVinculos.tipoPessoa === "INTEGRANTE" &&
+      !formComVinculos.integrante
+    ) {
       toast.error("Selecione o integrante.");
       return;
     }
 
-    if (!form.funcaoProjeto.trim()) {
+    if (!formComVinculos.funcaoProjeto.trim()) {
       toast.error("Informe a função no projeto.");
       return;
     }
 
-    const carga = Number(form.cargaHorariaPrevista);
+    const carga = Number(formComVinculos.cargaHorariaPrevista);
 
     if (!Number.isFinite(carga) || carga <= 0) {
       toast.error("Informe uma carga horária prevista maior que zero.");
       return;
     }
 
-    if (!form.valorPrevisto.trim()) {
+    if (!formComVinculos.valorPrevisto.trim()) {
       toast.error("Informe o valor previsto.");
       return;
     }
 
-    const valor = parseBRL(form.valorPrevisto);
+    const valor = parseBRL(formComVinculos.valorPrevisto);
 
     if (!Number.isFinite(valor) || valor < 0) {
       toast.error("Informe um valor previsto válido e não negativo.");
       return;
     }
 
-    if (!form.justificativaFuncao.trim()) {
+    if (!formComVinculos.justificativaFuncao.trim()) {
       toast.error("Informe a justificativa da função.");
       return;
     }
 
-    if (!form.miniBiografia.trim()) {
+    if (!formComVinculos.miniBiografia.trim()) {
       toast.error("Informe a mini biografia.");
       return;
     }
@@ -294,18 +427,22 @@ export default function EquipeEditalForm() {
 
       const equipePayload: EquipeEdital = {
         id: id ?? "",
-        propostaEdital: form.propostaEdital,
-        agente: form.agente,
-        tipoPessoa: form.tipoPessoa as TipoPessoaEquipe,
+        propostaEdital: formComVinculos.propostaEdital,
+        agente: formComVinculos.agente,
+        tipoPessoa: formComVinculos.tipoPessoa as TipoPessoaEquipe,
         colaborador:
-          form.tipoPessoa === "COLABORADOR" ? form.colaborador : undefined,
+          formComVinculos.tipoPessoa === "COLABORADOR"
+            ? formComVinculos.colaborador
+            : undefined,
         integrante:
-          form.tipoPessoa === "INTEGRANTE" ? form.integrante : undefined,
-        funcaoProjeto: form.funcaoProjeto,
+          formComVinculos.tipoPessoa === "INTEGRANTE"
+            ? formComVinculos.integrante
+            : undefined,
+        funcaoProjeto: formComVinculos.funcaoProjeto,
         cargaHorariaPrevista: carga,
         valorPrevisto: valor,
-        justificativaFuncao: form.justificativaFuncao,
-        miniBiografia: form.miniBiografia,
+        justificativaFuncao: formComVinculos.justificativaFuncao,
+        miniBiografia: formComVinculos.miniBiografia,
       };
 
       const payload = buildEquipeEditalPayload(equipePayload);
@@ -382,10 +519,10 @@ export default function EquipeEditalForm() {
                   Proposta de Edital
                 </FieldLabel>
                 <Select
-                  value={form.propostaEdital}
+                  value={propostaSelectValue}
                   onValueChange={(v) => {
                     if (visualizando) return;
-                    set("propostaEdital", v);
+                    set("propostaEdital", normalizeId(v));
                   }}
                   disabled={bloqueado}
                 >
@@ -393,17 +530,20 @@ export default function EquipeEditalForm() {
                     <SelectValue placeholder="Selecione a proposta" />
                   </SelectTrigger>
                   <SelectContent>
-                    {!!form.propostaEdital && !propostaSelecionadaExiste && (
-                      <SelectItem value={form.propostaEdital}>
-                        Registro atual #{form.propostaEdital}
+                    {propostasComFallback.length === 0 ? (
+                      <SelectItem value="sem-proposta" disabled>
+                        Nenhuma proposta disponível
                       </SelectItem>
+                    ) : (
+                      propostasComFallback.map((p) => (
+                        <SelectItem
+                          key={normalizeId(p.id)}
+                          value={normalizeId(p.id)}
+                        >
+                          {p.nome}
+                        </SelectItem>
+                      ))
                     )}
-
-                    {propostas.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.nome}
-                      </SelectItem>
-                    ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -417,10 +557,10 @@ export default function EquipeEditalForm() {
                   Agente Responsável
                 </FieldLabel>
                 <Select
-                  value={form.agente}
+                  value={agenteSelectValue}
                   onValueChange={(v) => {
                     if (visualizando) return;
-                    set("agente", v);
+                    set("agente", normalizeId(v));
                   }}
                   disabled={bloqueado}
                 >
@@ -428,17 +568,20 @@ export default function EquipeEditalForm() {
                     <SelectValue placeholder="Selecione o agente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {!!form.agente && !agenteSelecionadoExiste && (
-                      <SelectItem value={form.agente}>
-                        Registro atual #{form.agente}
+                    {agentesComFallback.length === 0 ? (
+                      <SelectItem value="sem-agente" disabled>
+                        Nenhum agente cadastrado
                       </SelectItem>
+                    ) : (
+                      agentesComFallback.map((a) => (
+                        <SelectItem
+                          key={normalizeId(a.id)}
+                          value={normalizeId(a.id)}
+                        >
+                          {a.nome}
+                        </SelectItem>
+                      ))
                     )}
-
-                    {agentes.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.nome}
-                      </SelectItem>
-                    ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -478,10 +621,11 @@ export default function EquipeEditalForm() {
               >
                 <label
                   htmlFor="tp-col"
-                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors ${form.tipoPessoa === "COLABORADOR"
+                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors ${
+                    form.tipoPessoa === "COLABORADOR"
                       ? "border-primary bg-primary-soft"
                       : "border-border hover:bg-muted/40"
-                    } ${visualizando ? "pointer-events-none opacity-80" : ""}`}
+                  } ${visualizando ? "pointer-events-none opacity-80" : ""}`}
                 >
                   <RadioGroupItem value="COLABORADOR" id="tp-col" />
                   <Label htmlFor="tp-col" className="cursor-pointer text-sm">
@@ -491,10 +635,11 @@ export default function EquipeEditalForm() {
 
                 <label
                   htmlFor="tp-int"
-                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors ${form.tipoPessoa === "INTEGRANTE"
+                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors ${
+                    form.tipoPessoa === "INTEGRANTE"
                       ? "border-primary bg-primary-soft"
                       : "border-border hover:bg-muted/40"
-                    } ${visualizando ? "pointer-events-none opacity-80" : ""}`}
+                  } ${visualizando ? "pointer-events-none opacity-80" : ""}`}
                 >
                   <RadioGroupItem value="INTEGRANTE" id="tp-int" />
                   <Label htmlFor="tp-int" className="cursor-pointer text-sm">
@@ -514,10 +659,10 @@ export default function EquipeEditalForm() {
                   Colaborador
                 </FieldLabel>
                 <Select
-                  value={form.colaborador}
+                  value={colaboradorSelectValue}
                   onValueChange={(v) => {
                     if (visualizando) return;
-                    set("colaborador", v);
+                    set("colaborador", normalizeId(v));
                   }}
                   disabled={bloqueado}
                 >
@@ -525,17 +670,20 @@ export default function EquipeEditalForm() {
                     <SelectValue placeholder="Selecione o colaborador" />
                   </SelectTrigger>
                   <SelectContent>
-                    {!!form.colaborador && !colaboradorSelecionadoExiste && (
-                      <SelectItem value={form.colaborador}>
-                        Registro atual #{form.colaborador}
+                    {colaboradoresComFallback.length === 0 ? (
+                      <SelectItem value="sem-colaborador" disabled>
+                        Nenhum colaborador cadastrado
                       </SelectItem>
+                    ) : (
+                      colaboradoresComFallback.map((c) => (
+                        <SelectItem
+                          key={normalizeId(c.id)}
+                          value={normalizeId(c.id)}
+                        >
+                          {c.nome}
+                        </SelectItem>
+                      ))
                     )}
-
-                    {colaboradores.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.nome}
-                      </SelectItem>
-                    ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -551,10 +699,10 @@ export default function EquipeEditalForm() {
                   Integrante
                 </FieldLabel>
                 <Select
-                  value={form.integrante}
+                  value={integranteSelectValue}
                   onValueChange={(v) => {
                     if (visualizando) return;
-                    set("integrante", v);
+                    set("integrante", normalizeId(v));
                   }}
                   disabled={bloqueado}
                 >
@@ -562,17 +710,20 @@ export default function EquipeEditalForm() {
                     <SelectValue placeholder="Selecione o integrante" />
                   </SelectTrigger>
                   <SelectContent>
-                    {!!form.integrante && !integranteSelecionadoExiste && (
-                      <SelectItem value={form.integrante}>
-                        Registro atual #{form.integrante}
+                    {integrantesComFallback.length === 0 ? (
+                      <SelectItem value="sem-integrante" disabled>
+                        Nenhum integrante cadastrado
                       </SelectItem>
+                    ) : (
+                      integrantesComFallback.map((i) => (
+                        <SelectItem
+                          key={normalizeId(i.id)}
+                          value={normalizeId(i.id)}
+                        >
+                          {i.nome}
+                        </SelectItem>
+                      ))
                     )}
-
-                    {integrantes.map((i) => (
-                      <SelectItem key={i.id} value={i.id}>
-                        {i.nome}
-                      </SelectItem>
-                    ))}
                   </SelectContent>
                 </Select>
               </Field>

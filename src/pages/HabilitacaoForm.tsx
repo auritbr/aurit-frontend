@@ -108,6 +108,39 @@ const initial: FormState = {
   observacoes: "",
 };
 
+function normalizeId(value: unknown): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  return String(value).trim();
+}
+
+function getPropostaNome(
+  propostas: PropostaOption[],
+  propostaId: string,
+  habilitacao?: Habilitacao | null,
+) {
+  return (
+    propostas.find((proposta) => normalizeId(proposta.id) === propostaId)
+      ?.nome ||
+    habilitacao?.nomePropostaEdital?.trim() ||
+    `Proposta vinculada #${propostaId}`
+  );
+}
+
+function getAgenteNome(
+  agentes: AgenteOption[],
+  agenteId: string,
+  habilitacao?: Habilitacao | null,
+) {
+  return (
+    agentes.find((agente) => normalizeId(agente.id) === agenteId)?.nome ||
+    habilitacao?.nomeAgente?.trim() ||
+    `Agente vinculado #${agenteId}`
+  );
+}
+
 export default function HabilitacaoForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -118,6 +151,8 @@ export default function HabilitacaoForm() {
   const isEdit = !!id;
 
   const [form, setForm] = useState<FormState>(initial);
+  const [existingHabilitacao, setExistingHabilitacao] =
+    useState<Habilitacao | null>(null);
   const [loading, setLoading] = useState<boolean>(!!id);
   const [saving, setSaving] = useState(false);
   const [propostas, setPropostas] = useState<PropostaOption[]>([]);
@@ -125,6 +160,12 @@ export default function HabilitacaoForm() {
   const [habilitacoes, setHabilitacoes] = useState<Habilitacao[]>([]);
 
   const bloqueado = visualizando || loading || saving;
+
+  const propostaSelectValue =
+    form.propostaEdital || normalizeId(existingHabilitacao?.propostaEdital);
+
+  const agenteSelectValue =
+    form.agente || normalizeId(existingHabilitacao?.agente);
 
   useEffect(() => {
     let active = true;
@@ -148,16 +189,28 @@ export default function HabilitacaoForm() {
         setHabilitacoes(habilitacoesData);
 
         if (registro) {
+          const propostaEdital = normalizeId(registro.propostaEdital);
+          const agente = normalizeId(registro.agente);
+
+          const registroNormalizado: Habilitacao = {
+            ...registro,
+            propostaEdital,
+            agente,
+          };
+
+          setExistingHabilitacao(registroNormalizado);
+
           setForm({
-            propostaEdital: registro.propostaEdital,
-            agente: registro.agente,
+            propostaEdital,
+            agente,
 
             dataInicioHabilitacao: registro.dataInicioHabilitacao ?? "",
             dataLimiteHabilitacao: registro.dataLimiteHabilitacao ?? "",
             dataEnvioDocumentacao: registro.dataEnvioDocumentacao ?? "",
             dataRetornoAnalise: registro.dataRetornoAnalise ?? "",
             dataRegularizacao: registro.dataRegularizacao ?? "",
-            dataConclusaoHabilitacao: registro.dataConclusaoHabilitacao ?? "",
+            dataConclusaoHabilitacao:
+              registro.dataConclusaoHabilitacao ?? "",
 
             statusHabilitacao: registro.statusHabilitacao,
 
@@ -167,6 +220,7 @@ export default function HabilitacaoForm() {
             observacoes: registro.observacoes ?? "",
           });
         } else {
+          setExistingHabilitacao(null);
           setForm(initial);
         }
       } catch (error) {
@@ -197,25 +251,57 @@ export default function HabilitacaoForm() {
   const propostasDisponiveis = useMemo(() => {
     const ocupadas = new Set(
       habilitacoes
-        .filter((habilitacao) => (isEdit ? habilitacao.id !== id : true))
-        .map((habilitacao) => habilitacao.propostaEdital),
+        .filter((habilitacao) =>
+          isEdit ? normalizeId(habilitacao.id) !== normalizeId(id) : true,
+        )
+        .map((habilitacao) => normalizeId(habilitacao.propostaEdital)),
     );
 
     return propostas.filter(
       (proposta) =>
-        !ocupadas.has(proposta.id) || proposta.id === form.propostaEdital,
+        !ocupadas.has(normalizeId(proposta.id)) ||
+        normalizeId(proposta.id) === propostaSelectValue,
     );
-  }, [habilitacoes, propostas, isEdit, id, form.propostaEdital]);
+  }, [habilitacoes, propostas, isEdit, id, propostaSelectValue]);
 
-  const propostaSelecionadaExiste = useMemo(
-    () => propostasDisponiveis.some((p) => p.id === form.propostaEdital),
-    [propostasDisponiveis, form.propostaEdital],
-  );
+  const propostasComFallback = useMemo(() => {
+    const options = [...propostasDisponiveis];
+    const propostaId = propostaSelectValue;
 
-  const agenteSelecionadoExiste = useMemo(
-    () => agentes.some((a) => a.id === form.agente),
-    [agentes, form.agente],
-  );
+    if (
+      propostaId &&
+      !options.some((proposta) => normalizeId(proposta.id) === propostaId)
+    ) {
+      options.unshift({
+        id: propostaId,
+        nome: getPropostaNome(propostas, propostaId, existingHabilitacao),
+      });
+    }
+
+    return options;
+  }, [
+    propostasDisponiveis,
+    propostas,
+    propostaSelectValue,
+    existingHabilitacao,
+  ]);
+
+  const agentesComFallback = useMemo(() => {
+    const options = [...agentes];
+    const agenteId = agenteSelectValue;
+
+    if (
+      agenteId &&
+      !options.some((agente) => normalizeId(agente.id) === agenteId)
+    ) {
+      options.unshift({
+        id: agenteId,
+        nome: getAgenteNome(agentes, agenteId, existingHabilitacao),
+      });
+    }
+
+    return options;
+  }, [agentes, agenteSelectValue, existingHabilitacao]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({
@@ -254,13 +340,7 @@ export default function HabilitacaoForm() {
     !!form.dataConclusaoHabilitacao &&
     form.dataConclusaoHabilitacao < form.dataInicioHabilitacao;
 
-  const exigePendencia =
-    form.statusHabilitacao === "DOCUMENTACAO_PENDENTE" ||
-    form.statusHabilitacao === "EM_REGULARIZACAO";
-
-  const exigeProvidencia =
-    form.statusHabilitacao === "REGULARIZADO" ||
-    form.statusHabilitacao === "RECURSO_ENVIADO";
+  const emRegularizacao = form.statusHabilitacao === "EM_REGULARIZACAO";
 
   const exigeMotivoInabilitacao =
     form.statusHabilitacao === "INABILITADO" ||
@@ -274,50 +354,122 @@ export default function HabilitacaoForm() {
     form.statusHabilitacao === "FINALIZADO" ||
     form.statusHabilitacao === "CANCELADO";
 
+  function handleStatusChange(value: string) {
+    if (visualizando) return;
+
+    const novoStatus = value as StatusHabilitacao;
+
+    const statusEmRegularizacao = novoStatus === "EM_REGULARIZACAO";
+
+    const statusInabilitado =
+      novoStatus === "INABILITADO" ||
+      novoStatus === "INABILITADA_DEFINITIVO";
+
+    setForm((prev) => ({
+      ...prev,
+      statusHabilitacao: novoStatus,
+
+      exigenciaOuPendencia: statusEmRegularizacao
+        ? prev.exigenciaOuPendencia
+        : "",
+
+      providenciaTomada: statusEmRegularizacao
+        ? prev.providenciaTomada
+        : "",
+
+      dataRegularizacao: statusEmRegularizacao
+        ? prev.dataRegularizacao
+        : "",
+
+      motivoInabilitacao: statusInabilitado
+        ? prev.motivoInabilitacao
+        : "",
+    }));
+  }
+
+  function getFormComVinculos(): FormState {
+    const statusInabilitado =
+      form.statusHabilitacao === "INABILITADO" ||
+      form.statusHabilitacao === "INABILITADA_DEFINITIVO";
+
+    return {
+      ...form,
+      propostaEdital: propostaSelectValue,
+      agente: agenteSelectValue,
+      exigenciaOuPendencia: emRegularizacao
+        ? form.exigenciaOuPendencia
+        : "",
+      providenciaTomada: emRegularizacao ? form.providenciaTomada : "",
+      dataRegularizacao: emRegularizacao ? form.dataRegularizacao : "",
+      motivoInabilitacao: statusInabilitado
+        ? form.motivoInabilitacao
+        : "",
+    };
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (visualizando) return;
 
-    if (!form.propostaEdital) {
+    const formComVinculos = getFormComVinculos();
+
+    if (!formComVinculos.propostaEdital) {
       toast.error("Selecione a proposta de edital.");
       return;
     }
 
-    if (!form.agente) {
+    if (!formComVinculos.agente) {
       toast.error("Selecione o agente responsável.");
       return;
     }
 
-    if (!form.statusHabilitacao) {
+    if (!formComVinculos.statusHabilitacao) {
       toast.error("Selecione o status da Habilitação Documental.");
       return;
     }
 
     if (
-      form.statusHabilitacao === "DOCUMENTACAO_ENVIADA" &&
-      !form.dataEnvioDocumentacao
+      formComVinculos.statusHabilitacao === "DOCUMENTACAO_ENVIADA" &&
+      !formComVinculos.dataEnvioDocumentacao
     ) {
       toast.error("Informe a data de envio da documentação.");
       return;
     }
 
-    if (exigePendencia && !form.exigenciaOuPendencia.trim()) {
+    if (
+      formComVinculos.statusHabilitacao === "EM_REGULARIZACAO" &&
+      !formComVinculos.exigenciaOuPendencia.trim()
+    ) {
       toast.error("Informe a exigência ou pendência da habilitação.");
       return;
     }
 
-    if (exigeProvidencia && !form.providenciaTomada.trim()) {
+    if (
+      formComVinculos.statusHabilitacao === "EM_REGULARIZACAO" &&
+      !formComVinculos.providenciaTomada.trim()
+    ) {
       toast.error("Informe a providência tomada ou o recurso enviado.");
       return;
     }
 
-    if (exigeMotivoInabilitacao && !form.motivoInabilitacao.trim()) {
+    if (
+      formComVinculos.statusHabilitacao === "EM_REGULARIZACAO" &&
+      !formComVinculos.dataRegularizacao
+    ) {
+      toast.error("Informe a data de regularização ou recurso.");
+      return;
+    }
+
+    if (
+      exigeMotivoInabilitacao &&
+      !formComVinculos.motivoInabilitacao.trim()
+    ) {
       toast.error("Informe o motivo da inabilitação.");
       return;
     }
 
-    if (exigeDataConclusao && !form.dataConclusaoHabilitacao) {
+    if (exigeDataConclusao && !formComVinculos.dataConclusaoHabilitacao) {
       toast.error("Informe a data de conclusão da habilitação.");
       return;
     }
@@ -339,7 +491,7 @@ export default function HabilitacaoForm() {
       return;
     }
 
-    if (regularizacaoAntesRetorno) {
+    if (emRegularizacao && regularizacaoAntesRetorno) {
       toast.error(
         "A data de regularização não pode ser anterior à data de retorno da análise.",
       );
@@ -357,25 +509,26 @@ export default function HabilitacaoForm() {
       const formData: Habilitacao = {
         id: id ?? "",
 
-        propostaEdital: form.propostaEdital,
+        propostaEdital: formComVinculos.propostaEdital,
         nomePropostaEdital: "",
 
-        agente: form.agente,
+        agente: formComVinculos.agente,
         nomeAgente: "",
 
-        dataInicioHabilitacao: form.dataInicioHabilitacao,
-        dataLimiteHabilitacao: form.dataLimiteHabilitacao,
-        dataEnvioDocumentacao: form.dataEnvioDocumentacao,
-        dataRetornoAnalise: form.dataRetornoAnalise,
-        dataRegularizacao: form.dataRegularizacao,
-        dataConclusaoHabilitacao: form.dataConclusaoHabilitacao,
+        dataInicioHabilitacao: formComVinculos.dataInicioHabilitacao,
+        dataLimiteHabilitacao: formComVinculos.dataLimiteHabilitacao,
+        dataEnvioDocumentacao: formComVinculos.dataEnvioDocumentacao,
+        dataRetornoAnalise: formComVinculos.dataRetornoAnalise,
+        dataRegularizacao: formComVinculos.dataRegularizacao,
+        dataConclusaoHabilitacao: formComVinculos.dataConclusaoHabilitacao,
 
-        statusHabilitacao: form.statusHabilitacao as StatusHabilitacao,
+        statusHabilitacao:
+          formComVinculos.statusHabilitacao as StatusHabilitacao,
 
-        exigenciaOuPendencia: form.exigenciaOuPendencia,
-        providenciaTomada: form.providenciaTomada,
-        motivoInabilitacao: form.motivoInabilitacao,
-        observacoes: form.observacoes,
+        exigenciaOuPendencia: formComVinculos.exigenciaOuPendencia,
+        providenciaTomada: formComVinculos.providenciaTomada,
+        motivoInabilitacao: formComVinculos.motivoInabilitacao,
+        observacoes: formComVinculos.observacoes,
       };
 
       const payload = buildHabilitacaoPayload(formData);
@@ -457,7 +610,7 @@ export default function HabilitacaoForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.propostaEdital}
+                  value={propostaSelectValue}
                   onValueChange={(value) => set("propostaEdital", value)}
                   disabled={bloqueado}
                 >
@@ -466,19 +619,16 @@ export default function HabilitacaoForm() {
                   </SelectTrigger>
 
                   <SelectContent>
-                    {!!form.propostaEdital && !propostaSelecionadaExiste && (
-                      <SelectItem value={form.propostaEdital}>
-                        Proposta vinculada #{form.propostaEdital}
-                      </SelectItem>
-                    )}
-
-                    {propostasDisponiveis.length === 0 ? (
+                    {propostasComFallback.length === 0 ? (
                       <SelectItem value="__none" disabled>
                         Nenhuma proposta disponível
                       </SelectItem>
                     ) : (
-                      propostasDisponiveis.map((proposta) => (
-                        <SelectItem key={proposta.id} value={proposta.id}>
+                      propostasComFallback.map((proposta) => (
+                        <SelectItem
+                          key={normalizeId(proposta.id)}
+                          value={normalizeId(proposta.id)}
+                        >
                           {proposta.nome}
                         </SelectItem>
                       ))
@@ -501,7 +651,7 @@ export default function HabilitacaoForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.agente}
+                  value={agenteSelectValue}
                   onValueChange={(value) => set("agente", value)}
                   disabled={bloqueado}
                 >
@@ -510,19 +660,16 @@ export default function HabilitacaoForm() {
                   </SelectTrigger>
 
                   <SelectContent>
-                    {!!form.agente && !agenteSelecionadoExiste && (
-                      <SelectItem value={form.agente}>
-                        Agente vinculado #{form.agente}
-                      </SelectItem>
-                    )}
-
-                    {agentes.length === 0 ? (
+                    {agentesComFallback.length === 0 ? (
                       <SelectItem value="__none" disabled>
                         Nenhum agente cadastrado
                       </SelectItem>
                     ) : (
-                      agentes.map((agente) => (
-                        <SelectItem key={agente.id} value={agente.id}>
+                      agentesComFallback.map((agente) => (
+                        <SelectItem
+                          key={normalizeId(agente.id)}
+                          value={normalizeId(agente.id)}
+                        >
                           {agente.nome}
                         </SelectItem>
                       ))
@@ -629,6 +776,20 @@ export default function HabilitacaoForm() {
           </Section>
 
           <Section icon={ClipboardList} title="Análise, pendência e recurso">
+            <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
+              <Info
+                className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"
+                strokeWidth={2.2}
+              />
+
+              <p className="text-[13px] leading-relaxed text-foreground">
+                Caso ocorra alguma pendência na documentação, selecione o status{" "}
+                <span className="font-semibold">Em Regularização</span> para
+                registrar a exigência apontada, a providência tomada ou recurso
+                enviado e a data da regularização.
+              </p>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
@@ -641,9 +802,7 @@ export default function HabilitacaoForm() {
 
                 <Select
                   value={form.statusHabilitacao}
-                  onValueChange={(value) =>
-                    set("statusHabilitacao", value as StatusHabilitacao)
-                  }
+                  onValueChange={handleStatusChange}
                   disabled={bloqueado}
                 >
                   <SelectTrigger id="statusHabilitacao">
@@ -672,74 +831,82 @@ export default function HabilitacaoForm() {
                   id="dataRetornoAnalise"
                   type="date"
                   value={form.dataRetornoAnalise}
-                  onChange={(e) =>
-                    set("dataRetornoAnalise", e.target.value)
-                  }
+                  onChange={(e) => set("dataRetornoAnalise", e.target.value)}
                   disabled={bloqueado}
                   readOnly={visualizando}
                 />
               </Field>
 
-              <Field full>
-                <FieldLabel
-                  htmlFor="exigenciaOuPendencia"
-                  required={exigePendencia}
-                  tooltip="Registre a exigência ou pendência apontada na análise de habilitação, como documento vencido, documento ausente, divergência cadastral, assinatura pendente, conta bancária incorreta ou necessidade de reenvio."
-                >
-                  Exigência ou Pendência
-                </FieldLabel>
+              {emRegularizacao && (
+                <>
+                  <Field full>
+                    <FieldLabel
+                      htmlFor="exigenciaOuPendencia"
+                      required
+                      tooltip="Registre a exigência ou pendência apontada na análise de habilitação, como documento vencido, documento ausente, divergência cadastral, assinatura pendente, conta bancária incorreta ou necessidade de reenvio."
+                    >
+                      Exigência ou Pendência
+                    </FieldLabel>
 
-                <Textarea
-                  id="exigenciaOuPendencia"
-                  value={form.exigenciaOuPendencia}
-                  onChange={(e) =>
-                    set("exigenciaOuPendencia", e.target.value)
-                  }
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+                    <Textarea
+                      id="exigenciaOuPendencia"
+                      value={form.exigenciaOuPendencia}
+                      onChange={(e) =>
+                        set("exigenciaOuPendencia", e.target.value)
+                      }
+                      rows={3}
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
 
-              <Field full>
-                <FieldLabel
-                  htmlFor="providenciaTomada"
-                  required={exigeProvidencia}
-                  tooltip="Descreva o que foi feito para resolver a exigência ou contestar a análise, como atualização de documento, reenvio na plataforma, correção de informação, contato com o órgão responsável ou envio de recurso documental."
-                >
-                  Providência Tomada/Recurso Enviado
-                </FieldLabel>
+                  <Field full>
+                    <FieldLabel
+                      htmlFor="providenciaTomada"
+                      required
+                      tooltip="Descreva o que foi feito para resolver a exigência ou contestar a análise, como atualização de documento, reenvio na plataforma, correção de informação, contato com o órgão responsável ou envio de recurso documental."
+                    >
+                      Providência Tomada/Recurso Enviado
+                    </FieldLabel>
 
-                <Textarea
-                  id="providenciaTomada"
-                  value={form.providenciaTomada}
-                  onChange={(e) => set("providenciaTomada", e.target.value)}
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+                    <Textarea
+                      id="providenciaTomada"
+                      value={form.providenciaTomada}
+                      onChange={(e) =>
+                        set("providenciaTomada", e.target.value)
+                      }
+                      rows={3}
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
 
-              <Field>
-                <FieldLabel
-                  htmlFor="dataRegularizacao"
-                  tooltip="Informe a data em que a pendência foi regularizada, corrigida, reenviada ou a data em que o recurso documental foi protocolado."
-                >
-                  Data de Regularização/Recurso
-                </FieldLabel>
+                  <Field>
+                    <FieldLabel
+                      htmlFor="dataRegularizacao"
+                      required
+                      tooltip="Informe a data em que a pendência foi regularizada, corrigida, reenviada ou a data em que o recurso documental foi protocolado."
+                    >
+                      Data de Regularização/Recurso
+                    </FieldLabel>
 
-                <Input
-                  id="dataRegularizacao"
-                  type="date"
-                  value={form.dataRegularizacao}
-                  onChange={(e) => set("dataRegularizacao", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+                    <Input
+                      id="dataRegularizacao"
+                      type="date"
+                      value={form.dataRegularizacao}
+                      onChange={(e) =>
+                        set("dataRegularizacao", e.target.value)
+                      }
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
+                </>
+              )}
             </div>
 
-            {(retornoAntesEnvio || regularizacaoAntesRetorno) && (
+            {(retornoAntesEnvio ||
+              (emRegularizacao && regularizacaoAntesRetorno)) && (
               <div className="mt-4 space-y-2">
                 {retornoAntesEnvio && (
                   <Aviso tone="danger">
@@ -748,7 +915,7 @@ export default function HabilitacaoForm() {
                   </Aviso>
                 )}
 
-                {regularizacaoAntesRetorno && (
+                {emRegularizacao && regularizacaoAntesRetorno && (
                   <Aviso tone="danger">
                     A data de regularização/recurso não pode ser anterior à
                     data de retorno da análise.
@@ -781,38 +948,42 @@ export default function HabilitacaoForm() {
                 />
               </Field>
 
-              <Field full>
-                <FieldLabel
-                  htmlFor="motivoInabilitacao"
-                  required={exigeMotivoInabilitacao}
-                  tooltip="Preencha apenas se a proposta tiver sido inabilitada. Informe o motivo apresentado na análise documental ou no resultado definitivo após recurso."
-                >
-                  Motivo da Inabilitação
-                </FieldLabel>
+              {exigeMotivoInabilitacao && (
+                <Field full>
+                  <FieldLabel
+                    htmlFor="motivoInabilitacao"
+                    required
+                    tooltip="Preencha apenas se a proposta tiver sido inabilitada. Informe o motivo apresentado na análise documental ou no resultado definitivo após recurso."
+                  >
+                    Motivo da Inabilitação
+                  </FieldLabel>
 
-                <Textarea
-                  id="motivoInabilitacao"
-                  value={form.motivoInabilitacao}
-                  onChange={(e) => set("motivoInabilitacao", e.target.value)}
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+                  <Textarea
+                    id="motivoInabilitacao"
+                    value={form.motivoInabilitacao}
+                    onChange={(e) =>
+                      set("motivoInabilitacao", e.target.value)
+                    }
+                    rows={3}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              )}
 
               <Field full>
                 <FieldLabel
                   htmlFor="observacoes"
-                  tooltip="Registre informações complementares sobre a habilitação documental, como protocolos, publicações oficiais, orientações recebidas, links externos, situação do termo de compromisso, dados bancários ou observações internas."
+                  tooltip="Registre observações internas sobre a habilitação, contatos realizados, orientações recebidas, retorno do edital, prorrogações, decisões da equipe ou informações importantes para acompanhamento."
                 >
-                  Observações Gerais
+                  Observações
                 </FieldLabel>
 
                 <Textarea
                   id="observacoes"
                   value={form.observacoes}
                   onChange={(e) => set("observacoes", e.target.value)}
-                  rows={4}
+                  rows={3}
                   disabled={bloqueado}
                   readOnly={visualizando}
                 />
@@ -822,8 +993,8 @@ export default function HabilitacaoForm() {
             {conclusaoAntesInicio && (
               <div className="mt-4">
                 <Aviso tone="danger">
-                  A data de conclusão não pode ser anterior à data de
-                  convocação/início.
+                  A data de conclusão da habilitação não pode ser anterior à
+                  data de convocação/início.
                 </Aviso>
               </div>
             )}
@@ -861,11 +1032,11 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
-      <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
+    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
+      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
         <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
 
-        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
+        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
           {title}
         </h2>
       </div>
@@ -878,31 +1049,36 @@ function Section({
 function Field({
   children,
   full,
+  className,
 }: {
   children: React.ReactNode;
   full?: boolean;
+  className?: string;
 }) {
-  return <div className={full ? "sm:col-span-2" : ""}>{children}</div>;
+  return (
+    <div className={`${full ? "sm:col-span-2" : ""} ${className ?? ""}`}>
+      {children}
+    </div>
+  );
 }
 
 function Aviso({
-  tone,
   children,
+  tone = "warning",
 }: {
-  tone: "warning" | "danger";
   children: React.ReactNode;
+  tone?: "warning" | "danger";
 }) {
-  const className =
+  const classes =
     tone === "danger"
-      ? "border-destructive/30 bg-destructive/5 text-destructive"
-      : "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400";
+      ? "border-destructive/30 bg-destructive/10 text-destructive"
+      : "border-amber-200 bg-amber-50 text-amber-800";
 
   return (
     <div
-      className={`flex items-start gap-2 rounded border px-3 py-2 text-xs ${className}`}
+      className={`flex items-start gap-2 rounded border px-3 py-2 text-xs leading-5 ${classes}`}
     >
-      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-
+      <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
       <span>{children}</span>
     </div>
   );

@@ -131,6 +131,13 @@ function mapAtividadeToForm(atividade: Atividade): FormState {
   };
 }
 
+function getProjetoNome(projetos: ProjetoOption[], projetoId: string) {
+  return (
+    projetos.find((projeto) => String(projeto.id) === String(projetoId))
+      ?.nome || `Projeto ${projetoId}`
+  );
+}
+
 export default function AtividadeForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -140,6 +147,8 @@ export default function AtividadeForm() {
   const isEdit = !!id && location.pathname.endsWith("/editar");
 
   const [form, setForm] = useState<FormState>(initial);
+  const [existingAtividade, setExistingAtividade] =
+    useState<Atividade | null>(null);
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
   const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,6 +158,33 @@ export default function AtividadeForm() {
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((p) => ({ ...p, [k]: v }));
+
+  const projetoSelectValue =
+    form.projeto || String(existingAtividade?.projetoId ?? "");
+
+  const projetosOptions = useMemo(() => {
+    const options = [...projetos];
+
+    const projetoId =
+      form.projeto || String(existingAtividade?.projetoId ?? "");
+
+    const projetoNome =
+      form.projetoNome ||
+      existingAtividade?.projetoNome ||
+      getProjetoNome(projetos, projetoId);
+
+    if (
+      projetoId &&
+      !options.some((projeto) => String(projeto.id) === String(projetoId))
+    ) {
+      options.unshift({
+        id: projetoId,
+        nome: projetoNome,
+      });
+    }
+
+    return options;
+  }, [projetos, form.projeto, form.projetoNome, existingAtividade]);
 
   useEffect(() => {
     let active = true;
@@ -170,8 +206,34 @@ export default function AtividadeForm() {
         setColaboradores(colaboradoresData);
 
         if (atividadeData) {
-          setForm(mapAtividadeToForm(atividadeData));
+          const mapped = mapAtividadeToForm(atividadeData);
+
+          const projetoId =
+            mapped.projeto || String(atividadeData.projetoId ?? "");
+
+          const projetoSelecionado = projetosData.find(
+            (projeto) => String(projeto.id) === String(projetoId),
+          );
+
+          const projetoNome =
+            mapped.projetoNome ||
+            atividadeData.projetoNome ||
+            projetoSelecionado?.nome ||
+            (projetoId ? `Projeto ${projetoId}` : "");
+
+          setExistingAtividade({
+            ...atividadeData,
+            projetoId,
+            projetoNome,
+          });
+
+          setForm({
+            ...mapped,
+            projeto: projetoId,
+            projetoNome,
+          });
         } else {
+          setExistingAtividade(null);
           setForm(initial);
         }
       } catch (error) {
@@ -196,56 +258,66 @@ export default function AtividadeForm() {
 
   const colaboradoresOptions = colaboradores.map((c) => c.id);
 
-  const projetosOptions = useMemo(() => {
-    const options = [...projetos];
-
-    if (
-      form.projeto &&
-      !options.some((projeto) => String(projeto.id) === String(form.projeto))
-    ) {
-      options.push({
-        id: form.projeto,
-        nome: form.projetoNome || "Projeto vinculado à atividade",
-      });
-    }
-
-    return options;
-  }, [projetos, form.projeto, form.projetoNome]);
-
   const colaboradorLabel = (colaboradorId: string) =>
-    colaboradores.find((c) => c.id === colaboradorId)?.nome ?? colaboradorId;
+    colaboradores.find((c) => String(c.id) === String(colaboradorId))?.nome ??
+    colaboradorId;
+
+  function getFormComProjeto(): FormState {
+    const projetoId =
+      form.projeto || String(existingAtividade?.projetoId ?? "");
+
+    const projetoSelecionado = projetosOptions.find(
+      (projeto) => String(projeto.id) === String(projetoId),
+    );
+
+    return {
+      ...form,
+      projeto: projetoId,
+      projetoNome:
+        form.projetoNome ||
+        projetoSelecionado?.nome ||
+        existingAtividade?.projetoNome ||
+        "",
+    };
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (visualizando) return;
 
-    if (!form.nomeAtividade.trim()) {
+    const formComProjeto = getFormComProjeto();
+
+    if (!formComProjeto.nomeAtividade.trim()) {
       toast.error("Informe o nome da atividade.");
       return;
     }
 
-    if (!form.descricaoAtividade.trim()) {
+    if (!formComProjeto.descricaoAtividade.trim()) {
       toast.error("Informe a descrição da atividade.");
       return;
     }
 
-    if (!form.publicoBeneficiadoAtividade.trim()) {
+    if (!formComProjeto.publicoBeneficiadoAtividade.trim()) {
       toast.error("Informe o público beneficiado.");
       return;
     }
 
-    if (!form.dataInicio) {
+    if (!formComProjeto.dataInicio) {
       toast.error("Informe a data de início da atividade.");
       return;
     }
 
-    if (form.dataInicio && form.dataFim && form.dataFim < form.dataInicio) {
+    if (
+      formComProjeto.dataInicio &&
+      formComProjeto.dataFim &&
+      formComProjeto.dataFim < formComProjeto.dataInicio
+    ) {
       toast.error("A data de término deve ser posterior à data de início.");
       return;
     }
 
-    if (form.status === "CONCLUIDO" && !form.dataFim) {
+    if (formComProjeto.status === "CONCLUIDO" && !formComProjeto.dataFim) {
       toast.error(
         "Informe a data de término quando a atividade estiver concluída.",
       );
@@ -253,9 +325,9 @@ export default function AtividadeForm() {
     }
 
     if (
-      form.dataFim &&
-      dataFimPassada(form.dataFim) &&
-      !statusPermiteDataFimPassada(form.status)
+      formComProjeto.dataFim &&
+      dataFimPassada(formComProjeto.dataFim) &&
+      !statusPermiteDataFimPassada(formComProjeto.status)
     ) {
       toast.error(
         "Atividade com data de término passada deve estar com status Inativo ou Concluído.",
@@ -263,40 +335,44 @@ export default function AtividadeForm() {
       return;
     }
 
-    if (form.quantidadeVagas.trim() && Number(form.quantidadeVagas) < 0) {
+    if (
+      formComProjeto.quantidadeVagas.trim() &&
+      Number(formComProjeto.quantidadeVagas) < 0
+    ) {
       toast.error("A quantidade de vagas não pode ser negativa.");
       return;
     }
 
-    if (!form.tipoAtividade) {
+    if (!formComProjeto.tipoAtividade) {
       toast.error("Selecione o tipo de atividade.");
       return;
     }
 
-    if (!form.status) {
+    if (!formComProjeto.status) {
       toast.error("Selecione o status da atividade.");
       return;
     }
 
-    if (!form.projeto) {
+    if (!formComProjeto.projeto) {
       toast.error("Selecione o projeto.");
       return;
     }
 
     const atividade: Atividade = {
       id: id ?? "",
-      nomeAtividade: form.nomeAtividade.trim(),
-      descricaoAtividade: form.descricaoAtividade.trim(),
-      publicoBeneficiadoAtividade: form.publicoBeneficiadoAtividade.trim(),
-      localAtividade: form.localAtividade.trim(),
-      quantidadeVagas: form.quantidadeVagas.trim(),
-      dataInicio: form.dataInicio,
-      dataFim: form.dataFim,
-      tipoAtividade: form.tipoAtividade,
-      status: form.status,
-      projetoId: form.projeto,
-      projetoNome: form.projetoNome,
-      colaboradoresIds: form.colaboradores,
+      nomeAtividade: formComProjeto.nomeAtividade.trim(),
+      descricaoAtividade: formComProjeto.descricaoAtividade.trim(),
+      publicoBeneficiadoAtividade:
+        formComProjeto.publicoBeneficiadoAtividade.trim(),
+      localAtividade: formComProjeto.localAtividade.trim(),
+      quantidadeVagas: formComProjeto.quantidadeVagas.trim(),
+      dataInicio: formComProjeto.dataInicio,
+      dataFim: formComProjeto.dataFim,
+      tipoAtividade: formComProjeto.tipoAtividade,
+      status: formComProjeto.status,
+      projetoId: formComProjeto.projeto,
+      projetoNome: formComProjeto.projetoNome,
+      colaboradoresIds: formComProjeto.colaboradores,
       colaboradoresNomes: [],
     };
 
@@ -351,7 +427,7 @@ export default function AtividadeForm() {
           </div>
         )}
 
-        <FormLegend />
+        {!visualizando && <FormLegend />}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Section icon={ClipboardList} title="Dados principais">
@@ -561,18 +637,19 @@ export default function AtividadeForm() {
                   Projeto
                 </FieldLabel>
                 <Select
-                  value={form.projeto}
+                  value={projetoSelectValue}
                   onValueChange={(v) => {
                     if (visualizando) return;
 
                     const projetoSelecionado = projetosOptions.find(
-                      (projeto) => projeto.id === v,
+                      (projeto) => String(projeto.id) === String(v),
                     );
 
                     setForm((prev) => ({
                       ...prev,
-                      projeto: v,
-                      projetoNome: projetoSelecionado?.nome ?? prev.projetoNome,
+                      projeto: String(v),
+                      projetoNome:
+                        projetoSelecionado?.nome ?? prev.projetoNome,
                     }));
                   }}
                   disabled={bloqueado}
@@ -582,7 +659,7 @@ export default function AtividadeForm() {
                   </SelectTrigger>
                   <SelectContent>
                     {projetosOptions.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
+                      <SelectItem key={String(p.id)} value={String(p.id)}>
                         {p.nome}
                       </SelectItem>
                     ))}

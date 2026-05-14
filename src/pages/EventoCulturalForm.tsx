@@ -69,6 +69,20 @@ function salvarProximaAcaoEventoCultural() {
   sessionStorage.setItem(EVENTO_CULTURAL_NEXT_STEP_KEY, JSON.stringify(card));
 }
 
+function getProjetoNome(
+  projetos: ProjetoOption[],
+  projetoId: string,
+  evento?: EventoCultural | null,
+) {
+  return (
+    projetos.find((projeto) => String(projeto.id) === String(projetoId))
+      ?.nome ||
+    (evento as any)?.projetoNome?.trim?.() ||
+    (evento as any)?.nomeProjeto?.trim?.() ||
+    `Projeto ${projetoId}`
+  );
+}
+
 export default function EventoCulturalForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -79,6 +93,9 @@ export default function EventoCulturalForm() {
 
   const [form, setForm] = useState<EventoCultural>(
     createEmptyEventoCultural(),
+  );
+  const [existingEvento, setExistingEvento] = useState<EventoCultural | null>(
+    null,
   );
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
   const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
@@ -93,6 +110,34 @@ export default function EventoCulturalForm() {
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
+
+  const projetoSelectValue =
+    String(form.projetoId || existingEvento?.projetoId || "");
+
+  const projetosComFallback = useMemo(() => {
+    const options = [...projetos];
+
+    const projetoId = String(
+      form.projetoId || existingEvento?.projetoId || "",
+    );
+
+    if (!projetoId) {
+      return options;
+    }
+
+    const existe = options.some(
+      (projeto) => String(projeto.id) === String(projetoId),
+    );
+
+    if (!existe) {
+      options.unshift({
+        id: projetoId,
+        nome: getProjetoNome(projetos, projetoId, existingEvento),
+      });
+    }
+
+    return options;
+  }, [projetos, form.projetoId, existingEvento]);
 
   useEffect(() => {
     let active = true;
@@ -114,8 +159,25 @@ export default function EventoCulturalForm() {
         setColaboradores(colaboradoresData);
 
         if (eventoData) {
-          setForm(eventoData);
+          const projetoId = String(eventoData.projetoId || "");
+
+          const projetoSelecionado = projetosData.find(
+            (projeto) => String(projeto.id) === String(projetoId),
+          );
+
+          const eventoNormalizado: EventoCultural = {
+            ...eventoData,
+            projetoId,
+            colaboradoresIds: (eventoData.colaboradoresIds ?? []).map(String),
+            ...(projetoSelecionado
+              ? { projetoNome: projetoSelecionado.nome }
+              : {}),
+          } as EventoCultural;
+
+          setExistingEvento(eventoNormalizado);
+          setForm(eventoNormalizado);
         } else {
+          setExistingEvento(null);
           setForm(createEmptyEventoCultural());
         }
       } catch (error) {
@@ -139,76 +201,83 @@ export default function EventoCulturalForm() {
   }, [id, navigate]);
 
   const colaboradoresOptions = useMemo(
-    () => colaboradores.map((colaborador) => colaborador.id),
+    () => colaboradores.map((colaborador) => String(colaborador.id)),
     [colaboradores],
   );
 
   const colaboradorLabel = (option: string) =>
-    colaboradores.find((colaborador) => colaborador.id === option)?.nome ??
-    option;
+    colaboradores.find((colaborador) => String(colaborador.id) === String(option))
+      ?.nome ?? option;
 
-  function validar() {
-    if (!form.nomeEvento.trim()) {
+  function getFormComProjeto(): EventoCultural {
+    return {
+      ...form,
+      projetoId: projetoSelectValue,
+    };
+  }
+
+  function validar(evento: EventoCultural) {
+    if (!evento.nomeEvento.trim()) {
       toast.error("Informe o nome do evento.");
       return false;
     }
 
-    if (!form.descricaoEvento.trim()) {
+    if (!evento.descricaoEvento.trim()) {
       toast.error("Informe a descrição do evento.");
       return false;
     }
 
-    if (!form.objetivoEvento.trim()) {
+    if (!evento.objetivoEvento.trim()) {
       toast.error("Informe o objetivo do evento.");
       return false;
     }
 
-    if (!form.localEvento.trim()) {
+    if (!evento.localEvento.trim()) {
       toast.error("Informe o local do evento.");
       return false;
     }
 
-    if (!form.acoesAcessibilidade.trim()) {
+    if (!evento.acoesAcessibilidade.trim()) {
       toast.error("Informe as ações de acessibilidade.");
       return false;
     }
 
-    if (!form.resultadoEsperado.trim()) {
+    if (!evento.resultadoEsperado.trim()) {
       toast.error("Informe o resultado esperado.");
       return false;
     }
 
-    if (!form.produtoGerado.trim()) {
+    if (!evento.produtoGerado.trim()) {
       toast.error("Informe o produto gerado do evento.");
       return false;
     }
 
-    if (!form.dataEvento) {
+    if (!evento.dataEvento) {
       toast.error("Informe a data do evento.");
       return false;
     }
 
-    if (form.dataFim && form.dataFim < form.dataEvento) {
+    if (evento.dataFim && evento.dataFim < evento.dataEvento) {
       toast.error("A data de término não pode ser anterior à data do evento.");
       return false;
     }
 
-    if (!form.tipoEvento) {
+    if (!evento.tipoEvento) {
       toast.error("Selecione o tipo de evento.");
       return false;
     }
 
-    if (!form.status) {
+    if (!evento.status) {
       toast.error("Selecione o status do evento.");
       return false;
     }
 
-    if (!form.projetoId) {
+    if (!evento.projetoId) {
       toast.error("Selecione o projeto.");
       return false;
     }
 
-    if (form.colaboradoresIds.length === 0) {
+    if (evento.colaboradoresIds.length === 0) {
       toast.error("Vincule ao menos um colaborador ao evento.");
       return false;
     }
@@ -220,12 +289,15 @@ export default function EventoCulturalForm() {
     event.preventDefault();
 
     if (visualizando) return;
-    if (!validar()) return;
+
+    const formComProjeto = getFormComProjeto();
+
+    if (!validar(formComProjeto)) return;
 
     try {
       setSaving(true);
 
-      const payload = buildEventoCulturalPayload(form);
+      const payload = buildEventoCulturalPayload(formComProjeto);
 
       if (editando && id) {
         await updateEventoCultural(Number(id), payload);
@@ -553,10 +625,10 @@ export default function EventoCulturalForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.projetoId}
+                  value={projetoSelectValue}
                   onValueChange={(value) => {
                     if (visualizando) return;
-                    set("projetoId", value);
+                    set("projetoId", String(value));
                   }}
                   disabled={bloqueado}
                 >
@@ -565,13 +637,16 @@ export default function EventoCulturalForm() {
                   </SelectTrigger>
 
                   <SelectContent>
-                    {projetos.length === 0 ? (
+                    {projetosComFallback.length === 0 ? (
                       <SelectItem value="sem-projetos" disabled>
                         Nenhum projeto cadastrado
                       </SelectItem>
                     ) : (
-                      projetos.map((projeto) => (
-                        <SelectItem key={projeto.id} value={projeto.id}>
+                      projetosComFallback.map((projeto) => (
+                        <SelectItem
+                          key={String(projeto.id)}
+                          value={String(projeto.id)}
+                        >
                           {projeto.nome}
                         </SelectItem>
                       ))

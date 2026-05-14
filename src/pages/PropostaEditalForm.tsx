@@ -177,6 +177,40 @@ function propostaToForm(proposta: PropostaEdital): FormState {
   };
 }
 
+function getOptionNome(
+  options: SimpleOption[],
+  id: string,
+  fallback: string,
+) {
+  return (
+    options.find((option) => normalizeId(option.id) === normalizeId(id))?.nome ||
+    `${fallback} ${id}`
+  );
+}
+
+function withSelectedSimpleOption(
+  options: SimpleOption[],
+  selectedId: string,
+  selectedName: string,
+  fallback: string,
+): SimpleOption[] {
+  const value = normalizeId(selectedId);
+
+  if (!value) return options;
+
+  const exists = options.some((option) => normalizeId(option.id) === value);
+
+  if (exists) return options;
+
+  return [
+    {
+      id: value,
+      nome: selectedName || `${fallback} ${value}`,
+    },
+    ...options,
+  ];
+}
+
 export default function PropostaEditalForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -187,6 +221,8 @@ export default function PropostaEditalForm() {
   const isEdit = !!id;
 
   const [form, setForm] = useState<FormState>(initial);
+  const [existingProposta, setExistingProposta] =
+    useState<PropostaEdital | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -200,6 +236,54 @@ export default function PropostaEditalForm() {
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const organizacaoSelectValue =
+    form.organizacao || normalizeId(existingProposta?.organizacao);
+
+  const editalSelectValue =
+    form.edital || normalizeId(existingProposta?.edital);
+
+  const projetoSelectValue =
+    form.projeto || normalizeId(existingProposta?.projeto);
+
+  const agenteSelectValue =
+    form.agente || normalizeId(existingProposta?.agente);
+
+  const organizacoesComFallback = useMemo(() => {
+    return withSelectedSimpleOption(
+      organizacoes,
+      organizacaoSelectValue,
+      getOptionNome(organizacoes, organizacaoSelectValue, "Organização"),
+      "Organização",
+    );
+  }, [organizacoes, organizacaoSelectValue]);
+
+  const editaisComFallback = useMemo(() => {
+    return withSelectedSimpleOption(
+      editais,
+      editalSelectValue,
+      getOptionNome(editais, editalSelectValue, "Edital"),
+      "Edital",
+    );
+  }, [editais, editalSelectValue]);
+
+  const projetosComFallback = useMemo(() => {
+    return withSelectedSimpleOption(
+      projetos,
+      projetoSelectValue,
+      getOptionNome(projetos, projetoSelectValue, "Projeto"),
+      "Projeto",
+    );
+  }, [projetos, projetoSelectValue]);
+
+  const agentesComFallback = useMemo(() => {
+    return withSelectedSimpleOption(
+      agentes,
+      agenteSelectValue,
+      getOptionNome(agentes, agenteSelectValue, "Agente"),
+      "Agente",
+    );
+  }, [agentes, agenteSelectValue]);
 
   useEffect(() => {
     let active = true;
@@ -226,11 +310,23 @@ export default function PropostaEditalForm() {
         setEquipes(eqs);
 
         if (proposta) {
-          setForm(propostaToForm(proposta));
+          const formData = propostaToForm(proposta);
+
+          setExistingProposta({
+            ...proposta,
+            organizacao: formData.organizacao,
+            edital: formData.edital,
+            projeto: formData.projeto,
+            agente: formData.agente,
+          });
+
+          setForm(formData);
         } else {
+          setExistingProposta(null);
+
           setForm({
             ...initial,
-            organizacao: orgs.length === 1 ? orgs[0].id : "",
+            organizacao: orgs.length === 1 ? normalizeId(orgs[0].id) : "",
             statusPropostaEdital: "EM_PREPARACAO",
           });
         }
@@ -261,7 +357,21 @@ export default function PropostaEditalForm() {
     );
   }, [equipes, id]);
 
-  function validar() {
+  function getFormComVinculos(): FormState {
+    return {
+      ...form,
+      organizacao: organizacaoSelectValue,
+      edital: editalSelectValue,
+      projeto: projetoSelectValue,
+      agente: agenteSelectValue,
+      motivoReprovacao:
+        form.statusPropostaEdital === "REPROVADA"
+          ? form.motivoReprovacao
+          : "",
+    };
+  }
+
+  function validar(formValidacao: FormState) {
     const required: [keyof FormState, string][] = [
       ["tituloProjeto", "Informe o título do projeto."],
       ["resumoProjeto", "Informe o resumo do projeto."],
@@ -278,32 +388,32 @@ export default function PropostaEditalForm() {
     ];
 
     for (const [key, message] of required) {
-      if (!String(form[key] ?? "").trim()) {
+      if (!String(formValidacao[key] ?? "").trim()) {
         toast.error(message);
         return false;
       }
     }
 
-    if (!parseBRL(form.valorSolicitado)) {
+    if (!parseBRL(formValidacao.valorSolicitado)) {
       toast.error("Informe o valor solicitado.");
       return false;
     }
 
-    const status = form.statusPropostaEdital;
+    const status = formValidacao.statusPropostaEdital;
 
     if (!status) {
       toast.error("Selecione o status da proposta.");
       return false;
     }
 
-    if (shouldRequireDataSubmissao(status) && !form.dataSubmissao) {
+    if (shouldRequireDataSubmissao(status) && !formValidacao.dataSubmissao) {
       toast.error(
         "Informe a data de submissão para propostas já submetidas ou em andamento.",
       );
       return false;
     }
 
-    if (status === "REPROVADA" && !form.motivoReprovacao.trim()) {
+    if (status === "REPROVADA" && !formValidacao.motivoReprovacao.trim()) {
       toast.error("Informe o motivo da reprovação.");
       return false;
     }
@@ -316,34 +426,39 @@ export default function PropostaEditalForm() {
 
     if (visualizando) return;
 
-    if (!validar()) return;
+    const formComVinculos = getFormComVinculos();
+
+    if (!validar(formComVinculos)) return;
 
     try {
       setSaving(true);
 
-      const status = form.statusPropostaEdital as StatusPropostaEdital;
+      const status = formComVinculos.statusPropostaEdital as StatusPropostaEdital;
 
       const item: PropostaEdital = {
         id: id ?? "",
-        tituloProjeto: form.tituloProjeto.trim(),
-        resumoProjeto: form.resumoProjeto.trim(),
-        justificativaProjeto: form.justificativaProjeto.trim(),
-        metodologiaExecucao: form.metodologiaExecucao.trim(),
-        democratizacaoAcesso: form.democratizacaoAcesso.trim(),
-        acoesAcessibilidade: form.acoesAcessibilidade.trim(),
-        impactoEsperado: form.impactoEsperado.trim(),
-        valorSolicitado: parseBRL(form.valorSolicitado),
-        valorContrapartida: form.valorContrapartida
-          ? parseBRL(form.valorContrapartida)
+        tituloProjeto: formComVinculos.tituloProjeto.trim(),
+        resumoProjeto: formComVinculos.resumoProjeto.trim(),
+        justificativaProjeto: formComVinculos.justificativaProjeto.trim(),
+        metodologiaExecucao: formComVinculos.metodologiaExecucao.trim(),
+        democratizacaoAcesso: formComVinculos.democratizacaoAcesso.trim(),
+        acoesAcessibilidade: formComVinculos.acoesAcessibilidade.trim(),
+        impactoEsperado: formComVinculos.impactoEsperado.trim(),
+        valorSolicitado: parseBRL(formComVinculos.valorSolicitado),
+        valorContrapartida: formComVinculos.valorContrapartida
+          ? parseBRL(formComVinculos.valorContrapartida)
           : undefined,
-        dataSubmissao: form.dataSubmissao || "",
+        dataSubmissao: formComVinculos.dataSubmissao || "",
         statusPropostaEdital: status,
-        organizacao: normalizeId(form.organizacao),
-        edital: normalizeId(form.edital),
-        projeto: normalizeId(form.projeto),
-        agente: normalizeId(form.agente),
-        observacoesInternas: form.observacoesInternas.trim(),
-        motivoReprovacao: form.motivoReprovacao.trim(),
+        organizacao: normalizeId(formComVinculos.organizacao),
+        edital: normalizeId(formComVinculos.edital),
+        projeto: normalizeId(formComVinculos.projeto),
+        agente: normalizeId(formComVinculos.agente),
+        observacoesInternas: formComVinculos.observacoesInternas.trim(),
+        motivoReprovacao:
+          status === "REPROVADA"
+            ? formComVinculos.motivoReprovacao.trim()
+            : "",
         equipesEditaisIds: equipe.map((item) => item.id),
       };
 
@@ -657,7 +772,15 @@ export default function PropostaEditalForm() {
                   value={form.statusPropostaEdital}
                   onValueChange={(value) => {
                     if (visualizando) return;
-                    set("statusPropostaEdital", value as StatusPropostaEdital);
+
+                    setForm((prev) => ({
+                      ...prev,
+                      statusPropostaEdital: value as StatusPropostaEdital,
+                      motivoReprovacao:
+                        value === "REPROVADA"
+                          ? prev.motivoReprovacao
+                          : "",
+                    }));
                   }}
                   disabled={bloqueado}
                 >
@@ -675,23 +798,26 @@ export default function PropostaEditalForm() {
                 </Select>
               </Field>
 
-              <Field>
-                <FieldLabel
-                  htmlFor="motivoReprovacao"
-                  tooltip="Preencha este campo apenas quando a proposta estiver como “Reprovada”, informando o motivo oficial ou uma observação interna sobre a reprovação."
-                >
-                  Motivo de Reprovação
-                </FieldLabel>
+              {form.statusPropostaEdital === "REPROVADA" && (
+                <Field>
+                  <FieldLabel
+                    htmlFor="motivoReprovacao"
+                    required={!visualizando}
+                    tooltip="Informe o motivo oficial ou uma observação interna sobre a reprovação da proposta."
+                  >
+                    Motivo de Reprovação
+                  </FieldLabel>
 
-                <Textarea
-                  id="motivoReprovacao"
-                  value={form.motivoReprovacao}
-                  onChange={(e) => set("motivoReprovacao", e.target.value)}
-                  rows={4}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+                  <Textarea
+                    id="motivoReprovacao"
+                    value={form.motivoReprovacao}
+                    onChange={(e) => set("motivoReprovacao", e.target.value)}
+                    rows={4}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              )}
             </div>
           </Section>
 
@@ -707,7 +833,7 @@ export default function PropostaEditalForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.organizacao}
+                  value={organizacaoSelectValue}
                   onValueChange={(value) => {
                     if (visualizando) return;
                     set("organizacao", normalizeId(value));
@@ -719,14 +845,14 @@ export default function PropostaEditalForm() {
                   </SelectTrigger>
 
                   <SelectContent>
-                    {organizacoes.length === 0 ? (
+                    {organizacoesComFallback.length === 0 ? (
                       <SelectItem value="sem-organizacao" disabled>
                         Nenhuma organização cadastrada
                       </SelectItem>
                     ) : (
-                      organizacoes.map((organizacao) => (
+                      organizacoesComFallback.map((organizacao) => (
                         <SelectItem
-                          key={organizacao.id}
+                          key={normalizeId(organizacao.id)}
                           value={normalizeId(organizacao.id)}
                         >
                           {organizacao.nome}
@@ -747,7 +873,7 @@ export default function PropostaEditalForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.edital}
+                  value={editalSelectValue}
                   onValueChange={(value) => {
                     if (visualizando) return;
                     set("edital", normalizeId(value));
@@ -759,14 +885,14 @@ export default function PropostaEditalForm() {
                   </SelectTrigger>
 
                   <SelectContent>
-                    {editais.length === 0 ? (
+                    {editaisComFallback.length === 0 ? (
                       <SelectItem value="sem-edital" disabled>
                         Nenhum edital cadastrado
                       </SelectItem>
                     ) : (
-                      editais.map((edital) => (
+                      editaisComFallback.map((edital) => (
                         <SelectItem
-                          key={edital.id}
+                          key={normalizeId(edital.id)}
                           value={normalizeId(edital.id)}
                         >
                           {edital.nome}
@@ -787,7 +913,7 @@ export default function PropostaEditalForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.projeto}
+                  value={projetoSelectValue}
                   onValueChange={(value) => {
                     if (visualizando) return;
                     set("projeto", normalizeId(value));
@@ -799,14 +925,14 @@ export default function PropostaEditalForm() {
                   </SelectTrigger>
 
                   <SelectContent>
-                    {projetos.length === 0 ? (
+                    {projetosComFallback.length === 0 ? (
                       <SelectItem value="sem-projeto" disabled>
                         Nenhum projeto cadastrado
                       </SelectItem>
                     ) : (
-                      projetos.map((projeto) => (
+                      projetosComFallback.map((projeto) => (
                         <SelectItem
-                          key={projeto.id}
+                          key={normalizeId(projeto.id)}
                           value={normalizeId(projeto.id)}
                         >
                           {projeto.nome}
@@ -827,7 +953,7 @@ export default function PropostaEditalForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.agente}
+                  value={agenteSelectValue}
                   onValueChange={(value) => {
                     if (visualizando) return;
                     set("agente", normalizeId(value));
@@ -839,14 +965,14 @@ export default function PropostaEditalForm() {
                   </SelectTrigger>
 
                   <SelectContent>
-                    {agentes.length === 0 ? (
+                    {agentesComFallback.length === 0 ? (
                       <SelectItem value="sem-agente" disabled>
                         Nenhum agente cadastrado
                       </SelectItem>
                     ) : (
-                      agentes.map((agente) => (
+                      agentesComFallback.map((agente) => (
                         <SelectItem
-                          key={agente.id}
+                          key={normalizeId(agente.id)}
                           value={normalizeId(agente.id)}
                         >
                           {agente.nome}

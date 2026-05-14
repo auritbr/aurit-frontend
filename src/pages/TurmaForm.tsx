@@ -52,6 +52,20 @@ interface FormState {
   colaboradores: string[];
 }
 
+interface TurmaCarregada {
+  nomeTurma?: string | null;
+  descricaoTurma?: string | null;
+  horarioInicio?: string | null;
+  horarioFim?: string | null;
+  quantidadeVagas?: number | string | null;
+  diaAtividade?: string | null;
+  status?: string | null;
+  atividadeId?: string | number | null;
+  atividadeNome?: string | null;
+  nomeAtividade?: string | null;
+  colaboradoresIds?: Array<string | number>;
+}
+
 const initial: FormState = {
   nomeTurma: "",
   descricaoTurma: "",
@@ -67,6 +81,20 @@ const initial: FormState = {
 const onlyDigits = (value: string, max = 5) =>
   value.replace(/\D/g, "").slice(0, max);
 
+function getAtividadeNome(
+  atividades: AtividadeOption[],
+  atividadeId: string,
+  turma?: TurmaCarregada | null,
+) {
+  return (
+    atividades.find((atividade) => String(atividade.id) === String(atividadeId))
+      ?.nome ||
+    turma?.atividadeNome?.trim() ||
+    turma?.nomeAtividade?.trim() ||
+    `Atividade ${atividadeId}`
+  );
+}
+
 export default function TurmaForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -76,6 +104,9 @@ export default function TurmaForm() {
   const editando = !!id && location.pathname.endsWith("/editar");
 
   const [form, setForm] = useState<FormState>(initial);
+  const [existingTurma, setExistingTurma] = useState<TurmaCarregada | null>(
+    null,
+  );
   const [atividades, setAtividades] = useState<AtividadeOption[]>([]);
   const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,29 +120,39 @@ export default function TurmaForm() {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  const atividadesComFallback = useMemo(() => {
-    if (!form.atividadeId) return atividades;
+  const atividadeSelectValue =
+    form.atividadeId || String(existingTurma?.atividadeId ?? "");
 
-    const existe = atividades.some(
-      (atividade) => atividade.id === form.atividadeId,
+  const atividadesComFallback = useMemo(() => {
+    const options = [...atividades];
+
+    const atividadeId =
+      form.atividadeId || String(existingTurma?.atividadeId ?? "");
+
+    if (!atividadeId) return options;
+
+    const existe = options.some(
+      (atividade) => String(atividade.id) === String(atividadeId),
     );
 
-    if (existe) return atividades;
+    if (existe) return options;
 
     return [
-      ...atividades,
+      ...options,
       {
-        id: form.atividadeId,
-        nome: `Atividade ${form.atividadeId}`,
+        id: atividadeId,
+        nome: getAtividadeNome(atividades, atividadeId, existingTurma),
       },
     ];
-  }, [atividades, form.atividadeId]);
+  }, [atividades, form.atividadeId, existingTurma]);
 
   const colaboradoresComFallback = useMemo(() => {
     const missing = form.colaboradores.filter(
       (idColaborador) =>
         idColaborador &&
-        !colaboradores.some((colaborador) => colaborador.id === idColaborador),
+        !colaboradores.some(
+          (colaborador) => String(colaborador.id) === String(idColaborador),
+        ),
     );
 
     if (missing.length === 0) return colaboradores;
@@ -146,22 +187,34 @@ export default function TurmaForm() {
         setColaboradores(colaboradoresData);
 
         if (turmaData) {
+          const turma = turmaData as TurmaCarregada;
+
+          const atividadeId = turma.atividadeId
+            ? String(turma.atividadeId)
+            : "";
+
+          setExistingTurma({
+            ...turma,
+            atividadeId,
+          });
+
           setForm({
-            nomeTurma: turmaData.nomeTurma ?? "",
-            descricaoTurma: turmaData.descricaoTurma ?? "",
-            horarioInicio: turmaData.horarioInicio ?? "",
-            horarioFim: turmaData.horarioFim ?? "",
+            nomeTurma: turma.nomeTurma ?? "",
+            descricaoTurma: turma.descricaoTurma ?? "",
+            horarioInicio: turma.horarioInicio ?? "",
+            horarioFim: turma.horarioFim ?? "",
             quantidadeVagas:
-              turmaData.quantidadeVagas !== null &&
-              turmaData.quantidadeVagas !== undefined
-                ? String(turmaData.quantidadeVagas)
+              turma.quantidadeVagas !== null &&
+              turma.quantidadeVagas !== undefined
+                ? String(turma.quantidadeVagas)
                 : "",
-            diaAtividade: turmaData.diaAtividade ?? "",
-            status: turmaData.status ?? "",
-            atividadeId: turmaData.atividadeId ?? "",
-            colaboradores: (turmaData.colaboradoresIds ?? []).map(String),
+            diaAtividade: turma.diaAtividade ?? "",
+            status: turma.status ?? "",
+            atividadeId,
+            colaboradores: (turma.colaboradoresIds ?? []).map(String),
           });
         } else {
+          setExistingTurma(null);
           setForm(initial);
         }
       } catch (error) {
@@ -190,52 +243,61 @@ export default function TurmaForm() {
     };
   }, [id, navigate]);
 
+  function getFormComAtividade(): FormState {
+    return {
+      ...form,
+      atividadeId: atividadeSelectValue,
+    };
+  }
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
     if (visualizando) return;
 
-    if (!form.nomeTurma.trim()) {
+    const formComAtividade = getFormComAtividade();
+
+    if (!formComAtividade.nomeTurma.trim()) {
       toast.error("Informe o nome da turma.");
       return;
     }
 
-    if (!form.descricaoTurma.trim()) {
+    if (!formComAtividade.descricaoTurma.trim()) {
       toast.error("Informe a descrição da turma.");
       return;
     }
 
-    if (!form.horarioInicio) {
+    if (!formComAtividade.horarioInicio) {
       toast.error("Informe o horário de início.");
       return;
     }
 
-    if (!form.horarioFim) {
+    if (!formComAtividade.horarioFim) {
       toast.error("Informe o horário de término.");
       return;
     }
 
-    if (form.horarioFim <= form.horarioInicio) {
+    if (formComAtividade.horarioFim <= formComAtividade.horarioInicio) {
       toast.error("O horário de término deve ser posterior ao de início.");
       return;
     }
 
-    if (!form.diaAtividade) {
+    if (!formComAtividade.diaAtividade) {
       toast.error("Selecione o dia da atividade.");
       return;
     }
 
-    if (!form.status) {
+    if (!formComAtividade.status) {
       toast.error("Selecione o status da turma.");
       return;
     }
 
-    if (!form.atividadeId) {
+    if (!formComAtividade.atividadeId) {
       toast.error("Selecione a atividade.");
       return;
     }
 
-    if (form.colaboradores.length === 0) {
+    if (formComAtividade.colaboradores.length === 0) {
       toast.error("Vincule ao menos um colaborador à turma.");
       return;
     }
@@ -244,7 +306,7 @@ export default function TurmaForm() {
       setSaving(true);
       setAccessDeniedMessage(null);
 
-      const payload = buildTurmaPayload(form);
+      const payload = buildTurmaPayload(formComAtividade);
 
       if (editando && id) {
         await updateTurma(Number(id), payload);
@@ -276,13 +338,13 @@ export default function TurmaForm() {
     }
   };
 
-  const colaboradoresOptions = colaboradoresComFallback.map(
-    (colaborador) => colaborador.id,
+  const colaboradoresOptions = colaboradoresComFallback.map((colaborador) =>
+    String(colaborador.id),
   );
 
   const colaboradorLabel = (idColaborador: string) =>
     colaboradoresComFallback.find(
-      (colaborador) => colaborador.id === idColaborador,
+      (colaborador) => String(colaborador.id) === String(idColaborador),
     )?.nome ?? idColaborador;
 
   if (accessDeniedMessage) {
@@ -498,10 +560,10 @@ export default function TurmaForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.atividadeId}
+                  value={atividadeSelectValue}
                   onValueChange={(value) => {
                     if (visualizando) return;
-                    set("atividadeId", value);
+                    set("atividadeId", String(value));
                   }}
                   disabled={bloqueado}
                 >
@@ -511,7 +573,10 @@ export default function TurmaForm() {
 
                   <SelectContent>
                     {atividadesComFallback.map((atividade) => (
-                      <SelectItem key={atividade.id} value={atividade.id}>
+                      <SelectItem
+                        key={String(atividade.id)}
+                        value={String(atividade.id)}
+                      >
                         {atividade.nome}
                       </SelectItem>
                     ))}
