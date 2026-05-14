@@ -251,7 +251,6 @@ function mapUfToEstado(uf?: string): string {
   return uf ? mapa[uf] ?? "" : "";
 }
 
-
 function normalizarEstado(value?: string): string {
   if (!value) return "";
 
@@ -268,6 +267,14 @@ function normalizarEstado(value?: string): string {
   );
 
   return encontrado ?? estado;
+}
+
+function getOrganizacaoId(organizacao?: OrganizacaoOption | null) {
+  return organizacao ? String(organizacao.id) : "";
+}
+
+function getOrganizacaoNome(organizacao?: OrganizacaoOption | null) {
+  return organizacao?.nome ?? "";
 }
 
 function mapParticipanteToForm(participante: Participante): FormState {
@@ -301,7 +308,9 @@ function mapParticipanteToForm(participante: Participante): FormState {
       : "",
 
     status: participante.status ?? "",
-    organizacaoId: participante.organizacaoId ?? "",
+    organizacaoId: participante.organizacaoId
+      ? String(participante.organizacaoId)
+      : "",
     organizacaoNome: participante.organizacaoNome ?? "",
 
     vinculos: participante.vinculos ?? [],
@@ -388,7 +397,7 @@ export default function ParticipanteForm() {
 
   const turmasPorAtividade = useMemo(
     () => (atividadeId: string) =>
-      turmas.filter((t) => t.atividadeId === atividadeId),
+      turmas.filter((t) => String(t.atividadeId) === String(atividadeId)),
     [turmas],
   );
 
@@ -425,14 +434,28 @@ export default function ParticipanteForm() {
 
         if (!active) return;
 
+        const organizacaoPadrao = organizacoesData[0] ?? null;
+
         setAtividades(atividadesData);
         setTurmas(turmasData);
         setOrganizacoes(organizacoesData);
 
         if (participanteData) {
-          setForm(mapParticipanteToForm(participanteData));
+          const mapped = mapParticipanteToForm(participanteData);
+
+          setForm({
+            ...mapped,
+            organizacaoId:
+              mapped.organizacaoId || getOrganizacaoId(organizacaoPadrao),
+            organizacaoNome:
+              mapped.organizacaoNome || getOrganizacaoNome(organizacaoPadrao),
+          });
         } else {
-          setForm(initial);
+          setForm({
+            ...initial,
+            organizacaoId: getOrganizacaoId(organizacaoPadrao),
+            organizacaoNome: getOrganizacaoNome(organizacaoPadrao),
+          });
         }
       } catch (error) {
         console.error(error);
@@ -522,6 +545,11 @@ export default function ParticipanteForm() {
 
     if (!form.status) {
       toast.error("Selecione o status do participante.");
+      return;
+    }
+
+    if (!form.organizacaoId) {
+      toast.error("Selecione a organização.");
       return;
     }
 
@@ -1051,13 +1079,13 @@ export default function ParticipanteForm() {
                   <Field>
                     <FieldLabel
                       htmlFor="organizacaoId"
-                      tooltip="Selecione a organização à qual este participante está vinculado. Quando não informado, o backend deve vincular pela empresa logada."
+                      tooltip="Selecione a organização à qual este participante está vinculado."
                     >
                       Organização
                     </FieldLabel>
 
                     <Select
-                      value={form.organizacaoId}
+                      value={form.organizacaoId ? String(form.organizacaoId) : ""}
                       onValueChange={(v) => {
                         if (visualizando) return;
 
@@ -1067,9 +1095,10 @@ export default function ParticipanteForm() {
 
                         setForm((prev) => ({
                           ...prev,
-                          organizacaoId: v,
+                          organizacaoId: String(v),
                           organizacaoNome:
-                            organizacaoSelecionada?.nome ?? prev.organizacaoNome,
+                            organizacaoSelecionada?.nome ??
+                            prev.organizacaoNome,
                         }));
                       }}
                       disabled={bloqueado || organizacoesOptions.length === 0}
@@ -1085,7 +1114,7 @@ export default function ParticipanteForm() {
                           </SelectItem>
                         ) : (
                           organizacoesOptions.map((org) => (
-                            <SelectItem key={org.id} value={org.id}>
+                            <SelectItem key={String(org.id)} value={String(org.id)}>
                               {org.nome}
                             </SelectItem>
                           ))
@@ -1194,7 +1223,7 @@ export default function ParticipanteForm() {
 
                               <SelectContent>
                                 {atividades.map((a) => (
-                                  <SelectItem key={a.id} value={a.id}>
+                                  <SelectItem key={String(a.id)} value={String(a.id)}>
                                     {a.nomeAtividade}
                                   </SelectItem>
                                 ))}
@@ -1236,7 +1265,7 @@ export default function ParticipanteForm() {
                                   </SelectItem>
 
                                   {turmasDaAtividade.map((t) => (
-                                    <SelectItem key={t.id} value={t.id}>
+                                    <SelectItem key={String(t.id)} value={String(t.id)}>
                                       {t.nomeTurma}
                                     </SelectItem>
                                   ))}
@@ -1341,7 +1370,11 @@ export default function ParticipanteForm() {
             </Button>
 
             {!visualizando && (
-              <Button type="submit" className="sm:min-w-32" disabled={saving}>
+              <Button
+                type="submit"
+                className="sm:min-w-32"
+                disabled={saving || loading}
+              >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
             )}
@@ -1365,7 +1398,7 @@ function Section({
 }) {
   return (
     <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center justify-between gap-2.5 border-b border-border pb-3">
+      <div className="mb-5 flex items-center justify-between gap-3 border-b border-border pb-3">
         <div className="flex items-center gap-2.5">
           <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
 
