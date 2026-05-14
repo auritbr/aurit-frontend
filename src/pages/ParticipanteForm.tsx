@@ -358,6 +358,8 @@ export default function ParticipanteForm() {
   const isEdit = !!id && location.pathname.endsWith("/editar");
 
   const [form, setForm] = useState<FormState>(initial);
+  const [existingParticipante, setExistingParticipante] =
+    useState<Participante | null>(null);
   const [atividades, setAtividades] = useState<AtividadeOption[]>([]);
   const [turmas, setTurmas] = useState<TurmaOption[]>([]);
   const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
@@ -404,18 +406,39 @@ export default function ParticipanteForm() {
   const organizacoesOptions = useMemo(() => {
     const options = [...organizacoes];
 
+    const organizacaoId =
+      form.organizacaoId ||
+      String(existingParticipante?.organizacaoId ?? "") ||
+      String(organizacoes[0]?.id ?? "");
+
+    const organizacaoNome =
+      form.organizacaoNome ||
+      existingParticipante?.organizacaoNome ||
+      organizacoes[0]?.nome ||
+      (organizacaoId ? `Organização ${organizacaoId}` : "");
+
     if (
-      form.organizacaoId &&
-      !options.some((org) => String(org.id) === String(form.organizacaoId))
+      organizacaoId &&
+      !options.some((org) => String(org.id) === String(organizacaoId))
     ) {
-      options.push({
-        id: form.organizacaoId,
-        nome: form.organizacaoNome || "Organização vinculada ao participante",
+      options.unshift({
+        id: organizacaoId,
+        nome: organizacaoNome,
       });
     }
 
     return options;
-  }, [organizacoes, form.organizacaoId, form.organizacaoNome]);
+  }, [
+    organizacoes,
+    form.organizacaoId,
+    form.organizacaoNome,
+    existingParticipante,
+  ]);
+
+  const organizacaoSelectValue =
+    form.organizacaoId ||
+    String(existingParticipante?.organizacaoId ?? "") ||
+    String(organizacoes[0]?.id ?? "");
 
   useEffect(() => {
     let active = true;
@@ -443,6 +466,8 @@ export default function ParticipanteForm() {
         if (participanteData) {
           const mapped = mapParticipanteToForm(participanteData);
 
+          setExistingParticipante(participanteData);
+
           setForm({
             ...mapped,
             organizacaoId:
@@ -451,6 +476,8 @@ export default function ParticipanteForm() {
               mapped.organizacaoNome || getOrganizacaoNome(organizacaoPadrao),
           });
         } else {
+          setExistingParticipante(null);
+
           setForm({
             ...initial,
             organizacaoId: getOrganizacaoId(organizacaoPadrao),
@@ -523,82 +550,101 @@ export default function ParticipanteForm() {
 
     if (visualizando) return;
 
-    if (!form.nomeCompleto.trim()) {
+    const organizacaoId =
+      form.organizacaoId ||
+      String(existingParticipante?.organizacaoId ?? "") ||
+      String(organizacoes[0]?.id ?? "");
+
+    const organizacaoSelecionada = organizacoesOptions.find(
+      (org) => String(org.id) === String(organizacaoId),
+    );
+
+    const formComOrganizacao: FormState = {
+      ...form,
+      organizacaoId,
+      organizacaoNome:
+        form.organizacaoNome ||
+        organizacaoSelecionada?.nome ||
+        existingParticipante?.organizacaoNome ||
+        "",
+    };
+
+    if (!formComOrganizacao.nomeCompleto.trim()) {
       toast.error("Informe o nome completo.");
       return;
     }
 
-    if (!form.dataNascimento.trim()) {
+    if (!formComOrganizacao.dataNascimento.trim()) {
       toast.error("Informe a data de nascimento.");
       return;
     }
 
-    if (!isValidBrDate(form.dataNascimento)) {
+    if (!isValidBrDate(formComOrganizacao.dataNascimento)) {
       toast.error("Informe uma data de nascimento válida.");
       return;
     }
 
-    if (!form.telefone.trim()) {
+    if (!formComOrganizacao.telefone.trim()) {
       toast.error("Informe o telefone.");
       return;
     }
 
-    if (!form.status) {
+    if (!formComOrganizacao.status) {
       toast.error("Selecione o status do participante.");
       return;
     }
 
-    if (!form.organizacaoId) {
+    if (!formComOrganizacao.organizacaoId) {
       toast.error("Selecione a organização.");
       return;
     }
 
-    if (!form.cep.trim()) {
+    if (!formComOrganizacao.cep.trim()) {
       toast.error("Informe o CEP.");
       return;
     }
 
-    if (onlyDigits(form.cep).length !== 8) {
+    if (onlyDigits(formComOrganizacao.cep).length !== 8) {
       toast.error("Informe um CEP válido com 8 dígitos.");
       return;
     }
 
-    if (!form.logradouro.trim()) {
+    if (!formComOrganizacao.logradouro.trim()) {
       toast.error("Informe o logradouro.");
       return;
     }
 
-    if (!form.numero.trim()) {
+    if (!formComOrganizacao.numero.trim()) {
       toast.error("Informe o número.");
       return;
     }
 
-    if (!form.cidade.trim()) {
+    if (!formComOrganizacao.cidade.trim()) {
       toast.error("Informe a cidade.");
       return;
     }
 
-    if (!form.estado.trim()) {
+    if (!formComOrganizacao.estado.trim()) {
       toast.error("Selecione o estado.");
       return;
     }
 
-    if (isMinor(form.dataNascimento)) {
-      if (!form.nomeResponsavel.trim()) {
+    if (isMinor(formComOrganizacao.dataNascimento)) {
+      if (!formComOrganizacao.nomeResponsavel.trim()) {
         toast.error(
           "Informe o nome do responsável para participante menor de idade.",
         );
         return;
       }
 
-      if (!form.cpfResponsavel.trim()) {
+      if (!formComOrganizacao.cpfResponsavel.trim()) {
         toast.error(
           "Informe o CPF do responsável para participante menor de idade.",
         );
         return;
       }
 
-      if (!form.telefoneResponsavel.trim()) {
+      if (!formComOrganizacao.telefoneResponsavel.trim()) {
         toast.error(
           "Informe o telefone do responsável para participante menor de idade.",
         );
@@ -606,7 +652,7 @@ export default function ParticipanteForm() {
       }
     }
 
-    const vinculosPreenchidos = form.vinculos.filter((v) => {
+    const vinculosPreenchidos = formComOrganizacao.vinculos.filter((v) => {
       return (
         v.atividadeId ||
         v.turmaId ||
@@ -658,7 +704,7 @@ export default function ParticipanteForm() {
       chavesVinculos.add(chave);
     }
 
-    if (form.status === "CONCLUIDO" && vinculosPreenchidos.length > 0) {
+    if (formComOrganizacao.status === "CONCLUIDO" && vinculosPreenchidos.length > 0) {
       const indiceInvalido = vinculosPreenchidos.findIndex(
         (v) =>
           !STATUS_MATRICULA_FINAIS.includes(
@@ -668,7 +714,8 @@ export default function ParticipanteForm() {
 
       if (indiceInvalido !== -1) {
         toast.error(
-          `Para marcar o participante como concluído, a matrícula do vínculo ${indiceInvalido + 1
+          `Para marcar o participante como concluído, a matrícula do vínculo ${
+            indiceInvalido + 1
           } precisa estar como Cancelado, Desistente ou Concluído.`,
         );
         return;
@@ -679,7 +726,7 @@ export default function ParticipanteForm() {
       setSaving(true);
 
       const participante = formToParticipante({
-        ...form,
+        ...formComOrganizacao,
         vinculos: vinculosPreenchidos,
       });
 
@@ -1085,7 +1132,7 @@ export default function ParticipanteForm() {
                     </FieldLabel>
 
                     <Select
-                      value={form.organizacaoId ? String(form.organizacaoId) : ""}
+                      value={organizacaoSelectValue}
                       onValueChange={(v) => {
                         if (visualizando) return;
 
@@ -1114,7 +1161,10 @@ export default function ParticipanteForm() {
                           </SelectItem>
                         ) : (
                           organizacoesOptions.map((org) => (
-                            <SelectItem key={String(org.id)} value={String(org.id)}>
+                            <SelectItem
+                              key={String(org.id)}
+                              value={String(org.id)}
+                            >
                               {org.nome}
                             </SelectItem>
                           ))
@@ -1223,7 +1273,10 @@ export default function ParticipanteForm() {
 
                               <SelectContent>
                                 {atividades.map((a) => (
-                                  <SelectItem key={String(a.id)} value={String(a.id)}>
+                                  <SelectItem
+                                    key={String(a.id)}
+                                    value={String(a.id)}
+                                  >
                                     {a.nomeAtividade}
                                   </SelectItem>
                                 ))}
@@ -1265,7 +1318,10 @@ export default function ParticipanteForm() {
                                   </SelectItem>
 
                                   {turmasDaAtividade.map((t) => (
-                                    <SelectItem key={String(t.id)} value={String(t.id)}>
+                                    <SelectItem
+                                      key={String(t.id)}
+                                      value={String(t.id)}
+                                    >
                                       {t.nomeTurma}
                                     </SelectItem>
                                   ))}
