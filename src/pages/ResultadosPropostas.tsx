@@ -8,7 +8,6 @@ import {
   Eye,
   Award,
   FileText,
-  ShieldCheck,
   FileDown,
 } from "lucide-react";
 
@@ -25,6 +24,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/hooks/usePagination";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
+import { exportResultadoPropostaPdf } from "@/lib/pdfExporters";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -70,8 +70,9 @@ function StatusBadge({ value }: { value: string }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${toneClass[tone] ?? toneClass.neutral
-        }`}
+      className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${
+        toneClass[tone] ?? toneClass.neutral
+      }`}
     >
       {statusResultadoPropostaLabel(value)}
     </span>
@@ -181,6 +182,25 @@ export default function ResultadosPropostas() {
   const editalNome = (item: ResultadoProposta) =>
     editalNomeResultado(item.propostaEdital, propostas, item.nomeEdital);
 
+  const getDataEnvioRecurso = (item: ResultadoProposta) =>
+    (item as any).dataEnvioRecurso ??
+    (item as any).dataRecurso ??
+    (item as any).dataInterposicaoRecurso ??
+    null;
+
+  const getDescricaoRecurso = (item: ResultadoProposta) =>
+    (item as any).descricaoRecurso ??
+    (item as any).justificativaRecurso ??
+    (item as any).observacaoRecurso ??
+    null;
+
+  const getDocumentoRecurso = (item: ResultadoProposta) =>
+    (item as any).documentoRecurso ??
+    (item as any).urlDocumentoRecurso ??
+    (item as any).urlRecurso ??
+    (item as any).arquivoRecurso ??
+    null;
+
   const filtered = useMemo(() => {
     const term = search.toLowerCase().trim();
 
@@ -254,7 +274,29 @@ export default function ResultadosPropostas() {
       return;
     }
 
-    toast.info("Exportação em PDF ainda não configurada para Resultado da Proposta.");
+    try {
+      await exportResultadoPropostaPdf({
+        id: item.id,
+        propostaEdital: propostaNome(item),
+        statusResultadoProposta: statusResultadoPropostaLabel(
+          item.statusResultadoProposta,
+        ),
+        dataResultado: item.dataResultado,
+        pontuacao: item.pontuacao,
+
+        abriuRecurso: item.recursoInterposto,
+        recursoAberto: item.recursoInterposto,
+
+        dataEnvioRecurso: getDataEnvioRecurso(item),
+        descricaoRecurso: getDescricaoRecurso(item),
+        documentoRecurso: getDocumentoRecurso(item),
+
+        observacoes: item.observacoes,
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível gerar a ficha do resultado da proposta.");
+    }
   }
 
   if (!podeVisualizar) {
@@ -285,7 +327,6 @@ export default function ResultadosPropostas() {
           <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
             <div className="relative max-w-md flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
 
               <Input
                 value={search}
@@ -406,7 +447,10 @@ export default function ResultadosPropostas() {
                       </td>
 
                       <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText text={formatDateBr(item.dataResultado)} muted>
+                        <TableCellText
+                          text={formatDateBr(item.dataResultado)}
+                          muted
+                        >
                           {formatDateBr(item.dataResultado)}
                         </TableCellText>
                       </td>
@@ -419,10 +463,11 @@ export default function ResultadosPropostas() {
 
                       <td className="whitespace-nowrap px-6 py-2.5">
                         <span
-                          className={`text-sm ${item.urlRelatorioAvaliacao
-                            ? "text-foreground"
-                            : "text-muted-foreground"
-                            }`}
+                          className={`text-sm ${
+                            item.urlRelatorioAvaliacao
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                          }`}
                         >
                           {item.urlRelatorioAvaliacao
                             ? "Anexado"
@@ -486,6 +531,14 @@ export default function ResultadosPropostas() {
                           navigate(`/resultados-propostas/${item.id}`)
                         }
                       />
+
+                      {podeGerarPdf && (
+                        <TableActionIcon
+                          icon={FileDown}
+                          label="Gerar ficha"
+                          onClick={() => void handleExportPdf(item)}
+                        />
+                      )}
 
                       {podeEditar && (
                         <TableActionIcon
@@ -553,6 +606,18 @@ export default function ResultadosPropostas() {
                       ? "Relatório anexado"
                       : "Sem relatório anexado"}
                   </p>
+
+                  {podeGerarPdf && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleExportPdf(item)}
+                      className="mt-3 h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
+                    >
+                      <FileDown className="h-3.5 w-3.5" />
+                      Gerar ficha
+                    </Button>
+                  )}
                 </div>
               ))
             )}

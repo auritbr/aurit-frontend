@@ -11,6 +11,7 @@ import {
   CalendarRange,
   ClipboardList,
   Eye,
+  FileText,
   FolderKanban,
   Pencil,
   Plus,
@@ -42,6 +43,7 @@ import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
+import { exportCronogramaPdf } from "@/lib/pdfExporters";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -356,6 +358,48 @@ export default function Cronograma() {
     return "Projeto geral";
   };
 
+  const tipoVinculoTexto = (item: CronogramaData) => {
+    if (item.atividadeId) return "Atividade";
+    if (item.eventoCulturalId) return "Evento Cultural";
+    if (item.acaoDivulgacaoId) return "Ação de Divulgação";
+
+    return "Projeto";
+  };
+
+  const vinculoRelacionadoTexto = (item: CronogramaData) => {
+    if (item.atividadeId) return atividadeNome(item.atividadeId);
+    if (item.eventoCulturalId) return eventoNome(item.eventoCulturalId);
+    if (item.acaoDivulgacaoId) return acaoNome(item.acaoDivulgacaoId);
+
+    return projetoNome(item.projetoId);
+  };
+
+  const handleExportPdf = async (item: CronogramaData) => {
+    try {
+      await exportCronogramaPdf({
+        id: item.id,
+        nomeEtapa: item.nomeEtapa,
+        descricaoEtapa: item.descricaoEtapa,
+        dataInicio: item.dataInicioEtapa,
+        dataTermino: item.dataFimEtapa,
+        statusCronograma: statusCronogramaLabel(item.statusCronograma),
+        projeto: projetoNome(item.projetoId),
+        tipoVinculo: tipoVinculoTexto(item),
+        vinculoRelacionado: vinculoRelacionadoTexto(item),
+        atividade: item.atividadeId ? atividadeNome(item.atividadeId) : null,
+        eventoCultural: item.eventoCulturalId
+          ? eventoNome(item.eventoCulturalId)
+          : null,
+        acaoDivulgacao: item.acaoDivulgacaoId
+          ? acaoNome(item.acaoDivulgacaoId)
+          : null,
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível gerar a ficha do cronograma.");
+    }
+  };
+
   const filtered = useMemo(() => {
     const term = search.toLowerCase().trim();
 
@@ -621,8 +665,9 @@ export default function Cronograma() {
   return (
     <AppLayout>
       <div
-        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"
-          } py-6 sm:py-8`}
+        className={`container ${
+          showForm ? "max-w-4xl" : "max-w-7xl"
+        } py-6 sm:py-8`}
       >
         {showForm && (
           <button
@@ -635,7 +680,10 @@ export default function Cronograma() {
           </button>
         )}
 
-        <PageTitle title="Cronograma do Projeto" tooltip={cronogramaTitleTooltip} />
+        <PageTitle
+          title="Cronograma do Projeto"
+          tooltip={cronogramaTitleTooltip}
+        />
 
         {showForm ? (
           <>
@@ -1022,7 +1070,7 @@ export default function Cronograma() {
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
                       <th
-                        className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                        className="w-[170px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
                         data-no-copy
                       >
                         Ações
@@ -1062,6 +1110,12 @@ export default function Cronograma() {
                               icon={Eye}
                               label="Visualizar"
                               onClick={() => openRecord(item, "view")}
+                            />
+
+                            <TableActionIcon
+                              icon={FileText}
+                              label="Gerar ficha"
+                              onClick={() => handleExportPdf(item)}
                             />
 
                             {podeEditar && (
@@ -1129,6 +1183,12 @@ export default function Cronograma() {
                         icon={Eye}
                         label="Visualizar"
                         onClick={() => openRecord(item, "view")}
+                      />
+
+                      <TableActionIcon
+                        icon={FileText}
+                        label="Gerar ficha"
+                        onClick={() => handleExportPdf(item)}
                       />
 
                       {podeEditar && (

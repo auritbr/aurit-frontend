@@ -498,6 +498,47 @@ type RepresentanteLegalPdf = {
   emailRepresentante?: string | null;
 };
 
+type CronogramaPdf = {
+  id: string | number;
+
+  nomeEtapa?: string | null;
+  descricaoEtapa?: string | null;
+
+  dataInicio?: string | null;
+  dataTermino?: string | null;
+
+  statusCronograma?: string | null;
+
+  projeto?: string | null;
+
+  tipoVinculo?: string | null;
+  vinculoRelacionado?: string | null;
+
+  atividade?: string | null;
+  eventoCultural?: string | null;
+  acaoDivulgacao?: string | null;
+};
+
+type ResultadoPropostaPdf = {
+  id: string | number;
+
+  propostaEdital?: string | null;
+
+  statusResultadoProposta?: string | null;
+
+  dataResultado?: string | null;
+  pontuacao?: string | number | null;
+
+  abriuRecurso?: boolean | null;
+  recursoAberto?: boolean | null;
+
+  dataEnvioRecurso?: string | null;
+  descricaoRecurso?: string | null;
+  documentoRecurso?: string | null;
+
+  observacoes?: string | null;
+};
+
 type OrganizacaoPdf = {
   id?: string | number;
   razaoSocial?: string | null;
@@ -2539,12 +2580,8 @@ export async function exportEvidenciaExecucaoPdf(e: EvidenciaExecucaoPdf) {
         ],
       },
       {
-        title: "3. Arquivo e Publicação",
+        title: "3. Publicação",
         fields: [
-          {
-            label: "Arquivo da Evidência",
-            value: v(e.urlArquivo),
-          },
           {
             label: "Link da Publicação",
             value: v(e.urlPublicacao),
@@ -3859,5 +3896,160 @@ export async function exportIntegrantePdf(i: IntegrantePdf) {
         fields: vinculoFields,
       },
     ],
+  });
+}
+
+// =====================================================================
+// CRONOGRAMA
+// =====================================================================
+
+export async function exportCronogramaPdf(c: CronogramaPdf) {
+  const VINCULO_RELACIONADO =
+    c.vinculoRelacionado?.trim() ||
+    c.atividade?.trim() ||
+    c.eventoCultural?.trim() ||
+    c.acaoDivulgacao?.trim() ||
+    c.projeto?.trim() ||
+    PLACEHOLDER;
+
+  await generateInstitutionalPdf({
+    title: "Ficha de Cronograma",
+    documentNumber: `CRO-${String(c.id).padStart(4, "0")}`,
+    sections: [
+      {
+        title: "1. Identificação da Etapa",
+        fields: [
+          {
+            label: "Nome da Etapa",
+            value: v(c.nomeEtapa),
+          },
+          {
+            label: "Status do Cronograma",
+            value: v(c.statusCronograma),
+          },
+          {
+            label: "Projeto",
+            value: v(c.projeto),
+          },
+        ],
+      },
+      {
+        title: "2. Período da Etapa",
+        fields: [
+          {
+            label: "Data de Início",
+            value: formatDateBR(c.dataInicio),
+          },
+          {
+            label: "Data de Término",
+            value: formatDateBR(c.dataTermino),
+          },
+        ],
+      },
+      {
+        title: "3. Vínculo do Cronograma",
+        fields: [
+          {
+            label: "Tipo de Vínculo",
+            value: v(c.tipoVinculo),
+          },
+          {
+            label: "Vínculo Relacionado",
+            value: VINCULO_RELACIONADO,
+          },
+        ],
+      },
+      {
+        title: "4. Descrição da Etapa",
+        justifiedParagraphs: c.descricaoEtapa
+          ? [c.descricaoEtapa]
+          : [PLACEHOLDER],
+      },
+    ],
+  });
+}
+
+// =====================================================================
+// RESULTADO DA PROPOSTA
+// =====================================================================
+
+export async function exportResultadoPropostaPdf(r: ResultadoPropostaPdf) {
+  const TEM_RECURSO =
+    r.abriuRecurso === true ||
+    r.recursoAberto === true ||
+    Boolean(r.dataEnvioRecurso?.trim()) ||
+    Boolean(r.descricaoRecurso?.trim()) ||
+    Boolean(r.documentoRecurso?.trim());
+
+  const sections: any[] = [
+    {
+      title: "1. Identificação da Proposta",
+      fields: [
+        {
+          label: "Proposta do Edital",
+          value: v(r.propostaEdital),
+        },
+        {
+          label: "Status do Resultado da Proposta",
+          value: v(r.statusResultadoProposta),
+        },
+      ],
+    },
+    {
+      title: "2. Resultado",
+      fields: [
+        {
+          label: "Data do Resultado",
+          value: formatDateBR(r.dataResultado),
+        },
+        {
+          label: "Pontuação",
+          value: v(r.pontuacao),
+        },
+      ],
+    },
+  ];
+
+  if (TEM_RECURSO) {
+    sections.push({
+      title: "3. Recurso",
+      fields: [
+        {
+          label: "Data de Envio do Recurso",
+          value: formatDateBR(r.dataEnvioRecurso),
+        },
+        {
+          label: "Documento do Recurso",
+          value: v(r.documentoRecurso),
+        },
+      ],
+    });
+
+    sections.push({
+      title: "4. Descrição do Recurso",
+      justifiedParagraphs: r.descricaoRecurso
+        ? [r.descricaoRecurso]
+        : [PLACEHOLDER],
+    });
+
+    sections.push({
+      title: "5. Observações",
+      justifiedParagraphs: r.observacoes
+        ? [r.observacoes]
+        : [PLACEHOLDER],
+    });
+  } else {
+    sections.push({
+      title: "3. Observações",
+      justifiedParagraphs: r.observacoes
+        ? [r.observacoes]
+        : [PLACEHOLDER],
+    });
+  }
+
+  await generateInstitutionalPdf({
+    title: "Ficha de Resultado da Proposta",
+    documentNumber: `RPR-${String(r.id).padStart(4, "0")}`,
+    sections,
   });
 }
