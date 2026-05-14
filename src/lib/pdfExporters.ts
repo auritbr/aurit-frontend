@@ -4018,10 +4018,6 @@ export async function exportResultadoPropostaPdf(r: ResultadoPropostaPdf) {
           label: "Data de Envio do Recurso",
           value: formatDateBR(r.dataEnvioRecurso),
         },
-        {
-          label: "Documento do Recurso",
-          value: v(r.documentoRecurso),
-        },
       ],
     });
 

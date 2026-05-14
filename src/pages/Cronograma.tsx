@@ -11,7 +11,7 @@ import {
   CalendarRange,
   ClipboardList,
   Eye,
-  FileText,
+  FileDown,
   FolderKanban,
   Pencil,
   Plus,
@@ -191,6 +191,7 @@ export default function Cronograma() {
   const podeCriar = permissoes.CRIAR;
   const podeEditar = permissoes.EDITAR;
   const podeExcluir = permissoes.EXCLUIR;
+  const podeGerarPdf = permissoes.GERAR_PDF || permissoes.BAIXAR;
 
   const readOnly = mode === "view";
 
@@ -375,6 +376,11 @@ export default function Cronograma() {
   };
 
   const handleExportPdf = async (item: CronogramaData) => {
+    if (!podeGerarPdf) {
+      toast.error("Você não possui permissão para gerar PDF.");
+      return;
+    }
+
     try {
       await exportCronogramaPdf({
         id: item.id,
@@ -1066,11 +1072,11 @@ export default function Cronograma() {
               </div>
 
               <div className="hidden overflow-x-auto md:block">
-                <table ref={tableRef} className="w-full min-w-[1080px]">
+                <table ref={tableRef} className="w-full min-w-[1180px]">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
                       <th
-                        className="w-[170px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                        className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
                         data-no-copy
                       >
                         Ações
@@ -1095,6 +1101,15 @@ export default function Cronograma() {
                       <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Vínculo
                       </th>
+
+                      {podeGerarPdf && (
+                        <th
+                          className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                          data-no-copy
+                        >
+                          Documento
+                        </th>
+                      )}
                     </tr>
                   </thead>
 
@@ -1110,12 +1125,6 @@ export default function Cronograma() {
                               icon={Eye}
                               label="Visualizar"
                               onClick={() => openRecord(item, "view")}
-                            />
-
-                            <TableActionIcon
-                              icon={FileText}
-                              label="Gerar ficha"
-                              onClick={() => handleExportPdf(item)}
                             />
 
                             {podeEditar && (
@@ -1167,10 +1176,26 @@ export default function Cronograma() {
                             {vinculoTexto(item)}
                           </TableCellText>
                         </td>
+
+                        {podeGerarPdf && (
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void handleExportPdf(item)}
+                              className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
+                            >
+                              <FileDown className="h-3.5 w-3.5" />
+                              Gerar ficha
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                     ))}
 
-                    {paginated.length === 0 && <EmptyRow colSpan={6} />}
+                    {paginated.length === 0 && (
+                      <EmptyRow colSpan={podeGerarPdf ? 7 : 6} />
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1183,12 +1208,6 @@ export default function Cronograma() {
                         icon={Eye}
                         label="Visualizar"
                         onClick={() => openRecord(item, "view")}
-                      />
-
-                      <TableActionIcon
-                        icon={FileText}
-                        label="Gerar ficha"
-                        onClick={() => handleExportPdf(item)}
                       />
 
                       {podeEditar && (
@@ -1228,6 +1247,18 @@ export default function Cronograma() {
                     <div className="mt-2">
                       <StatusCronogramaBadge value={item.statusCronograma} />
                     </div>
+
+                    {podeGerarPdf && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void handleExportPdf(item)}
+                        className="mt-3 h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
+                      >
+                        <FileDown className="h-3.5 w-3.5" />
+                        Gerar ficha
+                      </Button>
+                    )}
                   </div>
                 ))}
 

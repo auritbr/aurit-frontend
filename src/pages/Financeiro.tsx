@@ -654,7 +654,6 @@ export default function FinanceiroPage() {
       organizacao: organizacaoNome(item.organizacaoId),
       numeroDocumento: item.numeroDocumento,
       descricao: item.descricao,
-      comprovante: comprovanteUrl,
 
       dataPagamento: item.dataPagamento,
       dataVencimento: (item as any).dataVencimento,
