@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -172,6 +172,14 @@ function isAllowedNotaFiscal(file: File) {
   return !!extension && allowed.includes(extension);
 }
 
+function getOrganizacaoId(organizacao?: OrganizacaoOption | null) {
+  return organizacao ? String(organizacao.id) : "";
+}
+
+function getProjetoId(projeto?: ProjetoOption | null) {
+  return projeto ? String(projeto.id) : "";
+}
+
 export default function PatrimonioForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -181,6 +189,8 @@ export default function PatrimonioForm() {
   const editando = !!id && location.pathname.endsWith("/editar");
 
   const [form, setForm] = useState<FormState>(initial);
+  const [existingPatrimonio, setExistingPatrimonio] =
+    useState<Patrimonio | null>(null);
   const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -193,6 +203,62 @@ export default function PatrimonioForm() {
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+const organizacoesOptions = useMemo(() => {
+  const options = [...organizacoes];
+
+  const organizacaoId =
+    form.organizacaoId ||
+    String(existingPatrimonio?.organizacaoId ?? "") ||
+    String(organizacoes[0]?.id ?? "");
+
+  const organizacaoIdNumber = Number(organizacaoId);
+
+  if (
+    organizacaoId &&
+    Number.isFinite(organizacaoIdNumber) &&
+    !options.some((org) => String(org.id) === String(organizacaoId))
+  ) {
+    options.unshift({
+      id: organizacaoIdNumber,
+      nome: `Organização ${organizacaoId}`,
+    });
+  }
+
+  return options;
+}, [organizacoes, form.organizacaoId, existingPatrimonio]);
+
+const projetosOptions = useMemo(() => {
+  const options = [...projetos];
+
+  const projetoId =
+    form.projetoId || String(existingPatrimonio?.projetoId ?? "");
+
+  const projetoIdNumber = Number(projetoId);
+
+  if (
+    projetoId &&
+    Number.isFinite(projetoIdNumber) &&
+    !options.some((projeto) => String(projeto.id) === String(projetoId))
+  ) {
+    options.unshift({
+      id: projetoIdNumber,
+      nome: `Projeto ${projetoId}`,
+    });
+  }
+
+  return options;
+}, [projetos, form.projetoId, existingPatrimonio]);
+
+  const organizacaoSelectValue =
+    form.organizacaoId ||
+    String(existingPatrimonio?.organizacaoId ?? "") ||
+    String(organizacoes[0]?.id ?? "");
+
+  const projetoSelectValue =
+    form.projetoId ||
+    String(existingPatrimonio?.projetoId ?? "") ||
+    SEM_PROJETO_VALUE;
 
   useEffect(() => {
     let active = true;
@@ -210,10 +276,14 @@ export default function PatrimonioForm() {
 
         if (!active) return;
 
+        const organizacaoPadrao = organizacoesData[0] ?? null;
+
         setOrganizacoes(organizacoesData);
         setProjetos(projetosData);
 
         if (patrimonioData) {
+          setExistingPatrimonio(patrimonioData);
+
           setForm({
             numeroPatrimonio: patrimonioData.numeroPatrimonio,
             nomePatrimonio: patrimonioData.nomePatrimonio,
@@ -239,7 +309,7 @@ export default function PatrimonioForm() {
             organizacaoId:
               patrimonioData.organizacaoId != null
                 ? String(patrimonioData.organizacaoId)
-                : "",
+                : getOrganizacaoId(organizacaoPadrao),
 
             projetoId:
               patrimonioData.projetoId != null
@@ -247,7 +317,13 @@ export default function PatrimonioForm() {
                 : "",
           });
         } else {
-          setForm(initial);
+          setExistingPatrimonio(null);
+
+          setForm({
+            ...initial,
+            organizacaoId: getOrganizacaoId(organizacaoPadrao),
+            projetoId: "",
+          });
         }
       } catch (error) {
         console.error(error);
@@ -339,47 +415,61 @@ export default function PatrimonioForm() {
 
     if (visualizando) return;
 
-    if (!form.numeroPatrimonio.trim()) {
+    const organizacaoId =
+      form.organizacaoId ||
+      String(existingPatrimonio?.organizacaoId ?? "") ||
+      String(organizacoes[0]?.id ?? "");
+
+    const projetoId =
+      form.projetoId || String(existingPatrimonio?.projetoId ?? "");
+
+    const formComVinculos: FormState = {
+      ...form,
+      organizacaoId,
+      projetoId,
+    };
+
+    if (!formComVinculos.numeroPatrimonio.trim()) {
       toast.error("Informe o número do patrimônio.");
       return;
     }
 
-    if (!form.nomePatrimonio.trim()) {
+    if (!formComVinculos.nomePatrimonio.trim()) {
       toast.error("Informe o nome do patrimônio.");
       return;
     }
 
-    if (!form.dataAquisicao.trim()) {
+    if (!formComVinculos.dataAquisicao.trim()) {
       toast.error("Informe a data de aquisição.");
       return;
     }
 
-    if (!isValidDateBR(form.dataAquisicao)) {
+    if (!isValidDateBR(formComVinculos.dataAquisicao)) {
       toast.error("Informe uma data de aquisição válida.");
       return;
     }
 
-    if (brToDate(form.dataAquisicao) > new Date()) {
+    if (brToDate(formComVinculos.dataAquisicao) > new Date()) {
       toast.error("A data de aquisição não pode ser futura.");
       return;
     }
 
-    if (!form.descricaoPatrimonio.trim()) {
+    if (!formComVinculos.descricaoPatrimonio.trim()) {
       toast.error("Informe a descrição do patrimônio.");
       return;
     }
 
-    if (!form.tipoPatrimonio) {
+    if (!formComVinculos.tipoPatrimonio) {
       toast.error("Selecione o tipo de patrimônio.");
       return;
     }
 
-    if (!form.estadoConservacao) {
+    if (!formComVinculos.estadoConservacao) {
       toast.error("Selecione o estado de conservação.");
       return;
     }
 
-    if (!form.statusPatrimonio) {
+    if (!formComVinculos.statusPatrimonio) {
       toast.error("Selecione o status do patrimônio.");
       return;
     }
@@ -390,27 +480,31 @@ export default function PatrimonioForm() {
       const patrimonioForPayload: Patrimonio = {
         id: editando && id ? Number(id) : 0,
 
-        numeroPatrimonio: form.numeroPatrimonio,
-        nomePatrimonio: form.nomePatrimonio,
-        dataAquisicao: form.dataAquisicao,
-        descricaoPatrimonio: form.descricaoPatrimonio,
-        valorPatrimonio: parseCurrencyToNumber(form.valorPatrimonio),
+        numeroPatrimonio: formComVinculos.numeroPatrimonio,
+        nomePatrimonio: formComVinculos.nomePatrimonio,
+        dataAquisicao: formComVinculos.dataAquisicao,
+        descricaoPatrimonio: formComVinculos.descricaoPatrimonio,
+        valorPatrimonio: parseCurrencyToNumber(formComVinculos.valorPatrimonio),
 
-        marca: form.marca,
-        modelo: form.modelo,
-        numeroSerie: form.numeroSerie,
+        marca: formComVinculos.marca,
+        modelo: formComVinculos.modelo,
+        numeroSerie: formComVinculos.numeroSerie,
 
         urlNotaFiscal:
           notaFiscalFile == null
-            ? form.urlNotaFiscal.trim() || undefined
+            ? formComVinculos.urlNotaFiscal.trim() || undefined
             : undefined,
 
-        tipoPatrimonio: form.tipoPatrimonio,
-        estadoConservacao: form.estadoConservacao,
-        statusPatrimonio: form.statusPatrimonio,
+        tipoPatrimonio: formComVinculos.tipoPatrimonio,
+        estadoConservacao: formComVinculos.estadoConservacao,
+        statusPatrimonio: formComVinculos.statusPatrimonio,
 
-        organizacaoId: form.organizacaoId ? Number(form.organizacaoId) : null,
-        projetoId: form.projetoId ? Number(form.projetoId) : null,
+        organizacaoId: formComVinculos.organizacaoId
+          ? Number(formComVinculos.organizacaoId)
+          : null,
+        projetoId: formComVinculos.projetoId
+          ? Number(formComVinculos.projetoId)
+          : null,
       };
 
       const payload = buildPatrimonioPayload(patrimonioForPayload);
@@ -478,6 +572,7 @@ export default function PatrimonioForm() {
         </div>
 
         {!visualizando && <FormLegend />}
+
         <form onSubmit={handleSubmit} className="space-y-5">
           <Section icon={Building2} title="Vinculação institucional">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -490,26 +585,26 @@ export default function PatrimonioForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.organizacaoId}
+                  value={organizacaoSelectValue}
                   onValueChange={(value) => {
                     if (visualizando) return;
 
-                    set("organizacaoId", value);
+                    set("organizacaoId", String(value));
                   }}
-                  disabled={bloqueado || organizacoes.length === 0}
+                  disabled={bloqueado || organizacoesOptions.length === 0}
                 >
                   <SelectTrigger id="organizacaoId">
                     <SelectValue placeholder="Vincular pela empresa logada" />
                   </SelectTrigger>
 
                   <SelectContent>
-                    {organizacoes.length === 0 ? (
+                    {organizacoesOptions.length === 0 ? (
                       <SelectItem value="sem-organizacao" disabled>
                         Nenhuma organização cadastrada
                       </SelectItem>
                     ) : (
-                      organizacoes.map((org) => (
-                        <SelectItem key={org.id} value={String(org.id)}>
+                      organizacoesOptions.map((org) => (
+                        <SelectItem key={String(org.id)} value={String(org.id)}>
                           {org.nome}
                         </SelectItem>
                       ))
@@ -527,13 +622,13 @@ export default function PatrimonioForm() {
                 </FieldLabel>
 
                 <Select
-                  value={form.projetoId || SEM_PROJETO_VALUE}
+                  value={projetoSelectValue}
                   onValueChange={(value) => {
                     if (visualizando) return;
 
                     set(
                       "projetoId",
-                      value === SEM_PROJETO_VALUE ? "" : value,
+                      value === SEM_PROJETO_VALUE ? "" : String(value),
                     );
                   }}
                   disabled={bloqueado}
@@ -547,8 +642,11 @@ export default function PatrimonioForm() {
                       Sem projeto vinculado
                     </SelectItem>
 
-                    {projetos.map((projeto) => (
-                      <SelectItem key={projeto.id} value={String(projeto.id)}>
+                    {projetosOptions.map((projeto) => (
+                      <SelectItem
+                        key={String(projeto.id)}
+                        value={String(projeto.id)}
+                      >
                         {projeto.nome}
                       </SelectItem>
                     ))}
@@ -706,7 +804,9 @@ export default function PatrimonioForm() {
                 {!visualizando && form.urlNotaFiscal && (
                   <div className="mt-2 flex items-center gap-2">
                     <p className="truncate text-xs text-muted-foreground">
-                      Arquivo selecionado: {notaFiscalFile?.name || getNomeArquivoPatrimonio(form.urlNotaFiscal)}
+                      Arquivo selecionado:{" "}
+                      {notaFiscalFile?.name ||
+                        getNomeArquivoPatrimonio(form.urlNotaFiscal)}
                     </p>
 
                     <Button

@@ -2437,7 +2437,7 @@ export async function exportPrestacaoMetasPdf(m: PrestacaoMetasPdf) {
     m.evidencias && m.evidencias.length > 0 ? m.evidencias : [PLACEHOLDER];
 
   await generateInstitutionalPdf({
-    title: "Ficha de Prestação de Meta",
+    title: "Ficha de Cumprimento de Meta",
     documentNumber: `MET-${String(m.id).padStart(4, "0")}`,
     sections: [
       {
