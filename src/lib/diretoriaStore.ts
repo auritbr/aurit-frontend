@@ -60,11 +60,24 @@ export const statusDiretoriaOptions = [
 export type CargoDiretoria = (typeof cargosDiretoria)[number]["value"];
 export type StatusDiretoria = (typeof statusDiretoriaOptions)[number]["value"];
 
+type DateApiValue =
+  | string
+  | number[]
+  | {
+      year?: number;
+      month?: number;
+      day?: number;
+      monthValue?: number;
+      dayOfMonth?: number;
+    }
+  | null
+  | undefined;
+
 export interface DiretoriaDTO {
-  id?: number;
+  id?: number | string | null;
 
   nomeCompleto?: string | null;
-  dataNascimento?: string | null;
+  dataNascimento?: DateApiValue;
   cpf?: string | null;
   rg?: string | null;
   telefone?: string | null;
@@ -72,20 +85,31 @@ export interface DiretoriaDTO {
 
   cep?: string | null;
   logradouro?: string | null;
-  numero?: number | null;
+  numero?: number | string | null;
   complemento?: string | null;
   bairro?: string | null;
   cidade?: string | null;
   estado?: string | null;
 
   cargoDiretoria?: CargoDiretoria | string | null;
-  dataInicioMandato?: string | null;
-  dataFimMandato?: string | null;
-  dataAfastamento?: string | null;
+
+  dataInicioMandato?: DateApiValue;
+  dataFimMandato?: DateApiValue;
+  dataTerminoMandato?: DateApiValue;
+  dataEncerramentoMandato?: DateApiValue;
+
+  dataAfastamento?: DateApiValue;
   observacao?: string | null;
   statusDiretoria?: StatusDiretoria | string | null;
 
-  organizacaoId?: number | null;
+  organizacaoId?: number | string | null;
+  organizacao?: {
+    id?: number | string | null;
+    razaoSocial?: string | null;
+    nomeFantasia?: string | null;
+    nomeOrganizacao?: string | null;
+    nome?: string | null;
+  } | null;
 }
 
 export interface DiretoriaData {
@@ -151,6 +175,71 @@ function toIdString(value?: number | string | null) {
   return String(value);
 }
 
+function normalizeDateInput(value: DateApiValue): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  if (Array.isArray(value)) {
+    const [year, month, day] = value;
+
+    if (!year || !month || !day) {
+      return "";
+    }
+
+    return `${String(year).padStart(4, "0")}-${String(month).padStart(
+      2,
+      "0",
+    )}-${String(day).padStart(2, "0")}`;
+  }
+
+  if (typeof value === "object") {
+    const year = value.year;
+    const month = value.monthValue ?? value.month;
+    const day = value.dayOfMonth ?? value.day;
+
+    if (!year || !month || !day) {
+      return "";
+    }
+
+    return `${String(year).padStart(4, "0")}-${String(month).padStart(
+      2,
+      "0",
+    )}-${String(day).padStart(2, "0")}`;
+  }
+
+  const clean = String(value).trim();
+
+  if (!clean) {
+    return "";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+    return clean;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T/.test(clean)) {
+    return clean.slice(0, 10);
+  }
+
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(clean)) {
+    const [day, month, year] = clean.split("/");
+    return `${year}-${month}-${day}`;
+  }
+
+  return clean;
+}
+
+function normalizeDateOutput(value?: string | null): string | null {
+  const normalized = normalizeDateInput(value);
+
+  return normalized || null;
+}
+
+function resolveOrganizacaoId(dto: DiretoriaDTO): string {
+  return toIdString(dto.organizacaoId ?? dto.organizacao?.id ?? null);
+}
+
 export const cargoDiretoriaLabel = (value?: string) =>
   cargosDiretoria.find((item) => item.value === value)?.label ?? value ?? "—";
 
@@ -162,7 +251,9 @@ export const statusDiretoriaLabel = (value?: string) =>
 export function formatDateBR(value?: string) {
   if (!value) return "—";
 
-  const [year, month, day] = value.split("-");
+  const normalized = normalizeDateInput(value);
+
+  const [year, month, day] = normalized.split("-");
 
   if (!year || !month || !day) return value;
 
@@ -200,11 +291,17 @@ export function createEmptyDiretoria(): DiretoriaData {
 }
 
 export function mapDiretoria(dto: DiretoriaDTO): DiretoriaData {
+  const dataFimMandato =
+    dto.dataFimMandato ??
+    dto.dataTerminoMandato ??
+    dto.dataEncerramentoMandato ??
+    null;
+
   return {
     id: toIdString(dto.id),
 
     nomeCompleto: dto.nomeCompleto ?? "",
-    dataNascimento: dto.dataNascimento ?? "",
+    dataNascimento: normalizeDateInput(dto.dataNascimento),
     cpf: dto.cpf ?? "",
     rg: dto.rg ?? "",
     telefone: dto.telefone ?? "",
@@ -219,13 +316,13 @@ export function mapDiretoria(dto: DiretoriaDTO): DiretoriaData {
     estado: dto.estado ?? "",
 
     cargoDiretoria: dto.cargoDiretoria ?? "",
-    dataInicioMandato: dto.dataInicioMandato ?? "",
-    dataFimMandato: dto.dataFimMandato ?? "",
-    dataAfastamento: dto.dataAfastamento ?? "",
+    dataInicioMandato: normalizeDateInput(dto.dataInicioMandato),
+    dataFimMandato: normalizeDateInput(dataFimMandato),
+    dataAfastamento: normalizeDateInput(dto.dataAfastamento),
     observacao: dto.observacao ?? "",
     statusDiretoria: dto.statusDiretoria ?? "",
 
-    organizacaoId: toIdString(dto.organizacaoId),
+    organizacaoId: resolveOrganizacaoId(dto),
   };
 }
 
@@ -234,7 +331,7 @@ export function buildDiretoriaPayload(form: DiretoriaData): DiretoriaDTO {
     id: form.id ? Number(form.id) : undefined,
 
     nomeCompleto: form.nomeCompleto.trim(),
-    dataNascimento: form.dataNascimento || null,
+    dataNascimento: normalizeDateOutput(form.dataNascimento),
     cpf: onlyDigits(form.cpf),
     rg: form.rg.trim() || null,
     telefone: form.telefone.trim(),
@@ -249,9 +346,9 @@ export function buildDiretoriaPayload(form: DiretoriaData): DiretoriaDTO {
     estado: form.estado.trim(),
 
     cargoDiretoria: form.cargoDiretoria,
-    dataInicioMandato: form.dataInicioMandato || null,
-    dataFimMandato: form.dataFimMandato || null,
-    dataAfastamento: form.dataAfastamento || null,
+    dataInicioMandato: normalizeDateOutput(form.dataInicioMandato),
+    dataFimMandato: normalizeDateOutput(form.dataFimMandato),
+    dataAfastamento: normalizeDateOutput(form.dataAfastamento),
     observacao: form.observacao.trim() || null,
     statusDiretoria: form.statusDiretoria,
 

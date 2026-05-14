@@ -33,6 +33,7 @@ import {
   createProjeto,
   getOrganizacoes,
   getProjetoById,
+  getProjetos,
   origemProjetoOptions,
   statusProjetoOptions,
   updateProjeto,
@@ -105,35 +106,67 @@ function toStringId(value: unknown): string {
 }
 
 function resolverOrganizacaoId(
-  projeto: Projeto,
+  projeto: Projeto | null | undefined,
   organizacoes: OrganizacaoOption[],
+  projetoFallback?: Projeto | null,
 ): string {
   const projetoRaw = projeto as any;
+  const fallbackRaw = projetoFallback as any;
 
-  const idDireto = toStringId(projetoRaw.organizacaoId);
+  const idDireto = toStringId(projetoRaw?.organizacaoId);
 
   if (idDireto) {
     return idDireto;
   }
 
+  const idDiretoFallback = toStringId(fallbackRaw?.organizacaoId);
+
+  if (idDiretoFallback) {
+    return idDiretoFallback;
+  }
+
   const idPorObjeto = toStringId(
-    projetoRaw.organizacao?.id ??
-      projetoRaw.organizacao?.organizacaoId ??
-      projetoRaw.organizacao?.codigo,
+    projetoRaw?.organizacao?.id ??
+      projetoRaw?.organizacao?.organizacaoId ??
+      projetoRaw?.organizacao?.codigo,
   );
 
   if (idPorObjeto) {
     return idPorObjeto;
   }
 
+  const idPorObjetoFallback = toStringId(
+    fallbackRaw?.organizacao?.id ??
+      fallbackRaw?.organizacao?.organizacaoId ??
+      fallbackRaw?.organizacao?.codigo,
+  );
+
+  if (idPorObjetoFallback) {
+    return idPorObjetoFallback;
+  }
+
   const idAlternativo = toStringId(
-    projetoRaw.idOrganizacao ??
-      projetoRaw.organizacao_id ??
-      projetoRaw.organizacaoID,
+    projetoRaw?.idOrganizacao ??
+      projetoRaw?.organizacao_id ??
+      projetoRaw?.organizacaoID ??
+      projetoRaw?.empresaId ??
+      projetoRaw?.configuracaoEmpresaId,
   );
 
   if (idAlternativo) {
     return idAlternativo;
+  }
+
+  const idAlternativoFallback = toStringId(
+    fallbackRaw?.idOrganizacao ??
+      fallbackRaw?.organizacao_id ??
+      fallbackRaw?.organizacaoID ??
+      fallbackRaw?.empresaId ??
+      fallbackRaw?.configuracaoEmpresaId,
+  );
+
+  if (idAlternativoFallback) {
+    return idAlternativoFallback;
   }
 
   if (organizacoes.length === 1) {
@@ -146,6 +179,7 @@ function resolverOrganizacaoId(
 function projetoToForm(
   projeto: Projeto,
   organizacoes: OrganizacaoOption[],
+  projetoFallback?: Projeto | null,
 ): FormState {
   return {
     nomeProjeto: projeto.nomeProjeto ?? "",
@@ -159,7 +193,11 @@ function projetoToForm(
     status: projeto.status ?? "",
     areaAtuacao: projeto.areaAtuacao ?? "",
     origemProjeto: projeto.origemProjeto ?? "",
-    organizacaoId: resolverOrganizacaoId(projeto, organizacoes),
+    organizacaoId: resolverOrganizacaoId(
+      projeto,
+      organizacoes,
+      projetoFallback,
+    ),
     colaboradoresIds: (projeto.colaboradoresIds ?? []).map(String),
     objetivos:
       projeto.objetivos && projeto.objetivos.length > 0
@@ -240,12 +278,17 @@ export default function ProjetoForm() {
       try {
         setLoading(true);
 
-        const [organizacoesData, colaboradoresData, projetoData] =
-          await Promise.all([
-            getOrganizacoes(),
-            getColaboradores(),
-            id ? getProjetoById(Number(id)) : Promise.resolve(null),
-          ]);
+        const [
+          organizacoesData,
+          colaboradoresData,
+          projetoData,
+          projetosData,
+        ] = await Promise.all([
+          getOrganizacoes(),
+          getColaboradores(),
+          id ? getProjetoById(Number(id)) : Promise.resolve(null),
+          id ? getProjetos() : Promise.resolve([]),
+        ]);
 
         if (!active) return;
 
@@ -253,7 +296,12 @@ export default function ProjetoForm() {
         setColaboradores(colaboradoresData);
 
         if (projetoData) {
-          setForm(projetoToForm(projetoData, organizacoesData));
+          const projetoFallback =
+            projetosData.find(
+              (projeto) => Number(projeto.id) === Number(id),
+            ) ?? null;
+
+          setForm(projetoToForm(projetoData, organizacoesData, projetoFallback));
         } else {
           setForm({
             ...initial,
