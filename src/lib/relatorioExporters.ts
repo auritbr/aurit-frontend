@@ -123,6 +123,12 @@ type AlunoPresencaPdf = {
   percentual: number;
 };
 
+type PdfEssentialRule = {
+  label: string;
+  aliases: string[];
+  accessor?: <T>(row: T) => string | number | null | undefined;
+};
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const MARGIN_LEFT = 30;
@@ -261,132 +267,1242 @@ export async function exportPdf<T>(
   cols: RelatorioColumn<T>[],
   options: PdfOptions,
 ) {
+  const reportSlug = sanitizeFileBase(options.reportName);
+
+  const isPdfBlocked =
+    reportSlug.includes("curriculo") ||
+    reportSlug.includes("curriculum") ||
+    reportSlug.includes("trajetoria") ||
+    reportSlug.includes("meta-do-projeto") ||
+    reportSlug.includes("metas-do-projeto") ||
+    reportSlug.includes("meta-projeto") ||
+    reportSlug.includes("metas-projeto");
+
+  if (isPdfBlocked) {
+    console.warn(
+      `Exportação em PDF bloqueada para o relatório: ${options.reportName}`,
+    );
+    return;
+  }
+
   const isPresencas =
-    sanitizeFileBase(options.reportName).includes("presenca") ||
+    reportSlug.includes("presenca") ||
+    reportSlug.includes("frequencia") ||
     cols.some((c) => c.key === "status_presenca") ||
     cols.some((c) => c.key === "statusPresenca") ||
-    cols.some((c) => c.key === "participante");
+    cols.some((c) => c.key === "data_presenca") ||
+    cols.some((c) => c.key === "dataPresenca");
 
   if (isPresencas) {
     await exportPresencasPdf(rows as Record<string, unknown>[], options);
     return;
   }
 
-  exportRelatorioTabelaPdf(rows, cols, options);
+  await exportRelatorioTabelaPdf(rows, cols, options);
 }
 
-function exportRelatorioTabelaPdf<T>(
+async function exportRelatorioTabelaPdf<T>(
   rows: T[],
   cols: RelatorioColumn<T>[],
   options: PdfOptions,
 ) {
-  const orientation = cols.length > 6 ? "landscape" : "portrait";
-  const doc = new jsPDF({ orientation, unit: "pt", format: "a4" });
-  const pageWidth = doc.internal.pageSize.getWidth();
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4",
+    compress: true,
+  });
 
-  doc.setFillColor(...VERDE_RELATORIO);
-  doc.rect(0, 0, pageWidth, 96, "F");
+  const ctx = await resolvePdfContext();
 
-  doc.setTextColor(255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-  doc.text(options.organizacaoNome ?? "Organização", 40, 42);
+  const headerOptions: HeaderOptions = {
+    title: formatReportTitle(options.reportName || "Relatório"),
+    documentNumber: buildRelatorioDocumentNumber(options.reportName || "Relatório"),
+  };
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text(options.reportName, 40, 62);
+  drawHeader(doc, headerOptions, ctx);
 
-  doc.setFontSize(8.5);
-  doc.text(
-    options.dataGeracao
-      ? `Data de geração: ${options.dataGeracao}`
-      : `Data de geração: ${new Date().toLocaleDateString("pt-BR")}`,
-    40,
-    80,
+  let cursor = BODY_START_Y;
+
+  cursor = drawSectionTitle(
+    doc,
+    "Identificação do Relatório",
+    cursor,
+    headerOptions,
+    ctx,
   );
 
-  doc.text("Sistema Aurit", pageWidth - 40, 80, { align: "right" });
+  cursor = drawGridFields(
+    doc,
+    buildCamposResumoRelatorio(rows, options, ctx),
+    cursor,
+    headerOptions,
+    ctx,
+  );
 
-  doc.setTextColor(0);
+  cursor += 3;
 
-  let cursorY = 118;
+  cursor = drawSectionTitle(
+    doc,
+    "Registros do Relatório",
+    cursor,
+    headerOptions,
+    ctx,
+  );
 
-  if (options.indicadores?.length) {
-    doc.setFontSize(9);
+  const colunasEssenciais = selecionarColunasEssenciaisParaPdf(
+    rows,
+    cols,
+    options.reportName,
+  );
 
-    const total = Math.min(options.indicadores.length, 8);
-    const columns = 4;
-    const gap = 8;
-    const blockW = (pageWidth - 80 - gap * (columns - 1)) / columns;
-
-    options.indicadores.slice(0, total).forEach((ind, i) => {
-      const col = i % columns;
-      const row = Math.floor(i / columns);
-      const x = 40 + col * (blockW + gap);
-      const y = cursorY + row * 42;
-
-      doc.setFillColor(248, 250, 249);
-      doc.setDrawColor(224, 229, 226);
-      doc.roundedRect(x, y, blockW, 34, 5, 5, "FD");
-
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(105);
-      doc.text(ind.label.slice(0, 30), x + 9, y + 13);
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(...VERDE_RELATORIO);
-      doc.text(ind.valor.slice(0, 22), x + 9, y + 27);
-    });
-
-    const linhas = Math.ceil(total / columns);
-    cursorY += linhas * 42 + 12;
-  }
+  const body = rows.map((row) =>
+    colunasEssenciais.map((col) => formatPdfTableCell(row, col)),
+  );
 
   autoTable(doc, {
-    startY: cursorY,
-    head: [cols.map((c) => c.label)],
-    body: rows.map((r) => cols.map((c) => formatCell(r, c))),
+    startY: cursor,
+    head: [colunasEssenciais.map((c) => c.label)],
+    body,
+    theme: "grid",
+    margin: {
+      left: MARGIN_LEFT,
+      right: MARGIN_RIGHT,
+      bottom: FOOTER_HEIGHT + 8,
+    },
     styles: {
-      fontSize: 8,
-      cellPadding: 4,
+      font: "helvetica",
+      fontSize: colunasEssenciais.length > 12 ? 6.2 : 7.1,
+      cellPadding: colunasEssenciais.length > 12 ? 1.3 : 2,
       overflow: "linebreak",
-      lineColor: [230, 230, 230],
-      lineWidth: 0.3,
+      valign: "middle",
+      lineWidth: 0.12,
+      lineColor: CINZA_BORDA,
+      textColor: [35, 45, 45],
+      minCellHeight: 8,
     },
     headStyles: {
-      fillColor: VERDE_RELATORIO,
-      textColor: 255,
+      fillColor: CINZA_HEAD,
+      textColor: CINZA_HEAD_TEXTO,
       fontStyle: "bold",
+      fontSize: colunasEssenciais.length > 12 ? 5.9 : 6.8,
+      cellPadding: colunasEssenciais.length > 12 ? 1.2 : 1.8,
+      minCellHeight: 8,
+      valign: "middle",
+      halign: "left",
+      lineColor: CINZA_BORDA,
+      overflow: "linebreak",
     },
     alternateRowStyles: {
-      fillColor: [248, 250, 249],
+      fillColor: [252, 252, 252],
     },
-    margin: { left: 40, right: 40, bottom: 40 },
-    didDrawPage: () => {
-      const pageCount = doc.getNumberOfPages();
-      const current = doc.getCurrentPageInfo().pageNumber;
-      const pageHeight = doc.internal.pageSize.getHeight();
+    columnStyles: buildRelatorioColumnStyles(colunasEssenciais),
+    didParseCell: (data) => {
+      if (data.section !== "body") return;
 
-      doc.setFontSize(8);
-      doc.setTextColor(120);
-      doc.text(
-        "Aurit — Gestão para organizações culturais e sociais",
-        40,
-        pageHeight - 20,
-      );
-      doc.text(
-        `Página ${current} de ${pageCount}`,
-        pageWidth - 40,
-        pageHeight - 20,
-        {
-          align: "right",
-        },
-      );
-      doc.setTextColor(0);
+      const col = colunasEssenciais[data.column.index];
+
+      if (!col) return;
+
+      const normalizedColumn = normalizeLabel(`${col.key} ${col.label}`);
+      const value = String(data.cell.raw ?? "");
+      const normalizedValue = normalizeLabel(value);
+
+      if (normalizedColumn.includes("status")) {
+        data.cell.styles.fontStyle = "bold";
+        data.cell.styles.halign = "center";
+
+        if (
+          normalizedValue.includes("ativo") ||
+          normalizedValue.includes("concluido") ||
+          normalizedValue.includes("aprovado") ||
+          normalizedValue.includes("regular") ||
+          normalizedValue.includes("presente") ||
+          normalizedValue.includes("pago")
+        ) {
+          data.cell.styles.fillColor = AZUL_CLARO;
+          data.cell.styles.textColor = AZUL_TEXTO;
+        } else if (
+          normalizedValue.includes("desistente") ||
+          normalizedValue.includes("inativo") ||
+          normalizedValue.includes("cancelado") ||
+          normalizedValue.includes("vencido") ||
+          normalizedValue.includes("reprovado") ||
+          normalizedValue.includes("afastado") ||
+          normalizedValue.includes("atrasado")
+        ) {
+          data.cell.styles.fillColor = VERMELHO_CLARO;
+          data.cell.styles.textColor = VERMELHO_TEXTO;
+        } else if (
+          normalizedValue.includes("pendente") ||
+          normalizedValue.includes("andamento") ||
+          normalizedValue.includes("analise") ||
+          normalizedValue.includes("aguardando") ||
+          normalizedValue.includes("parcial")
+        ) {
+          data.cell.styles.fillColor = AMARELO_CLARO;
+          data.cell.styles.textColor = AMARELO_TEXTO;
+        } else {
+          data.cell.styles.fillColor = CINZA_STATUS_CLARO;
+          data.cell.styles.textColor = CINZA_STATUS_TEXTO;
+        }
+      }
+    },
+    didDrawPage: () => {
+      drawHeader(doc, headerOptions, ctx);
     },
   });
 
-  doc.save(buildFileName(options.reportName, "pdf"));
+  const total = doc.getNumberOfPages();
+
+  for (let i = 1; i <= total; i += 1) {
+    doc.setPage(i);
+    drawFooter(doc, i, total, ctx);
+  }
+
+  doc.save(buildFileName(options.reportName || "Relatório", "pdf"));
+}
+
+function buildRelatorioDocumentNumber(reportName: string): string {
+  const prefix =
+    sanitizeFileBase(reportName)
+      .slice(0, 3)
+      .toUpperCase() || "REL";
+
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+
+  return `${prefix}-${today}`;
+}
+
+function formatReportTitle(reportName: string): string {
+  const clean = reportName?.trim() || "Relatório";
+
+  if (normalizeLabel(clean).startsWith("relatorio")) {
+    return clean;
+  }
+
+  return `Relatório de ${clean}`;
+}
+
+function buildCamposResumoRelatorio<T>(
+  rows: T[],
+  options: PdfOptions,
+  ctx: PdfContext,
+) {
+  const fields: {
+    label: string;
+    value: string | number | null | undefined;
+  }[] = [
+    {
+      label: "Organização",
+      value: options.organizacaoNome || getNomeInstitucional(ctx),
+    },
+    {
+      label: "Relatório",
+      value: options.reportName || "Relatório",
+    },
+    {
+      label: getResumoLabel(options.reportName || "Relatório"),
+      value: rows.length,
+    },
+    {
+      label: "Data de geração",
+      value: options.dataGeracao || new Date().toLocaleDateString("pt-BR"),
+    },
+  ];
+
+  if (options.indicadores?.length) {
+    options.indicadores.slice(0, 4).forEach((indicador) => {
+      fields.push({
+        label: indicador.label,
+        value: indicador.valor,
+      });
+    });
+  }
+
+  return fields;
+}
+
+function getResumoLabel(reportName: string) {
+  const normalized = normalizeLabel(reportName);
+
+  if (normalized.includes("organizacao") || normalized.includes("organização")) return "Total de organizações";
+  if (normalized.includes("diretoria")) return "Total de membros da diretoria";
+  if (normalized.includes("participante")) return "Total de participantes";
+  if (normalized.includes("aluno")) return "Total de alunos";
+  if (normalized.includes("colaborador")) return "Total de colaboradores";
+  if (normalized.includes("integrante")) return "Total de integrantes";
+  if (normalized.includes("agente")) return "Total de agentes culturais";
+  if (normalized.includes("projeto")) return "Total de projetos";
+  if (normalized.includes("cronograma")) return "Total de etapas";
+  if (normalized.includes("atividade")) return "Total de atividades";
+  if (normalized.includes("oficina")) return "Total de oficinas";
+  if (normalized.includes("turma")) return "Total de turmas";
+  if (normalized.includes("evento")) return "Total de eventos culturais";
+  if (normalized.includes("execucao") || normalized.includes("execução")) return "Total de execuções";
+  if (normalized.includes("divulgacao") || normalized.includes("divulgação")) return "Total de ações de divulgação";
+  if (normalized.includes("documento")) return "Total de documentos";
+  if (normalized.includes("financeiro")) return "Total de registros financeiros";
+  if (normalized.includes("patrimonio")) return "Total de patrimônios";
+  if (normalized.includes("evidencia")) return "Total de evidências";
+  if (normalized.includes("edital")) return "Total de editais";
+  if (normalized.includes("proposta")) return "Total de propostas";
+  if (normalized.includes("habilitacao")) return "Total de itens de habilitação";
+  if (normalized.includes("prestacao")) return "Total de registros de prestação";
+
+  return "Total de registros";
+}
+
+function selecionarColunasEssenciaisParaPdf<T>(
+  rows: T[],
+  cols: RelatorioColumn<T>[],
+  reportName: string,
+): RelatorioColumn<T>[] {
+  const normalizedReport = normalizeLabel(reportName || "");
+
+  const available = cols.filter((col) => {
+    const label = texto(col.label);
+
+    if (!label) return false;
+
+    const normalized = normalizeColumnIdentifier(`${col.key} ${col.label}`);
+
+    const camposInternos = [
+      "uuid",
+      "created",
+      "updated",
+      "criado",
+      "atualizado",
+      "identificador interno",
+    ];
+
+    const isId =
+      normalized === "id" ||
+      normalized.endsWith(" id") ||
+      normalized.includes(" id interno") ||
+      normalized.includes("identificador interno");
+
+    const isCampoInterno = camposInternos.some((term) =>
+      normalized.includes(term),
+    );
+
+    return !isId && !isCampoInterno;
+  });
+
+  const rules = getRegrasCamposEssenciais(normalizedReport);
+
+  const selected: RelatorioColumn<T>[] = [];
+  const missing: string[] = [];
+
+  rules.forEach((rule) => {
+    if (rule.accessor) {
+      selected.push({
+        key: sanitizeFileBase(rule.label),
+        label: rule.label,
+        accessor: rule.accessor,
+      });
+
+      return;
+    }
+
+    const foundFromColumns = findStrictColumnMatch(available, selected, rule);
+
+    if (foundFromColumns) {
+      selected.push({
+        ...foundFromColumns,
+        label: rule.label,
+      });
+
+      return;
+    }
+
+    const virtualColumn = createVirtualColumnFromRows(rows, rule);
+
+    if (virtualColumn) {
+      selected.push(virtualColumn);
+      return;
+    }
+
+    missing.push(rule.label);
+  });
+
+  if (missing.length > 0) {
+    console.warn(
+      `Campos não encontrados para o relatório "${reportName}":`,
+      missing,
+      {
+        colunasDisponiveis: available.map((col) => ({
+          key: col.key,
+          label: col.label,
+        })),
+        chavesDisponiveisNasLinhas: getAvailableRowKeys(rows),
+      },
+    );
+  }
+
+  if (selected.length > 0) {
+    return selected;
+  }
+
+  return available.slice(0, 12);
+}
+
+function findStrictColumnMatch<T>(
+  available: RelatorioColumn<T>[],
+  selected: RelatorioColumn<T>[],
+  rule: PdfEssentialRule,
+): RelatorioColumn<T> | undefined {
+  const selectedKeys = selected.map((item) => item.key);
+
+  const candidates = available
+    .filter((col) => !selectedKeys.includes(col.key))
+    .map((col) => {
+      const normalizedLabel = normalizeColumnIdentifier(col.label);
+      const normalizedKey = normalizeColumnIdentifier(col.key);
+      const normalizedFull = normalizeColumnIdentifier(`${col.key} ${col.label}`);
+
+      let score = 0;
+
+      rule.aliases.forEach((alias, aliasIndex) => {
+        const normalizedAlias = normalizeColumnIdentifier(alias);
+
+        if (normalizedLabel === normalizedAlias) score += 10000 - aliasIndex;
+        if (normalizedKey === normalizedAlias) score += 9500 - aliasIndex;
+
+        if (removeSpaces(normalizedLabel) === removeSpaces(normalizedAlias)) {
+          score += 9000 - aliasIndex;
+        }
+
+        if (removeSpaces(normalizedKey) === removeSpaces(normalizedAlias)) {
+          score += 8500 - aliasIndex;
+        }
+
+        if (normalizedLabel.startsWith(`${normalizedAlias} `)) {
+          score += 5000 - aliasIndex;
+        }
+
+        if (normalizedKey.startsWith(`${normalizedAlias} `)) {
+          score += 4500 - aliasIndex;
+        }
+
+        if (normalizedLabel.includes(normalizedAlias)) {
+          score += 3000 - aliasIndex;
+        }
+
+        if (normalizedKey.includes(normalizedAlias)) {
+          score += 2600 - aliasIndex;
+        }
+
+        if (removeSpaces(normalizedLabel).includes(removeSpaces(normalizedAlias))) {
+          score += 2200 - aliasIndex;
+        }
+
+        if (removeSpaces(normalizedKey).includes(removeSpaces(normalizedAlias))) {
+          score += 2000 - aliasIndex;
+        }
+
+        if (normalizedFull.includes(normalizedAlias)) {
+          score += 1400 - aliasIndex;
+        }
+
+        if (removeSpaces(normalizedFull).includes(removeSpaces(normalizedAlias))) {
+          score += 1200 - aliasIndex;
+        }
+
+        if (hasAllAliasWords(normalizedLabel, normalizedAlias)) {
+          score += 700 - aliasIndex;
+        }
+
+        if (hasAllAliasWords(normalizedKey, normalizedAlias)) {
+          score += 650 - aliasIndex;
+        }
+      });
+
+      return {
+        col,
+        score: penalizeWrongGenericMatch(col, rule, score),
+      };
+    })
+    .filter((candidate) => candidate.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return candidates[0]?.col;
+}
+
+function createVirtualColumnFromRows<T>(
+  rows: T[],
+  rule: PdfEssentialRule,
+): RelatorioColumn<T> | null {
+  const rowKeys = getAvailableRowKeys(rows);
+
+  const matchedKey = findBestRowKeyMatch(rowKeys, rule);
+
+  if (!matchedKey) return null;
+
+  return {
+    key: matchedKey,
+    label: rule.label,
+    accessor: (row: T) => {
+      const value = getNestedValue(row as Record<string, unknown>, matchedKey);
+
+      return formatVirtualColumnValue(value);
+    },
+  };
+}
+
+function getAvailableRowKeys<T>(rows: T[]): string[] {
+  const keys = new Set<string>();
+
+  rows.slice(0, 20).forEach((row) => {
+    collectRowKeys(row as Record<string, unknown>, "", keys);
+  });
+
+  return Array.from(keys);
+}
+
+function collectRowKeys(
+  value: Record<string, unknown>,
+  prefix: string,
+  keys: Set<string>,
+) {
+  if (!value || typeof value !== "object") return;
+
+  Object.entries(value).forEach(([key, item]) => {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+
+    keys.add(fullKey);
+
+    if (
+      item &&
+      typeof item === "object" &&
+      !Array.isArray(item) &&
+      !(item instanceof Date)
+    ) {
+      collectRowKeys(item as Record<string, unknown>, fullKey, keys);
+    }
+  });
+}
+
+function findBestRowKeyMatch(
+  rowKeys: string[],
+  rule: PdfEssentialRule,
+): string | null {
+  const candidates = rowKeys
+    .map((key) => {
+      const normalizedKey = normalizeColumnIdentifier(key);
+
+      let score = 0;
+
+      rule.aliases.forEach((alias, aliasIndex) => {
+        const normalizedAlias = normalizeColumnIdentifier(alias);
+
+        if (normalizedKey === normalizedAlias) {
+          score += 10000 - aliasIndex;
+        }
+
+        if (normalizedKey.endsWith(` ${normalizedAlias}`)) {
+          score += 9000 - aliasIndex;
+        }
+
+        if (normalizedKey.endsWith(normalizedAlias)) {
+          score += 8500 - aliasIndex;
+        }
+
+        if (removeSpaces(normalizedKey) === removeSpaces(normalizedAlias)) {
+          score += 8000 - aliasIndex;
+        }
+
+        if (hasAllAliasWords(normalizedKey, normalizedAlias)) {
+          score += 4500 - aliasIndex;
+        }
+
+        if (normalizedKey.includes(normalizedAlias)) {
+          score += 3000 - aliasIndex;
+        }
+      });
+
+      return {
+        key,
+        score: penalizeWrongRowKeyMatch(key, rule, score),
+      };
+    })
+    .filter((candidate) => candidate.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return candidates[0]?.key ?? null;
+}
+
+function normalizeColumnIdentifier(value: string): string {
+  return normalizeLabel(
+    value
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/[_./-]+/g, " "),
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function removeSpaces(value: string): string {
+  return value.replace(/\s+/g, "");
+}
+
+function hasAllAliasWords(target: string, alias: string): boolean {
+  const words = alias
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter(Boolean);
+
+  if (words.length === 0) return false;
+
+  return words.every((word) => target.includes(word));
+}
+
+function getNestedValue(
+  row: Record<string, unknown>,
+  path: string,
+): unknown {
+  const keys = path.split(".");
+
+  let current: unknown = row;
+
+  for (const key of keys) {
+    if (
+      current &&
+      typeof current === "object" &&
+      key in (current as Record<string, unknown>)
+    ) {
+      current = (current as Record<string, unknown>)[key];
+    } else {
+      return undefined;
+    }
+  }
+
+  return current;
+}
+
+function formatVirtualColumnValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string" || typeof item === "number") {
+          return String(item);
+        }
+
+        if (item && typeof item === "object") {
+          const obj = item as Record<string, unknown>;
+
+          return (
+            texto(obj.nome) ||
+            texto(obj.nomeCompleto) ||
+            texto(obj.nome_completo) ||
+            texto(obj.titulo) ||
+            texto(obj.descricao) ||
+            JSON.stringify(obj)
+          );
+        }
+
+        return String(item);
+      })
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+
+    return (
+      texto(obj.nome) ||
+      texto(obj.nomeCompleto) ||
+      texto(obj.nome_completo) ||
+      texto(obj.razaoSocial) ||
+      texto(obj.razao_social) ||
+      texto(obj.nomeFantasia) ||
+      texto(obj.nome_fantasia) ||
+      texto(obj.titulo) ||
+      texto(obj.descricao) ||
+      JSON.stringify(obj)
+    );
+  }
+
+  return String(value);
+}
+
+function getFirstExistingValue<T>(
+  row: T,
+  keys: string[],
+): string | number | null | undefined {
+  for (const key of keys) {
+    const value = getNestedValue(row as Record<string, unknown>, key);
+
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      return formatVirtualColumnValue(value);
+    }
+  }
+
+  return "—";
+}
+
+function penalizeWrongGenericMatch<T>(
+  col: RelatorioColumn<T>,
+  rule: PdfEssentialRule,
+  score: number,
+): number {
+  if (score <= 0) return score;
+
+  const normalized = normalizeColumnIdentifier(`${col.key} ${col.label}`);
+
+  return penalizeWrongMatchByRule(normalized, rule, score);
+}
+
+function penalizeWrongRowKeyMatch(
+  key: string,
+  rule: PdfEssentialRule,
+  score: number,
+): number {
+  if (score <= 0) return score;
+
+  const normalized = normalizeColumnIdentifier(key);
+
+  return penalizeWrongMatchByRule(normalized, rule, score);
+}
+
+function penalizeWrongMatchByRule(
+  normalizedTarget: string,
+  rule: PdfEssentialRule,
+  score: number,
+): number {
+  const normalizedRule = normalizeColumnIdentifier(rule.label);
+
+  const blockersByRule: Record<string, string[]> = {
+    "nome da atividade": ["descricao", "publico", "local"],
+    "data de inicio da atividade": ["termino", "fim", "evento", "acao"],
+    "data de termino da atividade": ["inicio", "evento", "acao"],
+    "tipo de atividade": ["publico", "local", "descricao"],
+    "status da atividade": ["matricula", "participante"],
+    "nome da turma": ["atividade", "colaborador", "responsavel"],
+    "nome do evento": ["tipo", "status", "data"],
+    "nome da acao": ["estrategia", "data", "status", "projeto"],
+    "nome do edital": ["numero", "ano", "orgao", "status"],
+    "numero do edital": ["inscricao"],
+    "numero de inscricao": ["edital"],
+    "nome do projeto": ["status", "origem", "area", "data"],
+    "nome completo": ["responsavel", "mae", "pai"],
+    "cpf": ["responsavel"],
+    "rg": ["responsavel"],
+  };
+
+  const blockers = blockersByRule[normalizedRule] ?? [];
+
+  if (blockers.some((term) => normalizedTarget.includes(term))) {
+    return score - 100000;
+  }
+
+  return score;
+}
+
+function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[] {
+  if (
+    normalizedReport.includes("organizacao") ||
+    normalizedReport.includes("organização") ||
+    normalizedReport.includes("dados da organizacao") ||
+    normalizedReport.includes("dados da organização")
+  ) {
+    return [
+      { label: "Razão Social", aliases: ["razao social", "razão social", "razaoSocial", "razao_social"] },
+      { label: "Nome Fantasia", aliases: ["nome fantasia", "nomeFantasia", "nome_fantasia"] },
+      { label: "CNPJ", aliases: ["cnpj"] },
+      { label: "Data de Fundação", aliases: ["data de fundacao", "data de fundação", "dataFundacao", "data_fundacao", "fundacao", "fundação"] },
+      { label: "Nome do Representante Legal", aliases: ["nome do representante legal", "representante legal", "nomeRepresentanteLegal", "representanteLegal", "nome_representante_legal"] },
+      { label: "Tipo de Agente", aliases: ["tipo de agente", "tipoAgente", "tipo_agente", "agente cultural"] },
+      { label: "Tipo de Iniciativa Cultural", aliases: ["tipo de iniciativa cultural", "tipoIniciativaCultural", "tipo_iniciativa_cultural", "iniciativa cultural"] },
+      { label: "Área de Atuação", aliases: ["area de atuacao", "área de atuação", "areaAtuacao", "area_atuacao"] },
+    ];
+  }
+
+  if (normalizedReport.includes("diretoria")) {
+    return [
+      { label: "Nome Completo", aliases: ["nome completo", "nomeCompleto", "nome_completo", "nome"] },
+      { label: "Data de Nascimento", aliases: ["data de nascimento", "dataNascimento", "data_nascimento", "nascimento"] },
+      { label: "CPF", aliases: ["cpf"] },
+      { label: "RG", aliases: ["rg"] },
+      { label: "Cargo na Diretoria", aliases: ["cargo na diretoria", "cargoDiretoria", "cargo_diretoria", "cargo"] },
+      { label: "Status da Diretoria", aliases: ["status da diretoria", "statusDiretoria", "status_diretoria", "status"] },
+      { label: "Data de Início do Mandato", aliases: ["data de inicio do mandato", "data de início do mandato", "dataInicioMandato", "data_inicio_mandato", "inicioMandato", "inicio_mandato"] },
+      { label: "Data de Fim do Mandato", aliases: ["data de fim do mandato", "dataFimMandato", "data_fim_mandato", "dataTerminoMandato", "data_termino_mandato", "fimMandato", "fim_mandato", "terminoMandato"] },
+      { label: "Data de Afastamento", aliases: ["data de afastamento", "dataAfastamento", "data_afastamento", "afastamento"] },
+    ];
+  }
+
+  if (normalizedReport.includes("documento")) {
+    return [
+      { label: "Tipo de Documento", aliases: ["tipo de documento", "tipoDocumento", "tipo_documento"] },
+      { label: "Status do Documento", aliases: ["status do documento", "statusDocumento", "status_documento", "status"] },
+      { label: "Emissão e Validade", aliases: ["emissao e validade", "emissão e validade", "emissaoValidade", "emissao_validade"] },
+      { label: "Data de Emissão", aliases: ["data de emissao", "data de emissão", "dataEmissao", "data_emissao", "emissao", "emissão"] },
+      { label: "Data de Validade", aliases: ["data de validade", "dataValidade", "data_validade", "validade", "vencimento"] },
+      { label: "Órgão Emissor", aliases: ["orgao emissor", "órgão emissor", "orgaoEmissor", "orgao_emissor", "emissor"] },
+      { label: "Organização", aliases: ["organizacao", "organização", "organizacao.nome", "organizacao.razaoSocial", "organizacao.nomeFantasia"] },
+    ];
+  }
+
+  if (normalizedReport.includes("colaborador")) {
+    return [
+      { label: "Nome Completo", aliases: ["nome completo", "nomeCompleto", "nome_completo", "nome"] },
+      { label: "Data de Nascimento", aliases: ["data de nascimento", "dataNascimento", "data_nascimento", "nascimento"] },
+      { label: "CPF", aliases: ["cpf"] },
+      { label: "RG", aliases: ["rg"] },
+      { label: "Função do Colaborador", aliases: ["funcao do colaborador", "função do colaborador", "funcaoColaborador", "funcao_colaborador", "funcao", "função", "cargo"] },
+      { label: "Carga Horária Semanal", aliases: ["carga horaria semanal", "carga horária semanal", "cargaHorariaSemanal", "carga_horaria_semanal", "cargaHoraria", "carga_horaria"] },
+      { label: "Descrição da Atuação", aliases: ["descricao da atuacao", "descrição da atuação", "descricaoAtuacao", "descricao_atuacao", "atuacao", "atuação"] },
+      { label: "Data de Início do Vínculo", aliases: ["data de inicio do vinculo", "data de início do vínculo", "dataInicioVinculo", "data_inicio_vinculo", "inicioVinculo"] },
+      { label: "Data de Término do Vínculo", aliases: ["data de termino do vinculo", "data de término do vínculo", "dataTerminoVinculo", "data_termino_vinculo", "dataFimVinculo", "fimVinculo"] },
+      { label: "Status do Colaborador", aliases: ["status do colaborador", "statusColaborador", "status_colaborador", "status"] },
+      { label: "Tipo de Vínculo", aliases: ["tipo de vinculo", "tipo de vínculo", "tipoVinculo", "tipo_vinculo", "vinculo", "vínculo"] },
+    ];
+  }
+
+  if (normalizedReport.includes("integrante") || normalizedReport.includes("agente cultural")) {
+    return [
+      { label: "Nome Completo", aliases: ["nome completo", "nomeCompleto", "nome_completo", "nome"] },
+      { label: "Data de Nascimento", aliases: ["data de nascimento", "dataNascimento", "data_nascimento", "nascimento"] },
+      { label: "CPF", aliases: ["cpf"] },
+      { label: "RG", aliases: ["rg"] },
+      { label: "Telefone", aliases: ["telefone", "celular"] },
+      { label: "Organização", aliases: ["organizacao", "organização", "organizacao.nome", "organizacao.razaoSocial", "organizacao.nomeFantasia"] },
+      { label: "Função / Atuação", aliases: ["funcao atuacao", "função atuação", "funcaoAtuacao", "funcao_atuacao", "funcao", "função", "atuacao", "atuação"] },
+      { label: "Data de Entrada", aliases: ["data de entrada", "dataEntrada", "data_entrada", "entrada"] },
+      { label: "Status do Integrante", aliases: ["status do integrante", "statusIntegrante", "status_integrante", "status"] },
+    ];
+  }
+
+  if (normalizedReport.includes("participante") || normalizedReport.includes("aluno")) {
+    return [
+      { label: "Nome Completo", aliases: ["nome completo", "nomeCompleto", "nome_completo", "nome"] },
+      { label: "Data de Nascimento", aliases: ["data de nascimento", "dataNascimento", "data_nascimento", "nascimento"] },
+      { label: "CPF", aliases: ["cpf"] },
+      { label: "RG", aliases: ["rg"] },
+      { label: "Nome do Responsável", aliases: ["nome do responsavel", "nome do responsável", "nomeResponsavel", "nome_responsavel", "responsavel", "responsável"] },
+      { label: "Status do Participante", aliases: ["status do participante", "statusParticipante", "status_participante", "status"] },
+      { label: "Organização", aliases: ["organizacao", "organização", "organizacao.nome", "organizacao.razaoSocial", "organizacao.nomeFantasia"] },
+      { label: "Atividade", aliases: ["atividade", "atividade.nome", "atividade.nomeAtividade", "nomeAtividade"] },
+      { label: "Turma", aliases: ["turma", "turma.nome", "turma.nomeTurma", "nomeTurma"] },
+      { label: "Data da Matrícula", aliases: ["data da matricula", "data da matrícula", "dataMatricula", "data_matricula", "matricula", "matrícula"] },
+      { label: "Status da Matrícula", aliases: ["status da matricula", "status da matrícula", "statusMatricula", "status_matricula"] },
+      { label: "Forma de Participação", aliases: ["forma de participacao", "forma de participação", "formaParticipacao", "forma_participacao"] },
+    ];
+  }
+
+  if (normalizedReport.includes("cronograma")) {
+    return [
+      { label: "Nome da Etapa", aliases: ["nome da etapa", "nomeEtapa", "nome_etapa", "etapa", "nome"] },
+      { label: "Data de Início", aliases: ["data de inicio", "data de início", "dataInicio", "data_inicio", "inicio", "início"] },
+      { label: "Data de Término", aliases: ["data de termino", "data de término", "dataTermino", "data_termino", "dataFim", "data_fim", "fim"] },
+      { label: "Status do Cronograma", aliases: ["status do cronograma", "statusCronograma", "status_cronograma", "status"] },
+      { label: "Projeto", aliases: ["projeto", "projeto.nome", "nomeProjeto", "nome_projeto"] },
+      { label: "Vínculo Específico", aliases: ["vinculo especifico", "vínculo específico", "vinculoEspecifico", "vinculo_especifico", "referencia", "referência"] },
+    ];
+  }
+
+  if (normalizedReport.includes("atividade") || normalizedReport.includes("oficina")) {
+    return [
+      { label: "Nome da Atividade", aliases: ["nome da atividade", "nome atividade", "nomeAtividade", "nome_atividade", "tituloAtividade"] },
+      { label: "Data de Início da Atividade", aliases: ["data de inicio da atividade", "data de início da atividade", "dataInicioAtividade", "data_inicio_atividade", "dataInicio", "data_inicio"] },
+      { label: "Data de Término da Atividade", aliases: ["data de termino da atividade", "data de término da atividade", "dataTerminoAtividade", "data_termino_atividade", "dataFimAtividade", "data_fim_atividade", "dataFim"] },
+      { label: "Quantidade de Vagas", aliases: ["quantidade de vagas", "quantidadeVagas", "quantidade_vagas", "qtdVagas", "qtd_vagas", "vagas"] },
+      { label: "Tipo de Atividade", aliases: ["tipo de atividade", "tipoAtividade", "tipo_atividade"] },
+      { label: "Status da Atividade", aliases: ["status da atividade", "statusAtividade", "status_atividade", "status"] },
+      { label: "Vínculos e Equipe", aliases: ["vinculos e equipe", "vínculos e equipe", "vinculosEquipe", "vinculos_equipe", "vinculoEquipe", "equipe"] },
+      { label: "Projeto", aliases: ["projeto", "projeto.nome", "nomeProjeto", "nome_projeto", "projetoVinculado"] },
+      { label: "Colaboradores", aliases: ["colaboradores", "colaborador", "colaboradores.nome", "colaboradores.nomeCompleto", "equipe colaboradora", "responsaveis", "responsáveis"] },
+    ];
+  }
+
+  if (normalizedReport.includes("turma")) {
+    return [
+      { label: "Nome da Turma", aliases: ["nome da turma", "nomeTurma", "nome_turma", "turma", "nome"] },
+      { label: "Horário de Início da Aula", aliases: ["horario de inicio da aula", "horário de início da aula", "horarioInicioAula", "horario_inicio_aula", "horaInicio", "hora_inicio"] },
+      { label: "Horário de Término da Aula", aliases: ["horario de termino da aula", "horário de término da aula", "horarioTerminoAula", "horario_termino_aula", "horaFim", "hora_fim"] },
+      { label: "Dia da Atividade", aliases: ["dia da atividade", "diaAtividade", "dia_atividade", "dia"] },
+      { label: "Status da Turma", aliases: ["status da turma", "statusTurma", "status_turma", "status"] },
+      { label: "Quantidade de Vagas", aliases: ["quantidade de vagas", "quantidadeVagas", "quantidade_vagas", "qtdVagas", "vagas"] },
+      { label: "Atividade", aliases: ["atividade", "atividade.nome", "atividade.nomeAtividade", "nomeAtividade"] },
+      { label: "Colaboradores", aliases: ["colaboradores", "colaborador", "colaboradores.nome", "colaboradores.nomeCompleto", "equipe"] },
+    ];
+  }
+
+  if (normalizedReport.includes("evento cultural") || normalizedReport.includes("eventos culturais") || normalizedReport.includes("evento")) {
+    return [
+      { label: "Nome do Evento", aliases: ["nome do evento", "nomeEvento", "nome_evento", "evento", "nome"] },
+      { label: "Data do Evento", aliases: ["data do evento", "dataEvento", "data_evento", "data"] },
+      { label: "Data de Término do Evento", aliases: ["data de termino do evento", "data de término do evento", "dataTerminoEvento", "data_termino_evento", "dataFimEvento", "data_fim_evento"] },
+      { label: "Tipo de Evento", aliases: ["tipo de evento", "tipoEvento", "tipo_evento"] },
+      { label: "Status do Evento", aliases: ["status do evento", "statusEvento", "status_evento", "status"] },
+      { label: "Projeto", aliases: ["projeto", "projeto.nome", "nomeProjeto", "nome_projeto"] },
+      { label: "Colaboradores", aliases: ["colaboradores", "colaborador", "colaboradores.nome", "colaboradores.nomeCompleto", "equipe"] },
+    ];
+  }
+
+  if (normalizedReport.includes("execucao de divulgacao") || normalizedReport.includes("execução de divulgação") || normalizedReport.includes("execucoes de divulgacao") || normalizedReport.includes("execuções de divulgação")) {
+    return [
+      { label: "Quantidade", aliases: ["quantidade"] },
+      { label: "Formato da Comunicação", aliases: ["formato da comunicacao", "formato da comunicação", "formatoComunicacao", "formato_comunicacao", "formato"] },
+      { label: "Local de Circulação", aliases: ["local de circulacao", "local de circulação", "localCirculacao", "local_circulacao", "local"] },
+      { label: "Data de Início", aliases: ["data de inicio", "data de início", "dataInicio", "data_inicio"] },
+      { label: "Data de Fim", aliases: ["data de fim", "dataFim", "data_fim", "fim"] },
+      { label: "Ação de Divulgação", aliases: ["acao de divulgacao", "ação de divulgação", "acaoDivulgacao", "acao_divulgacao"] },
+      { label: "Organização", aliases: ["organizacao", "organização", "organizacao.nome", "organizacao.razaoSocial", "organizacao.nomeFantasia"] },
+      { label: "Status do Registro", aliases: ["status do registro", "statusRegistro", "status_registro", "status"] },
+    ];
+  }
+
+  if (normalizedReport.includes("acao de divulgacao") || normalizedReport.includes("ação de divulgação") || normalizedReport.includes("acoes de divulgacao") || normalizedReport.includes("ações de divulgação")) {
+    return [
+      { label: "Nome da Ação", aliases: ["nome da acao", "nome da ação", "nomeAcao", "nome_acao", "acao", "ação"] },
+      { label: "Data de Início da Ação", aliases: ["data de inicio da acao", "data de início da ação", "dataInicioAcao", "data_inicio_acao", "dataInicio", "data_inicio"] },
+      { label: "Data de Término da Ação", aliases: ["data de termino da acao", "data de término da ação", "dataTerminoAcao", "data_termino_acao", "dataFimAcao", "data_fim_acao"] },
+      { label: "Estratégias de Divulgação", aliases: ["estrategias de divulgacao", "estratégias de divulgação", "estrategiasDivulgacao", "estrategias_divulgacao", "estrategia", "estratégia"] },
+      { label: "Status", aliases: ["status"] },
+      { label: "Projeto", aliases: ["projeto", "projeto.nome", "nomeProjeto", "nome_projeto"] },
+      { label: "Colaboradores Responsáveis", aliases: ["colaboradores responsaveis", "colaboradores responsáveis", "colaboradoresResponsaveis", "colaboradores_responsaveis", "responsaveis", "responsáveis", "colaboradores"] },
+    ];
+  }
+
+  if (normalizedReport.includes("financeiro")) {
+    return [
+      { label: "Organização", aliases: ["organizacao", "organização", "organizacao.nome", "organizacao.razaoSocial", "organizacao.nomeFantasia"] },
+      { label: "Número do Documento", aliases: ["numero do documento", "número do documento", "numeroDocumento", "numero_documento"] },
+      { label: "Data do Pagamento", aliases: ["data do pagamento", "dataPagamento", "data_pagamento"] },
+      { label: "Data de Vencimento", aliases: ["data de vencimento", "dataVencimento", "data_vencimento", "vencimento"] },
+      { label: "Colaborador", aliases: ["colaborador", "colaborador.nome", "colaborador.nomeCompleto", "nomeColaborador"] },
+      { label: "Nome da Pessoa", aliases: ["nome da pessoa", "nomePessoa", "nome_pessoa", "pessoa", "favorecido", "beneficiario", "beneficiário"] },
+      { label: "CPF/CNPJ", aliases: ["cpf/cnpj", "cpfCnpj", "cpf_cnpj", "cpf", "cnpj"] },
+      { label: "Valor", aliases: ["valor"] },
+      { label: "Tipo de Operação", aliases: ["tipo de operacao", "tipo de operação", "tipoOperacao", "tipo_operacao", "operacao", "operação"] },
+      { label: "Forma de Pagamento", aliases: ["forma de pagamento", "formaPagamento", "forma_pagamento"] },
+      { label: "Aplicação Financeira", aliases: ["aplicacao financeira", "aplicação financeira", "aplicacaoFinanceira", "aplicacao_financeira"] },
+      { label: "Status Financeiro", aliases: ["status financeiro", "statusFinanceiro", "status_financeiro", "status"] },
+      { label: "Orçamento da Proposta", aliases: ["orcamento da proposta", "orçamento da proposta", "orcamentoProposta", "orcamento_proposta"] },
+      { label: "Projeto", aliases: ["projeto", "projeto.nome", "nomeProjeto", "nome_projeto"] },
+      { label: "Atividade", aliases: ["atividade", "atividade.nome", "atividade.nomeAtividade", "nomeAtividade"] },
+      { label: "Evento Cultural", aliases: ["evento cultural", "eventoCultural", "evento_cultural", "evento", "evento.nome", "nomeEvento"] },
+      { label: "Ação de Divulgação", aliases: ["acao de divulgacao", "ação de divulgação", "acaoDivulgacao", "acao_divulgacao"] },
+    ];
+  }
+
+  if (normalizedReport.includes("edital") || normalizedReport.includes("editais")) {
+    return [
+      { label: "Nome do Edital", aliases: ["nome do edital", "nomeEdital", "nome_edital", "edital", "nome"] },
+      { label: "Número do Edital", aliases: ["numero do edital", "número do edital", "numeroEdital", "numero_edital"] },
+      { label: "Número de Inscrição", aliases: ["numero de inscricao", "número de inscrição", "numeroInscricao", "numero_inscricao", "inscricao", "inscrição"] },
+      { label: "Ano do Edital", aliases: ["ano do edital", "anoEdital", "ano_edital", "ano"] },
+      { label: "Órgão Responsável", aliases: ["orgao responsavel", "órgão responsável", "orgaoResponsavel", "orgao_responsavel"] },
+      { label: "Data de Abertura", aliases: ["data de abertura", "dataAbertura", "data_abertura", "abertura"] },
+      { label: "Data de Encerramento", aliases: ["data de encerramento", "dataEncerramento", "data_encerramento", "encerramento"] },
+      { label: "Data do Resultado", aliases: ["data do resultado", "dataResultado", "data_resultado", "resultado"] },
+      { label: "Valor Total Disponível", aliases: ["valor total disponivel", "valor total disponível", "valorTotalDisponivel", "valor_total_disponivel", "valorTotal"] },
+      { label: "Esfera do Edital", aliases: ["esfera do edital", "esferaEdital", "esfera_edital", "esfera"] },
+      { label: "Status do Edital", aliases: ["status do edital", "statusEdital", "status_edital", "status"] },
+      { label: "Organização", aliases: ["organizacao", "organização", "organizacao.nome", "organizacao.razaoSocial", "organizacao.nomeFantasia"] },
+      { label: "Agente Responsável", aliases: ["agente responsavel", "agente responsável", "agenteResponsavel", "agente_responsavel", "responsavel", "responsável"] },
+    ];
+  }
+
+  if (normalizedReport.includes("projeto")) {
+    return [
+      { label: "Nome do Projeto", aliases: ["nome do projeto", "nomeProjeto", "nome_projeto", "nome", "titulo", "título", "projeto"] },
+      { label: "Data de Início do Projeto", aliases: ["data de inicio do projeto", "data de início do projeto", "dataInicioProjeto", "data_inicio_projeto", "dataInicio", "data_inicio"] },
+      { label: "Data de Término do Projeto", aliases: ["data de termino do projeto", "data de término do projeto", "dataTerminoProjeto", "data_termino_projeto", "dataFimProjeto", "data_fim_projeto", "dataFim"] },
+      { label: "Status do Projeto", aliases: ["status do projeto", "statusProjeto", "status_projeto", "status"] },
+      { label: "Área de Atuação", aliases: ["area de atuacao", "área de atuação", "areaAtuacao", "area_atuacao"] },
+      { label: "Origem do Projeto", aliases: ["origem do projeto", "origemProjeto", "origem_projeto", "origem"] },
+      { label: "Colaboradores", aliases: ["colaboradores", "colaborador", "equipe"] },
+    ];
+  }
+
+  if (normalizedReport.includes("patrimonio")) {
+    return [
+      { label: "Nome", aliases: ["nome", "item", "bem", "patrimonio", "patrimônio"] },
+      { label: "Código", aliases: ["codigo", "código", "tombamento", "identificacao", "identificação"] },
+      { label: "Categoria", aliases: ["categoria", "tipo"] },
+      { label: "Estado de Conservação", aliases: ["estado", "conservacao", "conservação"] },
+      { label: "Localização", aliases: ["localizacao", "localização", "local"] },
+      { label: "Responsável", aliases: ["responsavel", "responsável"] },
+      { label: "Status", aliases: ["status", "situacao", "situação"] },
+      { label: "Observação", aliases: ["observacao", "observação"] },
+    ];
+  }
+
+  if (normalizedReport.includes("evidencia")) {
+    return [
+      { label: "Título", aliases: ["titulo", "título", "descricao", "descrição", "evidencia", "evidência"] },
+      { label: "Projeto", aliases: ["projeto"] },
+      { label: "Atividade / Evento", aliases: ["atividade", "oficina", "evento"] },
+      { label: "Tipo", aliases: ["tipo", "categoria"] },
+      { label: "Data", aliases: ["data"] },
+      { label: "Responsável", aliases: ["responsavel", "responsável"] },
+      { label: "Arquivo / Link", aliases: ["arquivo", "link"] },
+      { label: "Observação", aliases: ["observacao", "observação"] },
+    ];
+  }
+
+  if (normalizedReport.includes("proposta")) {
+    return [
+      { label: "Nome", aliases: ["nome", "titulo", "título", "proposta"] },
+      { label: "Edital", aliases: ["edital"] },
+      { label: "Projeto", aliases: ["projeto"] },
+      { label: "Status", aliases: ["status", "situacao", "situação"] },
+      { label: "Responsável", aliases: ["responsavel", "responsável", "proponente"] },
+      { label: "Valor", aliases: ["valor"] },
+      { label: "Data / Prazo", aliases: ["data", "prazo"] },
+      { label: "Etapa", aliases: ["etapa"] },
+    ];
+  }
+
+  if (normalizedReport.includes("habilitacao")) {
+    return [
+      { label: "Documento / Requisito", aliases: ["documento", "requisito", "item"] },
+      { label: "Edital", aliases: ["edital"] },
+      { label: "Proposta", aliases: ["proposta"] },
+      { label: "Status", aliases: ["status", "situacao", "situação"] },
+      { label: "Validade", aliases: ["validade", "vencimento"] },
+      { label: "Responsável", aliases: ["responsavel", "responsável"] },
+      { label: "Pendência / Observação", aliases: ["observacao", "observação", "pendencia", "pendência"] },
+      { label: "Arquivo", aliases: ["arquivo"] },
+    ];
+  }
+
+  if (normalizedReport.includes("prestacao")) {
+    return [
+      { label: "Projeto", aliases: ["projeto"] },
+      { label: "Descrição", aliases: ["descricao", "descrição", "item", "etapa"] },
+      { label: "Categoria", aliases: ["categoria", "tipo"] },
+      { label: "Data", aliases: ["data"] },
+      { label: "Valor", aliases: ["valor"] },
+      { label: "Documento / Comprovante", aliases: ["documento", "comprovante", "nota"] },
+      { label: "Status", aliases: ["status", "situacao", "situação"] },
+      { label: "Observação", aliases: ["observacao", "observação"] },
+    ];
+  }
+
+  return [
+    { label: "Nome", aliases: ["nome", "titulo", "título", "descricao", "descrição"] },
+    { label: "Status", aliases: ["status", "situacao", "situação"] },
+    { label: "Responsável", aliases: ["responsavel", "responsável"] },
+    { label: "Data", aliases: ["data"] },
+    { label: "Valor", aliases: ["valor"] },
+    { label: "Tipo", aliases: ["tipo", "categoria"] },
+    { label: "Projeto", aliases: ["projeto"] },
+    { label: "Observação", aliases: ["observacao", "observação"] },
+  ];
+}
+
+function buildRelatorioColumnStyles<T>(cols: RelatorioColumn<T>[]) {
+  const styles: Record<number, Record<string, unknown>> = {};
+
+  const totalCols = cols.length;
+  const compact = totalCols > 8;
+  const veryCompact = totalCols > 12;
+
+  cols.forEach((col, index) => {
+    const normalized = normalizeLabel(`${col.key} ${col.label}`);
+
+    if (
+      normalized.includes("nome completo") ||
+      normalized.includes("razao social") ||
+      normalized.includes("razão social") ||
+      normalized.includes("nome fantasia") ||
+      normalized.includes("nome do projeto") ||
+      normalized.includes("nome do edital") ||
+      normalized.includes("nome do evento") ||
+      normalized.includes("nome da atividade") ||
+      normalized.includes("nome da turma") ||
+      normalized.includes("nome da acao") ||
+      normalized.includes("nome da ação") ||
+      normalized.includes("titulo") ||
+      normalized.includes("título") ||
+      normalized.includes("descricao") ||
+      normalized.includes("descrição")
+    ) {
+      styles[index] = {
+        cellWidth: veryCompact ? 23 : compact ? 31 : 44,
+        halign: "left",
+        fontStyle: "bold",
+      };
+      return;
+    }
+
+    if (
+      normalized.includes("responsavel") ||
+      normalized.includes("responsável") ||
+      normalized.includes("representante") ||
+      normalized.includes("organizacao") ||
+      normalized.includes("organização") ||
+      normalized.includes("instituicao") ||
+      normalized.includes("instituição") ||
+      normalized.includes("oficina") ||
+      normalized.includes("atividade") ||
+      normalized.includes("colaboradores") ||
+      normalized.includes("colaborador") ||
+      normalized.includes("equipe") ||
+      normalized.includes("projeto")
+    ) {
+      styles[index] = {
+        cellWidth: veryCompact ? 21 : compact ? 27 : 38,
+        halign: "left",
+      };
+      return;
+    }
+
+    if (
+      normalized.includes("telefone") ||
+      normalized.includes("celular") ||
+      normalized.includes("cpf") ||
+      normalized.includes("cnpj") ||
+      normalized.includes("rg") ||
+      normalized.includes("numero") ||
+      normalized.includes("número")
+    ) {
+      styles[index] = {
+        cellWidth: veryCompact ? 18 : compact ? 22 : 28,
+        halign: "left",
+      };
+      return;
+    }
+
+    if (
+      normalized.includes("status") ||
+      normalized.includes("situacao") ||
+      normalized.includes("situação")
+    ) {
+      styles[index] = {
+        cellWidth: veryCompact ? 18 : compact ? 22 : 25,
+        halign: "center",
+      };
+      return;
+    }
+
+    if (
+      normalized.includes("data") ||
+      normalized.includes("inicio") ||
+      normalized.includes("início") ||
+      normalized.includes("fim") ||
+      normalized.includes("termino") ||
+      normalized.includes("término") ||
+      normalized.includes("validade") ||
+      normalized.includes("vencimento") ||
+      normalized.includes("emissao") ||
+      normalized.includes("emissão") ||
+      normalized.includes("abertura") ||
+      normalized.includes("encerramento") ||
+      normalized.includes("resultado") ||
+      normalized.includes("pagamento") ||
+      normalized.includes("horario") ||
+      normalized.includes("horário") ||
+      normalized.includes("dia da atividade")
+    ) {
+      styles[index] = {
+        cellWidth: veryCompact ? 18 : compact ? 22 : 25,
+        halign: "center",
+      };
+      return;
+    }
+
+    if (
+      normalized.includes("valor") ||
+      normalized.includes("orcamento") ||
+      normalized.includes("orçamento") ||
+      normalized.includes("recurso")
+    ) {
+      styles[index] = {
+        cellWidth: veryCompact ? 20 : compact ? 24 : 27,
+        halign: "right",
+      };
+      return;
+    }
+
+    if (
+      normalized.includes("area") ||
+      normalized.includes("área") ||
+      normalized.includes("tipo") ||
+      normalized.includes("funcao") ||
+      normalized.includes("função") ||
+      normalized.includes("cargo") ||
+      normalized.includes("vinculo") ||
+      normalized.includes("vínculo") ||
+      normalized.includes("esfera") ||
+      normalized.includes("formato") ||
+      normalized.includes("local") ||
+      normalized.includes("estrategia") ||
+      normalized.includes("estratégia") ||
+      normalized.includes("aplicacao") ||
+      normalized.includes("aplicação")
+    ) {
+      styles[index] = {
+        cellWidth: veryCompact ? 20 : compact ? 25 : 32,
+        halign: "left",
+      };
+      return;
+    }
+
+    styles[index] = {
+      cellWidth: "auto",
+      halign: "left",
+    };
+  });
+
+  return styles;
+}
+
+function formatPdfTableCell<T>(row: T, col: RelatorioColumn<T>): string {
+  const value = formatCell(row, col);
+
+  if (!value) return "—";
+
+  const normalized = normalizeLabel(`${col.key} ${col.label}`);
+
+  if (normalized.includes("cpf/cnpj")) {
+    return maskCpfCnpj(value);
+  }
+
+  if (normalized.includes("cnpj")) {
+    return maskCNPJ(value);
+  }
+
+  if (normalized.includes("cpf")) {
+    return maskCPF(value);
+  }
+
+  if (
+    normalized.includes("valor") ||
+    normalized.includes("orcamento") ||
+    normalized.includes("orçamento") ||
+    normalized.includes("recurso") ||
+    normalized.includes("saldo")
+  ) {
+    const parsed = Number(
+      value
+        .replace(/\./g, "")
+        .replace(",", ".")
+        .replace(/[^\d.-]/g, ""),
+    );
+
+    if (!Number.isNaN(parsed)) {
+      return new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      }).format(parsed);
+    }
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    const [year, month, day] = value.slice(0, 10).split("-");
+
+    return `${day}/${month}/${year}`;
+  }
+
+  return value;
 }
 
 async function exportPresencasPdf(

@@ -110,6 +110,38 @@ const initial: FormState = {
   observacoes: "",
 };
 
+const RESULTADO_PROPOSTA_NEXT_STEP_KEY =
+  "aurit:resultados-propostas:next-step-card";
+
+interface ResultadoPropostaNextStepCardData {
+  titulo: string;
+  descricao: string;
+  acaoLabel: string;
+  acaoUrl: string;
+  acaoSecundariaLabel?: string;
+  acaoSecundariaUrl?: string;
+  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+}
+
+function salvarProximaAcaoResultadoProposta() {
+  const card: ResultadoPropostaNextStepCardData = {
+    titulo:
+      "Após registrar o resultado da proposta, acompanhe a habilitação documental",
+    descricao:
+      "A habilitação documental permite acompanhar a etapa de conferência dos documentos exigidos pelo edital, registrando prazos, envio da documentação, pendências, regularizações, recursos e o resultado final da habilitação.",
+    acaoLabel: "Cadastrar habilitação",
+    acaoUrl: "/habilitacoes-propostas/novo",
+    acaoSecundariaLabel: "Ver resultados da proposta",
+    acaoSecundariaUrl: "/resultados-propostas",
+    variante: "pendente",
+  };
+
+  sessionStorage.setItem(
+    RESULTADO_PROPOSTA_NEXT_STEP_KEY,
+    JSON.stringify(card),
+  );
+}
+
 function normalizeId(value: unknown): string {
   if (value === null || value === undefined || value === "") {
     return "";
@@ -604,26 +636,15 @@ export default function ResultadoPropostaForm() {
           "Resultado da Proposta atualizado com sucesso.",
           navigate,
           "/resultados-propostas",
-          formComProposta.statusResultadoProposta === "APROVADO"
-            ? {
-                label: "Cadastrar habilitação",
-                to: "/habilitacoes-propostas/novo",
-              }
-            : undefined,
         );
       } else {
         await createResultadoProposta(payload, novoRelatorio, novoDocRecurso);
+        salvarProximaAcaoResultadoProposta();
 
         toastSuccessNext(
           "Resultado da Proposta cadastrado com sucesso.",
           navigate,
           "/resultados-propostas",
-          formComProposta.statusResultadoProposta === "APROVADO"
-            ? {
-                label: "Cadastrar habilitação",
-                to: "/habilitacoes-propostas/novo",
-              }
-            : undefined,
         );
       }
     } catch (error) {

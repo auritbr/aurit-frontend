@@ -57,12 +57,12 @@ interface HabilitacaoNextStepCardData {
 function salvarProximaAcaoHabilitacao() {
   const card: HabilitacaoNextStepCardData = {
     titulo:
-      "Após acompanhar a habilitação documental, organize a equipe da proposta",
+      "Após acompanhar a habilitação documental, organize as evidências de execução",
     descricao:
-      "A equipe da proposta ajuda a demonstrar quem participará da execução, qual função cada pessoa exercerá, sua carga horária, valor previsto, justificativa e mini biografia.",
-    acaoLabel: "Cadastrar equipe",
-    acaoUrl: "/equipe-edital/novo",
-    acaoSecundariaLabel: "Ver Habilitação Documental",
+      "As evidências de execução ajudam a comprovar as ações realizadas no projeto, reunindo fotos, vídeos, documentos, listas de presença, relatórios, registros de atividades e links de publicação importantes para relatórios e prestação de contas.",
+    acaoLabel: "Cadastrar evidências",
+    acaoUrl: "/evidencias/novo",
+    acaoSecundariaLabel: "Ver habilitação documental",
     acaoSecundariaUrl: "/habilitacoes-propostas",
     variante: "pendente",
   };

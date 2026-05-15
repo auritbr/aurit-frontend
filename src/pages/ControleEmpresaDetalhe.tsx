@@ -202,25 +202,6 @@ export default function ControleEmpresaDetalhe() {
     void carregarDados();
   }, [empresaId]);
 
-  if (!empresa) {
-    return (
-      <ProprietarioLayout>
-        <div className="container max-w-3xl py-10">
-          <p className="text-muted-foreground">Empresa não encontrada.</p>
-
-          <Button
-            variant="outline"
-            className="mt-4"
-            onClick={() => navigate("/controle-proprietario/empresas")}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
-          </Button>
-        </div>
-      </ProprietarioLayout>
-    );
-  }
-
   const blocked = empresa.statusControleProprietario === "INATIVO";
 
   async function handleAlterarPlano() {

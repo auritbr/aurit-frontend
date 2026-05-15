@@ -43,6 +43,37 @@ import {
 } from "@/data/acoesDivulgacao";
 import { toast } from "sonner";
 
+const ACAO_DIVULGACAO_NEXT_STEP_KEY =
+  "aurit:acoes-divulgacao:next-step-card";
+
+interface AcaoDivulgacaoNextStepCardData {
+  titulo: string;
+  descricao: string;
+  acaoLabel: string;
+  acaoUrl: string;
+  acaoSecundariaLabel?: string;
+  acaoSecundariaUrl?: string;
+  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+}
+
+function salvarProximaAcaoDivulgacao() {
+  const card: AcaoDivulgacaoNextStepCardData = {
+    titulo: "Após cadastrar as ações de divulgação, registre as evidências",
+    descricao:
+      "As evidências de divulgação ajudam a comprovar como a ação foi comunicada ao público, reunindo publicações, links, prints, cards, cartazes, vídeos, fotos, materiais gráficos e outros registros importantes para relatórios e prestação de contas.",
+    acaoLabel: "Cadastrar evidências",
+    acaoUrl: "/plano-comunicacao/novo",
+    acaoSecundariaLabel: "Ver ações de divulgação",
+    acaoSecundariaUrl: "/acoes-divulgacao",
+    variante: "pendente",
+  };
+
+  sessionStorage.setItem(
+    ACAO_DIVULGACAO_NEXT_STEP_KEY,
+    JSON.stringify(card),
+  );
+}
+
 interface FormState {
   id: string;
   nomeAcao: string;
@@ -420,6 +451,7 @@ export default function AcaoDivulgacaoForm() {
         toast.success("Ação de divulgação atualizada com sucesso.");
       } else {
         await createAcaoDivulgacao(payload);
+        salvarProximaAcaoDivulgacao();
         toast.success("Ação de divulgação cadastrada com sucesso.");
       }
 

@@ -107,11 +107,11 @@ interface PlanejamentoFinanceiroNextStepCardData {
 function criarProximaAcaoPlanejamentoFinanceiro(): PlanejamentoFinanceiroNextStepCardData {
   return {
     titulo:
-      "Após estruturar o orçamento da proposta, organize as evidências de execução",
+      "Após estruturar o orçamento da proposta, registre o resultado da proposta",
     descricao:
-      "As evidências de execução ajudam a comprovar ações realizadas, como atividades, presenças, eventos, divulgações, metas e entregas previstas no projeto, reunindo fotos, vídeos, documentos, listas de presença, relatórios e links de publicação.",
-    acaoLabel: "Cadastrar evidências",
-    acaoUrl: "/evidencias/novo",
+      "O resultado da proposta permite acompanhar a situação da candidatura após a análise do edital, registrando se foi aprovada, não classificada ou suplente, além de guardar datas, observações e informações importantes para o histórico institucional.",
+    acaoLabel: "Cadastrar resultado",
+    acaoUrl: "/resultados-propostas/novo",
     acaoSecundariaLabel: "Ver orçamento da proposta",
     acaoSecundariaUrl: "/planejamento-financeiro",
     variante: "pendente",
@@ -625,8 +625,9 @@ export default function PlanejamentoFinanceiro() {
   return (
     <AppLayout>
       <div
-        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"
-          } py-6 sm:py-8`}
+        className={`container ${
+          showForm ? "max-w-4xl" : "max-w-7xl"
+        } py-6 sm:py-8`}
       >
         {showForm && (
           <button
@@ -640,21 +641,21 @@ export default function PlanejamentoFinanceiro() {
         )}
 
         {isPaginaInicial ? (
-          <div className="mb-5 rounded-lg border border-border bg-secondary/40 px-5 py-5 sm:px-6 sm:py-6">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                Orçamento da Proposta
-              </h1>
+        <div className="mb-5 space-y-1.5">
+          <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                    Orçamento da Proposta
+                  </h1>
 
-              <HelpTooltip
-                text="Organize o orçamento da proposta de edital, detalhando cada item previsto, sua justificativa, quantidade, unidade de medida, valores e vínculo opcional com a equipe. Essas informações ajudam na construção do orçamento, na coerência da proposta, no acompanhamento dos recursos e na futura prestação de contas."
-                label="Orçamento da proposta"
-                size="md"
-                side="bottom"
-                align="start"
-              />
-            </div>
-          </div>
+                  <HelpTooltip
+                    text="Organize o orçamento da proposta de edital, detalhando cada item previsto, sua justificativa, quantidade, unidade de medida, valores e vínculo opcional com a equipe. Essas informações ajudam na construção do orçamento, na coerência da proposta, no acompanhamento dos recursos e na futura prestação de contas."
+                    label="Orçamento da proposta"
+                    size="md"
+                    side="bottom"
+                    align="start"
+                  />
+                </div>
+              </div>
         ) : (
           <div className="mb-5 space-y-1.5">
             <div className="flex items-center gap-2">
