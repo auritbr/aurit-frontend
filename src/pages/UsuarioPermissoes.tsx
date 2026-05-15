@@ -36,16 +36,26 @@ type PermState = Record<ModuloPermissao, Record<AcaoPermissao, boolean>>;
 
 const MODULOS_PLANO_GRATUITO: ModuloPermissao[] = [
   "DASHBOARD",
+
   "ORGANIZACAO",
+  "DIRETORIA",
+  "AGENTES_CULTURAIS",
+
   "COLABORADORES",
   "INTEGRANTES",
   "PARTICIPANTES",
+
   "PROJETOS",
+  "CRONOGRAMA",
+
   "ATIVIDADES",
   "TURMAS",
   "PRESENCAS",
+
+  "EVENTOS_CULTURAIS",
+  "ACOES_DIVULGACAO",
+
   "USUARIOS",
-  "CONFIGURACOES",
 ];
 
 function emptyState(): PermState {
