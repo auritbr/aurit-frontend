@@ -10,6 +10,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
+
 import { AuritLogo } from "@/components/AuritLogo";
 import { loginUsuario, isAuthenticated, getStoredUserRole } from "@/lib/auth";
 
@@ -28,6 +29,30 @@ import {
 type RecoveryStep = "request" | "reset" | "done";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+
+function getTenantSlug() {
+  const hostname = window.location.hostname;
+
+  if (hostname === "localhost") {
+    return "";
+  }
+
+  if (!hostname.endsWith(".aurit.com.br")) {
+    return "";
+  }
+
+  const slug = hostname.replace(".aurit.com.br", "");
+
+  if (!slug || slug.includes(".")) {
+    return "";
+  }
+
+  if (["www", "admin", "api", "mail", "webmail", "cpanel"].includes(slug)) {
+    return "";
+  }
+
+  return slug;
+}
 
 function passwordRules(pwd: string) {
   return {
@@ -57,6 +82,10 @@ async function parseError(response: Response): Promise<string> {
 
     try {
       const json = JSON.parse(text);
+
+      if (typeof json === "string") {
+        return json;
+      }
 
       return (
         json?.message ||
@@ -220,10 +249,13 @@ export default function Login() {
     try {
       setLoadingTroca(true);
 
+      const tenantSlug = getTenantSlug();
+
       const response = await fetch(`${API_URL}/usuarios/trocar-senha`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}),
         },
         body: JSON.stringify({
           login,
@@ -274,17 +306,16 @@ export default function Login() {
         />
 
         <div className="w-full max-w-sm relative z-10">
-          {/* Marca centralizada */}
           <div className="mb-4 flex justify-center">
             <AuritLogo size="lg" withBackground={false} />
           </div>
 
-          {/* Card de login */}
           <div className="bg-card border border-border rounded-lg shadow-sm p-6 sm:p-7">
             <div className="mb-6 text-center">
               <h1 className="text-xl font-semibold text-foreground tracking-tight">
                 Acesse o sistema
               </h1>
+
               <p className="text-sm text-muted-foreground mt-1">
                 Entre com seu usuário e senha para continuar.
               </p>
@@ -612,8 +643,9 @@ export default function Login() {
 function RuleItem({ ok, label }: { ok: boolean; label: string }) {
   return (
     <li
-      className={`flex items-center gap-1.5 ${ok ? "text-[hsl(var(--status-active-fg))]" : "text-muted-foreground"
-        }`}
+      className={`flex items-center gap-1.5 ${
+        ok ? "text-[hsl(var(--status-active-fg))]" : "text-muted-foreground"
+      }`}
     >
       {ok ? (
         <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
