@@ -2,7 +2,7 @@ export const logoutEvent = "autoLogout";
 
 let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-const INACTIVITY_TIME = 10 * 60 * 1000;
+const INACTIVITY_TIME = 60 * 60 * 1000; // 1 hora
 
 const events = [
   "mousemove",
