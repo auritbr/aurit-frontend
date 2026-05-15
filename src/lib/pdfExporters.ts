@@ -2610,11 +2610,6 @@ export async function exportEvidenciaExecucaoPdf(e: EvidenciaExecucaoPdf) {
     documentNumber: `EVD-${String(e.id).padStart(4, "0")}`,
     sections: [
       {
-        justifiedParagraphs: [
-          `A presente ficha registra, para fins de comprovação, rastreabilidade, organização documental e prestação de contas, as informações relativas à evidência de execução indicada abaixo.`,
-        ],
-      },
-      {
         title: "1. Identificação da Evidência",
         fields: [
           {
@@ -2906,98 +2901,130 @@ export async function exportPropostaEditalPdf(p: PropostaEditalPdf) {
 }
 
 export async function exportHabilitacaoPdf(h: HabilitacaoPdf) {
-  const DATA_FINAL_ENVIO =
-    h.dataFinalEnvio || h.dataLimiteHabilitacao || null;
+  const STATUS = v(h.statusHabilitacao);
 
-  await generateInstitutionalPdf({
-    title: "Ficha de Habilitação da Proposta",
-    documentNumber: `HAB-${String(h.id).padStart(4, "0")}`,
-    sections: [
+  const statusNormalizado = String(h.statusHabilitacao ?? "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
+  const estaEmRegularizacao =
+    statusNormalizado === "EM_REGULARIZACAO" ||
+    statusNormalizado === "REGULARIZACAO" ||
+    statusNormalizado.includes("REGULARIZACAO");
+
+  const estaInabilitado =
+    statusNormalizado === "INABILITADO" ||
+    statusNormalizado === "INABILITADA" ||
+    statusNormalizado.includes("INABILIT");
+
+  const sections: any[] = [
+    {
+      title: "1. Proposta e Responsável",
+      fields: [
+        {
+          label: "Proposta de Edital",
+          value: v(h.propostaEdital),
+        },
+        {
+          label: "Agente Responsável",
+          value: v(h.agenteResponsavel),
+        },
+      ],
+    },
+    {
+      title: "2. Prazos e Envio da Documentação",
+      fields: [
+        {
+          label: "Data de Convocação/Início",
+          value: formatDateBR(h.dataInicioHabilitacao),
+        },
+        {
+          label: "Prazo Final da Habilitação",
+          value: formatDateBR(h.dataLimiteHabilitacao || h.dataFinalEnvio),
+        },
+        {
+          label: "Data de Envio da Documentação",
+          value: formatDateBR(h.dataEnvioDocumentacao),
+        },
+      ],
+    },
+    {
+      title: "3. Análise Documental",
+      fields: [
+        {
+          label: "Status da Habilitação",
+          value: STATUS,
+        },
+        {
+          label: "Data de Retorno da Análise",
+          value: formatDateBR(h.dataRetornoAnalise),
+        },
+      ],
+    },
+  ];
+
+  if (estaEmRegularizacao) {
+    sections.push({
+      title: "4. Exigência ou Pendência",
+      justifiedParagraphs: h.exigenciaOuPendencia
+        ? [h.exigenciaOuPendencia]
+        : [PLACEHOLDER],
+    });
+
+    sections.push({
+      title: "5. Providência Tomada/Recurso Enviado",
+      justifiedParagraphs: h.providenciaTomada
+        ? [h.providenciaTomada]
+        : [PLACEHOLDER],
+    });
+
+    sections.push({
+      title: "6. Data de Regularização/Recurso",
+      fields: [
+        {
+          label: "Data de Regularização/Recurso",
+          value: formatDateBR(h.dataRegularizacao),
+        },
+      ],
+    });
+  }
+
+  const numeroResultado = estaEmRegularizacao ? "7" : "4";
+
+  sections.push({
+    title: `${numeroResultado}. Resultado da Habilitação`,
+    fields: [
       {
-        justifiedParagraphs: [
-          `A presente ficha registra, para fins de acompanhamento institucional, organização documental e rastreabilidade, as informações relacionadas à fase de habilitação da proposta indicada abaixo.`,
-        ],
+        label: "Data de Conclusão da Habilitação",
+        value: formatDateBR(h.dataConclusaoHabilitacao),
       },
       {
-        title: "1. Vínculo da Habilitação",
-        fields: [
-          {
-            label: "Proposta de Edital",
-            value: v(h.propostaEdital),
-          },
-          {
-            label: "Agente Responsável",
-            value: v(h.agenteResponsavel),
-          },
-        ],
-      },
-      {
-        title: "2. Prazos e Envio",
-        fields: [
-          {
-            label: "Data de Início",
-            value: formatDateBR(h.dataInicioHabilitacao),
-          },
-          {
-            label: "Data Final do Envio",
-            value: formatDateBR(DATA_FINAL_ENVIO),
-          },
-          {
-            label: "Data de Envio",
-            value: formatDateBR(h.dataEnvioDocumentacao),
-          },
-          {
-            label: "Status da Habilitação",
-            value: v(h.statusHabilitacao),
-          },
-        ],
-      },
-      {
-        title: "3. Análise e Regularização",
-        fields: [
-          {
-            label: "Data de Retorno da Análise",
-            value: formatDateBR(h.dataRetornoAnalise),
-          },
-          {
-            label: "Data de Regularização",
-            value: formatDateBR(h.dataRegularizacao),
-          },
-          {
-            label: "Data de Conclusão",
-            value: formatDateBR(h.dataConclusaoHabilitacao),
-          },
-        ],
-      },
-      {
-        title: "4. Exigência ou Pendência",
-        justifiedParagraphs: h.exigenciaOuPendencia
-          ? [h.exigenciaOuPendencia]
-          : [PLACEHOLDER],
-      },
-      {
-        title: "5. Providência Tomada",
-        justifiedParagraphs: h.providenciaTomada
-          ? [h.providenciaTomada]
-          : [PLACEHOLDER],
-      },
-      {
-        title: "6. Motivo de Inabilitação",
-        justifiedParagraphs: h.motivoInabilitacao
-          ? [h.motivoInabilitacao]
-          : [PLACEHOLDER],
-      },
-      {
-        title: "7. Publicação Oficial",
-        justifiedParagraphs: h.publicacaoOficial
-          ? [h.publicacaoOficial]
-          : [PLACEHOLDER],
-      },
-      {
-        title: "8. Observações",
-        justifiedParagraphs: h.observacoes ? [h.observacoes] : [PLACEHOLDER],
+        label: "Publicação Oficial",
+        value: v(h.publicacaoOficial),
       },
     ],
+  });
+
+  if (estaInabilitado) {
+    sections.push({
+      title: `${estaEmRegularizacao ? "8" : "5"}. Motivo da Inabilitação`,
+      justifiedParagraphs: h.motivoInabilitacao
+        ? [h.motivoInabilitacao]
+        : [PLACEHOLDER],
+    });
+  }
+
+  sections.push({
+    title: `${estaEmRegularizacao ? (estaInabilitado ? "9" : "8") : estaInabilitado ? "6" : "5"}. Observações`,
+    justifiedParagraphs: h.observacoes ? [h.observacoes] : [PLACEHOLDER],
+  });
+
+  await generateInstitutionalPdf({
+    title: "Ficha de Habilitação Documental",
+    documentNumber: `HAB-${String(h.id).padStart(4, "0")}`,
+    sections,
   });
 }
 

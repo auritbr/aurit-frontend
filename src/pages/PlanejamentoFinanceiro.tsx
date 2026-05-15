@@ -625,9 +625,8 @@ export default function PlanejamentoFinanceiro() {
   return (
     <AppLayout>
       <div
-        className={`container ${
-          showForm ? "max-w-4xl" : "max-w-7xl"
-        } py-6 sm:py-8`}
+        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"
+          } py-6 sm:py-8`}
       >
         {showForm && (
           <button
@@ -642,27 +641,18 @@ export default function PlanejamentoFinanceiro() {
 
         {isPaginaInicial ? (
           <div className="mb-5 rounded-lg border border-border bg-secondary/40 px-5 py-5 sm:px-6 sm:py-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="space-y-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary-soft px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
-                  <ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.2} />
-                  Editais
-                </span>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                Orçamento da Proposta
+              </h1>
 
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                    Orçamento da Proposta
-                  </h1>
-
-                  <HelpTooltip
-                    text="Organize o orçamento da proposta de edital, detalhando cada item previsto, sua justificativa, quantidade, unidade de medida, valores e vínculo opcional com a equipe. Essas informações ajudam na construção do orçamento, na coerência da proposta, no acompanhamento dos recursos e na futura prestação de contas."
-                    label="Orçamento da proposta"
-                    size="md"
-                    side="bottom"
-                    align="start"
-                  />
-                </div>
-              </div>
+              <HelpTooltip
+                text="Organize o orçamento da proposta de edital, detalhando cada item previsto, sua justificativa, quantidade, unidade de medida, valores e vínculo opcional com a equipe. Essas informações ajudam na construção do orçamento, na coerência da proposta, no acompanhamento dos recursos e na futura prestação de contas."
+                label="Orçamento da proposta"
+                size="md"
+                side="bottom"
+                align="start"
+              />
             </div>
           </div>
         ) : (

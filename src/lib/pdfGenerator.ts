@@ -644,11 +644,10 @@ function normalizeParagraphBlocks(values?: string[]): string[] {
       String(value ?? "")
         .replace(/\r\n/g, "\n")
         .replace(/\r/g, "\n")
-        .split(/\n{2,}/g),
+        .split(/\n+/g),
     )
     .map((text) =>
       text
-        .replace(/\n+/g, " ")
         .replace(/\s+/g, " ")
         .trim(),
     )
