@@ -100,22 +100,19 @@ function removeSessionFromStorage(storage: Storage) {
 export function salvarSessaoUsuario(
   token: string,
   usuario: UsuarioLogado,
-  persistir = true,
 ) {
   removeSessionFromStorage(localStorage);
   removeSessionFromStorage(sessionStorage);
 
-  const storage = persistir ? localStorage : sessionStorage;
-
-  storage.setItem("token", token);
-  storage.setItem(USER_KEY, JSON.stringify(usuario));
+  localStorage.setItem("token", token);
+  localStorage.setItem(USER_KEY, JSON.stringify(usuario));
 
   if (usuario.userRole) {
-    storage.setItem(USER_ROLE_KEY, usuario.userRole);
+    localStorage.setItem(USER_ROLE_KEY, usuario.userRole);
   }
 
   if (usuario.name) {
-    storage.setItem(USER_NAME_KEY, usuario.name);
+    localStorage.setItem(USER_NAME_KEY, usuario.name);
   }
 }
 
@@ -326,7 +323,7 @@ export async function loginUsuario(
     throw new Error("Perfil do usuário não retornado no login.");
   }
 
-  salvarSessaoUsuario(data.token, usuario, persistir);
+salvarSessaoUsuario(data.token, usuario);
 
   return {
     token: data.token,
