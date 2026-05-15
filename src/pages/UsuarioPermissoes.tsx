@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ShieldCheck, CheckSquare, Square, Eye } from "lucide-react";
 
@@ -19,6 +19,7 @@ import {
   getUsuarioById,
   getPermissoes,
   savePermissoes,
+  getConfiguracoesEmpresaOptions,
   GRUPOS_MODULOS,
   ACOES,
   moduloLabel,
@@ -32,6 +33,20 @@ import {
 } from "@/data/usuarios";
 
 type PermState = Record<ModuloPermissao, Record<AcaoPermissao, boolean>>;
+
+const MODULOS_PLANO_GRATUITO: ModuloPermissao[] = [
+  "DASHBOARD",
+  "ORGANIZACAO",
+  "COLABORADORES",
+  "INTEGRANTES",
+  "PARTICIPANTES",
+  "PROJETOS",
+  "ATIVIDADES",
+  "TURMAS",
+  "PRESENCAS",
+  "USUARIOS",
+  "CONFIGURACOES",
+];
 
 function emptyState(): PermState {
   const state = {} as PermState;
@@ -79,6 +94,7 @@ export default function UsuarioPermissoes() {
   const [saving, setSaving] = useState(false);
   const [perms, setPerms] = useState<PermState>(() => emptyState());
   const [hasExisting, setHasExisting] = useState(false);
+  const [tipoPlano, setTipoPlano] = useState<string | null>(null);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
     null,
   );
@@ -86,6 +102,21 @@ export default function UsuarioPermissoes() {
     useState<PermissoesModulo>(permissoesVazias);
 
   const podeEditarPermissoes = permissoesUsuarioLogado.EDITAR;
+
+  const gruposModulosVisiveis = useMemo(() => {
+    if (tipoPlano !== "PLANO_GRATUITO") {
+      return GRUPOS_MODULOS;
+    }
+
+    return GRUPOS_MODULOS
+      .map((grupo) => ({
+        ...grupo,
+        modulos: grupo.modulos.filter((modulo) =>
+          MODULOS_PLANO_GRATUITO.includes(modulo),
+        ),
+      }))
+      .filter((grupo) => grupo.modulos.length > 0);
+  }, [tipoPlano]);
 
   useEffect(() => {
     let active = true;
@@ -137,9 +168,10 @@ export default function UsuarioPermissoes() {
         setLoading(true);
         setAccessDeniedMessage(null);
 
-        const [usuarioData, existing] = await Promise.all([
+        const [usuarioData, existing, empresasData] = await Promise.all([
           getUsuarioById(id),
           getPermissoes(id),
+          getConfiguracoesEmpresaOptions(),
         ]);
 
         if (!active) return;
@@ -150,7 +182,12 @@ export default function UsuarioPermissoes() {
           return;
         }
 
+        const empresaUsuario = empresasData.find(
+          (empresa) => empresa.id === usuarioData.configuracaoEmpresaId,
+        );
+
         setUsuario(usuarioData);
+        setTipoPlano(empresaUsuario?.tipoPlano ?? null);
         setHasExisting(existing.length > 0);
         setPerms(applyPermissoesToState(existing));
       } catch (error) {
@@ -208,10 +245,15 @@ export default function UsuarioPermissoes() {
   const setAll = (value: boolean) => {
     if (readOnly) return;
 
+    const modulosPermitidos =
+      tipoPlano === "PLANO_GRATUITO"
+        ? MODULOS_PLANO_GRATUITO
+        : (Object.keys(perms) as ModuloPermissao[]);
+
     setPerms((prev) => {
       const next = { ...prev };
 
-      (Object.keys(next) as ModuloPermissao[]).forEach((modulo) => {
+      modulosPermitidos.forEach((modulo) => {
         next[modulo] = { ...next[modulo] };
 
         ACOES.forEach((acao) => {
@@ -226,10 +268,15 @@ export default function UsuarioPermissoes() {
   const setReadOnlyAll = () => {
     if (readOnly) return;
 
+    const modulosPermitidos =
+      tipoPlano === "PLANO_GRATUITO"
+        ? MODULOS_PLANO_GRATUITO
+        : (Object.keys(perms) as ModuloPermissao[]);
+
     setPerms((prev) => {
       const next = { ...prev };
 
-      (Object.keys(next) as ModuloPermissao[]).forEach((modulo) => {
+      modulosPermitidos.forEach((modulo) => {
         next[modulo] = {
           VISUALIZAR: true,
           CRIAR: false,
@@ -259,9 +306,14 @@ export default function UsuarioPermissoes() {
       setSaving(true);
       setAccessDeniedMessage(null);
 
+      const modulosParaSalvar =
+        tipoPlano === "PLANO_GRATUITO"
+          ? MODULOS_PLANO_GRATUITO
+          : (Object.keys(perms) as ModuloPermissao[]);
+
       const list: UsuarioPermissao[] = [];
 
-      (Object.keys(perms) as ModuloPermissao[]).forEach((modulo) => {
+      modulosParaSalvar.forEach((modulo) => {
         ACOES.forEach((acao) => {
           list.push({
             usuarioId: usuario.id,
@@ -292,6 +344,18 @@ export default function UsuarioPermissoes() {
       setSaving(false);
     }
   };
+
+  if (loadingPermissoes || loading) {
+    return (
+      <AppLayout>
+        <div className="container max-w-4xl py-8">
+          <p className="text-sm text-muted-foreground">
+            Carregando permissões...
+          </p>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!podeEditarPermissoes) {
     return (
@@ -335,7 +399,7 @@ export default function UsuarioPermissoes() {
 
         <PageTitle
           title="Permissões do usuário"
-          tooltip="Defina quais módulos e ações este usuário poderá acessar no sistema."
+          tooltip="Defina quais módulos e ações este usuário poderá acessar no sistema, conforme o plano disponível para a organização."
         />
 
         <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
@@ -343,6 +407,13 @@ export default function UsuarioPermissoes() {
           ações permitidas, como visualizar, criar, editar, excluir, baixar,
           gerar PDF ou alterar status.
         </div>
+
+        {tipoPlano === "PLANO_GRATUITO" && (
+          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+            Esta organização está no plano gratuito. Por isso, apenas os módulos
+            disponíveis neste plano podem ter permissões configuradas.
+          </div>
+        )}
 
         <div className="mb-5 rounded border border-border bg-card p-4">
           <div className="flex items-center gap-3 mb-3">
@@ -370,6 +441,17 @@ export default function UsuarioPermissoes() {
                 {statusUsuarioLabel[usuario.statusUsuario]}
               </span>
             </span>
+
+            {tipoPlano && (
+              <span>
+                Plano:{" "}
+                <span className="font-medium text-foreground">
+                  {tipoPlano === "PLANO_GRATUITO"
+                    ? "Plano Gratuito"
+                    : "Plano Pago"}
+                </span>
+              </span>
+            )}
           </div>
         </div>
 
@@ -456,7 +538,7 @@ export default function UsuarioPermissoes() {
                 </tr>
               </thead>
 
-              {GRUPOS_MODULOS.map((grupo) => (
+              {gruposModulosVisiveis.map((grupo) => (
                 <tbody key={grupo.title}>
                   <tr className="bg-muted/20">
                     <td
