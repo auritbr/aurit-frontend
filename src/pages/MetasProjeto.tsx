@@ -12,6 +12,7 @@ import {
 
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/hooks/usePagination";
 import { copyTableFromRef } from "@/lib/copyTableDom";
+import { isPlanoAccessDenied } from "@/lib/access";
 import { exportMetaProjetoPdf } from "@/lib/pdfExporters";
 import {
   getPermissoesUsuarioLogadoPorModulo,
@@ -78,6 +80,9 @@ export default function MetasProjetoPage() {
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
+    null,
+  );
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
 
@@ -154,6 +159,7 @@ export default function MetasProjetoPage() {
   async function carregarDados() {
     try {
       setLoading(true);
+      setAccessDeniedMessage(null);
 
       const [metasData, projetosData, propostasData] = await Promise.all([
         getMetasProjeto(),
@@ -167,6 +173,11 @@ export default function MetasProjetoPage() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Erro ao carregar metas.";
+
+      if (isPlanoAccessDenied(message)) {
+        setAccessDeniedMessage(message);
+        return;
+      }
 
       toast.error(message);
     } finally {
@@ -234,6 +245,12 @@ export default function MetasProjetoPage() {
       const message =
         error instanceof Error ? error.message : "Erro ao remover meta.";
 
+      if (isPlanoAccessDenied(message)) {
+        setAccessDeniedMessage(message);
+        setConfirmDelete(null);
+        return;
+      }
+
       toast.error(message);
     } finally {
       setConfirmDelete(null);
@@ -264,6 +281,14 @@ export default function MetasProjetoPage() {
     return (
       <AppLayout>
         <AccessNotPermitted />
+      </AppLayout>
+    );
+  }
+
+  if (accessDeniedMessage) {
+    return (
+      <AppLayout>
+        <AccessDenied />
       </AppLayout>
     );
   }
@@ -322,10 +347,6 @@ export default function MetasProjetoPage() {
                     data-no-copy
                   >
                     Ações
-                  </th>
-
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Ordem
                   </th>
 
                   <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
