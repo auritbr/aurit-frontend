@@ -56,9 +56,9 @@ const CENTER_W = CENTER_RIGHT - CENTER_LEFT;
 
 type LoadedLogo =
   | {
-      dataUrl: string;
-      format: "PNG" | "JPEG";
-    }
+    dataUrl: string;
+    format: "PNG" | "JPEG";
+  }
   | null;
 
 type EmpresaPdfData = {
@@ -603,24 +603,23 @@ async function resolvePdfContext(): Promise<PdfContext> {
 
   let logo: LoadedLogo = null;
 
-  if (empresa.id) {
+  const caminhoLogo =
+    empresa.caminhoLogo ||
+    empresa.caminho_logo ||
+    empresa.logo ||
+    empresa.logoUrl ||
+    null;
+
+  if (empresa.id && caminhoLogo) {
     logo = await buscarLogoBase64Empresa(empresa);
   }
 
-  if (!logo && empresa.id) {
+  if (!logo && empresa.id && caminhoLogo) {
     logo = await buscarLogoUrlEmpresa(empresa);
   }
 
   if (!logo) {
-    const caminhoLogo =
-      empresa.caminhoLogo ||
-      empresa.caminho_logo ||
-      empresa.logo ||
-      empresa.logoUrl ||
-      null;
-
     const logoUrl = normalizeImageUrl(caminhoLogo);
-
     logo = logoUrl ? await loadImageAsDataUrl(logoUrl) : null;
   }
 
@@ -821,7 +820,7 @@ function drawImageContained(
 
     const safeFormat: "PNG" | "JPEG" =
       dataUrl.startsWith("data:image/jpeg") ||
-      dataUrl.startsWith("data:image/jpg")
+        dataUrl.startsWith("data:image/jpg")
         ? "JPEG"
         : dataUrl.startsWith("data:image/png")
           ? "PNG"
@@ -834,7 +833,7 @@ function drawImageContained(
     try {
       const safeFormat: "PNG" | "JPEG" =
         dataUrl.startsWith("data:image/jpeg") ||
-        dataUrl.startsWith("data:image/jpg")
+          dataUrl.startsWith("data:image/jpg")
           ? "JPEG"
           : "PNG";
 
