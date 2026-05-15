@@ -51,6 +51,11 @@ interface ConfiguracaoEmpresaDTO {
   limiteUsuarios?: number | null;
 }
 
+export interface TrocarSenhaPayload {
+  senhaAtual: string;
+  novaSenha: string;
+}
+
 function mapUsuarioDtoToUsuario(dto: UsuarioDTO): Usuario {
   return {
     id: String(dto.id),
@@ -216,6 +221,18 @@ export async function updateUsuario(
   });
 
   return mapUsuarioDtoToUsuario(data);
+}
+
+export async function trocarSenhaUsuario(
+  payload: TrocarSenhaPayload,
+): Promise<void> {
+  await apiFetch<void>("/usuarios/trocar-senha", {
+    method: "POST",
+    body: JSON.stringify({
+      senhaAtual: payload.senhaAtual,
+      novaSenha: payload.novaSenha,
+    }),
+  });
 }
 
 export async function deleteUsuario(id: string): Promise<void> {
