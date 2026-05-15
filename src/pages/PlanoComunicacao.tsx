@@ -11,11 +11,9 @@ import {
 } from "lucide-react";
 import { PageTitle } from "@/components/PageTitle";
 import { AppLayout } from "@/components/AppLayout";
-import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { HelpTooltip } from "@/components/HelpTooltip";
 import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { StatusPill, type Status } from "@/components/StatusPill";
@@ -24,7 +22,6 @@ import { TablePagination } from "@/components/TablePagination";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
 import { copyTableFromRef } from "@/lib/copyTableDom";
-import { isPlanoAccessDenied } from "@/lib/access";
 import { exportPlanoComunicacaoPdf } from "@/lib/pdfExporters";
 import {
   getPermissoesUsuarioLogadoPorModulo,
@@ -88,9 +85,6 @@ export default function PlanoComunicacaoPage() {
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
-    null,
-  );
   const [nextStepCard, setNextStepCard] =
     useState<ExecucaoDivulgacaoNextStepCardData | null>(null);
   const [permissoes, setPermissoes] =
@@ -170,7 +164,6 @@ export default function PlanoComunicacaoPage() {
   async function carregarDados() {
     try {
       setLoading(true);
-      setAccessDeniedMessage(null);
 
       const [execucoesData, acoesData, organizacoesData] = await Promise.all([
         getPlanosComunicacao(),
@@ -186,11 +179,6 @@ export default function PlanoComunicacaoPage() {
         error instanceof Error
           ? error.message
           : "Erro ao carregar Execuções da Divulgação.";
-
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        return;
-      }
 
       toast.error(message);
     } finally {
@@ -273,12 +261,6 @@ export default function PlanoComunicacaoPage() {
           ? error.message
           : "Erro ao excluir Execução da Divulgação.";
 
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        setConfirmDelete(null);
-        return;
-      }
-
       toast.error(message);
     }
   };
@@ -306,14 +288,6 @@ export default function PlanoComunicacaoPage() {
     return (
       <AppLayout>
         <AccessNotPermitted />
-      </AppLayout>
-    );
-  }
-
-  if (accessDeniedMessage) {
-    return (
-      <AppLayout>
-        <AccessDenied />
       </AppLayout>
     );
   }

@@ -138,7 +138,7 @@ const groups: MenuGroup[] = [
     icon: Briefcase,
     items: [
       { title: "Projetos", url: "/projetos" },
-      { title: "Metas do Projeto", url: "/metas-projeto", paidOnly: true },
+      { title: "Metas do Projeto", url: "/metas-projeto"},
       { title: "Cronograma do Projeto", url: "/cronograma" },
     ],
   },
