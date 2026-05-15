@@ -202,7 +202,10 @@ export default function ControleEmpresaDetalhe() {
     void carregarDados();
   }, [empresaId]);
 
-  const blocked = empresa.statusControleProprietario === "INATIVO";
+  const statusControleProprietario =
+    empresa?.statusControleProprietario ?? "ATIVO";
+
+  const blocked = statusControleProprietario === "INATIVO";
 
   async function handleAlterarPlano() {
     if (!empresa || !novoPlano) return;
@@ -521,7 +524,7 @@ export default function ControleEmpresaDetalhe() {
                   label="Status"
                   value={
                     <StatusEmpresaBadge
-                      status={empresa.statusControleProprietario}
+                      status={statusControleProprietario}
                     />
                   }
                 />
@@ -572,9 +575,8 @@ export default function ControleEmpresaDetalhe() {
                       return (
                         <tr
                           key={u.id}
-                          className={`border-b border-border/70 last:border-0 hover:bg-muted/30 ${
-                            inativo ? "opacity-70" : ""
-                          }`}
+                          className={`border-b border-border/70 last:border-0 hover:bg-muted/30 ${inativo ? "opacity-70" : ""
+                            }`}
                         >
                           <td className="px-5 py-2.5 font-medium text-foreground whitespace-nowrap">
                             {u.name}
@@ -849,7 +851,11 @@ export default function ControleEmpresaDetalhe() {
           <DialogHeader>
             <DialogTitle>Alterar plano da empresa</DialogTitle>
             <DialogDescription>
-              Plano atual: <strong>{PLANO_LABELS[empresa.tipoPlano]}</strong>.
+              Plano atual:{" "}
+              <strong>
+                {empresa ? PLANO_LABELS[empresa.tipoPlano] : "—"}
+              </strong>
+              .
               Selecione o novo plano abaixo.
             </DialogDescription>
           </DialogHeader>
