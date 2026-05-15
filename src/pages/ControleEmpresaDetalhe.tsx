@@ -169,43 +169,55 @@ export default function ControleEmpresaDetalhe() {
   const pagamentosPagination = usePagination(pagamentos, 10, "");
   const logsPagination = usePagination(logs, 10, "");
 
-  async function carregarDados() {
-    if (!empresaId || Number.isNaN(empresaId)) {
-      setLoading(false);
+async function carregarDados() {
+  if (!empresaId || Number.isNaN(empresaId)) {
+    setLoading(false);
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const empresaData = await buscarEmpresaControle(empresaId);
+
+    if (!empresaData) {
+      setEmpresa(null);
+      setUsuarios([]);
+      setPagamentos([]);
+      setLogs([]);
       return;
     }
 
-    try {
-      setLoading(true);
+    setEmpresa(empresaData);
 
-      const [empresaData, usuariosData, pagamentosData, logsData] =
-        await Promise.all([
-          buscarEmpresaControle(empresaId),
-          listarUsuariosEmpresa(empresaId),
-          listarPagamentosEmpresa(empresaId),
-          listarLogsEmpresa(empresaId),
-        ]);
+    const controleId = empresaData.id;
 
-      setEmpresa(empresaData);
-      setUsuarios(usuariosData);
-      setPagamentos(pagamentosData);
-      setLogs(logsData);
-    } catch (error) {
-      console.error(error);
-      toast.error("Não foi possível carregar os detalhes da empresa.");
-    } finally {
-      setLoading(false);
-    }
+    const [usuariosData, pagamentosData, logsData] = await Promise.all([
+      listarUsuariosEmpresa(controleId),
+      listarPagamentosEmpresa(controleId),
+      listarLogsEmpresa(controleId),
+    ]);
+
+    setUsuarios(usuariosData);
+    setPagamentos(pagamentosData);
+    setLogs(logsData);
+  } catch (error) {
+    console.error(error);
+    toast.error("Não foi possível carregar os detalhes da empresa.");
+    setEmpresa(null);
+    setUsuarios([]);
+    setPagamentos([]);
+    setLogs([]);
+  } finally {
+    setLoading(false);
   }
+}
 
   useEffect(() => {
     void carregarDados();
   }, [empresaId]);
 
-  const statusControleProprietario =
-    empresa?.statusControleProprietario ?? "ATIVO";
-
-  const blocked = statusControleProprietario === "INATIVO";
+  const blocked = empresa.statusControleProprietario === "INATIVO";
 
   async function handleAlterarPlano() {
     if (!empresa || !novoPlano) return;
@@ -524,7 +536,7 @@ export default function ControleEmpresaDetalhe() {
                   label="Status"
                   value={
                     <StatusEmpresaBadge
-                      status={statusControleProprietario}
+                      status={empresa.statusControleProprietario}
                     />
                   }
                 />
@@ -575,8 +587,9 @@ export default function ControleEmpresaDetalhe() {
                       return (
                         <tr
                           key={u.id}
-                          className={`border-b border-border/70 last:border-0 hover:bg-muted/30 ${inativo ? "opacity-70" : ""
-                            }`}
+                          className={`border-b border-border/70 last:border-0 hover:bg-muted/30 ${
+                            inativo ? "opacity-70" : ""
+                          }`}
                         >
                           <td className="px-5 py-2.5 font-medium text-foreground whitespace-nowrap">
                             {u.name}
@@ -851,11 +864,7 @@ export default function ControleEmpresaDetalhe() {
           <DialogHeader>
             <DialogTitle>Alterar plano da empresa</DialogTitle>
             <DialogDescription>
-              Plano atual:{" "}
-              <strong>
-                {empresa ? PLANO_LABELS[empresa.tipoPlano] : "—"}
-              </strong>
-              .
+              Plano atual: <strong>{PLANO_LABELS[empresa.tipoPlano]}</strong>.
               Selecione o novo plano abaixo.
             </DialogDescription>
           </DialogHeader>
