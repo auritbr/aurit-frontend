@@ -405,6 +405,57 @@ export default function ControleEmpresaDetalhe() {
     }
   }
 
+  if (loading) {
+    return (
+      <ProprietarioLayout>
+        <div className="container max-w-[1400px] py-6 sm:py-8">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-3 -ml-2 h-8 text-muted-foreground"
+            onClick={() => navigate("/controle-proprietario/empresas")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Controle de Empresas
+          </Button>
+
+          <div className="rounded border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">
+              Carregando dados da empresa...
+            </p>
+          </div>
+        </div>
+      </ProprietarioLayout>
+    );
+  }
+
+  if (!empresa) {
+    return (
+      <ProprietarioLayout>
+        <div className="container max-w-[1400px] py-6 sm:py-8">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-3 -ml-2 h-8 text-muted-foreground"
+            onClick={() => navigate("/controle-proprietario/empresas")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Controle de Empresas
+          </Button>
+
+          <div className="rounded border border-border bg-card p-5">
+            <h2 className="text-base font-semibold text-foreground">
+              Empresa não encontrada
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Não foi possível carregar os dados desta empresa.
+            </p>
+          </div>
+        </div>
+      </ProprietarioLayout>
+    );
+  }
+
   const statusControleProprietario =
     empresa.statusControleProprietario ?? "ATIVO";
 
@@ -542,7 +593,9 @@ export default function ControleEmpresaDetalhe() {
                 />
                 <InfoRow
                   label="Status"
-                  value={<StatusEmpresaBadge status={statusControleProprietario} />}
+                  value={
+                    <StatusEmpresaBadge status={statusControleProprietario} />
+                  }
                 />
                 <InfoRow
                   label="Limite de Usuários"
