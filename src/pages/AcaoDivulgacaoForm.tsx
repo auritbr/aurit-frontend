@@ -62,7 +62,7 @@ function salvarProximaAcaoDivulgacao() {
     descricao:
       "As evidências de divulgação ajudam a comprovar como a ação foi comunicada ao público, reunindo publicações, links, prints, cards, cartazes, vídeos, fotos, materiais gráficos e outros registros importantes para relatórios e prestação de contas.",
     acaoLabel: "Cadastrar evidências",
-    acaoUrl: "/plano-comunicacao/novo",
+    acaoUrl: "/plano-comunicacao",
     acaoSecundariaLabel: "Ver ações de divulgação",
     acaoSecundariaUrl: "/acoes-divulgacao",
     variante: "pendente",

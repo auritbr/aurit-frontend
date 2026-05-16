@@ -80,7 +80,7 @@ function salvarProximaAcaoParticipante() {
     descricao:
       "Os currículos ajudam a registrar formações, experiências, competências e atuações dos colaboradores, fortalecendo a comprovação da capacidade técnica da equipe em projetos, editais e documentos institucionais.",
     acaoLabel: "Cadastrar currículos",
-    acaoUrl: "/curriculos/novo",
+    acaoUrl: "/curriculos",
     acaoSecundariaLabel: "Ver participantes",
     acaoSecundariaUrl: "/participantes",
     variante: "pendente",

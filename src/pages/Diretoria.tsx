@@ -258,7 +258,7 @@ function salvarProximaAcaoDiretoria() {
     descricao:
       "Documentos atualizados ajudam a comprovar a regularidade da organização e podem ser exigidos em editais, habilitações, contratos, relatórios e prestações de contas.",
     acaoLabel: "Cadastrar documentos",
-    acaoUrl: "/documentos/novo",
+    acaoUrl: "/documentos",
     acaoSecundariaLabel: "Ver diretoria",
     acaoSecundariaUrl: "/diretoria",
     variante: "pendente",

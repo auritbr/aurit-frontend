@@ -71,6 +71,10 @@ export default function ProtectedRouteWithPermission({
         if (!active) return;
 
         setAllowed(permitido);
+
+        if (!active) return;
+
+        setAllowed(permitido);
       } catch (error) {
         console.error("Erro ao verificar permissão:", error);
 

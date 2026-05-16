@@ -101,11 +101,11 @@ const initial: FormState = {
 
 function salvarProximaAcaoPropostaEdital() {
   const card: PropostaEditalNextStepCardData = {
-    titulo: "Após estruturar a proposta, acompanhe a habilitação do projeto",
+    titulo: "Após estruturar a proposta, organize a equipe do projeto",
     descricao:
-      "A habilitação ajuda a controlar prazos, envio de documentos, exigências, regularizações e resultado da análise da proposta no edital, sem substituir o cadastro oficial dos documentos da organização.",
-    acaoLabel: "Cadastrar habilitação",
-    acaoUrl: "/habilitacoes-propostas/novo",
+      "Com a proposta cadastrada, o próximo passo é vincular os colaboradores que participarão da execução do projeto, definindo funções, responsabilidades e a composição da equipe envolvida na proposta.",
+    acaoLabel: "Cadastrar equipe da proposta",
+    acaoUrl: "/equipe-edital/novo",
     acaoSecundariaLabel: "Ver propostas",
     acaoSecundariaUrl: "/propostas-edital",
     variante: "pendente",
