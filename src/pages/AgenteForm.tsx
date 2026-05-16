@@ -119,10 +119,10 @@ interface AgenteDetalhadoDTO {
 
 interface AgentePayload {
   tipoAgente: TipoAgente;
-  pessoaFisica?: PessoaFisica | null;
-  pessoaJuridica?: PessoaJuridica | null;
-  coletivo?: Coletivo | null;
-  representante?: PessoaFisica | null;
+  pessoaFisica?: PessoaFisica;
+  pessoaJuridica?: PessoaJuridica;
+  coletivo?: Coletivo;
+  representante?: PessoaFisica;
   endereco?: {
     cep: string;
     logradouro: string;
@@ -131,7 +131,7 @@ interface AgentePayload {
     bairro: string;
     cidade: string;
     estado: string;
-  } | null;
+  };
 }
 
 interface ViaCepResponse {
@@ -329,6 +329,28 @@ function toDateInput(value?: string | null) {
   return value;
 }
 
+function toIsoDate(value: string): string {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+  if (!match) {
+    return trimmed;
+  }
+
+  const [, day, month, year] = match;
+
+  return `${year}-${month}-${day}`;
+}
+
 function maskRGFlex(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 11);
 
@@ -363,7 +385,7 @@ function isValidEmail(value: string) {
 function limparPessoaFisica(data: PessoaFisica): PessoaFisica {
   return {
     nomeCompleto: data.nomeCompleto.trim(),
-    dataNascimento: data.dataNascimento.trim(),
+    dataNascimento: toIsoDate(data.dataNascimento),
     cpf: onlyDigits(data.cpf),
     rg: data.rg.trim(),
     telefone: data.telefone.trim(),
@@ -376,14 +398,14 @@ function limparPessoaJuridica(data: PessoaJuridica): PessoaJuridica {
     razaoSocial: data.razaoSocial.trim(),
     nomeFantasia: data.nomeFantasia.trim(),
     cnpj: onlyDigits(data.cnpj),
-    dataFundacao: data.dataFundacao.trim(),
+    dataFundacao: toIsoDate(data.dataFundacao),
   };
 }
 
 function limparColetivo(data: Coletivo): Coletivo {
   return {
     nome: data.nome.trim(),
-    dataCriacao: data.dataCriacao.trim(),
+    dataCriacao: toIsoDate(data.dataCriacao),
   };
 }
 
@@ -407,23 +429,33 @@ function buildPayload(
   representante: PessoaFisica,
   endereco: Endereco,
 ): AgentePayload {
-  const isPJ =
-    tipo === "MEI" ||
-    tipo === "PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS" ||
-    tipo === "PESSOA_JURIDICA_COM_FINS_LUCRATIVOS";
-
-  const isPF = tipo === "PESSOA_FISICA";
-  const isColetivo = tipo === "GRUPO_COLETIVO";
-
-  return {
+  const payload: AgentePayload = {
     tipoAgente: tipo,
-    pessoaFisica: isPF ? limparPessoaFisica(pf) : null,
-    pessoaJuridica: isPJ ? limparPessoaJuridica(pj) : null,
-    coletivo: isColetivo ? limparColetivo(coletivo) : null,
-    representante:
-      isPJ || isColetivo ? limparPessoaFisica(representante) : null,
     endereco: limparEndereco(endereco),
   };
+
+  if (tipo === "PESSOA_FISICA") {
+    payload.pessoaFisica = limparPessoaFisica(pf);
+    return payload;
+  }
+
+  if (
+    tipo === "MEI" ||
+    tipo === "PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS" ||
+    tipo === "PESSOA_JURIDICA_COM_FINS_LUCRATIVOS"
+  ) {
+    payload.pessoaJuridica = limparPessoaJuridica(pj);
+    payload.representante = limparPessoaFisica(representante);
+    return payload;
+  }
+
+  if (tipo === "GRUPO_COLETIVO") {
+    payload.coletivo = limparColetivo(coletivo);
+    payload.representante = limparPessoaFisica(representante);
+    return payload;
+  }
+
+  return payload;
 }
 
 function salvarProximaAcaoAgente() {
@@ -752,6 +784,7 @@ export default function AgenteForm() {
 
     if (visualizando) return;
     if (!validar()) return;
+    if (!tipo) return;
 
     try {
       setLoading(true);
@@ -840,6 +873,7 @@ export default function AgenteForm() {
         )}
 
         {!visualizando && <FormLegend />}
+
         <form onSubmit={handleSubmit} className="space-y-5">
           <Section icon={UserCog} title="Tipo de agente">
             <div className="grid sm:grid-cols-2 gap-4">
@@ -887,10 +921,11 @@ export default function AgenteForm() {
                     if (visualizando) return;
                     setTipo(k);
                   }}
-                  className={`rounded border px-3 py-2.5 text-left text-[12px] leading-relaxed transition-colors disabled:cursor-default ${tipo === k
+                  className={`rounded border px-3 py-2.5 text-left text-[12px] leading-relaxed transition-colors disabled:cursor-default ${
+                    tipo === k
                       ? "border-primary/40 bg-primary-soft"
                       : "border-border bg-muted/30"
-                    }`}
+                  }`}
                 >
                   <p className="font-semibold text-foreground text-[12.5px] mb-0.5">
                     {tipoAgenteLabels[k]}
