@@ -144,6 +144,22 @@ const P = {
   editar: "EDITAR",
 } as const;
 
+const MODULOS_PLANO_PAGO: RequiredPermission["modulo"][] = [
+  "DOCUMENTOS",
+  "FINANCEIRO",
+  "RELATORIOS",
+  "CURRICULOS",
+  "TRAJETORIAS_CULTURAIS",
+  "PRESTACAO_CONTAS",
+  "PRESTACAO_METAS",
+  "PATRIMONIO",
+  "EMPRESTIMOS",
+  "HABILITACOES_PROPOSTAS",
+  "RESULTADO_PROPOSTA",
+  "PLANEJAMENTO_FINANCEIRO",
+  "EVIDENCIAS",
+];
+
 const permission = (
   modulo: RequiredPermission["modulo"],
   acao: RequiredPermission["acao"] = P.visualizar,
@@ -152,10 +168,45 @@ const permission = (
   acao,
 });
 
+function getTipoPlanoUsuarioLogado(): string | null {
+  const usuario = getUsuarioLogadoStorage() as any;
+
+  return (
+    usuario?.tipoPlano ??
+    usuario?.configuracaoEmpresa?.tipoPlano ??
+    usuario?.configuracaoEmpresaTipoPlano ??
+    usuario?.empresa?.tipoPlano ??
+    usuario?.tenant?.tipoPlano ??
+    null
+  );
+}
+
+function isModuloPago(modulo?: RequiredPermission["modulo"]) {
+  if (!modulo) {
+    return false;
+  }
+
+  return MODULOS_PLANO_PAGO.includes(modulo);
+}
+
 function protectedPage(
   element: ReactElement,
   requiredPermission?: RequiredPermission,
 ) {
+  const tipoPlano = getTipoPlanoUsuarioLogado();
+  const planoGratuito = tipoPlano === "PLANO_GRATUITO";
+
+  const acessoBloqueadoPorPlano =
+    planoGratuito && isModuloPago(requiredPermission?.modulo);
+
+  if (acessoBloqueadoPorPlano) {
+    return (
+      <TenantRoute>
+        <AccessDenied />
+      </TenantRoute>
+    );
+  }
+
   return (
     <TenantRoute>
       <ProtectedRouteWithPermission requiredPermission={requiredPermission}>
