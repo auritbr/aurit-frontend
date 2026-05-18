@@ -1055,7 +1055,6 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
       { label: "RG", aliases: ["rg"] },
       { label: "Função do Colaborador", aliases: ["funcao do colaborador", "função do colaborador", "funcaoColaborador", "funcao_colaborador", "funcao", "função", "cargo"] },
       { label: "Carga Horária Semanal", aliases: ["carga horaria semanal", "carga horária semanal", "cargaHorariaSemanal", "carga_horaria_semanal", "cargaHoraria", "carga_horaria"] },
-      { label: "Descrição da Atuação", aliases: ["descricao da atuacao", "descrição da atuação", "descricaoAtuacao", "descricao_atuacao", "atuacao", "atuação"] },
       { label: "Data de Início do Vínculo", aliases: ["data de inicio do vinculo", "data de início do vínculo", "dataInicioVinculo", "data_inicio_vinculo", "inicioVinculo"] },
       { label: "Data de Término do Vínculo", aliases: ["data de termino do vinculo", "data de término do vínculo", "dataTerminoVinculo", "data_termino_vinculo", "dataFimVinculo", "fimVinculo"] },
       { label: "Status do Colaborador", aliases: ["status do colaborador", "statusColaborador", "status_colaborador", "status"] },
@@ -2154,8 +2153,41 @@ function formatDiaNumeroTabela(dataISO: string): string {
   return String(dia);
 }
 
+function getTenantSlug() {
+  const hostname = window.location.hostname;
+
+  if (hostname === "localhost") {
+    return "";
+  }
+
+  if (!hostname.endsWith(".aurit.com.br")) {
+    return "";
+  }
+
+  const slug = hostname.replace(".aurit.com.br", "");
+
+  if (!slug || slug.includes(".")) {
+    return "";
+  }
+
+  if (["www", "admin", "api", "mail", "webmail", "cpanel"].includes(slug)) {
+    return "";
+  }
+
+  return slug;
+}
+
+function normalizarToken(token?: string | null): string {
+  if (!token) return "";
+
+  return token
+    .trim()
+    .replace(/^(Bearer\s+)+/i, "")
+    .trim();
+}
+
 function getAuthHeaders() {
-  const token =
+  const rawToken =
     localStorage.getItem("token") ||
     localStorage.getItem("authToken") ||
     localStorage.getItem("accessToken") ||
@@ -2163,8 +2195,12 @@ function getAuthHeaders() {
     sessionStorage.getItem("authToken") ||
     sessionStorage.getItem("accessToken");
 
+  const token = normalizarToken(rawToken);
+  const tenantSlug = getTenantSlug();
+
   return {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}),
   };
 }
 
@@ -2253,18 +2289,35 @@ async function buscarOrganizacaoPrincipal(): Promise<OrganizacaoPdfData> {
   }
 }
 
+function isR2ObjectKey(value: string): boolean {
+  return (
+    value.startsWith("empresas/") ||
+    value.startsWith("logos/") ||
+    value.startsWith("configuracoes-empresa/")
+  );
+}
+
 function normalizeImageUrl(path?: string | null): string | null {
   if (!path) return null;
 
+  const value = path.trim().replace(/^"|"$/g, "");
+
+  if (!value) return null;
+
   if (
-    path.startsWith("data:") ||
-    path.startsWith("http://") ||
-    path.startsWith("https://")
+    value.startsWith("data:image/") ||
+    value.startsWith("data:") ||
+    value.startsWith("http://") ||
+    value.startsWith("https://")
   ) {
-    return path;
+    return value;
   }
 
-  const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (isR2ObjectKey(value)) {
+    return null;
+  }
+
+  const normalized = value.startsWith("/") ? value : `/${value}`;
 
   return `${API_URL}${normalized}`;
 }
@@ -2419,9 +2472,249 @@ async function loadImageAsDataUrl(src: string): Promise<LoadedLogo> {
   }
 }
 
+function inferImageMimeFromBase64(base64: string): string {
+  const clean = base64.trim();
+
+  if (clean.startsWith("/9j/")) {
+    return "image/jpeg";
+  }
+
+  if (clean.startsWith("iVBOR")) {
+    return "image/png";
+  }
+
+  if (clean.startsWith("UklGR")) {
+    return "image/webp";
+  }
+
+  return "image/png";
+}
+
+function normalizeBase64Image(value?: string | null): string {
+  if (!value) return "";
+
+  const clean = value.trim().replace(/^"|"$/g, "");
+
+  if (!clean) return "";
+
+  if (clean.startsWith("data:image/")) {
+    return clean;
+  }
+
+  if (clean.startsWith("http://") || clean.startsWith("https://")) {
+    return clean;
+  }
+
+  const mime = inferImageMimeFromBase64(clean);
+
+  return `data:${mime};base64,${clean}`;
+}
+
+function extractLogoFromJson(data: unknown): string {
+  if (!data) return "";
+
+  if (typeof data === "string") {
+    return data.trim();
+  }
+
+  if (typeof data !== "object") {
+    return "";
+  }
+
+  const record = data as Record<string, unknown>;
+
+  const possibleKeys = [
+    "base64",
+    "logoBase64",
+    "logo_base64",
+    "dataUrl",
+    "dataURL",
+    "url",
+    "logoUrl",
+    "logo_url",
+    "caminhoLogo",
+    "caminho_logo",
+    "logo",
+    "imagem",
+    "imagemBase64",
+    "content",
+    "conteudo",
+  ];
+
+  for (const key of possibleKeys) {
+    const value = record[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "";
+}
+
+async function responseImageToLoadedLogo(
+  response: Response,
+  source = "logo",
+): Promise<LoadedLogo> {
+  try {
+    const blob = await response.blob();
+
+    if (!blob.size) {
+      console.error(`Resposta de ${source} veio vazia.`);
+      return null;
+    }
+
+    const dataUrl = await blobToDataUrl(blob);
+    const compressed = await compressImageDataUrl(dataUrl);
+
+    return {
+      dataUrl: compressed.dataUrl,
+      format: compressed.format,
+    };
+  } catch (error) {
+    console.error(`Erro ao converter resposta de ${source} para imagem:`, error);
+    return null;
+  }
+}
+
+async function buscarLogoBase64Empresa(
+  empresa: EmpresaPdfData,
+): Promise<LoadedLogo> {
+  if (!empresa?.id) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/configuracoes-empresa/${empresa.id}/logo-base64`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      },
+    );
+
+    if (!response.ok) {
+      console.error("Erro ao buscar logo em base64:", response.status);
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (
+      contentType.startsWith("image/") ||
+      contentType.includes("octet-stream")
+    ) {
+      return await responseImageToLoadedLogo(response, "logo-base64");
+    }
+
+    let rawLogo = "";
+
+    if (contentType.includes("application/json")) {
+      const data = await parseJsonSafe<unknown>(response);
+      rawLogo = extractLogoFromJson(data);
+    } else {
+      rawLogo = (await response.text()).trim();
+    }
+
+    const normalizedLogo = normalizeBase64Image(rawLogo);
+
+    if (!normalizedLogo) {
+      console.error("Logo em base64 vazia.");
+      return null;
+    }
+
+    if (normalizedLogo.startsWith("http://") || normalizedLogo.startsWith("https://")) {
+      return await loadImageAsDataUrl(normalizedLogo);
+    }
+
+    if (!normalizedLogo.startsWith("data:image/")) {
+      console.error("Logo em base64 inválida.");
+      return null;
+    }
+
+    const compressed = await compressImageDataUrl(normalizedLogo);
+
+    return {
+      dataUrl: compressed.dataUrl,
+      format: compressed.format,
+    };
+  } catch (error) {
+    console.error("Erro ao carregar logo em base64 para o PDF:", error);
+    return null;
+  }
+}
+
+async function buscarLogoUrlEmpresa(
+  empresa: EmpresaPdfData,
+): Promise<LoadedLogo> {
+  if (!empresa?.id) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/configuracoes-empresa/${empresa.id}/logo`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      },
+    );
+
+    if (!response.ok) {
+      console.error("Erro ao buscar URL temporária da logo:", response.status);
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (
+      contentType.startsWith("image/") ||
+      contentType.includes("octet-stream")
+    ) {
+      return await responseImageToLoadedLogo(response, "logo");
+    }
+
+    let logoUrl = "";
+
+    if (contentType.includes("application/json")) {
+      const data = await parseJsonSafe<unknown>(response);
+      logoUrl = extractLogoFromJson(data);
+    } else {
+      logoUrl = (await response.text()).replace(/^"|"$/g, "").trim();
+    }
+
+    if (!logoUrl) {
+      return null;
+    }
+
+    const cleanLogoUrl = logoUrl.trim().replace(/^"|"$/g, "");
+
+    if (isR2ObjectKey(cleanLogoUrl)) {
+      console.error(
+        "O backend retornou uma chave interna do R2 em vez de uma URL temporária ou base64:",
+        cleanLogoUrl,
+      );
+      return null;
+    }
+
+    const normalizedUrl = normalizeImageUrl(cleanLogoUrl);
+
+    if (!normalizedUrl) {
+      return null;
+    }
+
+    return await loadImageAsDataUrl(normalizedUrl);
+  } catch (error) {
+    console.error("Erro ao carregar URL temporária da logo para o PDF:", error);
+    return null;
+  }
+}
+
 async function resolvePdfContext(): Promise<PdfContext> {
   const empresa = await buscarEmpresaPrincipal();
   const organizacao = await buscarOrganizacaoPrincipal();
+
+  let logo: LoadedLogo = null;
 
   const caminhoLogo =
     empresa.caminhoLogo ||
@@ -2430,8 +2723,18 @@ async function resolvePdfContext(): Promise<PdfContext> {
     empresa.logoUrl ||
     null;
 
-  const logoUrl = normalizeImageUrl(caminhoLogo);
-  const logo = logoUrl ? await loadImageAsDataUrl(logoUrl) : null;
+  if (empresa.id) {
+    logo = await buscarLogoBase64Empresa(empresa);
+  }
+
+  if (!logo && empresa.id) {
+    logo = await buscarLogoUrlEmpresa(empresa);
+  }
+
+  if (!logo) {
+    const logoUrl = normalizeImageUrl(caminhoLogo);
+    logo = logoUrl ? await loadImageAsDataUrl(logoUrl) : null;
+  }
 
   return {
     empresa,
