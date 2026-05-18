@@ -56,9 +56,9 @@ const CENTER_W = CENTER_RIGHT - CENTER_LEFT;
 
 type LoadedLogo =
   | {
-    dataUrl: string;
-    format: "PNG" | "JPEG";
-  }
+      dataUrl: string;
+      format: "PNG" | "JPEG";
+    }
   | null;
 
 type EmpresaPdfData = {
@@ -141,8 +141,17 @@ function getTenantSlug() {
   return slug;
 }
 
+function normalizarToken(token?: string | null): string {
+  if (!token) return "";
+
+  return token
+    .trim()
+    .replace(/^(Bearer\s+)+/i, "")
+    .trim();
+}
+
 function getAuthHeaders() {
-  const token =
+  const rawToken =
     localStorage.getItem("token") ||
     localStorage.getItem("authToken") ||
     localStorage.getItem("accessToken") ||
@@ -150,6 +159,7 @@ function getAuthHeaders() {
     sessionStorage.getItem("authToken") ||
     sessionStorage.getItem("accessToken");
 
+  const token = normalizarToken(rawToken);
   const tenantSlug = getTenantSlug();
 
   return {
@@ -228,10 +238,18 @@ async function buscarOrganizacaoPrincipal(): Promise<OrganizacaoPdfData> {
   }
 }
 
+function isR2ObjectKey(value: string): boolean {
+  return (
+    value.startsWith("empresas/") ||
+    value.startsWith("logos/") ||
+    value.startsWith("configuracoes-empresa/")
+  );
+}
+
 function normalizeImageUrl(path?: string | null): string | null {
   if (!path) return null;
 
-  const value = path.trim();
+  const value = path.trim().replace(/^"|"$/g, "");
 
   if (!value) return null;
 
@@ -243,7 +261,16 @@ function normalizeImageUrl(path?: string | null): string | null {
     return value;
   }
 
-  if (value.startsWith("empresas/")) {
+  /*
+   * Chave interna do R2 não é URL pública.
+   * Exemplo: empresas/1/logo/arquivo.png
+   *
+   * Para PDF, o frontend deve usar:
+   * - /configuracoes-empresa/{id}/logo-base64
+   * ou
+   * - /configuracoes-empresa/{id}/logo com URL temporária assinada.
+   */
+  if (isR2ObjectKey(value)) {
     return null;
   }
 
@@ -588,7 +615,22 @@ async function buscarLogoUrlEmpresa(
       return null;
     }
 
-    const normalizedUrl = normalizeImageUrl(logoUrl) ?? logoUrl;
+    const cleanLogoUrl = logoUrl.trim().replace(/^"|"$/g, "");
+
+    if (isR2ObjectKey(cleanLogoUrl)) {
+      console.error(
+        "O backend retornou uma chave interna do R2 em vez de uma URL temporária ou base64:",
+        cleanLogoUrl,
+      );
+      return null;
+    }
+
+    const normalizedUrl = normalizeImageUrl(cleanLogoUrl);
+
+    if (!normalizedUrl) {
+      console.error("URL da logo inválida para carregamento no PDF:", cleanLogoUrl);
+      return null;
+    }
 
     return await loadImageAsDataUrl(normalizedUrl);
   } catch (error) {
@@ -610,14 +652,29 @@ async function resolvePdfContext(): Promise<PdfContext> {
     empresa.logoUrl ||
     null;
 
-  if (empresa.id && caminhoLogo) {
+  /*
+   * Preferência 1:
+   * Buscar a logo já convertida em base64 pelo backend.
+   * É o melhor caminho para PDF porque evita CORS do R2.
+   */
+  if (empresa.id) {
     logo = await buscarLogoBase64Empresa(empresa);
   }
 
-  if (!logo && empresa.id && caminhoLogo) {
+  /*
+   * Preferência 2:
+   * Buscar uma URL temporária assinada.
+   * Funciona se o R2 estiver com CORS adequado.
+   */
+  if (!logo && empresa.id) {
     logo = await buscarLogoUrlEmpresa(empresa);
   }
 
+  /*
+   * Preferência 3:
+   * Usar diretamente apenas se já for data:image, http(s) ou rota válida da API.
+   * Não tenta carregar chave interna do R2.
+   */
   if (!logo) {
     const logoUrl = normalizeImageUrl(caminhoLogo);
     logo = logoUrl ? await loadImageAsDataUrl(logoUrl) : null;
@@ -819,7 +876,7 @@ function drawImageContained(
 
     const safeFormat: "PNG" | "JPEG" =
       dataUrl.startsWith("data:image/jpeg") ||
-        dataUrl.startsWith("data:image/jpg")
+      dataUrl.startsWith("data:image/jpg")
         ? "JPEG"
         : dataUrl.startsWith("data:image/png")
           ? "PNG"
@@ -832,7 +889,7 @@ function drawImageContained(
     try {
       const safeFormat: "PNG" | "JPEG" =
         dataUrl.startsWith("data:image/jpeg") ||
-          dataUrl.startsWith("data:image/jpg")
+        dataUrl.startsWith("data:image/jpg")
           ? "JPEG"
           : "PNG";
 
