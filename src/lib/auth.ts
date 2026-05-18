@@ -14,7 +14,6 @@ interface LoginResponseDTO {
   usuario?: UsuarioLogado;
   user?: UsuarioLogado;
 
-  // Compatibilidade caso o backend retorne em formato antigo.
   userRole?: string;
   name?: string;
   login?: string;
@@ -52,18 +51,27 @@ function getTenantSlug() {
   return slug;
 }
 
+export function normalizarToken(token?: string | null): string {
+  if (!token) return "";
+
+  return token
+    .trim()
+    .replace(/^(Bearer\s+)+/i, "")
+    .trim();
+}
+
 export function getStoredToken(): string {
   for (const key of TOKEN_KEYS) {
     const localToken = localStorage.getItem(key);
 
     if (localToken) {
-      return localToken;
+      return normalizarToken(localToken);
     }
 
     const sessionToken = sessionStorage.getItem(key);
 
     if (sessionToken) {
-      return sessionToken;
+      return normalizarToken(sessionToken);
     }
   }
 
@@ -100,19 +108,28 @@ function removeSessionFromStorage(storage: Storage) {
 export function salvarSessaoUsuario(
   token: string,
   usuario: UsuarioLogado,
+  persistir = true,
 ) {
   removeSessionFromStorage(localStorage);
   removeSessionFromStorage(sessionStorage);
 
-  localStorage.setItem("token", token);
-  localStorage.setItem(USER_KEY, JSON.stringify(usuario));
+  const tokenLimpo = normalizarToken(token);
+
+  if (!tokenLimpo) {
+    throw new Error("Token inválido ao salvar sessão do usuário.");
+  }
+
+  const storage = persistir ? localStorage : sessionStorage;
+
+  storage.setItem("token", tokenLimpo);
+  storage.setItem(USER_KEY, JSON.stringify(usuario));
 
   if (usuario.userRole) {
-    localStorage.setItem(USER_ROLE_KEY, usuario.userRole);
+    storage.setItem(USER_ROLE_KEY, usuario.userRole);
   }
 
   if (usuario.name) {
-    localStorage.setItem(USER_NAME_KEY, usuario.name);
+    storage.setItem(USER_NAME_KEY, usuario.name);
   }
 }
 
@@ -162,7 +179,8 @@ export function getUsuarioLogadoStorage(): UsuarioLogado | null {
 
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
-    const payload = token.split(".")[1];
+    const tokenLimpo = normalizarToken(token);
+    const payload = tokenLimpo.split(".")[1];
 
     if (!payload) {
       return null;
@@ -288,7 +306,9 @@ export async function loginUsuario(
     throw new Error("Resposta inválida do servidor ao realizar login.");
   }
 
-  if (!data.token) {
+  const tokenLimpo = normalizarToken(data.token);
+
+  if (!tokenLimpo) {
     throw new Error("Token não retornado no login.");
   }
 
@@ -323,10 +343,10 @@ export async function loginUsuario(
     throw new Error("Perfil do usuário não retornado no login.");
   }
 
-salvarSessaoUsuario(data.token, usuario);
+  salvarSessaoUsuario(tokenLimpo, usuario, persistir);
 
   return {
-    token: data.token,
+    token: tokenLimpo,
     usuario,
   };
 }

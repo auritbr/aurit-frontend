@@ -23,9 +23,7 @@ function getTenantSlug() {
     return "";
   }
 
-  if (
-    ["www", "admin", "api", "mail", "webmail", "cpanel"].includes(slug)
-  ) {
+  if (["www", "admin", "api", "mail", "webmail", "cpanel"].includes(slug)) {
     return "";
   }
 
@@ -78,14 +76,15 @@ function shouldLogoutByForbiddenMessage(message: string) {
     normalized.includes("usuario inativo") ||
     normalized.includes("token invalido") ||
     normalized.includes("token expirado") ||
-    normalized.includes("sessao expirada")
+    normalized.includes("sessao expirada") ||
+    normalized.includes("sessao nao encontrada") ||
+    normalized.includes("sessao encerrada") ||
+    normalized.includes("ja encerrada") ||
+    normalized.includes("nao autenticado")
   );
 }
 
-export async function apiFetch<T>(
-  path: string,
-  options: RequestInit = {},
-): Promise<T> {
+function buildHeaders(options: RequestInit = {}) {
   const token = getStoredToken();
   const tenantSlug = getTenantSlug();
 
@@ -96,9 +95,16 @@ export async function apiFetch<T>(
     ...(options.headers ?? {}),
   };
 
+  return headers;
+}
+
+export async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
-    headers,
+    headers: buildHeaders(options),
   });
 
   if (response.status === 401) {
@@ -132,7 +138,17 @@ export async function apiFetch<T>(
     return undefined as T;
   }
 
-  return response.json() as Promise<T>;
+  const text = await response.text();
+
+  if (!text) {
+    return undefined as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as T;
+  }
 }
 
 export function buildArquivoUrl(urlArquivo?: string) {
