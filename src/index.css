@@ -2,14 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design System — Institutional admin platform.
-   Paleta Aurit aplicada com moderação:
-   - texto principal preservado;
-   - sidebar preservada próxima do institucional original;
-   - verde/laranja usados em ações, acentos e estados;
-   - verde-limão apenas como detalhe pontual.
-*/
-
 @layer base {
   :root {
     --background: 210 20% 98%;
@@ -69,25 +61,21 @@
     --radius: 0.375rem;
 
     /*
-      Sidebar preservada.
-      Aqui a paleta nova não estava encaixando bem, então mantive
-      a base azul/cinza institucional original.
+      Sidebar:
+      Base escura neutra para não poluir a interface.
+      Verde Aurit usado apenas como assinatura visual em ativos, foco e detalhes.
     */
-    --sidebar-background: 215 35% 14%;
-    --sidebar-foreground: 215 15% 78%;
+--sidebar-background: 155 30% 8%;
+--sidebar-foreground: 150 12% 82%;
 
-    /*
-      Pequena inserção da marca:
-      item/indicador ativo com verde médio, mas sem alterar a base visual da sidebar.
-    */
-    --sidebar-primary: 146 62% 38%;
-    --sidebar-primary-foreground: 0 0% 100%;
+--sidebar-primary: 145 62% 29%; /* #1C7743 */
+--sidebar-primary-foreground: 0 0% 100%;
 
-    --sidebar-accent: 215 30% 20%;
-    --sidebar-accent-foreground: 0 0% 100%;
+--sidebar-accent: 155 26% 14%;
+--sidebar-accent-foreground: 0 0% 100%;
 
-    --sidebar-border: 215 28% 22%;
-    --sidebar-ring: 146 62% 38%;
+--sidebar-border: 155 18% 17%;
+--sidebar-ring: 145 62% 29%;
 
     --shadow-soft: 0 1px 2px hsl(215 28% 17% / 0.04), 0 1px 3px hsl(215 28% 17% / 0.06);
     --shadow-card: 0 1px 3px hsl(215 28% 17% / 0.06), 0 4px 12px hsl(215 28% 17% / 0.04);
@@ -100,9 +88,7 @@
       Tokens extras da marca.
       Use apenas em componentes específicos, sem substituir tudo.
     */
-    --brand-green-dark: 146 62% 14%;      /* #0D3821 */
-    --brand-green: 146 62% 29%;           /* #1C7743 */
-    --brand-lime: 74 80% 59%;             /* #C2EA42 */
+--brand-green-dark: 148 62% 14%; /* #0D3821 */    --brand-lime: 74 80% 59%;             /* #C2EA42 */
     --brand-orange-strong: 27 87% 52%;    /* #EF7B1A */
     --brand-orange: 36 100% 48%;          /* #F39200 */
     --brand-orange-soft: 39 94% 59%;      /* #F9B233 */
@@ -154,7 +140,9 @@
     --ring: 146 46% 48%;
 
     /*
-      Dark sidebar também preservada próxima da original.
+      Dark sidebar:
+      Mantém fundo escuro administrativo.
+      Verde aparece apenas nos estados ativos e detalhes.
     */
     --sidebar-background: 215 35% 8%;
     --sidebar-foreground: 215 12% 75%;
@@ -230,11 +218,33 @@
     border-color: hsl(var(--status-done-fg) / 0.35);
   }
 
-  .wiki-bubble {
-    box-shadow: 0 8px 24px -6px hsl(var(--primary) / 0.45), 0 4px 10px -2px hsl(var(--primary) / 0.25);
+.wiki-bubble {
+  box-shadow: 0 12px 30px -16px rgba(13, 56, 33, 0.85);
+}
+
+.wiki-bubble:hover {
+  box-shadow: 0 16px 36px -18px rgba(13, 56, 33, 0.95);
+}
+
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--sidebar-foreground) / 0.18) transparent;
   }
 
-  .wiki-bubble:hover {
-    box-shadow: 0 12px 32px -6px hsl(var(--primary) / 0.55), 0 6px 14px -2px hsl(var(--primary) / 0.3);
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--sidebar-foreground) / 0.16);
+    border-radius: 9999px;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--sidebar-foreground) / 0.3);
   }
 }

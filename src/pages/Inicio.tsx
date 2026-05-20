@@ -530,9 +530,6 @@ export default function Inicio() {
           aria-labelledby="welcome-title"
         >
           <div className="flex items-start gap-3">
-            <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary sm:flex">
-              <Building2 className="h-4 w-4" strokeWidth={2} />
-            </div>
 
             <div className="min-w-0 space-y-1.5">
               <h1
