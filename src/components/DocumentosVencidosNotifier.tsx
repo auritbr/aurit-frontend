@@ -4,6 +4,7 @@ import { AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDocumentos, isDocumentoVencido } from "@/data/documentos";
 import { isPlanoAccessDenied } from "@/lib/access";
+import { isPlanoGratuitoAtual } from "@/lib/plano";
 
 const SESSION_KEY = "documentos.vencidos.dismissed";
 
@@ -25,6 +26,14 @@ export function DocumentosVencidosNotifier() {
 
     async function refresh() {
       try {
+        if (await isPlanoGratuitoAtual()) {
+          if (mounted) {
+            setCount(0);
+          }
+
+          return;
+        }
+
         const documentos = await getDocumentos();
 
         const vencidos = documentos.filter(

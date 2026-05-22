@@ -34,6 +34,8 @@ import {
   getDocumentos,
   contarDocumentosVencidos,
 } from "@/data/documentos";
+import { isPlanoAccessDenied } from "@/lib/access";
+import { isPlanoGratuitoAtual } from "@/lib/plano";
 
 type HeaderUser = {
   name: string;
@@ -105,13 +107,26 @@ export function AppHeader() {
       }
 
       try {
+        if (await isPlanoGratuitoAtual()) {
+          if (active) {
+            setVencidos(0);
+          }
+
+          return;
+        }
+
         const documentos = await getDocumentos();
 
         if (!active) return;
 
         setVencidos(contarDocumentosVencidos(documentos));
       } catch (error) {
-        console.error("Erro ao buscar documentos:", error);
+        const message =
+          error instanceof Error ? error.message : "Erro ao buscar documentos.";
+
+        if (!isPlanoAccessDenied(message)) {
+          console.error("Erro ao buscar documentos:", error);
+        }
 
         if (active) {
           setVencidos(0);

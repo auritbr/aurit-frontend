@@ -3,6 +3,7 @@ import {
   getUsuarioLogado,
   type UsuarioLogado,
 } from "@/lib/usuarioService";
+import { isPlanoGratuitoAtual } from "@/lib/plano";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -216,6 +217,20 @@ async function fetchFirstAvailableList<T = unknown>(
   return [];
 }
 
+async function fetchPaidListSafe<T = unknown>(
+  path: string,
+  isFreePlan: boolean,
+): Promise<T[]> {
+  return isFreePlan ? [] : fetchListSafe<T>(path);
+}
+
+async function fetchPaidFirstAvailableList<T = unknown>(
+  paths: string[],
+  isFreePlan: boolean,
+): Promise<T[]> {
+  return isFreePlan ? [] : fetchFirstAvailableList<T>(paths);
+}
+
 function count(list: unknown[] | null | undefined) {
   return Array.isArray(list) ? list.length : 0;
 }
@@ -286,6 +301,8 @@ function contarDocumentos(documentos: DocumentoLike[]) {
 }
 
 export async function getInicioDados(): Promise<InicioDados> {
+  const isFreePlan = await isPlanoGratuitoAtual();
+
   const [
     nomeUsuario,
 
@@ -334,18 +351,21 @@ export async function getInicioDados(): Promise<InicioDados> {
 
     fetchListSafe<OrganizacaoLike>("/organizacoes"),
     fetchFirstAvailableList(["/diretorias", "/diretoria"]),
-    fetchListSafe<DocumentoLike>("/documentos"),
+    fetchPaidListSafe<DocumentoLike>("/documentos", isFreePlan),
     fetchFirstAvailableList(["/agentes", "/agentes-culturais"]),
 
     fetchListSafe("/colaboradores"),
     fetchListSafe("/integrantes"),
     fetchListSafe("/participantes"),
 
-    fetchListSafe("/curriculos"),
-    fetchListSafe("/trajetorias-culturais"),
+    fetchPaidListSafe("/curriculos", isFreePlan),
+    fetchPaidListSafe("/trajetorias-culturais", isFreePlan),
 
     fetchListSafe("/projetos"),
-    fetchFirstAvailableList(["/metas-projeto", "/metas-projetos"]),
+    fetchPaidFirstAvailableList(
+      ["/metas-projeto", "/metas-projetos"],
+      isFreePlan,
+    ),
     fetchFirstAvailableList(["/cronogramas", "/cronograma"]),
 
     fetchListSafe("/atividades"),
@@ -354,41 +374,64 @@ export async function getInicioDados(): Promise<InicioDados> {
 
     fetchListSafe("/eventos-culturais"),
     fetchListSafe("/acoes-divulgacao"),
-    fetchFirstAvailableList([
-      "/planos-comunicacao",
-      "/plano-comunicacao",
-      "/planoComunicacao",
-    ]),
+    fetchPaidFirstAvailableList(
+      ["/planos-comunicacao", "/plano-comunicacao", "/planoComunicacao"],
+      isFreePlan,
+    ),
 
-    fetchFirstAvailableList(["/financeiros", "/financeiro"]),
+    fetchPaidFirstAvailableList(["/financeiros", "/financeiro"], isFreePlan),
 
-    fetchListSafe("/editais"),
-    fetchFirstAvailableList(["/propostas-editais", "/propostas-edital"]),
-    fetchFirstAvailableList([
-      "/resultados-propostas",
-      "/resultado-propostas",
-      "/resultados",
-      "/resultado-proposta",
-    ]),
-    fetchFirstAvailableList([
-      "/habilitacoes-propostas",
-      "/habilitacao-propostas",
-      "/habilitacoes",
-      "/habilitacao",
-    ]),
-    fetchFirstAvailableList(["/equipes-editais", "/equipe-edital"]),
-    fetchFirstAvailableList([
-      "/planejamentos-financeiros",
-      "/planejamento-financeiro",
-    ]),
+    fetchPaidListSafe("/editais", isFreePlan),
+    fetchPaidFirstAvailableList(
+      ["/propostas-editais", "/propostas-edital"],
+      isFreePlan,
+    ),
+    fetchPaidFirstAvailableList(
+      [
+        "/resultados-propostas",
+        "/resultado-propostas",
+        "/resultados",
+        "/resultado-proposta",
+      ],
+      isFreePlan,
+    ),
+    fetchPaidFirstAvailableList(
+      [
+        "/habilitacoes-propostas",
+        "/habilitacao-propostas",
+        "/habilitacoes",
+        "/habilitacao",
+      ],
+      isFreePlan,
+    ),
+    fetchPaidFirstAvailableList(
+      ["/equipes-editais", "/equipe-edital"],
+      isFreePlan,
+    ),
+    fetchPaidFirstAvailableList(
+      ["/planejamentos-financeiros", "/planejamento-financeiro"],
+      isFreePlan,
+    ),
 
-    fetchFirstAvailableList(["/evidencias-execucao", "/evidencias"]),
+    fetchPaidFirstAvailableList(
+      ["/evidencias-execucao", "/evidencias"],
+      isFreePlan,
+    ),
 
-    fetchFirstAvailableList(["/prestacoes-contas", "/prestacao-contas"]),
-    fetchFirstAvailableList(["/prestacao-metas", "/prestacoes-metas"]),
+    fetchPaidFirstAvailableList(
+      ["/prestacoes-contas", "/prestacao-contas"],
+      isFreePlan,
+    ),
+    fetchPaidFirstAvailableList(
+      ["/prestacao-metas", "/prestacoes-metas"],
+      isFreePlan,
+    ),
 
-    fetchFirstAvailableList(["/patrimonios", "/patrimonio"]),
-    fetchFirstAvailableList(["/emprestimos", "/emprestimos-patrimonio"]),
+    fetchPaidFirstAvailableList(["/patrimonios", "/patrimonio"], isFreePlan),
+    fetchPaidFirstAvailableList(
+      ["/emprestimos", "/emprestimos-patrimonio"],
+      isFreePlan,
+    ),
   ]);
 
   const { documentosAtualizados, documentosVencidos, documentosPendentes } =
