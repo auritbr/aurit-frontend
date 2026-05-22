@@ -10,11 +10,11 @@ interface AccessNotPermittedProps {
 
 /**
  * Reusable "AccessNotPermitted" screen. Use as the rendered content
- * of any page/module when the current user lacks permission.
+ * of any page/module when the current user lacks permission or the current plan does not include the feature.
  */
 export function AccessNotPermitted({
-  title = "Acesso não disponível.",
-  message = "Você não possui permissão para acessar esta funcionalidade no momento. Se precisar, entre em contato com o administrador.",
+  title = "Funcionalidade indisponível para o seu acesso atual.",
+  message = "Esta funcionalidade pode não estar incluída no plano da organização ou pode exigir permissões específicas de acesso. Caso precise utilizar este recurso, entre em contato com o administrador.",
   showBackButton = true,
 }: AccessNotPermittedProps) {
   const navigate = useNavigate();
@@ -22,20 +22,20 @@ export function AccessNotPermitted({
   return (
     <section
       role="region"
-      aria-label="Acesso negado"
-      className="px-4 sm:px-6 lg:px-8 py-12"
+      aria-label="Funcionalidade indisponível"
+      className="px-4 py-12 sm:px-6 lg:px-8"
     >
       <div className="mx-auto max-w-xl">
-        <div className="rounded-lg border border-border bg-card p-8 sm:p-10 text-center shadow-sm">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft border border-primary/15">
+        <div className="rounded-lg border border-border bg-card p-8 text-center shadow-sm sm:p-10">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-primary/15 bg-primary-soft">
             <ShieldAlert className="h-7 w-7 text-primary" strokeWidth={2} />
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
+          <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
             {title}
           </h1>
 
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+          <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
             {message}
           </p>
 
