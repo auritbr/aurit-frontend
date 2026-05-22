@@ -73,7 +73,8 @@ export type TipoDocumento =
   | "ESTATUTO_SOCIAL"
   | "ATA_FUNDACAO"
   | "ATA_ELEICAO_DIRETORIA"
-  | "ATA_POSSE_DIRETORIA";
+  | "ATA_POSSE_DIRETORIA"
+  | "OUTROS";
 
 export const tipoDocumentoLabels: Record<TipoDocumento, string> = {
   CPF_REPRESENTANTE: "CPF do Representante",
@@ -102,6 +103,7 @@ export const tipoDocumentoLabels: Record<TipoDocumento, string> = {
   ATA_FUNDACAO: "Ata de Fundação",
   ATA_ELEICAO_DIRETORIA: "Ata de Eleição da Diretoria",
   ATA_POSSE_DIRETORIA: "Ata de Posse da Diretoria",
+  OUTROS: "Outros",
 };
 
 export interface DocumentoDTO {
@@ -112,6 +114,7 @@ export interface DocumentoDTO {
   tipoDocumento: TipoDocumento;
   statusDocumento: StatusDocumento;
   orgaoEmissor?: string | null;
+  observacao?: string | null;
   organizacaoId: number | null;
   arquivoKey?: string | null;
   vencido?: boolean | null;
@@ -127,6 +130,7 @@ export interface Documento {
   tipoDocumento: TipoDocumento;
   statusDocumento: StatusDocumento;
   orgaoEmissor: string;
+  observacao: string;
   organizacaoId: number | null;
   arquivoKey: string;
   vencido: boolean;
@@ -201,6 +205,7 @@ export function mapDocumento(dto: DocumentoDTO): Documento {
     tipoDocumento: dto.tipoDocumento,
     statusDocumento: dto.statusDocumento,
     orgaoEmissor: dto.orgaoEmissor ?? "",
+    observacao: dto.observacao ?? "",
     organizacaoId: dto.organizacaoId ?? null,
     arquivoKey: dto.arquivoKey ?? "",
     vencido: Boolean(dto.vencido),
@@ -218,6 +223,7 @@ export function buildDocumentoPayload(doc: Documento): DocumentoDTO {
     tipoDocumento: doc.tipoDocumento,
     statusDocumento: doc.statusDocumento,
     orgaoEmissor: doc.orgaoEmissor?.trim() || null,
+    observacao: doc.observacao?.trim() || null,
     organizacaoId: doc.organizacaoId,
     arquivoKey: doc.arquivoKey?.trim() || null,
     removerArquivo: doc.removerArquivo ?? false,

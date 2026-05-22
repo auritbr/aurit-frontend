@@ -42,6 +42,7 @@ import { toast } from "sonner";
 
 const DOCUMENTO_NEXT_STEP_KEY = "aurit:documentos:next-step-card";
 const MAX_FILE_MB = 10;
+const TIPO_DOCUMENTO_OUTROS = "OUTROS" as TipoDocumento;
 
 interface DocumentoNextStepCardData {
   titulo: string;
@@ -79,6 +80,7 @@ function emptyForm(): DocumentoFormState {
     organizacaoId: null,
     urlDocumento: "",
     arquivoKey: "",
+    observacao: "",
     vencido: false,
     mensagemVencimento: "",
     removerArquivo: false,
@@ -124,6 +126,7 @@ export default function DocumentoForm() {
   const [saving, setSaving] = useState(false);
 
   const bloqueado = visualizando || loading || saving;
+  const mostrarObservacao = form.tipoDocumento === TIPO_DOCUMENTO_OUTROS;
 
   useEffect(() => {
     let active = true;
@@ -172,6 +175,7 @@ export default function DocumentoForm() {
           tipoDocumento: documento.tipoDocumento ?? "",
           statusDocumento: documento.statusDocumento ?? "",
           organizacaoId: documento.organizacaoId ?? null,
+          observacao: documento.observacao ?? "",
           removerArquivo: false,
         });
 
@@ -207,6 +211,18 @@ export default function DocumentoForm() {
 
   const update = (patch: Partial<DocumentoFormState>) =>
     setForm((prev) => ({ ...prev, ...patch }));
+
+  const handleTipoDocumentoChange = (value: string) => {
+    if (visualizando) return;
+
+    const tipoDocumento = value as TipoDocumento;
+
+    update({
+      tipoDocumento,
+      observacao:
+        tipoDocumento === TIPO_DOCUMENTO_OUTROS ? form.observacao ?? "" : "",
+    });
+  };
 
   const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (visualizando) return;
@@ -292,6 +308,14 @@ export default function DocumentoForm() {
       return;
     }
 
+    if (
+      form.tipoDocumento === TIPO_DOCUMENTO_OUTROS &&
+      !form.observacao?.trim()
+    ) {
+      toast.error("Informe a observação para especificar o tipo de documento.");
+      return;
+    }
+
     if (!form.statusDocumento) {
       toast.error("Selecione o status do documento.");
       return;
@@ -330,6 +354,10 @@ export default function DocumentoForm() {
         tipoDocumento: form.tipoDocumento,
         statusDocumento: form.statusDocumento,
         organizacaoId: form.organizacaoId,
+        observacao:
+          form.tipoDocumento === TIPO_DOCUMENTO_OUTROS
+            ? form.observacao?.trim() ?? ""
+            : "",
       };
 
       const payload = buildDocumentoPayload(documentoValido);
@@ -376,7 +404,7 @@ export default function DocumentoForm() {
         {visualizando && (
           <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu {" "}
+            utilize a opção Editar disponível no menu{" "}
             <span className="font-semibold">Ações</span>.
           </div>
         )}
@@ -402,17 +430,14 @@ export default function DocumentoForm() {
               <FieldLabel
                 htmlFor="tipo"
                 required
-                tooltip="Selecione o tipo de documento que será cadastrado ou acompanhado pela organização. Ex.: Estatuto, Ata de Eleição, CNPJ, Certidão Negativa, Comprovante de Endereço ou Portfólio Institucional."
+                tooltip="Selecione o tipo de documento que será cadastrado ou acompanhado pela organização. Ex.: Estatuto, Ata de Eleição, CNPJ, Certidão Negativa, Comprovante de Endereço, Portfólio Institucional ou Outros."
               >
                 Tipo de Documento
               </FieldLabel>
 
               <Select
                 value={form.tipoDocumento || undefined}
-                onValueChange={(value) =>
-                  !visualizando &&
-                  update({ tipoDocumento: value as TipoDocumento })
-                }
+                onValueChange={handleTipoDocumentoChange}
                 disabled={bloqueado}
               >
                 <SelectTrigger id="tipo" className="h-9">
@@ -459,6 +484,31 @@ export default function DocumentoForm() {
                 </SelectContent>
               </Select>
             </div>
+
+            {mostrarObservacao && (
+              <div className="sm:col-span-2">
+                <FieldLabel
+                  htmlFor="observacao"
+                  required
+                  tooltip="Use este campo para informar qual documento está sendo cadastrado quando a opção Outros for selecionada."
+                >
+                  Observação
+                </FieldLabel>
+
+                <textarea
+                  id="observacao"
+                  value={form.observacao ?? ""}
+                  onChange={(event) =>
+                    !visualizando &&
+                    update({ observacao: event.target.value })
+                  }
+                  placeholder="Ex.: Alvará, declaração, autorização, certificado ou outro documento específico."
+                  className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </div>
+            )}
           </div>
         </section>
 
