@@ -8,13 +8,13 @@ import {
   Trash2,
   FolderKanban,
   FileDown,
+  ShieldAlert,
+  ArrowLeft,
 } from "lucide-react";
 
 import { exportProjetoPdf } from "@/lib/pdfExporters";
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
-import { AccessDenied } from "@/components/AccessDenied";
-import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TableActionIcon } from "@/components/TableActionIcon";
@@ -189,7 +189,7 @@ export default function Projetos() {
   const nomeOrganizacao = (organizacaoId: number | null) =>
     organizacaoId
       ? organizacoes.find((o) => Number(o.id) === Number(organizacaoId))
-        ?.nome ?? "—"
+          ?.nome ?? "—"
       : "—";
 
   const nomesColaboradores = (ids: number[] = []) =>
@@ -307,7 +307,14 @@ export default function Projetos() {
   if (accessDeniedMessage) {
     return (
       <AppLayout>
-        <AccessDenied />
+        <div className="container max-w-7xl py-6 sm:py-8">
+          <PageTitle
+            title="Projetos"
+            tooltip="Cadastre e acompanhe os projetos culturais da organização, reunindo proposta, objetivos, público atendido, acessibilidade, local de execução, equipe, origem e período. Esses dados ajudam a estruturar atividades, cronogramas, relatórios, evidências e prestações de contas."
+          />
+
+          <InlineAccessDenied onBack={() => navigate(-1)} />
+        </div>
       </AppLayout>
     );
   }
@@ -613,6 +620,32 @@ export default function Projetos() {
 
       <WikiFloatingButton pageTitle="Projetos" />
     </AppLayout>
+  );
+}
+
+function InlineAccessDenied({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="rounded border border-border bg-card px-6 py-12 text-center shadow-sm">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
+        <ShieldAlert className="h-7 w-7" />
+      </div>
+
+      <h2 className="mx-auto mt-6 max-w-2xl text-2xl font-semibold tracking-tight text-foreground">
+        Este módulo faz parte do Plano Profissional.
+      </h2>
+
+      <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+        Entre em contato com nossa equipe para saber como ativar e acessar todas
+        as funcionalidades.
+      </p>
+
+      <div className="mt-7 flex justify-center">
+        <Button variant="outline" onClick={onBack} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Voltar
+        </Button>
+      </div>
+    </div>
   );
 }
 
