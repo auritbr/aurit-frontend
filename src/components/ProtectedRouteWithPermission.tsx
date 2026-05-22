@@ -9,7 +9,7 @@ import {
   type ModuloPermissao,
 } from "@/lib/permissoes";
 
-import { AccessDenied } from "@/components/AccessDenied";
+import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 
 export interface RequiredPermission {
   modulo: ModuloPermissao;
@@ -71,10 +71,6 @@ export default function ProtectedRouteWithPermission({
         if (!active) return;
 
         setAllowed(permitido);
-
-        if (!active) return;
-
-        setAllowed(permitido);
       } catch (error) {
         console.error("Erro ao verificar permissão:", error);
 
@@ -113,7 +109,7 @@ export default function ProtectedRouteWithPermission({
   }
 
   if (allowed === false) {
-    return <AccessDenied />;
+    return <AccessNotPermitted />;
   }
 
   return <>{children}</>;

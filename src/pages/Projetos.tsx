@@ -14,6 +14,7 @@ import { exportProjetoPdf } from "@/lib/pdfExporters";
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
+import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TableActionIcon } from "@/components/TableActionIcon";
@@ -91,16 +92,12 @@ export default function Projetos() {
   const podeExcluir = permissoes.EXCLUIR;
   const podeGerarPdf = permissoes.GERAR_PDF || permissoes.BAIXAR;
 
-  const acessoBloqueado =
-    !loadingPermissoes && (!podeVisualizar || Boolean(accessDeniedMessage));
-
   useEffect(() => {
     let active = true;
 
     async function carregarPermissoes() {
       try {
         setLoadingPermissoes(true);
-        setAccessDeniedMessage(null);
 
         const data = await getPermissoesUsuarioLogadoPorModulo("PROJETOS");
 
@@ -152,9 +149,6 @@ export default function Projetos() {
     if (loadingPermissoes) return;
 
     if (!podeVisualizar) {
-      setItems([]);
-      setOrganizacoes([]);
-      setColaboradores([]);
       setLoading(false);
       return;
     }
@@ -182,9 +176,6 @@ export default function Projetos() {
         error instanceof Error ? error.message : "Erro ao carregar projetos.";
 
       if (isPlanoAccessDenied(message)) {
-        setItems([]);
-        setOrganizacoes([]);
-        setColaboradores([]);
         setAccessDeniedMessage(message);
         return;
       }
@@ -198,7 +189,7 @@ export default function Projetos() {
   const nomeOrganizacao = (organizacaoId: number | null) =>
     organizacaoId
       ? organizacoes.find((o) => Number(o.id) === Number(organizacaoId))
-          ?.nome ?? "—"
+        ?.nome ?? "—"
       : "—";
 
   const nomesColaboradores = (ids: number[] = []) =>
@@ -275,9 +266,6 @@ export default function Projetos() {
         error instanceof Error ? error.message : "Erro ao excluir projeto.";
 
       if (isPlanoAccessDenied(message)) {
-        setItems([]);
-        setOrganizacoes([]);
-        setColaboradores([]);
         setAccessDeniedMessage(message);
         setConfirmDelete(null);
         return;
@@ -316,6 +304,22 @@ export default function Projetos() {
     await exportProjetoPdf(projetoPdfData(p));
   }
 
+  if (!podeVisualizar) {
+    return (
+      <AppLayout>
+        <AccessNotPermitted />
+      </AppLayout>
+    );
+  }
+
+  if (accessDeniedMessage) {
+    return (
+      <AppLayout>
+        <AccessDenied />
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
@@ -324,352 +328,299 @@ export default function Projetos() {
           tooltip="Cadastre e acompanhe os projetos culturais da organização, reunindo proposta, objetivos, público atendido, acessibilidade, local de execução, equipe, origem e período. Esses dados ajudam a estruturar atividades, cronogramas, relatórios, evidências e prestações de contas."
         />
 
-        {loadingPermissoes ? (
-          <div className="rounded-lg border border-border bg-card px-6 py-12 text-center shadow-sm">
-            <p className="text-sm text-muted-foreground">
-              Verificando permissões de acesso...
-            </p>
-          </div>
-        ) : acessoBloqueado ? (
-          <AccessDenied />
-        ) : (
-          <>
-            {nextStepCard && (
-              <NextStepCard
-                titulo={nextStepCard.titulo}
-                descricao={nextStepCard.descricao}
-                acaoLabel={nextStepCard.acaoLabel}
-                acaoUrl={nextStepCard.acaoUrl}
-                acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-                acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-                variante={nextStepCard.variante ?? "pendente"}
-                onDismiss={() => setNextStepCard(null)}
+        {nextStepCard && (
+          <NextStepCard
+            titulo={nextStepCard.titulo}
+            descricao={nextStepCard.descricao}
+            acaoLabel={nextStepCard.acaoLabel}
+            acaoUrl={nextStepCard.acaoUrl}
+            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
+            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
+            variante={nextStepCard.variante ?? "pendente"}
+            onDismiss={() => setNextStepCard(null)}
+          />
+        )}
+
+        <div className="rounded border border-border bg-card">
+          <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
+            <div className="relative max-w-md flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 pl-9"
+                aria-label="Buscar projeto"
               />
+            </div>
+
+            {podeCriar && (
+              <Button
+                onClick={() => navigate("/projetos/novo")}
+                className="h-9 gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Cadastrar Projeto
+              </Button>
             )}
+          </div>
 
-            <div className="rounded border border-border bg-card">
-              <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-                <div className="relative max-w-md flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-                  <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="h-9 pl-9"
-                    aria-label="Buscar projeto"
-                  />
-                </div>
-
-                {podeCriar && (
-                  <Button
-                    onClick={() => navigate("/projetos/novo")}
-                    className="h-9 gap-2"
+          <div className="hidden overflow-x-auto md:block">
+            <table ref={tableRef} className="w-full min-w-[1180px]">
+              <thead>
+                <tr className="border-b border-border bg-muted/40">
+                  <th
+                    className="w-[140px] px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    data-no-copy
                   >
-                    <Plus className="h-4 w-4" />
-                    Cadastrar Projeto
-                  </Button>
-                )}
-              </div>
+                    Ações
+                  </th>
 
-              <div className="hidden overflow-x-auto md:block">
-                <table ref={tableRef} className="w-full min-w-[1180px]">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/40">
-                      <th
-                        className="w-[140px] px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                        data-no-copy
-                      >
-                        Ações
-                      </th>
+                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Nome do projeto
+                  </th>
 
-                      <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Nome do projeto
-                      </th>
+                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Área de atuação
+                  </th>
 
-                      <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Área de atuação
-                      </th>
+                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Origem
+                  </th>
 
-                      <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Origem
-                      </th>
+                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Status
+                  </th>
 
-                      <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Status
-                      </th>
+                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Organização
+                  </th>
 
-                      <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Organização
-                      </th>
+                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Data de início
+                  </th>
 
-                      <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Data de início
-                      </th>
+                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Data de término
+                  </th>
 
-                      <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Data de término
-                      </th>
+                  {podeGerarPdf && (
+                    <th
+                      className="w-[140px] px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      data-no-copy
+                    >
+                      Documento
+                    </th>
+                  )}
+                </tr>
+              </thead>
 
-                      {podeGerarPdf && (
-                        <th
-                          className="w-[140px] px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                          data-no-copy
-                        >
-                          Documento
-                        </th>
-                      )}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {loading ? (
-                      <LoadingRow colspan={podeGerarPdf ? 9 : 8} />
-                    ) : (
-                      <>
-                        {paginated.map((p) => (
-                          <tr
-                            key={p.id}
-                            className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                          >
-                            <td className="whitespace-nowrap px-6 py-2.5">
-                              <div className="flex items-center gap-1">
-                                <TableActionIcon
-                                  icon={Eye}
-                                  label="Visualizar"
-                                  onClick={() => navigate(`/projetos/${p.id}`)}
-                                />
-
-                                {podeEditar && (
-                                  <TableActionIcon
-                                    icon={Pencil}
-                                    label="Editar"
-                                    onClick={() =>
-                                      navigate(`/projetos/${p.id}/editar`)
-                                    }
-                                  />
-                                )}
-
-                                {podeExcluir && (
-                                  <TableActionIcon
-                                    icon={Trash2}
-                                    label="Excluir"
-                                    variant="danger"
-                                    onClick={() => setConfirmDelete(p.id)}
-                                  />
-                                )}
-                              </div>
-                            </td>
-
-                            <td className="px-6 py-2.5">
-                              <TableCellText text={p.nomeProjeto} bold>
-                                {p.nomeProjeto}
-                              </TableCellText>
-                            </td>
-
-                            <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                              {areaAtuacaoLabel(p.areaAtuacao)}
-                            </td>
-
-                            <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                              {origemProjetoLabel(p.origemProjeto)}
-                            </td>
-
-                            <td className="whitespace-nowrap px-6 py-2.5">
-                              <StatusPill
-                                status={statusProjetoLabel(p.status) as Status}
-                              />
-                            </td>
-
-                            <td className="px-6 py-2.5">
-                              <TableCellText
-                                text={nomeOrganizacao(p.organizacaoId)}
-                              >
-                                {nomeOrganizacao(p.organizacaoId)}
-                              </TableCellText>
-                            </td>
-
-                            <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                              {p.dataInicio || "—"}
-                            </td>
-
-                            <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                              {p.dataFim || "—"}
-                            </td>
-
-                            {podeGerarPdf && (
-                              <td className="whitespace-nowrap px-6 py-2.5">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => void handleExportPdf(p)}
-                                  className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                                >
-                                  <FileDown className="h-3.5 w-3.5" />
-                                  Gerar ficha
-                                </Button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-
-                        {paginated.length === 0 && (
-                          <EmptyRow colspan={podeGerarPdf ? 9 : 8} />
-                        )}
-                      </>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="divide-y divide-border md:hidden">
-                {loading ? (
-                  <div className="p-10 text-center">
-                    <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Carregando projetos...
-                    </p>
-                  </div>
-                ) : paginated.length === 0 ? (
-                  <div className="p-10 text-center">
-                    <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Nenhum projeto encontrado.
-                    </p>
-                  </div>
-                ) : (
-                  paginated.map((p) => (
-                    <div key={p.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1">
-                          <TableActionIcon
-                            icon={Eye}
-                            label="Visualizar"
-                            onClick={() => navigate(`/projetos/${p.id}`)}
-                          />
-
-                          {podeEditar && (
-                            <TableActionIcon
-                              icon={Pencil}
-                              label="Editar"
-                              onClick={() =>
-                                navigate(`/projetos/${p.id}/editar`)
-                              }
-                            />
-                          )}
-
-                          {podeExcluir && (
-                            <TableActionIcon
-                              icon={Trash2}
-                              label="Excluir"
-                              variant="danger"
-                              onClick={() => setConfirmDelete(p.id)}
-                            />
-                          )}
-                        </div>
-
-                        {podeGerarPdf && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void handleExportPdf(p)}
-                            className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                          >
-                            <FileDown className="h-3.5 w-3.5" />
-                            PDF
-                          </Button>
-                        )}
-                      </div>
-
-                      <p className="font-medium text-foreground">
-                        {p.nomeProjeto}
-                      </p>
-
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {areaAtuacaoLabel(p.areaAtuacao)} ·{" "}
-                        {origemProjetoLabel(p.origemProjeto)} ·{" "}
-                        {nomeOrganizacao(p.organizacaoId)}
-                      </p>
-
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <StatusPill
-                          status={statusProjetoLabel(p.status) as Status}
+              <tbody>
+                {paginated.map((p) => (
+                  <tr
+                    key={p.id}
+                    className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
+                  >
+                    <td className="whitespace-nowrap px-6 py-2.5">
+                      <div className="flex items-center gap-1">
+                        <TableActionIcon
+                          icon={Eye}
+                          label="Visualizar"
+                          onClick={() => navigate(`/projetos/${p.id}`)}
                         />
 
-                        <span className="text-xs text-muted-foreground">
-                          {p.dataInicio || "—"} — {p.dataFim || "—"}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+                        {podeEditar && (
+                          <TableActionIcon
+                            icon={Pencil}
+                            label="Editar"
+                            onClick={() =>
+                              navigate(`/projetos/${p.id}/editar`)
+                            }
+                          />
+                        )}
 
-              {!loading && (
-                <TablePagination
-                  totalItems={filtered.length}
-                  currentPage={currentPage}
-                  pageSize={pageSize}
-                  onPageChange={setCurrentPage}
-                  onPageSizeChange={setPageSize}
-                  onCopy={handleCopy}
-                />
-              )}
-            </div>
-          </>
-        )}
+                        {podeExcluir && (
+                          <TableActionIcon
+                            icon={Trash2}
+                            label="Excluir"
+                            variant="danger"
+                            onClick={() => setConfirmDelete(p.id)}
+                          />
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-2.5">
+                      <TableCellText text={p.nomeProjeto} bold>
+                        {p.nomeProjeto}
+                      </TableCellText>
+                    </td>
+
+                    <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
+                      {areaAtuacaoLabel(p.areaAtuacao)}
+                    </td>
+
+                    <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
+                      {origemProjetoLabel(p.origemProjeto)}
+                    </td>
+
+                    <td className="whitespace-nowrap px-6 py-2.5">
+                      <StatusPill
+                        status={statusProjetoLabel(p.status) as Status}
+                      />
+                    </td>
+
+                    <td className="px-6 py-2.5">
+                      <TableCellText text={nomeOrganizacao(p.organizacaoId)}>
+                        {nomeOrganizacao(p.organizacaoId)}
+                      </TableCellText>
+                    </td>
+
+                    <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
+                      {p.dataInicio || "—"}
+                    </td>
+
+                    <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
+                      {p.dataFim || "—"}
+                    </td>
+
+                    {podeGerarPdf && (
+                      <td className="whitespace-nowrap px-6 py-2.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void handleExportPdf(p)}
+                          className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
+                        >
+                          <FileDown className="h-3.5 w-3.5" />
+                          Gerar ficha
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+
+                {paginated.length === 0 && (
+                  <EmptyRow colspan={podeGerarPdf ? 9 : 8} />
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="divide-y divide-border md:hidden">
+            {paginated.length === 0 ? (
+              <div className="p-10 text-center">
+                <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground/40" />
+
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Nenhum projeto encontrado.
+                </p>
+              </div>
+            ) : (
+              paginated.map((p) => (
+                <div key={p.id} className="p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1">
+                      <TableActionIcon
+                        icon={Eye}
+                        label="Visualizar"
+                        onClick={() => navigate(`/projetos/${p.id}`)}
+                      />
+
+                      {podeEditar && (
+                        <TableActionIcon
+                          icon={Pencil}
+                          label="Editar"
+                          onClick={() => navigate(`/projetos/${p.id}/editar`)}
+                        />
+                      )}
+
+                      {podeExcluir && (
+                        <TableActionIcon
+                          icon={Trash2}
+                          label="Excluir"
+                          variant="danger"
+                          onClick={() => setConfirmDelete(p.id)}
+                        />
+                      )}
+                    </div>
+
+                    {podeGerarPdf && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void handleExportPdf(p)}
+                        className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
+                      >
+                        <FileDown className="h-3.5 w-3.5" />
+                        PDF
+                      </Button>
+                    )}
+                  </div>
+
+                  <p className="font-medium text-foreground">{p.nomeProjeto}</p>
+
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {areaAtuacaoLabel(p.areaAtuacao)} ·{" "}
+                    {origemProjetoLabel(p.origemProjeto)} ·{" "}
+                    {nomeOrganizacao(p.organizacaoId)}
+                  </p>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <StatusPill
+                      status={statusProjetoLabel(p.status) as Status}
+                    />
+
+                    <span className="text-xs text-muted-foreground">
+                      {p.dataInicio || "—"} — {p.dataFim || "—"}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <TablePagination
+            totalItems={filtered.length}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            onCopy={handleCopy}
+          />
+        </div>
       </div>
 
-      {!loadingPermissoes && !acessoBloqueado && (
-        <>
-          <AlertDialog
-            open={!!confirmDelete}
-            onOpenChange={(open) => !open && setConfirmDelete(null)}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Excluir projeto?</AlertDialogTitle>
+      <AlertDialog
+        open={!!confirmDelete}
+        onOpenChange={(open) => !open && setConfirmDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir projeto?</AlertDialogTitle>
 
-                <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. Caso o projeto esteja
-                  vinculado a metas, cronogramas, atividades, eventos ou
-                  prestações de contas, o backend pode impedir a exclusão para
-                  preservar o histórico.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Caso o projeto esteja vinculado a
+              metas, cronogramas, atividades, eventos ou prestações de contas, o
+              backend pode impedir a exclusão para preservar o histórico.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
 
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
 
-                <AlertDialogAction
-                  onClick={handleDelete}
-                  className="bg-destructive hover:bg-destructive/90"
-                >
-                  Sim, excluir
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Sim, excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-          <WikiFloatingButton pageTitle="Projetos" />
-        </>
-      )}
+      <WikiFloatingButton pageTitle="Projetos" />
     </AppLayout>
-  );
-}
-
-function LoadingRow({ colspan }: { colspan: number }) {
-  return (
-    <tr>
-      <td colSpan={colspan} className="px-5 py-16 text-center">
-        <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-        <p className="mt-3 text-sm text-muted-foreground">
-          Carregando projetos...
-        </p>
-      </td>
-    </tr>
   );
 }
 
