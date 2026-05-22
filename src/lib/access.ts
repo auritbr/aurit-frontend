@@ -5,18 +5,20 @@ export function normalizeMessage(message: string) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-export function isPlanoAccessDenied(message: string) {
-  const normalized = normalizeMessage(message);
+export function isPlanoAccessDenied(message?: string | null) {
+  if (!message) return false;
+
+  const normalized = message
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 
   return (
-    normalized.includes("plano pago") ||
-    normalized.includes("disponivel apenas no plano pago") ||
-    normalized.includes("disponivel somente no plano pago") ||
-    normalized.includes("este modulo esta disponivel apenas no plano pago") ||
-    normalized.includes("este recurso esta disponivel apenas no plano pago") ||
-    normalized.includes("antes de acessar este modulo") ||
-    normalized.includes("configure os dados da empresa antes de acessar") ||
-    normalized.includes("configure a empresa antes de acessar") ||
-    normalized.includes("configuracao da empresa nao encontrada")
+    normalized.includes("plano profissional") ||
+    normalized.includes("modulo faz parte do plano") ||
+    normalized.includes("modulo faz parte do plano profissional") ||
+    normalized.includes("upgrade de plano") ||
+    normalized.includes("recurso disponivel apenas no plano") ||
+    normalized.includes("funcionalidade disponivel apenas no plano")
   );
 }

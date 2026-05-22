@@ -217,7 +217,7 @@ export default function Projetos() {
   const nomeOrganizacao = (organizacaoId: number | null) =>
     organizacaoId
       ? organizacoes.find((o) => Number(o.id) === Number(organizacaoId))
-          ?.nome ?? "—"
+        ?.nome ?? "—"
       : "—";
 
   const nomesColaboradores = (ids: number[] = []) =>
@@ -337,7 +337,7 @@ export default function Projetos() {
 
   if (accessStatus === "verificando") {
     return (
-      <AppLayout>
+      <div className="min-h-screen bg-background">
         <div className="container max-w-7xl py-6 sm:py-8">
           <div className="rounded border border-border bg-card px-5 py-10 text-center">
             <p className="text-sm text-muted-foreground">
@@ -345,23 +345,27 @@ export default function Projetos() {
             </p>
           </div>
         </div>
-      </AppLayout>
+      </div>
     );
   }
 
   if (accessStatus === "sem-permissao") {
     return (
-      <AppLayout>
-        <AccessNotPermitted />
-      </AppLayout>
+      <div className="min-h-screen bg-background">
+        <div className="container max-w-7xl py-6 sm:py-8">
+          <AccessNotPermitted />
+        </div>
+      </div>
     );
   }
 
   if (accessStatus === "bloqueado-plano") {
     return (
-      <AppLayout>
-        <AccessDenied />
-      </AppLayout>
+      <div className="min-h-screen bg-background">
+        <div className="container max-w-7xl py-6 sm:py-8">
+          <AccessDenied />
+        </div>
+      </div>
     );
   }
 
