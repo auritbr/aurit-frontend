@@ -13,8 +13,8 @@ interface AccessDeniedProps {
  * of any page/module when the current user lacks permission.
  */
 export function AccessDenied({
-  title = "Este módulo faz parte do Plano Profissional.",
-  message = "Entre em contato com nossa equipe para saber como ativar e acessar todas as funcionalidades.",
+  title = "Acesso não disponível para este módulo.",
+  message = "O acesso a esta funcionalidade pode depender das permissões do seu usuário ou do plano contratado pela organização. Caso precise utilizar este módulo, entre em contato com o administrador da conta ou com a equipe da Aurit.",
   showBackButton = true,
 }: AccessDeniedProps) {
   const navigate = useNavigate();

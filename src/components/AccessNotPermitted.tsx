@@ -13,8 +13,9 @@ interface AccessNotPermittedProps {
  * of any page/module when the current user lacks permission.
  */
 export function AccessNotPermitted({
-  title = "Acesso não disponível para este módulo.",
-  message = "O acesso a esta funcionalidade pode depender das permissões do seu usuário ou do plano contratado pela organização. Caso precise utilizar este módulo, entre em contato com o administrador da conta ou com a equipe da Aurit.",  showBackButton = true,
+  title = "Acesso não disponível.",
+  message = "Você não possui permissão para acessar esta funcionalidade no momento. Se precisar, entre em contato com o administrador.",
+  showBackButton = true,
 }: AccessNotPermittedProps) {
   const navigate = useNavigate();
 
