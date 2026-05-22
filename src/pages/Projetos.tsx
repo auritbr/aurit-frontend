@@ -57,12 +57,6 @@ import { toast } from "sonner";
 const PROJETO_NEXT_STEP_KEY = "aurit:projetos:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
 
-type AccessStatus =
-  | "verificando"
-  | "permitido"
-  | "sem-permissao"
-  | "bloqueado-plano";
-
 interface ProjetoNextStepCardData {
   titulo: string;
   descricao: string;
@@ -82,14 +76,17 @@ export default function Projetos() {
   const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
-  const [accessStatus, setAccessStatus] =
-    useState<AccessStatus>("verificando");
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
+    null,
+  );
   const [nextStepCard, setNextStepCard] =
     useState<ProjetoNextStepCardData | null>(null);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
 
+  const podeVisualizar = permissoes.VISUALIZAR;
   const podeCriar = permissoes.CRIAR;
   const podeEditar = permissoes.EDITAR;
   const podeExcluir = permissoes.EXCLUIR;
@@ -100,49 +97,21 @@ export default function Projetos() {
 
     async function carregarPermissoes() {
       try {
-        setAccessStatus("verificando");
-        setLoading(true);
+        setLoadingPermissoes(true);
 
         const data = await getPermissoesUsuarioLogadoPorModulo("PROJETOS");
 
         if (!active) return;
 
         setPermissoes(data);
-
-        if (!data.VISUALIZAR) {
-          setItems([]);
-          setOrganizacoes([]);
-          setColaboradores([]);
-          setAccessStatus("sem-permissao");
-          setLoading(false);
-          return;
-        }
-
-        setAccessStatus("permitido");
       } catch (error) {
         console.error(error);
 
         if (!active) return;
 
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Erro ao verificar permissões.";
-
         setPermissoes(permissoesVazias);
-        setItems([]);
-        setOrganizacoes([]);
-        setColaboradores([]);
-
-        if (isPlanoAccessDenied(message)) {
-          setAccessStatus("bloqueado-plano");
-          setLoading(false);
-          return;
-        }
-
-        toast.error(message);
-        setAccessStatus("sem-permissao");
-        setLoading(false);
+      } finally {
+        if (active) setLoadingPermissoes(false);
       }
     }
 
@@ -177,14 +146,20 @@ export default function Projetos() {
   }, []);
 
   useEffect(() => {
-    if (accessStatus !== "permitido") return;
+    if (loadingPermissoes) return;
+
+    if (!podeVisualizar) {
+      setLoading(false);
+      return;
+    }
 
     void carregarDados();
-  }, [accessStatus]);
+  }, [loadingPermissoes, podeVisualizar]);
 
   async function carregarDados() {
     try {
       setLoading(true);
+      setAccessDeniedMessage(null);
 
       const [projetosData, organizacoesData, colaboradoresData] =
         await Promise.all([
@@ -201,10 +176,7 @@ export default function Projetos() {
         error instanceof Error ? error.message : "Erro ao carregar projetos.";
 
       if (isPlanoAccessDenied(message)) {
-        setItems([]);
-        setOrganizacoes([]);
-        setColaboradores([]);
-        setAccessStatus("bloqueado-plano");
+        setAccessDeniedMessage(message);
         return;
       }
 
@@ -294,10 +266,7 @@ export default function Projetos() {
         error instanceof Error ? error.message : "Erro ao excluir projeto.";
 
       if (isPlanoAccessDenied(message)) {
-        setItems([]);
-        setOrganizacoes([]);
-        setColaboradores([]);
-        setAccessStatus("bloqueado-plano");
+        setAccessDeniedMessage(message);
         setConfirmDelete(null);
         return;
       }
@@ -335,37 +304,11 @@ export default function Projetos() {
     await exportProjetoPdf(projetoPdfData(p));
   }
 
-  if (accessStatus === "verificando") {
+  if (accessDeniedMessage) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-7xl py-6 sm:py-8">
-          <div className="rounded border border-border bg-card px-5 py-10 text-center">
-            <p className="text-sm text-muted-foreground">
-              Verificando permissões de acesso...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (accessStatus === "sem-permissao") {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-7xl py-6 sm:py-8">
-          <AccessNotPermitted />
-        </div>
-      </div>
-    );
-  }
-
-  if (accessStatus === "bloqueado-plano") {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-7xl py-6 sm:py-8">
-          <AccessDenied />
-        </div>
-      </div>
+      <AppLayout>
+        <AccessDenied />
+      </AppLayout>
     );
   }
 
@@ -465,115 +408,99 @@ export default function Projetos() {
               </thead>
 
               <tbody>
-                {loading ? (
-                  <LoadingRow colspan={podeGerarPdf ? 9 : 8} />
-                ) : (
-                  <>
-                    {paginated.map((p) => (
-                      <tr
-                        key={p.id}
-                        className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                      >
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <div className="flex items-center gap-1">
-                            <TableActionIcon
-                              icon={Eye}
-                              label="Visualizar"
-                              onClick={() => navigate(`/projetos/${p.id}`)}
-                            />
+                {paginated.map((p) => (
+                  <tr
+                    key={p.id}
+                    className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
+                  >
+                    <td className="whitespace-nowrap px-6 py-2.5">
+                      <div className="flex items-center gap-1">
+                        <TableActionIcon
+                          icon={Eye}
+                          label="Visualizar"
+                          onClick={() => navigate(`/projetos/${p.id}`)}
+                        />
 
-                            {podeEditar && (
-                              <TableActionIcon
-                                icon={Pencil}
-                                label="Editar"
-                                onClick={() =>
-                                  navigate(`/projetos/${p.id}/editar`)
-                                }
-                              />
-                            )}
-
-                            {podeExcluir && (
-                              <TableActionIcon
-                                icon={Trash2}
-                                label="Excluir"
-                                variant="danger"
-                                onClick={() => setConfirmDelete(p.id)}
-                              />
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="px-6 py-2.5">
-                          <TableCellText text={p.nomeProjeto} bold>
-                            {p.nomeProjeto}
-                          </TableCellText>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                          {areaAtuacaoLabel(p.areaAtuacao)}
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                          {origemProjetoLabel(p.origemProjeto)}
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <StatusPill
-                            status={statusProjetoLabel(p.status) as Status}
+                        {podeEditar && (
+                          <TableActionIcon
+                            icon={Pencil}
+                            label="Editar"
+                            onClick={() =>
+                              navigate(`/projetos/${p.id}/editar`)
+                            }
                           />
-                        </td>
-
-                        <td className="px-6 py-2.5">
-                          <TableCellText
-                            text={nomeOrganizacao(p.organizacaoId)}
-                          >
-                            {nomeOrganizacao(p.organizacaoId)}
-                          </TableCellText>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                          {p.dataInicio || "—"}
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                          {p.dataFim || "—"}
-                        </td>
-
-                        {podeGerarPdf && (
-                          <td className="whitespace-nowrap px-6 py-2.5">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => void handleExportPdf(p)}
-                              className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                            >
-                              <FileDown className="h-3.5 w-3.5" />
-                              Gerar ficha
-                            </Button>
-                          </td>
                         )}
-                      </tr>
-                    ))}
 
-                    {paginated.length === 0 && (
-                      <EmptyRow colspan={podeGerarPdf ? 9 : 8} />
+                        {podeExcluir && (
+                          <TableActionIcon
+                            icon={Trash2}
+                            label="Excluir"
+                            variant="danger"
+                            onClick={() => setConfirmDelete(p.id)}
+                          />
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-2.5">
+                      <TableCellText text={p.nomeProjeto} bold>
+                        {p.nomeProjeto}
+                      </TableCellText>
+                    </td>
+
+                    <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
+                      {areaAtuacaoLabel(p.areaAtuacao)}
+                    </td>
+
+                    <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
+                      {origemProjetoLabel(p.origemProjeto)}
+                    </td>
+
+                    <td className="whitespace-nowrap px-6 py-2.5">
+                      <StatusPill
+                        status={statusProjetoLabel(p.status) as Status}
+                      />
+                    </td>
+
+                    <td className="px-6 py-2.5">
+                      <TableCellText text={nomeOrganizacao(p.organizacaoId)}>
+                        {nomeOrganizacao(p.organizacaoId)}
+                      </TableCellText>
+                    </td>
+
+                    <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
+                      {p.dataInicio || "—"}
+                    </td>
+
+                    <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
+                      {p.dataFim || "—"}
+                    </td>
+
+                    {podeGerarPdf && (
+                      <td className="whitespace-nowrap px-6 py-2.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void handleExportPdf(p)}
+                          className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
+                        >
+                          <FileDown className="h-3.5 w-3.5" />
+                          Gerar ficha
+                        </Button>
+                      </td>
                     )}
-                  </>
+                  </tr>
+                ))}
+
+                {paginated.length === 0 && (
+                  <EmptyRow colspan={podeGerarPdf ? 9 : 8} />
                 )}
               </tbody>
             </table>
           </div>
 
           <div className="divide-y divide-border md:hidden">
-            {loading ? (
-              <div className="p-10 text-center">
-                <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Carregando projetos...
-                </p>
-              </div>
-            ) : paginated.length === 0 ? (
+            {paginated.length === 0 ? (
               <div className="p-10 text-center">
                 <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground/40" />
 
@@ -645,16 +572,14 @@ export default function Projetos() {
             )}
           </div>
 
-          {!loading && (
-            <TablePagination
-              totalItems={filtered.length}
-              currentPage={currentPage}
-              pageSize={pageSize}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
-              onCopy={handleCopy}
-            />
-          )}
+          <TablePagination
+            totalItems={filtered.length}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            onCopy={handleCopy}
+          />
         </div>
       </div>
 
@@ -688,20 +613,6 @@ export default function Projetos() {
 
       <WikiFloatingButton pageTitle="Projetos" />
     </AppLayout>
-  );
-}
-
-function LoadingRow({ colspan }: { colspan: number }) {
-  return (
-    <tr>
-      <td colSpan={colspan} className="px-5 py-16 text-center">
-        <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-        <p className="mt-3 text-sm text-muted-foreground">
-          Carregando projetos...
-        </p>
-      </td>
-    </tr>
   );
 }
 
