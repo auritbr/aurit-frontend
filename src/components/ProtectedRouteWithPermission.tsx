@@ -9,6 +9,7 @@ import {
   type ModuloPermissao,
 } from "@/lib/permissoes";
 
+import { AppLayout } from "@/components/AppLayout";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 
 export interface RequiredPermission {
@@ -109,7 +110,11 @@ export default function ProtectedRouteWithPermission({
   }
 
   if (allowed === false) {
-    return <AccessNotPermitted />;
+    return (
+      <AppLayout>
+        <AccessNotPermitted />
+      </AppLayout>
+    );
   }
 
   return <>{children}</>;

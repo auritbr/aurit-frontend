@@ -113,11 +113,26 @@ const planos: { value: TipoPlanoApi; label: string }[] = [
 function formatDateTimeBR(value?: string | null) {
   if (!value) return "";
 
-  const date = new Date(value);
+  const trimmed = value.trim();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const [year, month, day] = trimmed.split("-");
+    return `${day}/${month}/${year}`;
+  }
+
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(trimmed);
+  const isIsoDateTime = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(trimmed);
+  const date = new Date(
+    isIsoDateTime && !hasTimezone ? `${trimmed}Z` : trimmed,
+  );
 
   if (Number.isNaN(date.getTime())) return value ?? "";
 
-  return date.toLocaleDateString("pt-BR");
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  }).format(date);
 }
 
 function mapUfToEstado(uf?: string): string {
