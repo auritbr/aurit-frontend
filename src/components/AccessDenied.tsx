@@ -9,8 +9,8 @@ interface AccessDeniedProps {
 }
 
 /**
- * Reusable "Access Denied" screen. Use as the rendered content
- * of any page/module when the current user lacks permission.
+ * Aviso reutilizável para bloqueio de acesso por plano.
+ * Deve ser renderizado dentro do conteúdo da página, preferencialmente dentro do AppLayout.
  */
 export function AccessDenied({
   title = "Este módulo faz parte do Plano Profissional.",
@@ -20,39 +20,35 @@ export function AccessDenied({
   const navigate = useNavigate();
 
   return (
-    <section
+    <div
       role="region"
-      aria-label="Acesso negado"
-      className="px-4 sm:px-6 lg:px-8 py-12"
+      aria-label="Módulo indisponível no plano atual"
+      className="rounded-lg border border-border bg-card px-6 py-12 text-center shadow-sm"
     >
-      <div className="mx-auto max-w-xl">
-        <div className="rounded-lg border border-border bg-card p-8 sm:p-10 text-center shadow-sm">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft border border-primary/15">
-            <ShieldAlert className="h-7 w-7 text-primary" strokeWidth={2} />
-          </div>
-
-          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
-            {title}
-          </h1>
-
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-            {message}
-          </p>
-
-          {showBackButton && (
-            <div className="mt-7 flex items-center justify-center">
-              <Button
-                variant="outline"
-                onClick={() => navigate(-1)}
-                className="gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Voltar
-              </Button>
-            </div>
-          )}
-        </div>
+      <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-primary/15 bg-primary-soft">
+        <ShieldAlert className="h-7 w-7 text-primary" strokeWidth={2} />
       </div>
-    </section>
+
+      <h2 className="mx-auto max-w-2xl text-xl font-semibold text-foreground sm:text-2xl">
+        {title}
+      </h2>
+
+      <p className="mx-auto mt-3 max-w-xl whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+        {message}
+      </p>
+
+      {showBackButton && (
+        <div className="mt-7 flex items-center justify-center">
+          <Button
+            variant="outline"
+            onClick={() => navigate(-1)}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
