@@ -1,4 +1,3 @@
-import { getUsuarioLogadoStorage } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 
 export type UserRole = "USER" | "ADMIN" | "ADMIN_PROPRIETARIO";
@@ -12,13 +11,6 @@ export interface Usuario {
   userRole: UserRole;
   statusUsuario: StatusUsuario;
   configuracaoEmpresaId?: string;
-}
-
-export interface ConfiguracaoEmpresaOption {
-  id: string;
-  nome: string;
-  tipoPlano?: string | null;
-  limiteUsuarios?: number | null;
 }
 
 export const userRoleLabel: Record<UserRole, string> = {
@@ -42,18 +34,41 @@ export interface UsuarioDTO {
   configuracaoEmpresaId?: number | null;
 }
 
+interface UsuarioStorage {
+  id?: number;
+  name?: string;
+  login?: string;
+  userRole?: UserRole | string;
+  statusUsuario?: StatusUsuario | string;
+  configuracaoEmpresaId?: number | null;
+}
+
 interface ConfiguracaoEmpresaDTO {
   id: number;
-  nomeEmpresa?: string | null;
-  nomeFantasia?: string | null;
-  razaoSocial?: string | null;
+  nomeEmpresa?: string;
   tipoPlano?: "PLANO_GRATUITO" | "PLANO_PAGO" | string | null;
   limiteUsuarios?: number | null;
 }
 
-export interface TrocarSenhaPayload {
-  senhaAtual: string;
-  novaSenha: string;
+export interface ConfiguracaoEmpresaOption {
+  id: string;
+  nome: string;
+  tipoPlano?: string | null;
+  limiteUsuarios?: number | null;
+}
+
+function getUsuarioLogadoStorage(): UsuarioStorage | null {
+  const raw =
+    localStorage.getItem("usuarioLogado") ||
+    sessionStorage.getItem("usuarioLogado");
+
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as UsuarioStorage;
+  } catch {
+    return null;
+  }
 }
 
 function mapUsuarioDtoToUsuario(dto: UsuarioDTO): Usuario {
@@ -70,47 +85,50 @@ function mapUsuarioDtoToUsuario(dto: UsuarioDTO): Usuario {
   };
 }
 
-function configuracaoNome(dto: ConfiguracaoEmpresaDTO): string {
-  return (
-    dto.nomeEmpresa?.trim() ||
-    dto.nomeFantasia?.trim() ||
-    dto.razaoSocial?.trim() ||
-    `Empresa ${dto.id}`
-  );
-}
-
-function mapUsuarioToPayload(usuario: Partial<Usuario>) {
-  return {
-    name: usuario.name?.trim() ?? "",
-    login: usuario.login?.trim() ?? "",
-    password: usuario.password ?? undefined,
-    userRole: usuario.userRole,
-    statusUsuario: usuario.statusUsuario,
-  };
+async function getConfiguracoesEmpresa(): Promise<ConfiguracaoEmpresaDTO[]> {
+  return apiFetch<ConfiguracaoEmpresaDTO[]>("/configuracoes-empresa", {
+    method: "GET",
+  });
 }
 
 export async function getConfiguracoesEmpresaOptions(): Promise<
   ConfiguracaoEmpresaOption[]
 > {
-  const data = await apiFetch<ConfiguracaoEmpresaDTO[]>(
-    "/configuracoes-empresa",
-    {
-      method: "GET",
-    },
-  );
+  const data = await getConfiguracoesEmpresa();
 
   return (data ?? []).map((item) => ({
     id: String(item.id),
-    nome: configuracaoNome(item),
-    tipoPlano: item.tipoPlano,
-    limiteUsuarios: item.limiteUsuarios,
+    nome: item.nomeEmpresa ?? `Empresa ${item.id}`,
+    tipoPlano: item.tipoPlano ?? null,
+    limiteUsuarios: item.limiteUsuarios ?? null,
   }));
 }
 
-async function getConfiguracoesEmpresa(): Promise<ConfiguracaoEmpresaDTO[]> {
-  return apiFetch<ConfiguracaoEmpresaDTO[]>("/configuracoes-empresa", {
-    method: "GET",
-  });
+async function resolveConfiguracaoEmpresaId(
+  usuario?: Partial<Usuario>,
+): Promise<number | undefined> {
+  if (usuario?.configuracaoEmpresaId) {
+    return Number(usuario.configuracaoEmpresaId);
+  }
+
+  const usuarioStorage = getUsuarioLogadoStorage();
+
+  if (usuarioStorage?.configuracaoEmpresaId != null) {
+    return Number(usuarioStorage.configuracaoEmpresaId);
+  }
+
+  try {
+    const configuracoes = await getConfiguracoesEmpresa();
+    const first = configuracoes?.[0];
+
+    if (first?.id != null) {
+      return Number(first.id);
+    }
+  } catch {
+    // backend valida depois
+  }
+
+  return undefined;
 }
 
 async function getConfiguracaoEmpresaAtual(
@@ -131,6 +149,23 @@ async function getConfiguracaoEmpresaAtual(
   } catch {
     return null;
   }
+}
+
+function mapUsuarioToPayload(
+  usuario: Partial<Usuario>,
+  configuracaoEmpresaId?: number,
+) {
+  return {
+    name: usuario.name?.trim() ?? "",
+    login: usuario.login?.trim() ?? "",
+    password: usuario.password ?? undefined,
+    userRole: usuario.userRole,
+    statusUsuario: usuario.statusUsuario,
+    configuracaoEmpresaId:
+      usuario.configuracaoEmpresaId != null
+        ? Number(usuario.configuracaoEmpresaId)
+        : configuracaoEmpresaId,
+  };
 }
 
 async function validarLimitePlanoAntesDeCriar(configuracaoEmpresaId?: number) {
@@ -182,9 +217,7 @@ export async function getUsuarioById(id: string): Promise<Usuario | undefined> {
 
     return mapUsuarioDtoToUsuario(data);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-
-    if (message.includes("404") || message.toLowerCase().includes("not found")) {
+    if (error instanceof Error && error.message.includes("404")) {
       return undefined;
     }
 
@@ -193,19 +226,13 @@ export async function getUsuarioById(id: string): Promise<Usuario | undefined> {
 }
 
 export async function createUsuario(usuario: Partial<Usuario>): Promise<Usuario> {
-  const usuarioLogado = getUsuarioLogadoStorage();
+  const configuracaoEmpresaId = await resolveConfiguracaoEmpresaId(usuario);
 
-  if (!usuarioLogado?.configuracaoEmpresaId) {
-    throw new Error(
-      "Não foi possível identificar a configuração da empresa do usuário logado.",
-    );
-  }
-
-  await validarLimitePlanoAntesDeCriar(usuarioLogado.configuracaoEmpresaId);
+  await validarLimitePlanoAntesDeCriar(configuracaoEmpresaId);
 
   const data = await apiFetch<UsuarioDTO>("/usuarios", {
     method: "POST",
-    body: JSON.stringify(mapUsuarioToPayload(usuario)),
+    body: JSON.stringify(mapUsuarioToPayload(usuario, configuracaoEmpresaId)),
   });
 
   return mapUsuarioDtoToUsuario(data);
@@ -215,24 +242,14 @@ export async function updateUsuario(
   id: string,
   usuario: Partial<Usuario>,
 ): Promise<Usuario> {
+  const configuracaoEmpresaId = await resolveConfiguracaoEmpresaId(usuario);
+
   const data = await apiFetch<UsuarioDTO>(`/usuarios/${id}`, {
     method: "PUT",
-    body: JSON.stringify(mapUsuarioToPayload(usuario)),
+    body: JSON.stringify(mapUsuarioToPayload(usuario, configuracaoEmpresaId)),
   });
 
   return mapUsuarioDtoToUsuario(data);
-}
-
-export async function trocarSenhaUsuario(
-  payload: TrocarSenhaPayload,
-): Promise<void> {
-  await apiFetch<void>("/usuarios/trocar-senha", {
-    method: "POST",
-    body: JSON.stringify({
-      senhaAtual: payload.senhaAtual,
-      novaSenha: payload.novaSenha,
-    }),
-  });
 }
 
 export async function deleteUsuario(id: string): Promise<void> {
@@ -269,29 +286,15 @@ export async function isLoginDuplicated(
 
 export function validatePasswordStrength(pw: string): string | null {
   if (pw.length < 8) return "A senha deve conter no mínimo 8 caracteres.";
-
-  if (!/[a-z]/.test(pw)) {
-    return "A senha deve conter pelo menos 1 letra minúscula.";
-  }
-
-  if (!/[A-Z]/.test(pw)) {
-    return "A senha deve conter pelo menos 1 letra maiúscula.";
-  }
-
-  if (!/\d/.test(pw)) {
-    return "A senha deve conter pelo menos 1 número.";
-  }
-
+  if (!/[a-z]/.test(pw)) return "A senha deve conter pelo menos 1 letra minúscula.";
+  if (!/[A-Z]/.test(pw)) return "A senha deve conter pelo menos 1 letra maiúscula.";
+  if (!/\d/.test(pw)) return "A senha deve conter pelo menos 1 número.";
   if (!/[^A-Za-z0-9]/.test(pw)) {
     return "A senha deve conter pelo menos 1 caractere especial.";
   }
 
   return null;
 }
-
-/* ===========================
-   PERMISSÕES
-   =========================== */
 
 export type ModuloPermissao =
   | "DASHBOARD"
@@ -303,25 +306,19 @@ export type ModuloPermissao =
   | "INTEGRANTES"
   | "PARTICIPANTES"
   | "PROJETOS"
-  | "METAS_PROJETO"
   | "CRONOGRAMA"
   | "ATIVIDADES"
   | "TURMAS"
   | "PRESENCAS"
   | "EDITAIS"
   | "PROPOSTAS_EDITAL"
-  | "EQUIPE_EDITAL"
-  | "HABILITACOES_PROPOSTAS"
-  | "RESULTADO_PROPOSTA"
   | "HABILITACAO"
   | "EVENTOS_CULTURAIS"
   | "ACOES_DIVULGACAO"
-  | "PLANO_COMUNICACAO"
   | "EVIDENCIAS"
   | "PLANEJAMENTO_FINANCEIRO"
   | "FINANCEIRO"
   | "PRESTACAO_CONTAS"
-  | "PRESTACAO_METAS"
   | "PATRIMONIO"
   | "EMPRESTIMOS"
   | "CURRICULOS"
@@ -349,25 +346,19 @@ export const moduloLabel: Record<ModuloPermissao, string> = {
   INTEGRANTES: "Integrantes",
   PARTICIPANTES: "Participantes",
   PROJETOS: "Projetos",
-  METAS_PROJETO: "Metas do projeto",
   CRONOGRAMA: "Cronograma",
   ATIVIDADES: "Atividades",
   TURMAS: "Turmas",
   PRESENCAS: "Presenças",
   EDITAIS: "Editais",
   PROPOSTAS_EDITAL: "Propostas de edital",
-  EQUIPE_EDITAL: "Equipe do edital",
-  HABILITACOES_PROPOSTAS: "Habilitações de propostas",
-  RESULTADO_PROPOSTA: "Resultado da Proposta",
   HABILITACAO: "Habilitação",
   EVENTOS_CULTURAIS: "Eventos culturais",
   ACOES_DIVULGACAO: "Ações de divulgação",
-  PLANO_COMUNICACAO: "Plano de comunicação",
   EVIDENCIAS: "Evidências",
   PLANEJAMENTO_FINANCEIRO: "Planejamento financeiro",
   FINANCEIRO: "Financeiro",
   PRESTACAO_CONTAS: "Prestação de contas",
-  PRESTACAO_METAS: "Prestação de metas",
   PATRIMONIO: "Patrimônio",
   EMPRESTIMOS: "Empréstimos",
   CURRICULOS: "Currículos",
@@ -403,70 +394,25 @@ export interface ModuloGrupo {
 }
 
 export const GRUPOS_MODULOS: ModuloGrupo[] = [
-  {
-    title: "Visão geral",
-    modulos: ["DASHBOARD"],
-  },
-  {
-    title: "Organização",
-    modulos: ["ORGANIZACAO", "DIRETORIA", "DOCUMENTOS"],
-  },
+  { title: "Visão geral", modulos: ["DASHBOARD"] },
+  { title: "Organização", modulos: ["ORGANIZACAO", "DIRETORIA", "DOCUMENTOS"] },
   {
     title: "Pessoas",
-    modulos: [
-      "AGENTES_CULTURAIS",
-      "COLABORADORES",
-      "INTEGRANTES",
-      "PARTICIPANTES",
-    ],
+    modulos: ["AGENTES_CULTURAIS", "COLABORADORES", "INTEGRANTES", "PARTICIPANTES"],
   },
   {
     title: "Projetos e execução",
-    modulos: [
-      "PROJETOS",
-      "METAS_PROJETO",
-      "CRONOGRAMA",
-      "ATIVIDADES",
-      "TURMAS",
-      "PRESENCAS",
-    ],
+    modulos: ["PROJETOS", "CRONOGRAMA", "ATIVIDADES", "TURMAS", "PRESENCAS"],
   },
-  {
-    title: "Editais",
-    modulos: [
-      "EDITAIS",
-      "PROPOSTAS_EDITAL",
-      "RESULTADO_PROPOSTA",
-      "EQUIPE_EDITAL",
-      "HABILITACOES_PROPOSTAS",
-      "HABILITACAO",
-    ],
-  },
+  { title: "Editais", modulos: ["EDITAIS", "PROPOSTAS_EDITAL", "HABILITACAO"] },
   {
     title: "Ações culturais",
-    modulos: [
-      "EVENTOS_CULTURAIS",
-      "ACOES_DIVULGACAO",
-      "PLANO_COMUNICACAO",
-      "EVIDENCIAS",
-    ],
+    modulos: ["EVENTOS_CULTURAIS", "ACOES_DIVULGACAO", "EVIDENCIAS"],
   },
-  {
-    title: "Financeiro",
-    modulos: ["PLANEJAMENTO_FINANCEIRO", "FINANCEIRO"],
-  },
-  {
-    title: "Prestação de contas",
-    modulos: ["PRESTACAO_CONTAS", "PRESTACAO_METAS"],
-  },
-  {
-    title: "Patrimônio",
-    modulos: ["PATRIMONIO", "EMPRESTIMOS"],
-  },
-  {
-    title: "Trajetórias",
-    modulos: ["CURRICULOS", "TRAJETORIAS_CULTURAIS"],
-  },
+  { title: "Financeiro", modulos: ["PLANEJAMENTO_FINANCEIRO", "FINANCEIRO"] },
+  { title: "Prestação de contas", modulos: ["PRESTACAO_CONTAS"] },
+  { title: "Patrimônio", modulos: ["PATRIMONIO", "EMPRESTIMOS"] },
+  { title: "Trajetórias", modulos: ["CURRICULOS", "TRAJETORIAS_CULTURAIS"] },
   {
     title: "Relatórios e configurações",
     modulos: ["RELATORIOS", "USUARIOS", "CONFIGURACOES"],
@@ -514,7 +460,7 @@ export async function getPermissoes(
     },
   );
 
-  return (data ?? []).map(mapPermissaoDtoToPermissao);
+  return data.map(mapPermissaoDtoToPermissao);
 }
 
 export async function savePermissoes(
@@ -524,6 +470,7 @@ export async function savePermissoes(
   const payload: UsuarioPermissoesUpdateDTO = {
     usuarioId: Number(usuarioId),
     permissoes: perms.map((p) => ({
+      id: p.id != null ? Number(p.id) : undefined,
       usuarioId: Number(usuarioId),
       modulo: p.moduloPermissao,
       acao: p.acaoPermissao,
@@ -539,5 +486,5 @@ export async function savePermissoes(
     },
   );
 
-  return (data ?? []).map(mapPermissaoDtoToPermissao);
+  return data.map(mapPermissaoDtoToPermissao);
 }

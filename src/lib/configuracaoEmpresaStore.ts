@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+import { apiFetch } from "@/lib/api";
 
 export type TipoPlanoApi = "PLANO_GRATUITO" | "PLANO_PAGO";
 
@@ -97,34 +97,6 @@ const DEFAULT_DATA: ConfiguracaoEmpresaData = {
   dataAtualizacao: "",
 };
 
-function getToken() {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken")
-  );
-}
-
-function getJsonHeaders() {
-  const token = getToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
-function getMultipartHeaders() {
-  const token = getToken();
-
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
 function mapResponseToData(
   dto: ConfiguracaoEmpresaResponseDTO,
 ): ConfiguracaoEmpresaData {
@@ -176,40 +148,6 @@ function writeCache(data: ConfiguracaoEmpresaData) {
   }
 }
 
-async function parseError(response: Response): Promise<string> {
-  try {
-    const text = await response.text();
-
-    if (!text) {
-      if (response.status === 401) {
-        return "Sessão expirada ou token inválido. Faça login novamente.";
-      }
-
-      if (response.status === 403) {
-        return "Acesso negado.";
-      }
-
-      return `Erro ${response.status} ao processar requisição.`;
-    }
-
-    try {
-      const json = JSON.parse(text);
-
-      return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
-      );
-    } catch {
-      return text;
-    }
-  } catch {
-    return `Erro ${response.status} ao processar requisição.`;
-  }
-}
-
 function buildMultipartBody(
   payload: ConfiguracaoEmpresaRequestDTO,
   logo?: File | null,
@@ -245,16 +183,13 @@ export function saveConfiguracaoEmpresa(
 }
 
 export async function fetchConfiguracaoEmpresa(): Promise<ConfiguracaoEmpresaData> {
-  const response = await fetch(`${API_URL}/configuracoes-empresa`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
+  const data = await apiFetch<ConfiguracaoEmpresaResponseDTO[]>(
+    "/configuracoes-empresa",
+    {
+      method: "GET",
+    },
+  );
 
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: ConfiguracaoEmpresaResponseDTO[] = await response.json();
   const first = data?.[0];
 
   if (!first) {
@@ -276,16 +211,13 @@ export async function fetchConfiguracaoEmpresaById(
     throw new Error("ID da configuração da empresa inválido.");
   }
 
-  const response = await fetch(`${API_URL}/configuracoes-empresa/${id}`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
+  const data = await apiFetch<ConfiguracaoEmpresaResponseDTO>(
+    `/configuracoes-empresa/${id}`,
+    {
+      method: "GET",
+    },
+  );
 
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: ConfiguracaoEmpresaResponseDTO = await response.json();
   const mapped = mapResponseToData(data);
 
   writeCache(mapped);
@@ -300,18 +232,15 @@ export async function fetchConfiguracaoEmpresaLogoUrl(
     return null;
   }
 
-  const response = await fetch(`${API_URL}/configuracoes-empresa/${id}/logo`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
+  try {
+    const url = await apiFetch<string>(`/configuracoes-empresa/${id}/logo`, {
+      method: "GET",
+    });
 
-  if (!response.ok) {
+    return url?.trim() || null;
+  } catch {
     return null;
   }
-
-  const url = await response.text();
-
-  return url?.trim() || null;
 }
 
 export async function createOrUpdateConfiguracaoEmpresa(
@@ -319,33 +248,14 @@ export async function createOrUpdateConfiguracaoEmpresa(
   id?: number | null,
   logo?: File | null,
 ): Promise<ConfiguracaoEmpresaData> {
-  const url = id
-    ? `${API_URL}/configuracoes-empresa/${id}`
-    : `${API_URL}/configuracoes-empresa`;
-
+  const path = id ? `/configuracoes-empresa/${id}` : "/configuracoes-empresa";
   const method = id ? "PUT" : "POST";
 
-  let response: Response;
+  const saved = await apiFetch<ConfiguracaoEmpresaResponseDTO>(path, {
+    method,
+    body: logo ? buildMultipartBody(payload, logo) : JSON.stringify(payload),
+  });
 
-  if (logo) {
-    response = await fetch(url, {
-      method,
-      headers: getMultipartHeaders(),
-      body: buildMultipartBody(payload, logo),
-    });
-  } else {
-    response = await fetch(url, {
-      method,
-      headers: getJsonHeaders(),
-      body: JSON.stringify(payload),
-    });
-  }
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const saved: ConfiguracaoEmpresaResponseDTO = await response.json();
   const mapped = mapResponseToData(saved);
 
   writeCache(mapped);
@@ -362,29 +272,14 @@ export async function updateConfiguracaoEmpresaById(
     throw new Error("ID da configuração da empresa inválido.");
   }
 
-  const url = `${API_URL}/configuracoes-empresa/${id}`;
-
-  let response: Response;
-
-  if (logo) {
-    response = await fetch(url, {
+  const saved = await apiFetch<ConfiguracaoEmpresaResponseDTO>(
+    `/configuracoes-empresa/${id}`,
+    {
       method: "PUT",
-      headers: getMultipartHeaders(),
-      body: buildMultipartBody(payload, logo),
-    });
-  } else {
-    response = await fetch(url, {
-      method: "PUT",
-      headers: getJsonHeaders(),
-      body: JSON.stringify(payload),
-    });
-  }
+      body: logo ? buildMultipartBody(payload, logo) : JSON.stringify(payload),
+    },
+  );
 
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const saved: ConfiguracaoEmpresaResponseDTO = await response.json();
   const mapped = mapResponseToData(saved);
 
   writeCache(mapped);
