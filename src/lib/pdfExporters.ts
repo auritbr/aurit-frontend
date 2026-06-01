@@ -3706,84 +3706,300 @@ export async function exportDiretoriaPdf(d: DiretoriaPdf) {
 }
 
 // =====================================================================
-// ORGANIZAÇÃO
+// DADOS INSTITUCIONAIS / ORGANIZAÇÃO
 // =====================================================================
 
+type TipoCadastroInstitucional =
+  | "PESSOA_FISICA"
+  | "GRUPO_COLETIVO"
+  | "MEI"
+  | "PESSOA_JURIDICA_COM_FINS_LUCRATIVOS"
+  | "PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS"
+  | "OUTRO";
+
+function normalizarTexto(value?: string | null) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .trim();
+}
+
+function getTipoCadastroInstitucional(tipo?: string | null): TipoCadastroInstitucional {
+  const value = normalizarTexto(tipo);
+
+  if (value.includes("PESSOA_FISICA") || value === "PESSOA FISICA") {
+    return "PESSOA_FISICA";
+  }
+
+  if (value.includes("GRUPO_COLETIVO") || value.includes("GRUPO") || value.includes("COLETIVO")) {
+    return "GRUPO_COLETIVO";
+  }
+
+  if (value.includes("MEI") || value.includes("MICROEMPREENDEDOR")) {
+    return "MEI";
+  }
+
+  if (value.includes("SEM_FINS") || value.includes("SEM FINS")) {
+    return "PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS";
+  }
+
+  if (value.includes("COM_FINS") || value.includes("COM FINS")) {
+    return "PESSOA_JURIDICA_COM_FINS_LUCRATIVOS";
+  }
+
+  if (value.includes("PESSOA_JURIDICA") || value.includes("PESSOA JURIDICA")) {
+    return "PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS";
+  }
+
+  return "OUTRO";
+}
+
+function labelTipoCadastroInstitucional(tipo?: string | null) {
+  const normalizado = getTipoCadastroInstitucional(tipo);
+
+  switch (normalizado) {
+    case "PESSOA_FISICA":
+      return "Pessoa Física";
+    case "GRUPO_COLETIVO":
+      return "Grupo / Coletivo";
+    case "MEI":
+      return "MEI";
+    case "PESSOA_JURIDICA_COM_FINS_LUCRATIVOS":
+      return "Pessoa jurídica com fins lucrativos";
+    case "PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS":
+      return "Pessoa jurídica sem fins lucrativos";
+    default:
+      return v(tipo);
+  }
+}
+
+function isPessoaFisicaInstitucional(tipo?: string | null) {
+  return getTipoCadastroInstitucional(tipo) === "PESSOA_FISICA";
+}
+
+function isColetivoInstitucional(tipo?: string | null) {
+  return getTipoCadastroInstitucional(tipo) === "GRUPO_COLETIVO";
+}
+
+function isMeiInstitucional(tipo?: string | null) {
+  return getTipoCadastroInstitucional(tipo) === "MEI";
+}
+
+function isPessoaJuridicaInstitucional(tipo?: string | null) {
+  const t = getTipoCadastroInstitucional(tipo);
+  return (
+    t === "PESSOA_JURIDICA_COM_FINS_LUCRATIVOS" ||
+    t === "PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS"
+  );
+}
+
+function getTituloFichaInstitucional(tipo?: string | null) {
+  if (isPessoaFisicaInstitucional(tipo)) return "Ficha de Pessoa Física";
+  if (isColetivoInstitucional(tipo)) return "Ficha de Grupo/Coletivo";
+  if (isMeiInstitucional(tipo)) return "Ficha de MEI";
+  if (isPessoaJuridicaInstitucional(tipo)) return "Ficha de Pessoa Jurídica";
+  return "Ficha de Dados Institucionais";
+}
+
+function getTituloDadosPrincipaisInstitucionais(tipo?: string | null) {
+  if (isPessoaFisicaInstitucional(tipo)) return "2. Dados Pessoais";
+  if (isColetivoInstitucional(tipo)) return "2. Dados do Coletivo";
+  if (isMeiInstitucional(tipo)) return "2. Dados do MEI";
+  return "2. Dados Institucionais";
+}
+
+function getLabelNomePrincipalInstitucional(tipo?: string | null) {
+  if (isPessoaFisicaInstitucional(tipo)) return "Nome Completo";
+  if (isColetivoInstitucional(tipo)) return "Nome do Grupo/Coletivo";
+  return "Razão Social";
+}
+
+function getLabelNomeComplementarInstitucional(tipo?: string | null) {
+  if (isPessoaFisicaInstitucional(tipo)) return "Nome Social ou Artístico";
+  if (isColetivoInstitucional(tipo)) return "Nome Público do Coletivo";
+  return "Nome Fantasia";
+}
+
+function getLabelDocumentoPrincipalInstitucional(tipo?: string | null) {
+  if (isPessoaFisicaInstitucional(tipo)) return "CPF";
+  if (isColetivoInstitucional(tipo)) return "Documento de Identificação";
+  return "CNPJ";
+}
+
+function getLabelDataPrincipalInstitucional(tipo?: string | null) {
+  if (isPessoaFisicaInstitucional(tipo)) return "Data de Nascimento";
+  if (isColetivoInstitucional(tipo)) return "Data de Criação";
+  return "Data de Fundação";
+}
+
+function getTituloContatoInstitucional(tipo?: string | null) {
+  if (isPessoaJuridicaInstitucional(tipo)) {
+    return "3. Contato e Presença Institucional";
+  }
+
+  return "3. Contato";
+}
+
+function getLabelEmailPrincipalInstitucional(tipo?: string | null) {
+  if (isPessoaJuridicaInstitucional(tipo)) return "E-mail Institucional";
+  if (isColetivoInstitucional(tipo)) return "E-mail do Coletivo";
+  return "E-mail";
+}
+
+function getLabelTelefonePrincipalInstitucional(tipo?: string | null) {
+  if (isPessoaJuridicaInstitucional(tipo)) return "Telefone Institucional";
+  if (isColetivoInstitucional(tipo)) return "Telefone do Coletivo";
+  return "Telefone";
+}
+
+function getTituloRepresentanteInstitucional(tipo?: string | null) {
+  if (isColetivoInstitucional(tipo)) return "5. Representante do Coletivo";
+  if (isMeiInstitucional(tipo)) return "4. Representante";
+  return "6. Representante Legal";
+}
+
+function getLabelRepresentanteNomeInstitucional(tipo?: string | null) {
+  if (isMeiInstitucional(tipo)) return "Nome do Representante";
+  return "Nome do Representante Legal";
+}
+
+function getLabelRepresentanteCpfInstitucional(tipo?: string | null) {
+  if (isMeiInstitucional(tipo)) return "CPF do Representante";
+  return "CPF do Representante Legal";
+}
+
+function getLabelRepresentanteRgInstitucional(tipo?: string | null) {
+  if (isMeiInstitucional(tipo)) return "RG do Representante";
+  return "RG do Representante Legal";
+}
+
+function getLabelRepresentanteTelefoneInstitucional(tipo?: string | null) {
+  if (isMeiInstitucional(tipo)) return "Telefone do Representante";
+  return "Telefone do Representante Legal";
+}
+
+function getLabelRepresentanteEmailInstitucional(tipo?: string | null) {
+  if (isMeiInstitucional(tipo)) return "E-mail do Representante";
+  return "E-mail do Representante Legal";
+}
+
+function formatDocumentoInstitucional(value?: string | number | null, tipo?: string | null) {
+  const digits = onlyDigits(value);
+
+  if (isPessoaFisicaInstitucional(tipo) && digits.length === 11) {
+    return formatCpfCnpj(digits);
+  }
+
+  if ((isMeiInstitucional(tipo) || isPessoaJuridicaInstitucional(tipo)) && digits.length === 14) {
+    return formatCpfCnpj(digits);
+  }
+
+  if (isColetivoInstitucional(tipo)) {
+    return digits || v(value);
+  }
+
+  return formatCpfCnpj(value);
+}
+
+function getRepresentanteData(o: OrganizacaoPdf) {
+  const representante = o.representanteLegal;
+
+  return {
+    nome:
+      o.nomeRepresentanteLegal ||
+      representante?.nomeRepresentante ||
+      "",
+    cpf:
+      o.cpfRepresentanteLegal ||
+      representante?.cpfRepresentante ||
+      "",
+    rg:
+      o.rgRepresentanteLegal ||
+      representante?.rgRepresentante ||
+      "",
+    telefone:
+      o.telefoneRepresentanteLegal ||
+      representante?.telefoneRepresentante ||
+      "",
+    email:
+      o.emailRepresentanteLegal ||
+      representante?.emailRepresentante ||
+      "",
+  };
+}
+
 export async function exportOrganizacaoPdf(o: OrganizacaoPdf) {
-  const REPRESENTANTE = o.representanteLegal;
+  const tipoCadastro = getTipoCadastroInstitucional(o.tipoAgente);
+  const mostrarRepresentante = !isPessoaFisicaInstitucional(tipoCadastro);
+  const mostrarAtuacaoInstitucional = isPessoaJuridicaInstitucional(tipoCadastro);
 
-  const DOCUMENT_NUMBER = `ORG-${String(o.id ?? "").padStart(4, "0")}`;
+  const representante = getRepresentanteData(o);
 
+  const DOCUMENT_NUMBER = `DIN-${String(o.id ?? "").padStart(4, "0")}`;
 
-  const NOME_REPRESENTANTE =
-    o.nomeRepresentanteLegal ||
-    REPRESENTANTE?.nomeRepresentante ||
-    PLACEHOLDER;
+  const sections: Parameters<typeof generateInstitutionalPdf>[0]["sections"] = [
+    {
+      title: "1. Perfil Institucional",
+      fields: [
+        {
+          label: "Tipo de Agente",
+          value: labelTipoCadastroInstitucional(o.tipoAgente),
+        },
+        {
+          label: "Tipo de Iniciativa Cultural",
+          value: v(o.tipoIniciativaCultural),
+        },
+        {
+          label: "Área de Atuação",
+          value: v(o.areaAtuacao),
+        },
+      ],
+    },
+    {
+      title: getTituloDadosPrincipaisInstitucionais(tipoCadastro),
+      fields: [
+        {
+          label: getLabelNomePrincipalInstitucional(tipoCadastro),
+          value: v(o.razaoSocial),
+        },
+        {
+          label: getLabelNomeComplementarInstitucional(tipoCadastro),
+          value: v(o.nomeFantasia),
+        },
+        {
+          label: getLabelDocumentoPrincipalInstitucional(tipoCadastro),
+          value: formatDocumentoInstitucional(o.cnpj, tipoCadastro),
+        },
+        {
+          label: getLabelDataPrincipalInstitucional(tipoCadastro),
+          value: formatDateBR(o.dataFundacao),
+        },
+      ],
+    },
+    {
+      title: getTituloContatoInstitucional(tipoCadastro),
+      fields: [
+        {
+          label: getLabelEmailPrincipalInstitucional(tipoCadastro),
+          value: v(o.emailInstitucional),
+        },
+        {
+          label: getLabelTelefonePrincipalInstitucional(tipoCadastro),
+          value: v(o.telefoneInstitucional),
+        },
+        {
+          label: "Site",
+          value: v(o.site),
+        },
+      ],
+    },
+  ];
 
-  const CPF_REPRESENTANTE =
-    o.cpfRepresentanteLegal ||
-    REPRESENTANTE?.cpfRepresentante ||
-    PLACEHOLDER;
-
-  const RG_REPRESENTANTE =
-    o.rgRepresentanteLegal ||
-    REPRESENTANTE?.rgRepresentante ||
-    PLACEHOLDER;
-
-  const TELEFONE_REPRESENTANTE =
-    o.telefoneRepresentanteLegal ||
-    REPRESENTANTE?.telefoneRepresentante ||
-    PLACEHOLDER;
-
-  const EMAIL_REPRESENTANTE =
-    o.emailRepresentanteLegal ||
-    REPRESENTANTE?.emailRepresentante ||
-    PLACEHOLDER;
-
-  await generateInstitutionalPdf({
-    title: "Ficha da Organização",
-    documentNumber: DOCUMENT_NUMBER,
-    sections: [
+  if (mostrarAtuacaoInstitucional) {
+    sections.push(
       {
-        title: "1. Dados Institucionais",
-        fields: [
-          {
-            label: "Razão Social",
-            value: v(o.razaoSocial),
-          },
-          {
-            label: "Nome Fantasia",
-            value: v(o.nomeFantasia),
-          },
-          {
-            label: "CNPJ",
-            value: v(o.cnpj),
-          },
-          {
-            label: "Data de Fundação",
-            value: formatDateBR(o.dataFundacao),
-          },
-        ],
-      },
-      {
-        title: "2. Contato e Presença Institucional",
-        fields: [
-          {
-            label: "E-mail Institucional",
-            value: v(o.emailInstitucional),
-          },
-          {
-            label: "Telefone Institucional",
-            value: v(o.telefoneInstitucional),
-          },
-          {
-            label: "Site",
-            value: v(o.site),
-          },
-        ],
-      },
-      {
-        title: "3. Atuação da Organização",
+        title: "4. Atuação Institucional",
         fields: [
           {
             label: "Território de Atuação",
@@ -3792,87 +4008,80 @@ export async function exportOrganizacaoPdf(o: OrganizacaoPdf) {
         ],
       },
       {
-        title: "4. Histórico de Atuação da Organização",
+        title: "5. Histórico de Atuação Institucional",
         justifiedParagraphs: o.historicoAtuacao
           ? [o.historicoAtuacao]
           : [PLACEHOLDER],
       },
+    );
+  }
+
+  if (mostrarRepresentante) {
+    sections.push({
+      title: getTituloRepresentanteInstitucional(tipoCadastro),
+      fields: [
+        {
+          label: getLabelRepresentanteNomeInstitucional(tipoCadastro),
+          value: v(representante.nome),
+        },
+        {
+          label: getLabelRepresentanteCpfInstitucional(tipoCadastro),
+          value: formatCpfCnpj(representante.cpf),
+        },
+        {
+          label: getLabelRepresentanteRgInstitucional(tipoCadastro),
+          value: v(representante.rg),
+        },
+        {
+          label: getLabelRepresentanteTelefoneInstitucional(tipoCadastro),
+          value: v(representante.telefone),
+        },
+        {
+          label: getLabelRepresentanteEmailInstitucional(tipoCadastro),
+          value: v(representante.email),
+        },
+      ],
+    });
+  }
+
+  sections.push({
+    title: `${sections.length + 1}. Endereço`,
+    fields: [
       {
-        title: "5. Representante Legal",
-        fields: [
-          {
-            label: "Nome do Representante Legal",
-            value: v(NOME_REPRESENTANTE),
-          },
-          {
-            label: "CPF do Representante Legal",
-            value: v(CPF_REPRESENTANTE),
-          },
-          {
-            label: "RG do Representante Legal",
-            value: v(RG_REPRESENTANTE),
-          },
-          {
-            label: "Telefone do Representante Legal",
-            value: v(TELEFONE_REPRESENTANTE),
-          },
-          {
-            label: "E-mail do Representante Legal",
-            value: v(EMAIL_REPRESENTANTE),
-          },
-        ],
+        label: "CEP",
+        value: formatCep(o.cep),
       },
       {
-        title: "6. Perfil Institucional",
-        fields: [
-          {
-            label: "Tipo de Agente",
-            value: v(o.tipoAgente),
-          },
-          {
-            label: "Tipo de Iniciativa Cultural",
-            value: v(o.tipoIniciativaCultural),
-          },
-          {
-            label: "Área de Atuação",
-            value: v(o.areaAtuacao),
-          },
-        ],
+        label: "Logradouro",
+        value: v(o.logradouro),
       },
       {
-        title: "7. Endereço",
-        fields: [
-          {
-            label: "CEP",
-            value: v(o.cep),
-          },
-          {
-            label: "Logradouro",
-            value: v(o.logradouro),
-          },
-          {
-            label: "Número",
-            value: v(o.numero),
-          },
-          {
-            label: "Complemento",
-            value: v(o.complemento),
-          },
-          {
-            label: "Bairro",
-            value: v(o.bairro),
-          },
-          {
-            label: "Cidade",
-            value: v(o.cidade),
-          },
-          {
-            label: "Estado",
-            value: v(o.estado),
-          },
-        ],
+        label: "Número",
+        value: v(o.numero),
+      },
+      {
+        label: "Complemento",
+        value: v(o.complemento),
+      },
+      {
+        label: "Bairro",
+        value: v(o.bairro),
+      },
+      {
+        label: "Cidade",
+        value: v(o.cidade),
+      },
+      {
+        label: "Estado",
+        value: v(o.estado),
       },
     ],
+  });
+
+  await generateInstitutionalPdf({
+    title: getTituloFichaInstitucional(tipoCadastro),
+    documentNumber: DOCUMENT_NUMBER,
+    sections,
   });
 }
 
