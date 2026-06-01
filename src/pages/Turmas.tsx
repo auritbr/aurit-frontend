@@ -206,10 +206,10 @@ export default function Turmas() {
           turma.colaboradoresNomes.length > 0
             ? turma.colaboradoresNomes
             : turma.colaboradoresIds.map(
-                (idColaborador) =>
-                  colaboradoresMap.get(String(idColaborador)) ??
-                  `Colaborador ${idColaborador}`,
-              ),
+              (idColaborador) =>
+                colaboradoresMap.get(String(idColaborador)) ??
+                `Colaborador ${idColaborador}`,
+            ),
       }));
 
       setItems(mapped);
@@ -312,7 +312,7 @@ export default function Turmas() {
       status: statusTurmaLabel(turma.status),
     } as any);
   };
-  
+
   if (!podeVisualizar) {
     return (
       <AppLayout>
@@ -678,7 +678,10 @@ export default function Turmas() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Turmas" />
+      <WikiFloatingButton
+        pageTitle="Turmas"
+        href="https://www.aurit.com.br/wiki/execucao/turmas"
+      />
     </AppLayout>
   );
 }

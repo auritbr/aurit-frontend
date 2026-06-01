@@ -600,7 +600,10 @@ export default function Agentes() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Agentes Culturais" />
+      <WikiFloatingButton
+        pageTitle="Agentes Culturais"
+        href="https://www.aurit.com.br/wiki/institucional/agentes-culturais"
+      />
     </AppLayout>
   );
 }

@@ -989,7 +989,10 @@ export default function Emprestimos() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Empréstimos" />
+      <WikiFloatingButton
+        pageTitle="Empréstimos"
+        href="https://www.aurit.com.br/wiki/patrimonio/emprestimos"
+      />
     </AppLayout>
   );
 }

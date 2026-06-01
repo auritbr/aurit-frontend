@@ -621,11 +621,10 @@ export default function EquipeEditalForm() {
               >
                 <label
                   htmlFor="tp-col"
-                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors ${
-                    form.tipoPessoa === "COLABORADOR"
-                      ? "border-primary bg-primary-soft"
-                      : "border-border hover:bg-muted/40"
-                  } ${visualizando ? "pointer-events-none opacity-80" : ""}`}
+                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors ${form.tipoPessoa === "COLABORADOR"
+                    ? "border-primary bg-primary-soft"
+                    : "border-border hover:bg-muted/40"
+                    } ${visualizando ? "pointer-events-none opacity-80" : ""}`}
                 >
                   <RadioGroupItem value="COLABORADOR" id="tp-col" />
                   <Label htmlFor="tp-col" className="cursor-pointer text-sm">
@@ -635,11 +634,10 @@ export default function EquipeEditalForm() {
 
                 <label
                   htmlFor="tp-int"
-                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors ${
-                    form.tipoPessoa === "INTEGRANTE"
-                      ? "border-primary bg-primary-soft"
-                      : "border-border hover:bg-muted/40"
-                  } ${visualizando ? "pointer-events-none opacity-80" : ""}`}
+                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors ${form.tipoPessoa === "INTEGRANTE"
+                    ? "border-primary bg-primary-soft"
+                    : "border-border hover:bg-muted/40"
+                    } ${visualizando ? "pointer-events-none opacity-80" : ""}`}
                 >
                   <RadioGroupItem value="INTEGRANTE" id="tp-int" />
                   <Label htmlFor="tp-int" className="cursor-pointer text-sm">
@@ -736,7 +734,7 @@ export default function EquipeEditalForm() {
                 <FieldLabel
                   htmlFor="funcaoProjeto"
                   required
-                  tooltip="Ex.: coordenador geral, oficineiro, produtor cultural, educador, monitor, responsável financeiro, comunicador ou técnico de som."
+                  tooltip="Informe a função que esta pessoa exercerá no projeto, de acordo com sua responsabilidade principal. Ex.: coordenador geral, oficineiro, produtor cultural, educador, monitor, responsável financeiro, comunicador ou técnico de som."
                 >
                   Função no Projeto
                 </FieldLabel>

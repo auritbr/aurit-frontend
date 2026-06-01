@@ -749,7 +749,10 @@ export default function HabilitacaoPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Habilitação Documental" />
+      <WikiFloatingButton
+        pageTitle="Habilitação Documental"
+        href="https://www.aurit.com.br/wiki/editais/habilitacao-documental"
+      />
     </AppLayout>
   );
 }

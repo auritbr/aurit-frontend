@@ -671,7 +671,10 @@ export default function PlanoComunicacaoPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Execução da Divulgação" />
+      <WikiFloatingButton
+        pageTitle="Execução da Divulgação"
+        href="https://www.aurit.com.br/wiki/acoes-culturais/execucao-da-divulgacao"
+      />
     </AppLayout>
   );
 }

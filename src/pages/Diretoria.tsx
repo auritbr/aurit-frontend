@@ -1542,7 +1542,10 @@ export default function Diretoria() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Diretoria" />
+      <WikiFloatingButton
+        pageTitle="Diretoria"
+        href="https://www.aurit.com.br/wiki/institucional/diretoria"
+      />
     </AppLayout>
   );
 }

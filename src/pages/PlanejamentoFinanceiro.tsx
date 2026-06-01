@@ -625,9 +625,8 @@ export default function PlanejamentoFinanceiro() {
   return (
     <AppLayout>
       <div
-        className={`container ${
-          showForm ? "max-w-4xl" : "max-w-7xl"
-        } py-6 sm:py-8`}
+        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"
+          } py-6 sm:py-8`}
       >
         {showForm && (
           <button
@@ -641,21 +640,21 @@ export default function PlanejamentoFinanceiro() {
         )}
 
         {isPaginaInicial ? (
-        <div className="mb-5 space-y-1.5">
-          <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                    Orçamento da Proposta
-                  </h1>
+          <div className="mb-5 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                Orçamento da Proposta
+              </h1>
 
-                  <HelpTooltip
-                    text="Organize o orçamento da proposta de edital, detalhando cada item previsto, sua justificativa, quantidade, unidade de medida, valores e vínculo opcional com a equipe. Essas informações ajudam na construção do orçamento, na coerência da proposta, no acompanhamento dos recursos e na futura prestação de contas."
-                    label="Orçamento da proposta"
-                    size="md"
-                    side="bottom"
-                    align="start"
-                  />
-                </div>
-              </div>
+              <HelpTooltip
+                text="Organize o orçamento da proposta de edital, detalhando cada item previsto, sua justificativa, quantidade, unidade de medida, valores e vínculo opcional com a equipe. Essas informações ajudam na construção do orçamento, na coerência da proposta, no acompanhamento dos recursos e na futura prestação de contas."
+                label="Orçamento da proposta"
+                size="md"
+                side="bottom"
+                align="start"
+              />
+            </div>
+          </div>
         ) : (
           <div className="mb-5 space-y-1.5">
             <div className="flex items-center gap-2">
@@ -1344,7 +1343,10 @@ export default function PlanejamentoFinanceiro() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Orçamento da Proposta" />
+      <WikiFloatingButton
+        pageTitle="Orçamento da Proposta"
+        href="https://www.aurit.com.br/wiki/editais/orcamento-da-proposta"
+      />
     </AppLayout>
   );
 }

@@ -612,7 +612,10 @@ export default function Atividades() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Atividades" />
+      <WikiFloatingButton
+        pageTitle="Atividades"
+        href="https://www.aurit.com.br/wiki/execucao/atividades"
+      />
     </AppLayout>
   );
 }

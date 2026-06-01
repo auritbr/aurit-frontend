@@ -649,7 +649,10 @@ export default function AcoesDivulgacao() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Ações de Divulgação" />
+      <WikiFloatingButton
+        pageTitle="Ações de Divulgação"
+        href="https://www.aurit.com.br/wiki/acoes-culturais/acoes-de-divulgacao"
+      />
     </AppLayout>
   );
 }

@@ -559,7 +559,10 @@ export default function Curriculos() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Currículos" />
+      <WikiFloatingButton
+        pageTitle="Currículos"
+        href="https://www.aurit.com.br/wiki/trajetorias/curriculos"
+      />
     </AppLayout>
   );
 }

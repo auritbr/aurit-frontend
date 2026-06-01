@@ -653,7 +653,10 @@ export default function Participantes() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Participantes" />
+      <WikiFloatingButton
+        pageTitle="Participantes"
+        href="https://www.aurit.com.br/wiki/pessoas/participantes"
+      />
     </AppLayout>
   );
 }

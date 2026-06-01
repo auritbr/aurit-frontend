@@ -1396,7 +1396,10 @@ export default function Editais() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Editais" />
+      <WikiFloatingButton
+        pageTitle="Editais"
+        href="https://www.aurit.com.br/wiki/editais/editais"
+      />
     </AppLayout>
   );
 }

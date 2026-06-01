@@ -86,9 +86,8 @@ function StatusBadge({ value }: { value: string }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${
-        toneClass[tone] ?? toneClass.neutral
-      }`}
+      className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${toneClass[tone] ?? toneClass.neutral
+        }`}
     >
       {statusPrestacaoContasLabel(value)}
     </span>
@@ -227,7 +226,7 @@ export default function PrestacaoContasPage() {
   const planejamentoFinanceiroNome = (id?: string) =>
     id
       ? planejamentos.find((item) => String(item.id) === String(id))?.nome ??
-        `#${id}`
+      `#${id}`
       : "—";
 
   const planejamentosFinanceirosNomes = (ids?: string[]) => {
@@ -320,8 +319,8 @@ export default function PrestacaoContasPage() {
     const planejamentosPdf =
       item.planejamentosFinanceiros?.length > 0
         ? item.planejamentosFinanceiros.map((id) =>
-            planejamentoFinanceiroNome(id),
-          )
+          planejamentoFinanceiroNome(id),
+        )
         : [];
 
     const status = statusPrestacaoContasLabel(item.statusPrestacaoContas);
@@ -758,7 +757,10 @@ export default function PrestacaoContasPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Prestação de Contas" />
+      <WikiFloatingButton
+        pageTitle="Prestação de Contas"
+        href="https://www.aurit.com.br/wiki/prestacao-de-contas/prestacao-de-contas"
+      />
     </AppLayout>
   );
 }

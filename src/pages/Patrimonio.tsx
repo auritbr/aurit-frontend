@@ -796,7 +796,10 @@ export default function Patrimonio() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Patrimônio" />
+      <WikiFloatingButton
+        pageTitle="Patrimônio"
+        href="https://www.aurit.com.br/wiki/patrimonio/patrimonio"
+      />
     </AppLayout>
   );
 }

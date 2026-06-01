@@ -36,7 +36,6 @@ import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
-import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -918,8 +917,6 @@ export default function Dashboard() {
           </TabsContent>
         </Tabs>
       </div>
-
-      <WikiFloatingButton pageTitle="Dashboard" />
     </AppLayout>
   );
 }

@@ -6,7 +6,6 @@ import { ArrowLeft } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
-import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import {
   GrupoIndicadores,
   RelatorioHeader,
@@ -317,8 +316,6 @@ export default function RelatorioDetalhePage() {
           </>
         )}
       </div>
-
-      <WikiFloatingButton pageTitle={title} />
     </AppLayout>
   );
 }

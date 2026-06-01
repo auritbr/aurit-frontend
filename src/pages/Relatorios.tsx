@@ -7,7 +7,6 @@ import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
-import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -159,8 +158,6 @@ export default function Relatorios() {
           ))}
         </div>
       </div>
-
-      <WikiFloatingButton pageTitle="Relatórios" />
     </AppLayout>
   );
 }

@@ -923,8 +923,8 @@ export default function FinanceiroPage() {
 
                       <td
                         className={`px-6 py-2.5 text-[13px] font-medium text-right whitespace-nowrap ${item.tipoOperacaoFinanceira === "ENTRADA"
-                            ? "text-emerald-600"
-                            : "text-foreground"
+                          ? "text-emerald-600"
+                          : "text-foreground"
                           }`}
                       >
                         {item.tipoOperacaoFinanceira === "SAIDA" ? "− " : ""}
@@ -1066,8 +1066,8 @@ export default function FinanceiroPage() {
 
                     <span
                       className={`text-sm font-semibold ${item.tipoOperacaoFinanceira === "ENTRADA"
-                          ? "text-emerald-600"
-                          : "text-foreground"
+                        ? "text-emerald-600"
+                        : "text-foreground"
                         }`}
                     >
                       {item.tipoOperacaoFinanceira === "SAIDA" ? "− " : ""}
@@ -1145,7 +1145,10 @@ export default function FinanceiroPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Controle Financeiro" />
+      <WikiFloatingButton
+        pageTitle="Controle Financeiro"
+        href="https://www.aurit.com.br/wiki/financeiro/controle-financeiro"
+      />
     </AppLayout>
   );
 }
@@ -1184,8 +1187,8 @@ function OperacaoBadge({ tipo }: { tipo: "ENTRADA" | "SAIDA" }) {
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border ${isEntrada
-          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-          : "bg-rose-50 text-rose-700 border-rose-200"
+        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+        : "bg-rose-50 text-rose-700 border-rose-200"
         }`}
     >
       {isEntrada ? (

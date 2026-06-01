@@ -582,7 +582,10 @@ export default function TrajetoriasCulturais() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Trajetórias Culturais" />
+      <WikiFloatingButton
+        pageTitle="Trajetórias Culturais"
+        href="https://www.aurit.com.br/wiki/trajetorias/trajetorias-culturais"
+      />
     </AppLayout>
   );
 }

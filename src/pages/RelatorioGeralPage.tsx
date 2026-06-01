@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
-import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import {
   RelatorioHeader,
   GrupoIndicadores,
@@ -199,8 +198,6 @@ export default function RelatorioGeralPage() {
           </div>
         )}
       </div>
-
-      <WikiFloatingButton pageTitle="Relatório Geral" />
     </AppLayout>
   );
 }

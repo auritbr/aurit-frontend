@@ -671,9 +671,8 @@ export default function Cronograma() {
   return (
     <AppLayout>
       <div
-        className={`container ${
-          showForm ? "max-w-4xl" : "max-w-7xl"
-        } py-6 sm:py-8`}
+        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"
+          } py-6 sm:py-8`}
       >
         {showForm && (
           <button
@@ -1312,7 +1311,10 @@ export default function Cronograma() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Cronograma" />
+      <WikiFloatingButton
+        pageTitle="Cronograma do Projeto"
+        href="https://www.aurit.com.br/wiki/projetos/cronograma-do-projeto"
+      />
     </AppLayout>
   );
 }

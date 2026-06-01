@@ -631,7 +631,10 @@ export default function EventosCulturais() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Eventos Culturais" />
+      <WikiFloatingButton
+        pageTitle="Eventos Culturais"
+        href="https://www.aurit.com.br/wiki/acoes-culturais/eventos-culturais"
+      />
     </AppLayout>
   );
 }

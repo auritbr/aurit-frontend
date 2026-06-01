@@ -85,9 +85,8 @@ function StatusBadge({ value }: { value: string }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${
-        toneClass[tone] ?? toneClass.neutral
-      }`}
+      className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${toneClass[tone] ?? toneClass.neutral
+        }`}
     >
       {statusCumprimentoLabel(value)}
     </span>
@@ -228,7 +227,7 @@ export default function PrestacaoMetasPage() {
   const evidenciaNome = (id?: string) =>
     id
       ? evidencias.find((e) => String(e.id) === String(id))?.tituloEvidencia ??
-        `Evidência vinculada #${id}`
+      `Evidência vinculada #${id}`
       : "—";
 
   const evidenciasNomes = (ids?: string[]) => {
@@ -473,9 +472,8 @@ export default function PrestacaoMetasPage() {
                   const evidLabel =
                     evidCount === 0
                       ? "—"
-                      : `${evidCount} ${
-                          evidCount === 1 ? "evidência" : "evidências"
-                        }`;
+                      : `${evidCount} ${evidCount === 1 ? "evidência" : "evidências"
+                      }`;
 
                   return (
                     <tr
@@ -707,7 +705,10 @@ export default function PrestacaoMetasPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Cumprimento de Metas" />
+      <WikiFloatingButton
+        pageTitle="Cumprimento de Metas"
+        href="https://www.aurit.com.br/wiki/prestacao-de-contas/cumprimento-de-metas"
+      />
     </AppLayout>
   );
 }

@@ -40,9 +40,9 @@ type RGB = [number, number, number];
 
 type LoadedLogo =
   | {
-      dataUrl: string;
-      format: "PNG" | "JPEG";
-    }
+    dataUrl: string;
+    format: "PNG" | "JPEG";
+  }
   | null;
 
 type EmpresaPdfData = {
@@ -493,23 +493,23 @@ function buildCamposResumoRelatorio<T>(
     label: string;
     value: string | number | null | undefined;
   }[] = [
-    {
-      label: "Organização",
-      value: options.organizacaoNome || getNomeInstitucional(ctx),
-    },
-    {
-      label: "Relatório",
-      value: options.reportName || "Relatório",
-    },
-    {
-      label: getResumoLabel(options.reportName || "Relatório"),
-      value: rows.length,
-    },
-    {
-      label: "Data de geração",
-      value: options.dataGeracao || new Date().toLocaleDateString("pt-BR"),
-    },
-  ];
+      {
+        label: "Organização",
+        value: options.organizacaoNome || getNomeInstitucional(ctx),
+      },
+      {
+        label: "Relatório",
+        value: options.reportName || "Relatório",
+      },
+      {
+        label: getResumoLabel(options.reportName || "Relatório"),
+        value: rows.length,
+      },
+      {
+        label: "Data de geração",
+        value: options.dataGeracao || new Date().toLocaleDateString("pt-BR"),
+      },
+    ];
 
   if (options.indicadores?.length) {
     options.indicadores.slice(0, 4).forEach((indicador) => {
@@ -3196,164 +3196,257 @@ function texto(value: unknown): string {
   return String(value).trim();
 }
 
-export function exportRelatorioGeralPdf(options: RelatorioGeralPdfOptions) {
-  const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+export async function exportRelatorioGeralPdf(options: RelatorioGeralPdfOptions) {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+    compress: true,
+  });
 
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
+  const ctx = await resolvePdfContext();
 
-  const margem = 42;
-  const verde = [24, 83, 75] as const;
-  const verdeClaro = [232, 242, 238] as const;
-  const cinzaTexto = [94, 105, 101] as const;
-  const borda = [221, 228, 225] as const;
+  const reportName = options.reportName || "Relatório Geral";
 
-  doc.setFillColor(...verde);
-  doc.rect(0, 0, pageWidth, 132, "F");
+  const headerOptions: HeaderOptions = {
+    title: formatReportTitle(reportName),
+    documentNumber: buildRelatorioDocumentNumber(reportName),
+  };
 
-  doc.setTextColor(255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(21);
-  doc.text(options.reportName, margem, 48);
+  drawHeader(doc, headerOptions, ctx);
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text(options.nomeEmpresa || "Organização", margem, 72);
+  let cursor = BODY_START_Y;
 
-  doc.setFontSize(9);
-  doc.text(
-    options.dataGeracao
-      ? `Gerado em ${options.dataGeracao}`
-      : `Gerado em ${new Date().toLocaleDateString("pt-BR")}`,
-    margem,
-    91,
+  const totalIndicadores = options.grupos.reduce(
+    (total, grupo) => total + grupo.indicadores.length,
+    0,
   );
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("Sistema Aurit", pageWidth - margem, 91, { align: "right" });
+  cursor = drawSectionTitle(
+    doc,
+    "Identificação do Relatório",
+    cursor,
+    headerOptions,
+    ctx,
+  );
 
-  doc.setTextColor(0);
+  cursor = drawGridFields(
+    doc,
+    [
+      {
+        label: "Organização",
+        value: options.nomeEmpresa || getNomeInstitucional(ctx),
+      },
+      {
+        label: "Relatório",
+        value: reportName,
+      },
+      {
+        label: "Total de grupos",
+        value: options.grupos.length,
+      },
+      {
+        label: "Total de indicadores",
+        value: totalIndicadores,
+      },
+      {
+        label: "Data de geração",
+        value: options.dataGeracao || new Date().toLocaleDateString("pt-BR"),
+      },
+    ],
+    cursor,
+    headerOptions,
+    ctx,
+  );
 
-  let y = 158;
+  cursor += 3;
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.setTextColor(...verde);
-  doc.text("Visão consolidada da organização", margem, y);
+  cursor = drawSectionTitle(
+    doc,
+    "Visão Consolidada da Organização",
+    cursor,
+    headerOptions,
+    ctx,
+  );
 
-  y += 18;
+  cursor = drawRelatorioGeralTexto(
+    doc,
+    "Este documento reúne os principais indicadores institucionais, operacionais, financeiros, documentais e de prestação de contas cadastrados na plataforma.",
+    cursor,
+    headerOptions,
+    ctx,
+  );
+
+  cursor += 2;
+
+  for (const grupo of options.grupos) {
+    cursor = drawRelatorioGeralGrupo(
+      doc,
+      grupo,
+      cursor,
+      headerOptions,
+      ctx,
+    );
+  }
+
+  const total = doc.getNumberOfPages();
+
+  for (let i = 1; i <= total; i += 1) {
+    doc.setPage(i);
+    drawFooter(doc, i, total, ctx);
+  }
+
+  doc.save(buildFileName(reportName, "pdf"));
+}
+
+function drawRelatorioGeralTexto(
+  doc: jsPDF,
+  text: string,
+  cursor: number,
+  opts: HeaderOptions,
+  ctx: PdfContext,
+) {
+  const contentWidth = getContentWidth(doc);
+  const lines = doc.splitTextToSize(text, contentWidth);
+
+  const boxHeight = lines.length * 4.6 + 8;
+
+  cursor = ensureSpace(doc, cursor, boxHeight + 3, opts, ctx);
+
+  doc.setFillColor(252, 253, 253);
+  doc.setDrawColor(...CINZA_BORDA);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(MARGIN_LEFT, cursor, contentWidth, boxHeight, 1.5, 1.5, "FD");
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9.5);
-  doc.setTextColor(...cinzaTexto);
+  doc.setFontSize(8.8);
+  doc.setTextColor(...CINZA_TEXTO);
+  doc.text(lines, MARGIN_LEFT + 5, cursor + 6.5);
 
-  const intro =
-    "Este documento reúne os principais indicadores institucionais, operacionais, financeiros, documentais e de prestação de contas cadastrados na plataforma.";
+  return cursor + boxHeight + 4;
+}
 
-  const introLines = doc.splitTextToSize(intro, pageWidth - margem * 2);
-  doc.text(introLines, margem, y);
+function drawRelatorioGeralGrupo(
+  doc: jsPDF,
+  grupo: RelatorioGeralPdfGrupo,
+  cursor: number,
+  opts: HeaderOptions,
+  ctx: PdfContext,
+) {
+  if (!grupo.indicadores.length) return cursor;
 
-  y += introLines.length * 13 + 18;
+  cursor = ensureSpace(doc, cursor, 36, opts, ctx);
 
-  options.grupos.forEach((grupo, groupIndex) => {
-    if (y > pageHeight - 140) {
-      addFooter(doc);
-      doc.addPage();
-      y = 52;
+  cursor = drawRelatorioGeralTituloGrupo(doc, grupo.titulo, cursor, opts, ctx);
+
+  const contentWidth = getContentWidth(doc);
+  const gap = 5;
+  const cardsPerRow = 2;
+  const cardW = (contentWidth - gap) / cardsPerRow;
+  const cardH = 24;
+  const rowGap = 5;
+
+  grupo.indicadores.forEach((indicador, index) => {
+    const col = index % cardsPerRow;
+
+    if (col === 0) {
+      const before = cursor;
+
+      cursor = ensureSpace(doc, cursor, cardH + rowGap, opts, ctx);
+
+      if (cursor < before) {
+        cursor = drawRelatorioGeralTituloGrupo(
+          doc,
+          `${grupo.titulo} — continuação`,
+          cursor,
+          opts,
+          ctx,
+        );
+      }
     }
 
-    doc.setFillColor(...verdeClaro);
-    doc.setDrawColor(...borda);
-    doc.roundedRect(margem, y, pageWidth - margem * 2, 34, 6, 6, "FD");
+    const x = MARGIN_LEFT + col * (cardW + gap);
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(...verde);
-    doc.text(grupo.titulo, margem + 12, y + 22);
+    drawRelatorioGeralCard(
+      doc,
+      x,
+      cursor,
+      cardW,
+      cardH,
+      indicador.label,
+      formatPdfValue(indicador.valor, indicador.chave),
+    );
 
-    y += 48;
-
-    const cardsPerRow = 2;
-    const gap = 12;
-    const cardW = (pageWidth - margem * 2 - gap) / cardsPerRow;
-    const cardH = 58;
-
-    grupo.indicadores.forEach((indicador, index) => {
-      if (y > pageHeight - 110) {
-        addFooter(doc);
-        doc.addPage();
-        y = 52;
-      }
-
-      const col = index % cardsPerRow;
-      const x = margem + col * (cardW + gap);
-
-      if (index > 0 && col === 0) {
-        y += cardH + gap;
-      }
-
-      doc.setFillColor(255, 255, 255);
-      doc.setDrawColor(...borda);
-      doc.roundedRect(x, y, cardW, cardH, 7, 7, "FD");
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(...cinzaTexto);
-
-      const labelLines = doc.splitTextToSize(indicador.label, cardW - 22);
-      doc.text(labelLines.slice(0, 2), x + 11, y + 17);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
-      doc.setTextColor(29, 36, 33);
-
-      const valor = formatPdfValue(indicador.valor, indicador.chave);
-      const valorLines = doc.splitTextToSize(valor, cardW - 22);
-      doc.text(valorLines.slice(0, 1), x + 11, y + 44);
-    });
-
-    y += cardH + 26;
-
-    if (groupIndex < options.grupos.length - 1) {
-      doc.setDrawColor(235, 238, 237);
-      doc.line(margem, y - 8, pageWidth - margem, y - 8);
+    if (col === cardsPerRow - 1 || index === grupo.indicadores.length - 1) {
+      cursor += cardH + rowGap;
     }
   });
 
-  addFooter(doc);
+  return cursor + 2;
+}
 
-  doc.save(buildFileName(options.reportName, "pdf"));
+function drawRelatorioGeralTituloGrupo(
+  doc: jsPDF,
+  title: string,
+  cursor: number,
+  opts: HeaderOptions,
+  ctx: PdfContext,
+) {
+  const contentWidth = getContentWidth(doc);
+  const titleHeight = 10;
 
-  function addFooter(documento: jsPDF) {
-    const total = documento.getNumberOfPages();
+  cursor = ensureSpace(doc, cursor, titleHeight + 4, opts, ctx);
 
-    for (let i = 1; i <= total; i += 1) {
-      documento.setPage(i);
+  doc.setFillColor(...CINZA_HEAD);
+  doc.setDrawColor(...CINZA_BORDA);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(
+    MARGIN_LEFT,
+    cursor,
+    contentWidth,
+    titleHeight,
+    1.5,
+    1.5,
+    "FD",
+  );
 
-      documento.setDrawColor(229, 234, 232);
-      documento.line(margem, pageHeight - 42, pageWidth - margem, pageHeight - 42);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.8);
+  doc.setTextColor(...CINZA_HEAD_TEXTO);
+  doc.text(title.toUpperCase(), MARGIN_LEFT + 4, cursor + 6.6);
 
-      documento.setFont("helvetica", "normal");
-      documento.setFontSize(8);
-      documento.setTextColor(120);
+  return cursor + titleHeight + 4;
+}
 
-      documento.text(
-        "Aurit — Relatório institucional gerado automaticamente",
-        margem,
-        pageHeight - 24,
-      );
+function drawRelatorioGeralCard(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  label: string,
+  value: string,
+) {
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(...CINZA_BORDA);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(x, y, width, height, 1.8, 1.8, "FD");
 
-      documento.text(
-        `Página ${i} de ${total}`,
-        pageWidth - margem,
-        pageHeight - 24,
-        {
-          align: "right",
-        },
-      );
-    }
-  }
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.2);
+  doc.setTextColor(...CINZA_TEXTO);
+
+  const labelLines = doc.splitTextToSize(label, width - 8);
+  doc.text(labelLines.slice(0, 2), x + 4, y + 5.2);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.8);
+  doc.setTextColor(35, 45, 45);
+
+  const valueText = value && String(value).trim() ? String(value) : "—";
+  const valueLines = doc.splitTextToSize(valueText, width - 8);
+
+  doc.text(valueLines.slice(0, 2), x + 4, y + 17);
 }
 
 function formatPdfValue(value: unknown, key?: string): string {

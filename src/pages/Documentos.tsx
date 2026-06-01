@@ -757,7 +757,10 @@ export default function DocumentosPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Documentos" />
+      <WikiFloatingButton
+        pageTitle="Documentos"
+        href="https://www.aurit.com.br/wiki/institucional/documentos"
+      />
     </AppLayout>
   );
 }

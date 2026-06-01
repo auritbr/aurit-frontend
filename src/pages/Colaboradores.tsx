@@ -539,7 +539,10 @@ export default function Colaboradores() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Colaboradores" />
+      <WikiFloatingButton
+        pageTitle="Colaboradores"
+        href="https://www.aurit.com.br/wiki/pessoas/colaboradores"
+      />
     </AppLayout>
   );
 }

@@ -560,7 +560,10 @@ export default function Integrantes() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Integrantes" />
+      <WikiFloatingButton
+        pageTitle="Integrantes"
+        href="https://www.aurit.com.br/wiki/pessoas/integrantes"
+      />
     </AppLayout>
   );
 }

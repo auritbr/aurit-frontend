@@ -804,7 +804,10 @@ export default function EvidenciasPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Evidências de Execução" />
+      <WikiFloatingButton
+        pageTitle="Evidências de Execução"
+        href="https://www.aurit.com.br/wiki/evidencias/evidencias-de-execucao"
+      />
     </AppLayout>
   );
 }

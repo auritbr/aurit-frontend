@@ -2023,7 +2023,10 @@ export default function Organizacao() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Organização" />
+      <WikiFloatingButton
+        pageTitle="Dados da Organização"
+        href="https://www.aurit.com.br/wiki/institucional/dados-da-organizacao"
+      />
     </AppLayout>
   );
 }

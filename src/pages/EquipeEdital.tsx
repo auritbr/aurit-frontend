@@ -658,7 +658,10 @@ export default function EquipeEditalPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Equipe da Proposta" />
+      <WikiFloatingButton
+        pageTitle="Equipe da Proposta"
+        href="https://www.aurit.com.br/wiki/editais/equipe-da-proposta"
+      />
     </AppLayout>
   );
 }

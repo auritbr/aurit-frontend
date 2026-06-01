@@ -701,7 +701,10 @@ export default function Presencas() {
         )}
       </div>
 
-      <WikiFloatingButton pageTitle="Presenças" />
+      <WikiFloatingButton
+        pageTitle="Presenças"
+        href="https://www.aurit.com.br/wiki/execucao/presencas"
+      />
     </AppLayout>
   );
 }

@@ -93,9 +93,8 @@ const toneClass: Record<string, string> = {
 function StatusBadge({ value }: { value: string }) {
   return (
     <span
-      className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${
-        toneClass[statusPropostaEditalTone(value)] ?? toneClass.neutral
-      }`}
+      className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${toneClass[statusPropostaEditalTone(value)] ?? toneClass.neutral
+        }`}
     >
       {statusPropostaEditalLabel(value)}
     </span>
@@ -263,23 +262,23 @@ export default function PropostasEdital() {
   const organizacaoNomeById = (id?: string | number | null) =>
     id
       ? organizacoes.find((o) => String(o.id) === String(id))?.nome ??
-        `Organização ${id}`
+      `Organização ${id}`
       : "—";
 
   const pessoaEquipeNome = (membro: EquipeEdital) => {
     if (membro.tipoPessoa === "COLABORADOR") {
       return membro.colaborador
         ? colaboradoresEquipe.find(
-            (c) => String(c.id) === String(membro.colaborador),
-          )?.nome ?? "—"
+          (c) => String(c.id) === String(membro.colaborador),
+        )?.nome ?? "—"
         : "—";
     }
 
     if (membro.tipoPessoa === "INTEGRANTE") {
       return membro.integrante
         ? integrantesEquipe.find(
-            (i) => String(i.id) === String(membro.integrante),
-          )?.nome ?? "—"
+          (i) => String(i.id) === String(membro.integrante),
+        )?.nome ?? "—"
         : "—";
     }
 
@@ -297,7 +296,7 @@ export default function PropostasEdital() {
         const funcao = membro.funcaoProjeto || "Função não informada";
         const carga =
           membro.cargaHorariaPrevista !== null &&
-          membro.cargaHorariaPrevista !== undefined
+            membro.cargaHorariaPrevista !== undefined
             ? `${membro.cargaHorariaPrevista}h`
             : "Carga horária não informada";
 
@@ -398,7 +397,7 @@ export default function PropostasEdital() {
       valorSolicitado: formatBRLNumber(proposta.valorSolicitado),
       valorContrapartida:
         proposta.valorContrapartida !== null &&
-        proposta.valorContrapartida !== undefined
+          proposta.valorContrapartida !== undefined
           ? formatBRLNumber(proposta.valorContrapartida)
           : "",
 
@@ -813,7 +812,10 @@ export default function PropostasEdital() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Propostas de Edital" />
+      <WikiFloatingButton
+        pageTitle="Propostas de Edital"
+        href="https://www.aurit.com.br/wiki/editais/propostas-de-edital"
+      />
     </AppLayout>
   );
 }

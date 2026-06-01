@@ -619,7 +619,10 @@ export default function Projetos() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Projetos" />
+      <WikiFloatingButton
+        pageTitle="Projetos"
+        href="https://www.aurit.com.br/wiki/projetos/projetos"
+      />
     </AppLayout>
   );
 }

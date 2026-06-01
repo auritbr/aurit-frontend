@@ -607,7 +607,10 @@ export default function MetasProjetoPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Metas do Projeto" />
+      <WikiFloatingButton
+        pageTitle="Metas do Projeto"
+        href="https://www.aurit.com.br/wiki/projetos/metas-do-projeto"
+      />
     </AppLayout>
   );
 }

@@ -70,9 +70,8 @@ function StatusBadge({ value }: { value: string }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${
-        toneClass[tone] ?? toneClass.neutral
-      }`}
+      className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${toneClass[tone] ?? toneClass.neutral
+        }`}
     >
       {statusResultadoPropostaLabel(value)}
     </span>
@@ -463,11 +462,10 @@ export default function ResultadosPropostas() {
 
                       <td className="whitespace-nowrap px-6 py-2.5">
                         <span
-                          className={`text-sm ${
-                            item.urlRelatorioAvaliacao
+                          className={`text-sm ${item.urlRelatorioAvaliacao
                               ? "text-foreground"
                               : "text-muted-foreground"
-                          }`}
+                            }`}
                         >
                           {item.urlRelatorioAvaliacao
                             ? "Anexado"
@@ -662,7 +660,10 @@ export default function ResultadosPropostas() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Resultado da Proposta" />
+      <WikiFloatingButton
+        pageTitle="Resultado da Proposta"
+        href="https://www.aurit.com.br/wiki/editais/resultado-da-proposta"
+      />
     </AppLayout>
   );
 }
