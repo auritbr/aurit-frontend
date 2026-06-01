@@ -246,28 +246,38 @@ const optionLabels = {
   ) as Record<string, string>,
 };
 
-const requiredFields: Array<[keyof OrganizacaoForm, string]> = [
-  ["razaoSocial", "Razão Social"],
-  ["cnpj", "CNPJ"],
-  ["dataFundacao", "Data de Fundação"],
-  ["emailInstitucional", "E-mail Institucional"],
-  ["telefoneInstitucional", "Telefone Institucional"],
-  ["territorioAtuacao", "Território de Atuação"],
-  ["historicoAtuacao", "Histórico de Atuação"],
-  ["nomeRepresentanteLegal", "Nome do Representante Legal"],
-  ["cpfRepresentanteLegal", "CPF do Representante Legal"],
-  ["rgRepresentanteLegal", "RG do Representante Legal"],
-  ["telefoneRepresentanteLegal", "Telefone do Representante Legal"],
-  ["tipoAgente", "Tipo de Agente"],
-  ["tipoIniciativaCultural", "Tipo de Iniciativa Cultural"],
-  ["areaAtuacao", "Área de Atuação"],
-  ["cep", "CEP"],
-  ["logradouro", "Logradouro"],
-  ["numero", "Número"],
-  ["bairro", "Bairro"],
-  ["cidade", "Cidade"],
-  ["estado", "Estado"],
-];
+function getRequiredFields(tipoAgente?: string): Array<[keyof OrganizacaoForm, string]> {
+  const fields: Array<[keyof OrganizacaoForm, string]> = [
+    ["tipoAgente", "Tipo de Agente"],
+    ["razaoSocial", getLabelRazaoSocial(tipoAgente)],
+    ["cnpj", getLabelDocumentoPrincipal(tipoAgente)],
+    ["dataFundacao", getLabelDataPrincipal(tipoAgente)],
+    ["emailInstitucional", getLabelEmailPrincipal(tipoAgente)],
+    ["telefoneInstitucional", getLabelTelefonePrincipal(tipoAgente)],
+    ["tipoIniciativaCultural", "Tipo de Iniciativa Cultural"],
+    ["areaAtuacao", "Área de Atuação"],
+    ["cep", "CEP"],
+    ["logradouro", "Logradouro"],
+    ["numero", "Número"],
+    ["bairro", "Bairro"],
+    ["cidade", "Cidade"],
+    ["estado", "Estado"],
+  ];
+
+  if (deveMostrarTerritorioHistorico(tipoAgente)) {
+    fields.push(["territorioAtuacao", "Território de Atuação"]);
+    fields.push(["historicoAtuacao", "Histórico de Atuação Institucional"]);
+  }
+
+  if (deveMostrarRepresentanteLegal(tipoAgente)) {
+    fields.push(["nomeRepresentanteLegal", getLabelNomeRepresentante(tipoAgente)]);
+    fields.push(["cpfRepresentanteLegal", getLabelCpfRepresentante(tipoAgente)]);
+    fields.push(["rgRepresentanteLegal", getLabelRgRepresentante(tipoAgente)]);
+    fields.push(["telefoneRepresentanteLegal", getLabelTelefoneRepresentante(tipoAgente)]);
+  }
+
+  return fields;
+}
 
 const createEmptyForm = (): OrganizacaoForm => ({
   id: "",
@@ -511,13 +521,215 @@ function labelFromMap(map: Record<string, string>, value?: string) {
   return map[value] ?? value;
 }
 
+
+function isPessoaFisica(tipoAgente?: string | null) {
+  return tipoAgente === "PESSOA_FISICA";
+}
+
+function isMei(tipoAgente?: string | null) {
+  return tipoAgente === "MEI";
+}
+
+function isPessoaJuridica(tipoAgente?: string | null) {
+  return (
+    tipoAgente === "PESSOA_JURIDICA_COM_FINS_LUCRATIVOS" ||
+    tipoAgente === "PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS"
+  );
+}
+
+function isColetivo(tipoAgente?: string | null) {
+  return tipoAgente === "GRUPO_COLETIVO";
+}
+
+function deveMostrarRepresentanteLegal(tipoAgente?: string | null) {
+  return !isPessoaFisica(tipoAgente);
+}
+
+function deveMostrarTerritorioHistorico(tipoAgente?: string | null) {
+  return isPessoaJuridica(tipoAgente);
+}
+
+function getTituloDadosPrincipais(tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) return "Dados Pessoais";
+  if (isColetivo(tipoAgente)) return "Dados do Coletivo";
+  if (isMei(tipoAgente)) return "Dados do MEI";
+  return "Dados Institucionais";
+}
+
+function getTituloContato(tipoAgente?: string | null) {
+  if (isPessoaJuridica(tipoAgente)) return "Contato e Presença Institucional";
+  return "Contato";
+}
+
+function getTituloRepresentante(tipoAgente?: string | null) {
+  if (isMei(tipoAgente)) return "Representante";
+  if (isColetivo(tipoAgente)) return "Representante do Coletivo";
+  return "Representante legal";
+}
+
+function getLabelRazaoSocial(tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) return "Nome Completo";
+  if (isColetivo(tipoAgente)) return "Nome do Grupo/Coletivo";
+  return "Razão Social";
+}
+
+function getLabelNomeFantasia(tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) return "Nome Social ou Artístico";
+  if (isColetivo(tipoAgente)) return "Nome Público do Coletivo";
+  return "Nome Fantasia";
+}
+
+function getLabelDocumentoPrincipal(tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) return "CPF";
+  if (isColetivo(tipoAgente)) return "Documento de Identificação";
+  return "CNPJ";
+}
+
+function getLabelDataPrincipal(tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) return "Data de Nascimento";
+  if (isColetivo(tipoAgente)) return "Data de Criação";
+  return "Data de Fundação";
+}
+
+function getLabelEmailPrincipal(tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) return "E-mail";
+  if (isMei(tipoAgente)) return "E-mail";
+  if (isColetivo(tipoAgente)) return "E-mail do Coletivo";
+  return "E-mail Institucional";
+}
+
+function getLabelTelefonePrincipal(tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) return "Telefone";
+  if (isMei(tipoAgente)) return "Telefone";
+  if (isColetivo(tipoAgente)) return "Telefone do coletivo";
+  return "Telefone Institucional";
+}
+
+function getLabelNomeRepresentante(tipoAgente?: string | null) {
+  if (isMei(tipoAgente)) return "Nome do Representante";
+  if (isColetivo(tipoAgente)) return "Nome do Representante Legal";
+  return "Nome do Representante Legal";
+}
+
+function getLabelCpfRepresentante(tipoAgente?: string | null) {
+  if (isMei(tipoAgente)) return "CPF do Representante";
+  return "CPF do Representante Legal";
+}
+
+function getLabelRgRepresentante(tipoAgente?: string | null) {
+  if (isMei(tipoAgente)) return "RG do Representante";
+  return "RG do Representante Legal";
+}
+
+function getLabelTelefoneRepresentante(tipoAgente?: string | null) {
+  if (isMei(tipoAgente)) return "Telefone do Representante";
+  return "Telefone do Representante Legal";
+}
+
+function getLabelEmailRepresentante(tipoAgente?: string | null) {
+  if (isMei(tipoAgente)) return "E-mail do Representante";
+  return "E-mail do Representante Legal";
+}
+
+function maskDocumentoPrincipal(value: string, tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) return maskCPF(value);
+  if (isMei(tipoAgente) || isPessoaJuridica(tipoAgente)) return maskCNPJ(value);
+
+  return onlyDigits(value).slice(0, 20);
+}
+
+function formatDocumentoPrincipalForView(value?: string | null, tipoAgente?: string | null) {
+  if (!value) return "";
+
+  if (isPessoaFisica(tipoAgente)) return maskCPF(value);
+  if (isMei(tipoAgente) || isPessoaJuridica(tipoAgente)) return maskCNPJ(value);
+
+  return onlyDigits(value);
+}
+
+function getDocumentoPrincipalError(tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) return "Informe um CPF válido com 11 dígitos.";
+  if (isMei(tipoAgente) || isPessoaJuridica(tipoAgente)) {
+    return "Informe um CNPJ válido com 14 dígitos.";
+  }
+
+  if (isColetivo(tipoAgente)) {
+    return "Informe um documento de identificação com 5 a 20 dígitos.";
+  }
+
+  return "Informe um documento principal válido.";
+}
+
+function documentoPrincipalValido(tipoAgente: string, documento: string) {
+  const digits = onlyDigits(documento);
+
+  if (isPessoaFisica(tipoAgente)) return digits.length === 11;
+  if (isMei(tipoAgente) || isPessoaJuridica(tipoAgente)) {
+    return digits.length === 14;
+  }
+
+  if (isColetivo(tipoAgente)) {
+    return digits.length >= 5 && digits.length <= 20;
+  }
+
+  return digits.length >= 5 && digits.length <= 20;
+}
+
+function getTooltipRazaoSocial(tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) {
+    return "Informe o nome completo da pessoa física, conforme documento oficial.";
+  }
+
+  if (isColetivo(tipoAgente)) {
+    return "Informe o nome do grupo ou coletivo cultural.";
+  }
+
+  return "Informe a razão social conforme consta no CNPJ, contrato social, estatuto ou documento de constituição.";
+}
+
+function getTooltipNomeFantasia(tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) {
+    return "Informe o nome social, nome artístico ou nome pelo qual o agente é conhecido publicamente, se houver.";
+  }
+
+  if (isColetivo(tipoAgente)) {
+    return "Informe o nome público ou nome de divulgação do coletivo, se houver.";
+  }
+
+  return "Informe o nome pelo qual a organização ou empresa é conhecida publicamente. Caso não tenha, pode repetir a razão social.";
+}
+
+function getTooltipDocumentoPrincipal(tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) {
+    return "Informe o CPF da pessoa física utilizando apenas números ou a máscara padrão.";
+  }
+
+  if (isColetivo(tipoAgente)) {
+    return "Informe o documento de identificação do grupo/coletivo, utilizando apenas números.";
+  }
+
+  return "Informe o CNPJ utilizando apenas números ou a máscara padrão.";
+}
+
+function getTooltipDataPrincipal(tipoAgente?: string | null) {
+  if (isPessoaFisica(tipoAgente)) {
+    return "Informe a data de nascimento da pessoa física.";
+  }
+
+  if (isColetivo(tipoAgente)) {
+    return "Informe a data de criação ou início de atuação do grupo/coletivo.";
+  }
+
+  return "Informe a data de fundação ou abertura formal.";
+}
+
 function mapOrganizacao(dto: OrganizacaoDTO): OrganizacaoData {
   return {
     id: String(dto.id ?? dto.organizacaoId ?? dto.idOrganizacao ?? ""),
 
     razaoSocial: dto.razaoSocial ?? "",
     nomeFantasia: dto.nomeFantasia ?? "",
-    cnpj: dto.cnpj ? maskCNPJ(dto.cnpj) : "",
+    cnpj: formatDocumentoPrincipalForView(dto.cnpj, dto.tipoAgente),
     dataFundacao: dto.dataFundacao ?? "",
     emailInstitucional: dto.emailInstitucional ?? "",
     telefoneInstitucional: dto.telefoneInstitucional
@@ -555,6 +767,9 @@ function mapOrganizacao(dto: OrganizacaoDTO): OrganizacaoData {
 }
 
 function buildPayload(form: OrganizacaoForm): OrganizacaoDTO {
+  const mostraRepresentante = deveMostrarRepresentanteLegal(form.tipoAgente);
+  const mostraTerritorioHistorico = deveMostrarTerritorioHistorico(form.tipoAgente);
+
   return {
     id: form.id ? Number(form.id) : undefined,
 
@@ -565,20 +780,26 @@ function buildPayload(form: OrganizacaoForm): OrganizacaoDTO {
     emailInstitucional: normalizeEmailInput(form.emailInstitucional),
     telefoneInstitucional: form.telefoneInstitucional.trim(),
     site: normalizeSiteForPayload(form.site),
-    territorioAtuacao: form.territorioAtuacao.trim(),
-    historicoAtuacao: form.historicoAtuacao.trim(),
+    territorioAtuacao: mostraTerritorioHistorico
+      ? form.territorioAtuacao.trim()
+      : null,
+    historicoAtuacao: mostraTerritorioHistorico
+      ? form.historicoAtuacao.trim()
+      : null,
 
-    representanteLegal: {
-      id: form.representanteLegalId
-        ? Number(form.representanteLegalId)
-        : undefined,
-      nomeRepresentante: form.nomeRepresentanteLegal.trim(),
-      cpfRepresentante: onlyDigits(form.cpfRepresentanteLegal),
-      rgRepresentante: form.rgRepresentanteLegal.trim(),
-      telefoneRepresentante: form.telefoneRepresentanteLegal.trim(),
-      emailRepresentante:
-        normalizeEmailInput(form.emailRepresentanteLegal) || null,
-    },
+    representanteLegal: mostraRepresentante
+      ? {
+          id: form.representanteLegalId
+            ? Number(form.representanteLegalId)
+            : undefined,
+          nomeRepresentante: form.nomeRepresentanteLegal.trim(),
+          cpfRepresentante: onlyDigits(form.cpfRepresentanteLegal),
+          rgRepresentante: form.rgRepresentanteLegal.trim(),
+          telefoneRepresentante: form.telefoneRepresentanteLegal.trim(),
+          emailRepresentante:
+            normalizeEmailInput(form.emailRepresentanteLegal) || null,
+        }
+      : null,
 
     tipoAgente: form.tipoAgente,
     tipoIniciativaCultural: form.tipoIniciativaCultural,
@@ -596,12 +817,12 @@ function buildPayload(form: OrganizacaoForm): OrganizacaoDTO {
 
 function salvarProximaAcaoOrganizacao() {
   const card: OrganizacaoNextStepCardData = {
-    titulo: "Agora registre quem representa a organização",
+    titulo: "Agora complete os cadastros principais",
     descricao:
-      "Cadastre os membros da diretoria para manter atualizadas as informações institucionais usadas em documentos, editais, contratos, relatórios e prestações de contas.",
-    acaoLabel: "Cadastrar diretoria",
+      "Após salvar os dados institucionais, mantenha atualizados os demais cadastros conforme a realidade da atuação.",
+    acaoLabel: "Ir para diretoria",
     acaoUrl: "/diretoria",
-    acaoSecundariaLabel: "Ver Organizações",
+    acaoSecundariaLabel: "Ver cadastros",
     acaoSecundariaUrl: "/organizacoes",
     variante: "pendente",
   };
@@ -639,6 +860,12 @@ export default function Organizacao() {
 
   const visualizando = mode === "view";
   const readOnly = visualizando;
+
+  const tipoAgenteSelecionado = form.tipoAgente;
+  const mostrarRepresentanteLegal =
+    deveMostrarRepresentanteLegal(tipoAgenteSelecionado);
+  const mostrarTerritorioHistorico =
+    deveMostrarTerritorioHistorico(tipoAgenteSelecionado);
 
   useEffect(() => {
     let active = true;
@@ -729,7 +956,7 @@ export default function Organizacao() {
       const message =
         error instanceof Error
           ? error.message
-          : "Erro ao carregar organizações.";
+          : "Erro ao carregar dados institucionais.";
 
       if (isPlanoAccessDenied(message)) {
         setAccessDeniedMessage(message);
@@ -797,7 +1024,7 @@ export default function Organizacao() {
 
   const openRecord = (record: OrganizacaoData, nextMode: FormMode) => {
     if (nextMode === "edit" && !podeEditar) {
-      toast.error("Você não possui permissão para editar organização.");
+      toast.error("Você não possui permissão para editar dados institucionais.");
       return;
     }
 
@@ -812,7 +1039,7 @@ export default function Organizacao() {
 
   const handleNew = () => {
     if (!podeCriar) {
-      toast.error("Você não possui permissão para cadastrar organização.");
+      toast.error("Você não possui permissão para cadastrar dados institucionais.");
       return;
     }
 
@@ -833,7 +1060,7 @@ export default function Organizacao() {
     if (!confirmDeleteId) return;
 
     if (!podeExcluir) {
-      toast.error("Você não possui permissão para excluir organização.");
+      toast.error("Você não possui permissão para excluir este cadastro.");
       setConfirmDeleteId(null);
       return;
     }
@@ -858,10 +1085,10 @@ export default function Organizacao() {
 
       await carregarOrganizacoes(wasSelected ? null : selectedId);
 
-      toast.success("Organização excluída com sucesso.");
+      toast.success("Cadastro excluído com sucesso.");
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Erro ao excluir organização.";
+        error instanceof Error ? error.message : "Erro ao excluir cadastro.";
 
       if (isPlanoAccessDenied(message)) {
         setAccessDeniedMessage(message);
@@ -956,7 +1183,7 @@ export default function Organizacao() {
   }
 
   const validarFormulario = () => {
-    const missing = requiredFields.find(
+    const missing = getRequiredFields(form.tipoAgente).find(
       ([key]) => !String(form[key] ?? "").trim(),
     );
 
@@ -965,13 +1192,16 @@ export default function Organizacao() {
       return false;
     }
 
-    if (onlyDigits(form.cnpj).length !== 14) {
-      toast.error("Informe um CNPJ válido com 14 dígitos.");
+    if (!documentoPrincipalValido(form.tipoAgente, form.cnpj)) {
+      toast.error(getDocumentoPrincipalError(form.tipoAgente));
       return false;
     }
 
-    if (onlyDigits(form.cpfRepresentanteLegal).length !== 11) {
-      toast.error("Informe um CPF válido para o representante legal.");
+    if (
+      mostrarRepresentanteLegal &&
+      onlyDigits(form.cpfRepresentanteLegal).length !== 11
+    ) {
+      toast.error("Informe um CPF válido para o representante.");
       return false;
     }
 
@@ -981,12 +1211,15 @@ export default function Organizacao() {
     }
 
     if (!isValidEmail(form.emailInstitucional)) {
-      toast.error("Informe um e-mail institucional válido.");
+      toast.error("Informe um e-mail válido.");
       return false;
     }
 
-    if (!isValidEmail(form.emailRepresentanteLegal)) {
-      toast.error("Informe um e-mail válido para o representante legal.");
+    if (
+      mostrarRepresentanteLegal &&
+      !isValidEmail(form.emailRepresentanteLegal)
+    ) {
+      toast.error("Informe um e-mail válido para o representante.");
       return false;
     }
 
@@ -1004,12 +1237,12 @@ export default function Organizacao() {
     if (visualizando) return;
 
     if (mode === "create" && !podeCriar) {
-      toast.error("Você não possui permissão para cadastrar organização.");
+      toast.error("Você não possui permissão para cadastrar dados institucionais.");
       return;
     }
 
     if (mode === "edit" && !podeEditar) {
-      toast.error("Você não possui permissão para editar organização.");
+      toast.error("Você não possui permissão para editar dados institucionais.");
       return;
     }
 
@@ -1070,12 +1303,12 @@ export default function Organizacao() {
 
       toast.success(
         isCreating
-          ? "Organização cadastrada com sucesso."
-          : "Organização salva com sucesso.",
+          ? "Dados institucionais cadastrados com sucesso."
+          : "Dados institucionais salvos com sucesso.",
       );
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Erro ao salvar organização.";
+        error instanceof Error ? error.message : "Erro ao salvar dados institucionais.";
 
       if (isPlanoAccessDenied(message)) {
         setAccessDeniedMessage(message);
@@ -1123,8 +1356,8 @@ export default function Organizacao() {
         )}
 
         <PageTitle
-          title="Dados da Organização"
-          tooltip="Cadastre as informações oficiais da sua organização. Esses dados ajudam a identificar a instituição, organizar documentos, preencher projetos, gerar relatórios e preparar inscrições em editais com mais segurança."
+          title="Dados Institucionais"
+          tooltip="Cadastre as informações principais do cadastro institucional, conforme o tipo selecionado: pessoa física, MEI, grupo/coletivo ou pessoa jurídica."
         />
 
         {!showForm && nextStepCard && (
@@ -1152,316 +1385,13 @@ export default function Organizacao() {
 
         {showForm ? (
           <form onSubmit={handleSubmit} className="space-y-5">
-            <Section icon={Building2} title="Dados institucionais">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="razaoSocial"
-                    required={!visualizando}
-                    tooltip="Informe o nome oficial da organização, conforme consta no CNPJ, estatuto, ata ou documento de constituição. Ex.: Associação Cultural Arte Viva."
-                  >
-                    Razão Social
-                  </FieldLabel>
-
-                  <Input
-                    id="razaoSocial"
-                    value={form.razaoSocial}
-                    onChange={(e) => setField("razaoSocial", e.target.value)}
-                    disabled={readOnly || saving}
-                    readOnly={readOnly}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="nomeFantasia"
-                    tooltip="Informe o nome pelo qual a organização é conhecida publicamente. Ex.: Projeto Arte Viva."
-                  >
-                    Nome Fantasia
-                  </FieldLabel>
-
-                  <Input
-                    id="nomeFantasia"
-                    value={form.nomeFantasia}
-                    onChange={(e) => setField("nomeFantasia", e.target.value)}
-                    disabled={readOnly || saving}
-                    readOnly={readOnly}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="cnpj"
-                    required={!visualizando}
-                    tooltip="Informe o CNPJ da organização utilizando apenas números. Ex.: 12.345.678/0001-90."
-                  >
-                    CNPJ
-                  </FieldLabel>
-
-                  <Input
-                    id="cnpj"
-                    value={form.cnpj}
-                    onChange={(e) => setField("cnpj", maskCNPJ(e.target.value))}
-                    inputMode="numeric"
-                    disabled={readOnly || saving}
-                    readOnly={readOnly}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="dataFundacao"
-                    required={!visualizando}
-                    tooltip="Informe a data de fundação ou início formal da organização. Essa informação pode ser utilizada para comprovar tempo de atuação em editais e documentos institucionais. Ex.: 15/03/2018."
-                  >
-                    Data de Fundação
-                  </FieldLabel>
-
-                  <Input
-                    id="dataFundacao"
-                    type="date"
-                    value={form.dataFundacao}
-                    onChange={(e) => setField("dataFundacao", e.target.value)}
-                    disabled={readOnly || saving}
-                    readOnly={readOnly}
-                  />
-                </Field>
-              </div>
-            </Section>
-
-            <Section icon={Mail} title="Contato e presença institucional">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="emailInstitucional"
-                    required={!visualizando}
-                    tooltip="Informe o e-mail oficial da organização. Esse contato pode ser usado em documentos, relatórios, inscrições em editais e comunicações institucionais."
-                  >
-                    E-mail Institucional
-                  </FieldLabel>
-
-                  <EmailInput
-                    id="emailInstitucional"
-                    value={form.emailInstitucional}
-                    onChange={(e) =>
-                      setField("emailInstitucional", e.target.value)
-                    }
-                    disabled={readOnly || saving}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="telefoneInstitucional"
-                    required={!visualizando}
-                    tooltip="Informe o telefone institucional da organização. Ex.: telefone fixo, celular ou WhatsApp usado oficialmente pela equipe."
-                  >
-                    Telefone Institucional
-                  </FieldLabel>
-
-                  <Input
-                    id="telefoneInstitucional"
-                    value={form.telefoneInstitucional}
-                    onChange={(e) =>
-                      setField(
-                        "telefoneInstitucional",
-                        maskPhone(e.target.value),
-                      )
-                    }
-                    inputMode="tel"
-                    disabled={readOnly || saving}
-                    readOnly={readOnly}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="site"
-                    tooltip="Informe o site oficial da organização, se houver. Também pode ser uma página institucional, portfólio online ou link público de apresentação. Ex.: trupencanta.org.br ou https://trupencanta.org.br."
-                  >
-                    Site
-                  </FieldLabel>
-
-                  <Input
-                    id="site"
-                    type="text"
-                    inputMode="url"
-                    value={form.site}
-                    onChange={(e) => setField("site", e.target.value)}
-                    onBlur={(e) => {
-                      if (readOnly) return;
-                      setField("site", maskSite(e.target.value));
-                    }}
-                    autoComplete="url"
-                    disabled={readOnly || saving}
-                    readOnly={readOnly}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="territorioAtuacao"
-                    required={!visualizando}
-                    tooltip="Descreva os bairros, comunidades, cidades ou regiões onde a organização atua ou já realizou ações. Ex.: Atuação em bairros de Juiz de Fora e comunidades rurais da Zona da Mata Mineira."
-                  >
-                    Território de Atuação
-                  </FieldLabel>
-
-                  <Textarea
-                    id="territorioAtuacao"
-                    value={form.territorioAtuacao}
-                    onChange={(e) =>
-                      setField("territorioAtuacao", e.target.value)
-                    }
-                    className="min-h-10 resize-y"
-                    disabled={readOnly || saving}
-                    readOnly={readOnly}
-                  />
-                </Field>
-
-                <Field full>
-                  <FieldLabel
-                    htmlFor="historicoAtuacao"
-                    required={!visualizando}
-                    tooltip="Descreva a trajetória da organização, destacando quando iniciou suas atividades, principais ações realizadas, públicos atendidos, parcerias, conquistas e contribuições para o território. Ex.: Desde 2021, a organização desenvolve oficinas, apresentações e ações culturais voltadas para crianças, jovens e famílias da comunidade."
-                  >
-                    Histórico de Atuação da Organização
-                  </FieldLabel>
-
-                  <Textarea
-                    id="historicoAtuacao"
-                    value={form.historicoAtuacao}
-                    onChange={(e) =>
-                      setField("historicoAtuacao", e.target.value)
-                    }
-                    className="min-h-24 resize-y"
-                    disabled={readOnly || saving}
-                    readOnly={readOnly}
-                  />
-                </Field>
-              </div>
-            </Section>
-
-            <Section icon={UserSquare2} title="Representante legal">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel
-                    htmlFor="nomeRepresentanteLegal"
-                    required={!visualizando}
-                    tooltip="Informe o nome completo da pessoa que responde legalmente pela organização, conforme consta em ata, estatuto, contrato social ou documento equivalente."
-                  >
-                    Nome do Representante Legal
-                  </FieldLabel>
-
-                  <Input
-                    id="nomeRepresentanteLegal"
-                    value={form.nomeRepresentanteLegal}
-                    onChange={(e) =>
-                      setField("nomeRepresentanteLegal", e.target.value)
-                    }
-                    disabled={readOnly || saving}
-                    readOnly={readOnly}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="cpfRepresentanteLegal"
-                    required={!visualizando}
-                    tooltip="Informe o CPF do representante legal utilizando apenas números ou a máscara padrão. Ex.: 123.456.789-00."
-                  >
-                    CPF do Representante Legal
-                  </FieldLabel>
-
-                  <Input
-                    id="cpfRepresentanteLegal"
-                    value={form.cpfRepresentanteLegal}
-                    onChange={(e) =>
-                      setField(
-                        "cpfRepresentanteLegal",
-                        maskCPF(e.target.value),
-                      )
-                    }
-                    inputMode="numeric"
-                    disabled={readOnly || saving}
-                    readOnly={readOnly}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="rgRepresentanteLegal"
-                    required={!visualizando}
-                    tooltip="Informe o RG do representante legal conforme documento oficial."
-                  >
-                    RG do Representante Legal
-                  </FieldLabel>
-
-                  <Input
-                    id="rgRepresentanteLegal"
-                    value={form.rgRepresentanteLegal}
-                    onChange={(e) =>
-                      setField(
-                        "rgRepresentanteLegal",
-                        maskRGFlex(e.target.value),
-                      )
-                    }
-                    disabled={readOnly || saving}
-                    readOnly={readOnly}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="telefoneRepresentanteLegal"
-                    required={!visualizando}
-                    tooltip="Informe um telefone de contato do representante legal. Ex.: celular ou WhatsApp utilizado para comunicações oficiais."
-                  >
-                    Telefone do Representante Legal
-                  </FieldLabel>
-
-                  <Input
-                    id="telefoneRepresentanteLegal"
-                    value={form.telefoneRepresentanteLegal}
-                    onChange={(e) =>
-                      setField(
-                        "telefoneRepresentanteLegal",
-                        maskPhone(e.target.value),
-                      )
-                    }
-                    inputMode="tel"
-                    disabled={readOnly || saving}
-                    readOnly={readOnly}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="emailRepresentanteLegal"
-                    tooltip="Informe o e-mail do representante legal, se houver. Esse campo pode ser usado em documentos, contratos, editais e comunicações formais."
-                  >
-                    E-mail do Representante Legal
-                  </FieldLabel>
-
-                  <EmailInput
-                    id="emailRepresentanteLegal"
-                    value={form.emailRepresentanteLegal}
-                    onChange={(e) =>
-                      setField("emailRepresentanteLegal", e.target.value)
-                    }
-                    disabled={readOnly || saving}
-                  />
-                </Field>
-              </div>
-            </Section>
-
             <Section icon={Landmark} title="Perfil Institucional">
               <div className="grid gap-4 sm:grid-cols-3">
                 <Field>
                   <FieldLabel
                     htmlFor="tipoAgente"
                     required={!visualizando}
-                    tooltip="Selecione a forma jurídica ou tipo de agente cultural que melhor representa a organização. Ex.: Pessoa jurídica sem fins lucrativos, MEI, pessoa física ou coletivo cultural."
+                    tooltip="Selecione a forma jurídica ou tipo de agente que melhor representa este cadastro. Ex.: pessoa jurídica sem fins lucrativos, MEI, pessoa física ou grupo/coletivo."
                   >
                     Tipo de Agente
                   </FieldLabel>
@@ -1470,7 +1400,38 @@ export default function Organizacao() {
                     value={form.tipoAgente}
                     onValueChange={(value) => {
                       if (visualizando) return;
-                      setField("tipoAgente", value);
+
+                      setForm((prev) => ({
+                        ...prev,
+                        tipoAgente: value,
+                        cnpj: maskDocumentoPrincipal(prev.cnpj, value),
+                        territorioAtuacao: deveMostrarTerritorioHistorico(value)
+                          ? prev.territorioAtuacao
+                          : "",
+                        historicoAtuacao: deveMostrarTerritorioHistorico(value)
+                          ? prev.historicoAtuacao
+                          : "",
+                        representanteLegalId: deveMostrarRepresentanteLegal(value)
+                          ? prev.representanteLegalId
+                          : "",
+                        nomeRepresentanteLegal: deveMostrarRepresentanteLegal(value)
+                          ? prev.nomeRepresentanteLegal
+                          : "",
+                        cpfRepresentanteLegal: deveMostrarRepresentanteLegal(value)
+                          ? prev.cpfRepresentanteLegal
+                          : "",
+                        rgRepresentanteLegal: deveMostrarRepresentanteLegal(value)
+                          ? prev.rgRepresentanteLegal
+                          : "",
+                        telefoneRepresentanteLegal:
+                          deveMostrarRepresentanteLegal(value)
+                            ? prev.telefoneRepresentanteLegal
+                            : "",
+                        emailRepresentanteLegal:
+                          deveMostrarRepresentanteLegal(value)
+                            ? prev.emailRepresentanteLegal
+                            : "",
+                      }));
                     }}
                     disabled={readOnly || saving}
                   >
@@ -1492,7 +1453,7 @@ export default function Organizacao() {
                   <FieldLabel
                     htmlFor="tipoIniciativaCultural"
                     required={!visualizando}
-                    tooltip="Selecione o tipo de iniciativa cultural que melhor representa a atuação da organização. Ex.: Ponto de Cultura, coletivo cultural, associação cultural, grupo artístico ou produtora cultural."
+                    tooltip="Selecione o tipo de iniciativa cultural que melhor representa este cadastro. Ex.: Ponto de Cultura, coletivo cultural, associação cultural, grupo artístico ou produtora cultural."
                   >
                     Tipo de Iniciativa Cultural
                   </FieldLabel>
@@ -1523,7 +1484,7 @@ export default function Organizacao() {
                   <FieldLabel
                     htmlFor="areaAtuacao"
                     required={!visualizando}
-                    tooltip="Selecione a principal área de atuação da organização. Caso a instituição atue em mais de uma área, escolha aquela que melhor representa sua atuação central. Ex.: Cultura e Arte, Educação, Assistência Social ou Direitos Humanos."
+                    tooltip="Selecione a principal área de atuação. Caso atue em mais de uma área, escolha aquela que melhor representa sua atuação central. Ex.: Cultura e Arte, Educação, Assistência Social ou Direitos Humanos."
                   >
                     Área de Atuação
                   </FieldLabel>
@@ -1551,6 +1512,325 @@ export default function Organizacao() {
                 </Field>
               </div>
             </Section>
+
+
+            <Section icon={Building2} title={getTituloDadosPrincipais(tipoAgenteSelecionado)}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="razaoSocial"
+                    required={!visualizando}
+                    tooltip={getTooltipRazaoSocial(tipoAgenteSelecionado)}
+                  >
+                    {getLabelRazaoSocial(tipoAgenteSelecionado)}
+                  </FieldLabel>
+
+                  <Input
+                    id="razaoSocial"
+                    value={form.razaoSocial}
+                    onChange={(e) => setField("razaoSocial", e.target.value)}
+                    disabled={readOnly || saving}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="nomeFantasia"
+                    tooltip={getTooltipNomeFantasia(tipoAgenteSelecionado)}
+                  >
+                    {getLabelNomeFantasia(tipoAgenteSelecionado)}
+                  </FieldLabel>
+
+                  <Input
+                    id="nomeFantasia"
+                    value={form.nomeFantasia}
+                    onChange={(e) => setField("nomeFantasia", e.target.value)}
+                    disabled={readOnly || saving}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="cnpj"
+                    required={!visualizando}
+                    tooltip={getTooltipDocumentoPrincipal(tipoAgenteSelecionado)}
+                  >
+                    {getLabelDocumentoPrincipal(tipoAgenteSelecionado)}
+                  </FieldLabel>
+
+                  <Input
+                    id="cnpj"
+                    value={form.cnpj}
+                    onChange={(e) =>
+                      setField(
+                        "cnpj",
+                        maskDocumentoPrincipal(
+                          e.target.value,
+                          tipoAgenteSelecionado,
+                        ),
+                      )
+                    }
+                    inputMode="numeric"
+                    disabled={readOnly || saving}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataFundacao"
+                    required={!visualizando}
+                    tooltip={getTooltipDataPrincipal(tipoAgenteSelecionado)}
+                  >
+                    {getLabelDataPrincipal(tipoAgenteSelecionado)}
+                  </FieldLabel>
+
+                  <Input
+                    id="dataFundacao"
+                    type="date"
+                    value={form.dataFundacao}
+                    onChange={(e) => setField("dataFundacao", e.target.value)}
+                    disabled={readOnly || saving}
+                    readOnly={readOnly}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            <Section icon={Mail} title={getTituloContato(tipoAgenteSelecionado)}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="emailInstitucional"
+                    required={!visualizando}
+                    tooltip="Informe o e-mail principal de contato. Esse contato pode ser usado em documentos, relatórios, inscrições em editais e comunicações oficiais."
+                  >
+                    {getLabelEmailPrincipal(tipoAgenteSelecionado)}
+                  </FieldLabel>
+
+                  <EmailInput
+                    id="emailInstitucional"
+                    value={form.emailInstitucional}
+                    onChange={(e) =>
+                      setField("emailInstitucional", e.target.value)
+                    }
+                    disabled={readOnly || saving}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="telefoneInstitucional"
+                    required={!visualizando}
+                    tooltip="Informe o telefone principal de contato. Ex.: telefone fixo, celular ou WhatsApp usado oficialmente."
+                  >
+                    {getLabelTelefonePrincipal(tipoAgenteSelecionado)}
+                  </FieldLabel>
+
+                  <Input
+                    id="telefoneInstitucional"
+                    value={form.telefoneInstitucional}
+                    onChange={(e) =>
+                      setField(
+                        "telefoneInstitucional",
+                        maskPhone(e.target.value),
+                      )
+                    }
+                    inputMode="tel"
+                    disabled={readOnly || saving}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="site"
+                    tooltip="Informe o site, página institucional, portfólio online ou link público de apresentação, se houver. Ex.: trupencanta.org.br ou https://trupencanta.org.br."
+                  >
+                    Site
+                  </FieldLabel>
+
+                  <Input
+                    id="site"
+                    type="text"
+                    inputMode="url"
+                    value={form.site}
+                    onChange={(e) => setField("site", e.target.value)}
+                    onBlur={(e) => {
+                      if (readOnly) return;
+                      setField("site", maskSite(e.target.value));
+                    }}
+                    autoComplete="url"
+                    disabled={readOnly || saving}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                {mostrarTerritorioHistorico && (
+                  <>
+                    <Field>
+                      <FieldLabel
+                        htmlFor="territorioAtuacao"
+                        required={!visualizando}
+                        tooltip="Descreva os bairros, comunidades, cidades ou regiões onde a organização atua ou já realizou ações. Ex.: Atuação em bairros de Juiz de Fora e comunidades rurais da Zona da Mata Mineira."
+                      >
+                        Território de Atuação
+                      </FieldLabel>
+
+                      <Textarea
+                        id="territorioAtuacao"
+                        value={form.territorioAtuacao}
+                        onChange={(e) =>
+                          setField("territorioAtuacao", e.target.value)
+                        }
+                        className="min-h-10 resize-y"
+                        disabled={readOnly || saving}
+                        readOnly={readOnly}
+                      />
+                    </Field>
+
+                    <Field full>
+                      <FieldLabel
+                        htmlFor="historicoAtuacao"
+                        required={!visualizando}
+                        tooltip="Descreva a trajetória da organização, destacando quando iniciou suas atividades, principais ações realizadas, públicos atendidos, parcerias, conquistas e contribuições para o território. Ex.: Desde 2021, a organização desenvolve oficinas, apresentações e ações culturais voltadas para crianças, jovens e famílias da comunidade."
+                      >
+                        Histórico de Atuação Institucional
+                      </FieldLabel>
+
+                      <Textarea
+                        id="historicoAtuacao"
+                        value={form.historicoAtuacao}
+                        onChange={(e) =>
+                          setField("historicoAtuacao", e.target.value)
+                        }
+                        className="min-h-24 resize-y"
+                        disabled={readOnly || saving}
+                        readOnly={readOnly}
+                      />
+                    </Field>
+                  </>
+                )}
+              </div>
+            </Section>
+
+            {mostrarRepresentanteLegal && (
+            <Section icon={UserSquare2} title={getTituloRepresentante(tipoAgenteSelecionado)}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="nomeRepresentanteLegal"
+                    required={!visualizando}
+                    tooltip="Informe o nome completo da pessoa representante, conforme documento oficial."
+                  >
+                    {getLabelNomeRepresentante(tipoAgenteSelecionado)}
+                  </FieldLabel>
+
+                  <Input
+                    id="nomeRepresentanteLegal"
+                    value={form.nomeRepresentanteLegal}
+                    onChange={(e) =>
+                      setField("nomeRepresentanteLegal", e.target.value)
+                    }
+                    disabled={readOnly || saving}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="cpfRepresentanteLegal"
+                    required={!visualizando}
+                    tooltip="Informe o CPF do representante utilizando apenas números ou a máscara padrão."
+                  >
+                    {getLabelCpfRepresentante(tipoAgenteSelecionado)}
+                  </FieldLabel>
+
+                  <Input
+                    id="cpfRepresentanteLegal"
+                    value={form.cpfRepresentanteLegal}
+                    onChange={(e) =>
+                      setField(
+                        "cpfRepresentanteLegal",
+                        maskCPF(e.target.value),
+                      )
+                    }
+                    inputMode="numeric"
+                    disabled={readOnly || saving}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="rgRepresentanteLegal"
+                    required={!visualizando}
+                    tooltip="Informe o RG do representante conforme documento oficial."
+                  >
+                    {getLabelRgRepresentante(tipoAgenteSelecionado)}
+                  </FieldLabel>
+
+                  <Input
+                    id="rgRepresentanteLegal"
+                    value={form.rgRepresentanteLegal}
+                    onChange={(e) =>
+                      setField(
+                        "rgRepresentanteLegal",
+                        maskRGFlex(e.target.value),
+                      )
+                    }
+                    disabled={readOnly || saving}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="telefoneRepresentanteLegal"
+                    required={!visualizando}
+                    tooltip="Informe um telefone de contato do representante. Ex.: celular ou WhatsApp utilizado para comunicações oficiais."
+                  >
+                    {getLabelTelefoneRepresentante(tipoAgenteSelecionado)}
+                  </FieldLabel>
+
+                  <Input
+                    id="telefoneRepresentanteLegal"
+                    value={form.telefoneRepresentanteLegal}
+                    onChange={(e) =>
+                      setField(
+                        "telefoneRepresentanteLegal",
+                        maskPhone(e.target.value),
+                      )
+                    }
+                    inputMode="tel"
+                    disabled={readOnly || saving}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="emailRepresentanteLegal"
+                    tooltip="Informe o e-mail do representante, se houver. Esse campo pode ser usado em documentos, contratos, editais e comunicações formais."
+                  >
+                    {getLabelEmailRepresentante(tipoAgenteSelecionado)}
+                  </FieldLabel>
+
+                  <EmailInput
+                    id="emailRepresentanteLegal"
+                    value={form.emailRepresentanteLegal}
+                    onChange={(e) =>
+                      setField("emailRepresentanteLegal", e.target.value)
+                    }
+                    disabled={readOnly || saving}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            )}
 
             <Section icon={MapPin} title="Endereço">
               <div className="grid gap-4 sm:grid-cols-6">
@@ -1716,14 +1996,14 @@ export default function Organizacao() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="h-9 pl-9"
-                  aria-label="Buscar organização"
+                  aria-label="Buscar dados institucionais"
                 />
               </div>
 
               {podeCriar && (
                 <Button type="button" onClick={handleNew} className="h-9 gap-2">
                   <Plus className="h-4 w-4" />
-                  Cadastrar Organização
+                  Cadastrar dados
                 </Button>
               )}
             </div>
@@ -1740,15 +2020,15 @@ export default function Organizacao() {
                     </th>
 
                     <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Razão Social
+                      Nome principal
                     </th>
 
                     <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Nome Fantasia
+                      Nome complementar
                     </th>
 
                     <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      CNPJ
+                      Documento
                     </th>
 
                     <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1889,7 +2169,7 @@ export default function Organizacao() {
                   {paginated.length === 0 && (
                     <EmptyRow
                       colSpan={podeGerarPdf ? 9 : 8}
-                      message="Nenhuma organização encontrada."
+                      message="Nenhum cadastro encontrado."
                     />
                   )}
                 </tbody>
@@ -1898,7 +2178,7 @@ export default function Organizacao() {
 
             <div className="divide-y divide-border md:hidden">
               {paginated.length === 0 ? (
-                <MobileEmptyState message="Nenhuma organização encontrada." />
+                <MobileEmptyState message="Nenhum cadastro encontrado." />
               ) : (
                 paginated.map((item) => {
                   const tipoAgente = labelFromMap(
@@ -2000,13 +2280,13 @@ export default function Organizacao() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir organização?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir cadastro?</AlertDialogTitle>
 
             <AlertDialogDescription>
               Esta ação não pode ser desfeita. Caso existam documentos,
               diretoria, colaboradores, integrantes, editais ou outros registros
               vinculados, o backend pode impedir a exclusão para preservar o
-              histórico da organização.
+              histórico do cadastro.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -2024,8 +2304,8 @@ export default function Organizacao() {
       </AlertDialog>
 
       <WikiFloatingButton
-        pageTitle="Dados da Organização"
-        href="https://www.aurit.com.br/wiki/institucional/dados-da-organizacao"
+        pageTitle="Dados Institucionais"
+        href="https://www.aurit.com.br/wiki/institucional/dados-institucionais"
       />
     </AppLayout>
   );

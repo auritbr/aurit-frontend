@@ -213,7 +213,7 @@ export default function Inicio() {
   const journeySteps = useMemo<JourneyStep[]>(() => {
     const institucionalModules: ModuleLink[] = [
       {
-        label: "Organização",
+        label: "Dados Institucionais",
         route: "/organizacoes",
         done: dados.hasOrganizacao || dados.totalOrganizacoes > 0,
       },

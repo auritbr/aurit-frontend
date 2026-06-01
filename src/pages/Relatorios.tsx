@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { toast } from "sonner";
@@ -14,10 +14,11 @@ import {
 } from "@/lib/permissoes";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { RELATORIOS_CATALOGO } from "@/data/relatoriosCatalogo";
-import { getRelatorioGeral } from "@/data/relatorios";
+import { getRelatorioDetalhado } from "@/data/relatorios";
 
 export default function Relatorios() {
   const [loading, setLoading] = useState(true);
+  const [planoPago, setPlanoPago] = useState(false);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
@@ -26,6 +27,17 @@ export default function Relatorios() {
 
   const podeVisualizar = permissoes.VISUALIZAR;
 
+  const relatoriosVisiveis = useMemo(() => {
+    if (planoPago) {
+      return RELATORIOS_CATALOGO;
+    }
+
+    return RELATORIOS_CATALOGO.map((grupo) => ({
+      ...grupo,
+      itens: grupo.itens.filter((item) => item.plano === "gratis"),
+    })).filter((grupo) => grupo.itens.length > 0);
+  }, [planoPago]);
+
   useEffect(() => {
     let active = true;
 
@@ -33,6 +45,7 @@ export default function Relatorios() {
       try {
         setLoading(true);
         setAccessDeniedMessage(null);
+        setPlanoPago(false);
 
         const permissoesData =
           await getPermissoesUsuarioLogadoPorModulo("RELATORIOS");
@@ -45,7 +58,48 @@ export default function Relatorios() {
           return;
         }
 
-        await getRelatorioGeral();
+        try {
+          await getRelatorioDetalhado("organizacao");
+
+          if (!active) return;
+
+          setPlanoPago(true);
+        } catch (errorPlano) {
+          const messagePlano =
+            errorPlano instanceof Error
+              ? errorPlano.message
+              : "Erro ao verificar o plano do usuário.";
+
+          if (!active) return;
+
+          if (isPlanoAccessDenied(messagePlano)) {
+            try {
+              await getRelatorioDetalhado("participantes");
+
+              if (!active) return;
+
+              setPlanoPago(false);
+              return;
+            } catch (errorGratis) {
+              const messageGratis =
+                errorGratis instanceof Error
+                  ? errorGratis.message
+                  : "Erro ao verificar acesso aos relatórios gratuitos.";
+
+              if (!active) return;
+
+              if (isPlanoAccessDenied(messageGratis)) {
+                setAccessDeniedMessage(messageGratis);
+                return;
+              }
+
+              toast.error(messageGratis);
+              return;
+            }
+          }
+
+          toast.error(messagePlano);
+        }
       } catch (error) {
         const message =
           error instanceof Error
@@ -74,6 +128,25 @@ export default function Relatorios() {
     };
   }, []);
 
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <PageTitle
+            title="Relatórios"
+            tooltip="Acesse os relatórios disponíveis para o seu plano."
+          />
+
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center">
+            <p className="text-sm font-medium text-foreground">
+              Carregando relatórios...
+            </p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   if (!podeVisualizar) {
     return (
       <AppLayout>
@@ -95,68 +168,98 @@ export default function Relatorios() {
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <PageTitle
           title="Relatórios"
-          tooltip="Acesse os relatórios da organização em um só lugar, seguindo a mesma jornada do menu lateral: visão geral, organização, equipe, projetos, ações culturais, editais, financeiro, prestação de contas, patrimônio e trajetórias."
+          tooltip={
+            planoPago
+              ? "Acesse todos os relatórios disponíveis para a organização."
+              : "Acesse os relatórios disponíveis para o plano gratuito."
+          }
         />
 
         <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          Esta área reúne os relatórios da organização seguindo a mesma lógica
-          de navegação do sistema. O{" "}
-          <strong className="text-foreground">Relatório Geral</strong> oferece
-          uma visão consolidada dos principais indicadores. Os demais relatórios
-          detalhados permitem consultar dados completos, buscar informações,
-          ajustar colunas e exportar em CSV, Excel ou PDF.
+          {planoPago ? (
+            <>
+              Esta área reúne os relatórios da organização seguindo a mesma
+              lógica de navegação do sistema. O{" "}
+              <strong className="text-foreground">Relatório Geral</strong>{" "}
+              oferece uma visão consolidada dos principais indicadores. Os
+              demais relatórios detalhados permitem consultar dados completos,
+              buscar informações, ajustar colunas e exportar em CSV, Excel ou
+              PDF.
+            </>
+          ) : (
+            <>
+              Esta área reúne os relatórios disponíveis no plano gratuito. Você
+              pode consultar participantes, atividades, turmas e registros de
+              presença conforme as permissões de acesso da sua organização.
+            </>
+          )}
         </div>
 
-        <div className="space-y-8">
-          {RELATORIOS_CATALOGO.map((grupo) => (
-            <section key={grupo.id}>
-              <div className="mb-3">
-                <h2 className="text-sm font-semibold tracking-tight text-foreground">
-                  {grupo.titulo}
-                </h2>
-              </div>
+        {relatoriosVisiveis.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center">
+            <p className="text-sm font-medium text-foreground">
+              Nenhum relatório disponível para este plano.
+            </p>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {grupo.itens.map((item) => {
-                  const Icon = item.icon;
-                  const href = `/relatorios/${item.slug}`;
+            <p className="mx-auto mt-2 max-w-xl text-xs text-muted-foreground">
+              Quando houver relatórios liberados para o seu plano, eles
+              aparecerão aqui.
+            </p>
+          </div>
+        )}
 
-                  return (
-                    <Link
-                      key={item.slug}
-                      to={href}
-                      className="group flex flex-col rounded-lg border border-border bg-card p-4 shadow-sm transition-colors hover:bg-muted/30"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary-soft">
-                          <Icon
-                            className="h-4 w-4 text-primary"
-                            strokeWidth={2.2}
-                          />
+        {relatoriosVisiveis.length > 0 && (
+          <div className="space-y-8">
+            {relatoriosVisiveis.map((grupo) => (
+              <section key={grupo.id}>
+                <div className="mb-3">
+                  <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                    {grupo.titulo}
+                  </h2>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {grupo.itens.map((item) => {
+                    const Icon = item.icon;
+                    const href = `/relatorios/${item.slug}`;
+
+                    return (
+                      <Link
+                        key={item.slug}
+                        to={href}
+                        className="group flex flex-col rounded-lg border border-border bg-card p-4 shadow-sm transition-colors hover:bg-muted/30"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary-soft">
+                            <Icon
+                              className="h-4 w-4 text-primary"
+                              strokeWidth={2.2}
+                            />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+                              {item.title}
+                            </h3>
+                          </div>
                         </div>
 
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-sm font-semibold tracking-tight text-foreground">
-                            {item.title}
-                          </h3>
+                        <p className="mt-2.5 flex-1 text-xs leading-relaxed text-muted-foreground">
+                          {item.description}
+                        </p>
+
+                        <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-primary transition-all group-hover:gap-2">
+                          Abrir relatório
+                          <ArrowRight className="h-3.5 w-3.5" />
                         </div>
-                      </div>
-
-                      <p className="mt-2.5 flex-1 text-xs leading-relaxed text-muted-foreground">
-                        {item.description}
-                      </p>
-
-                      <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-primary transition-all group-hover:gap-2">
-                        Abrir relatório
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
       </div>
     </AppLayout>
   );

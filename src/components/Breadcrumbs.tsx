@@ -26,7 +26,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   empresa: "Empresa",
   novo: "Novo",
   editar: "Editar",
-  organizacoes: "Dados da Organização",
+  organizacoes: "Dados Institucionais",
   "metas-projeto": "Metas do Projeto",
   cronograma: "Cronograma do Projeto",
   editais: "Editais",

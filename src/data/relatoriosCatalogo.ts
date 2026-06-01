@@ -145,7 +145,7 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         description:
           "Reúne participantes cadastrados, com dados pessoais, contatos, responsáveis, endereço e status de acompanhamento.",
         icon: Users,
-        plano: "pago",
+        plano: "gratis",
         tooltip:
           "Use este relatório para consultar o público atendido pela organização, apoiar registros de participação e manter dados de contato, responsáveis e endereço organizados.",
         searchPlaceholder: "Buscar por nome, CPF, cidade, bairro, status...",
@@ -229,7 +229,7 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         description:
           "Lista as atividades vinculadas aos projetos, com descrição, público beneficiado, local, período, vagas, tipo e status.",
         icon: CalendarRange,
-        plano: "pago",
+        plano: "gratis",
         tooltip:
           "Use este relatório para acompanhar as ações executadas ou planejadas nos projetos, conferindo local, período, público, vagas e situação de cada atividade.",
         searchPlaceholder: "Buscar por atividade, projeto, status...",
@@ -240,7 +240,7 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         description:
           "Apresenta as turmas criadas para as atividades, com nome, descrição, dias de realização, horários, atividade vinculada, projeto e status.",
         icon: GraduationCap,
-        plano: "pago",
+        plano: "gratis",
         tooltip:
           "Use este relatório para organizar os grupos de atendimento, acompanhar horários e verificar a distribuição das turmas dentro das atividades.",
         searchPlaceholder: "Buscar por turma, atividade, projeto...",
@@ -251,7 +251,7 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         description:
           "Reúne os registros de presença por data, atividade, turma, participante e situação de frequência.",
         icon: ClipboardCheck,
-        plano: "pago",
+        plano: "gratis",
         tooltip:
           "Use este relatório para acompanhar a frequência dos participantes, comprovar realização de encontros, apoiar relatórios de execução e fortalecer prestações de contas.",
         searchPlaceholder: "Buscar por participante, turma, data...",

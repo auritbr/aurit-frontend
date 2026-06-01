@@ -118,7 +118,7 @@ const sections: Section[] = [
         title: "Institucional",
         icon: Landmark,
         items: [
-          { title: "Dados da Organização", url: "/organizacoes" },
+          { title: "Dados Institucionais", url: "/organizacoes" },
           { title: "Diretoria", url: "/diretoria" },
           { title: "Documentos", url: "/documentos", paidOnly: true },
           { title: "Agentes Culturais", url: "/agentes" },
@@ -245,7 +245,6 @@ const sections: Section[] = [
         id: "relatorios",
         title: "Relatórios",
         icon: FileBarChart2,
-        paidOnly: true,
         items: [{ title: "Relatórios", url: "/relatorios" }],
       },
     ],
