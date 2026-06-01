@@ -2,6 +2,34 @@ import { getStoredToken, limparSessaoUsuario } from "@/lib/auth";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
+export class ApiError extends Error {
+  status: number;
+  url: string;
+  path: string;
+  body: string;
+
+  constructor({
+    message,
+    status,
+    url,
+    path,
+    body,
+  }: {
+    message: string;
+    status: number;
+    url: string;
+    path: string;
+    body: string;
+  }) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.url = url;
+    this.path = path;
+    this.body = body;
+  }
+}
+
 function isFormData(body: RequestInit["body"]) {
   return typeof FormData !== "undefined" && body instanceof FormData;
 }
@@ -30,29 +58,44 @@ function getTenantSlug() {
   return slug;
 }
 
-async function readErrorMessage(response: Response, path: string) {
+async function readErrorPayload(response: Response, path: string) {
   try {
     const text = await response.text();
 
     if (!text) {
-      return `Erro ${response.status} ao acessar ${path}`;
+      const fallback = `Erro ${response.status} ao acessar ${path}`;
+
+      return {
+        body: "",
+        message: fallback,
+      };
     }
 
     try {
       const json = JSON.parse(text);
 
-      return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
-      );
+      return {
+        body: text,
+        message:
+          json?.message ||
+          json?.error ||
+          json?.detail ||
+          json?.mensagem ||
+          text,
+      };
     } catch {
-      return text;
+      return {
+        body: text,
+        message: text,
+      };
     }
   } catch {
-    return `Erro ${response.status} ao acessar ${path}`;
+    const fallback = `Erro ${response.status} ao acessar ${path}`;
+
+    return {
+      body: "",
+      message: fallback,
+    };
   }
 }
 
@@ -102,36 +145,52 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
+  const url = `${API_URL}${path}`;
+  const response = await fetch(url, {
     ...options,
     headers: buildHeaders(options),
   });
 
   if (response.status === 401) {
-    const message = await readErrorMessage(response, path);
+    const { body, message } = await readErrorPayload(response, path);
 
     redirectToLogin();
 
-    throw new Error(
-      message || "Token inválido ou expirado. Faça login novamente.",
-    );
+    throw new ApiError({
+      status: response.status,
+      url,
+      path,
+      body,
+      message: message || "Token inválido ou expirado. Faça login novamente.",
+    });
   }
 
   if (response.status === 403) {
-    const message = await readErrorMessage(response, path);
+    const { body, message } = await readErrorPayload(response, path);
 
     if (shouldLogoutByForbiddenMessage(message)) {
       redirectToLogin();
     }
 
-    throw new Error(
-      message || "Você não possui permissão para acessar esta área.",
-    );
+    throw new ApiError({
+      status: response.status,
+      url,
+      path,
+      body,
+      message: message || "Você não possui permissão para acessar esta área.",
+    });
   }
 
   if (!response.ok) {
-    const message = await readErrorMessage(response, path);
-    throw new Error(message);
+    const { body, message } = await readErrorPayload(response, path);
+
+    throw new ApiError({
+      status: response.status,
+      url,
+      path,
+      body,
+      message,
+    });
   }
 
   if (response.status === 204) {

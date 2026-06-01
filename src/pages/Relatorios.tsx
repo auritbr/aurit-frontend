@@ -13,8 +13,8 @@ import {
   type PermissoesModulo,
 } from "@/lib/permissoes";
 import { isPlanoAccessDenied } from "@/lib/access";
+import { getTipoPlanoAtual } from "@/lib/plano";
 import { RELATORIOS_CATALOGO } from "@/data/relatoriosCatalogo";
-import { getRelatorioDetalhado } from "@/data/relatorios";
 
 export default function Relatorios() {
   const [loading, setLoading] = useState(true);
@@ -58,48 +58,11 @@ export default function Relatorios() {
           return;
         }
 
-        try {
-          await getRelatorioDetalhado("organizacao");
+        const tipoPlano = await getTipoPlanoAtual();
 
-          if (!active) return;
+        if (!active) return;
 
-          setPlanoPago(true);
-        } catch (errorPlano) {
-          const messagePlano =
-            errorPlano instanceof Error
-              ? errorPlano.message
-              : "Erro ao verificar o plano do usuário.";
-
-          if (!active) return;
-
-          if (isPlanoAccessDenied(messagePlano)) {
-            try {
-              await getRelatorioDetalhado("participantes");
-
-              if (!active) return;
-
-              setPlanoPago(false);
-              return;
-            } catch (errorGratis) {
-              const messageGratis =
-                errorGratis instanceof Error
-                  ? errorGratis.message
-                  : "Erro ao verificar acesso aos relatórios gratuitos.";
-
-              if (!active) return;
-
-              if (isPlanoAccessDenied(messageGratis)) {
-                setAccessDeniedMessage(messageGratis);
-                return;
-              }
-
-              toast.error(messageGratis);
-              return;
-            }
-          }
-
-          toast.error(messagePlano);
-        }
+        setPlanoPago(tipoPlano !== "PLANO_GRATUITO");
       } catch (error) {
         const message =
           error instanceof Error

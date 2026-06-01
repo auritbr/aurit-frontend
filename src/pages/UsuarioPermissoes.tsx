@@ -12,8 +12,10 @@ import { isPlanoAccessDenied } from "@/lib/access";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
+  verificarPermissaoUsuarioLogado,
   type PermissoesModulo,
 } from "@/lib/permissoes";
+import { ApiError } from "@/lib/api";
 import { toast } from "sonner";
 import {
   getUsuarioById,
@@ -316,6 +318,18 @@ export default function UsuarioPermissoes() {
       setSaving(true);
       setAccessDeniedMessage(null);
 
+      const podeSalvarPermissoes = await verificarPermissaoUsuarioLogado(
+        "USUARIOS",
+        "EDITAR",
+      );
+
+      if (!podeSalvarPermissoes) {
+        toast.error(
+          "Você não possui permissão para editar permissões de usuários.",
+        );
+        return;
+      }
+
       const modulosParaSalvar =
         tipoPlano === "PLANO_GRATUITO"
           ? MODULOS_PLANO_GRATUITO
@@ -343,6 +357,15 @@ export default function UsuarioPermissoes() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Erro ao salvar permissões.";
+
+      if (error instanceof ApiError && error.status === 403) {
+        console.error("PUT de permissões negado pelo backend:", {
+          status: error.status,
+          url: error.url,
+          path: error.path,
+          body: error.body || error.message,
+        });
+      }
 
       if (isPlanoAccessDenied(message)) {
         setAccessDeniedMessage(message);

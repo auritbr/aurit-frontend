@@ -102,6 +102,21 @@ async function parseError(response: Response): Promise<string> {
   }
 }
 
+function parsePermissaoResponse(data: unknown): boolean {
+  if (typeof data === "boolean") {
+    return data;
+  }
+
+  if (!data || typeof data !== "object") {
+    return false;
+  }
+
+  const obj = data as Record<string, unknown>;
+  const value = obj.permitido ?? obj.allowed ?? obj.temPermissao;
+
+  return typeof value === "boolean" ? value : false;
+}
+
 export async function getUsuarioAtual(): Promise<UsuarioLogado> {
   return getUsuarioLogado();
 }
@@ -133,7 +148,36 @@ export async function verificarPermissaoUsuario(
     throw new Error(await parseError(response));
   }
 
-  return Boolean(await response.json());
+  return parsePermissaoResponse(await response.json());
+}
+
+export async function verificarPermissaoUsuarioLogado(
+  modulo: ModuloPermissao,
+  acao: AcaoPermissao,
+): Promise<boolean> {
+  const params = new URLSearchParams({
+    modulo,
+    acao,
+  });
+
+  const response = await fetch(
+    `${API_URL}/usuarios-permissoes/me/verificar?${params.toString()}`,
+    {
+      method: "GET",
+      headers: getAuthHeaders(),
+    },
+  );
+
+  if (response.status === 401) {
+    limparSessaoUsuario();
+    throw new Error("Sessão expirada. Faça login novamente.");
+  }
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  return parsePermissaoResponse(await response.json());
 }
 
 export async function usuarioTemPermissao(
