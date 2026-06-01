@@ -109,6 +109,7 @@ type OrganizacaoPdfData = {
   bairro?: string | null;
   cidade?: string | null;
   estado?: string | null;
+  tipoAgente?: string | null;
 };
 
 type PdfContext = {
@@ -792,9 +793,62 @@ function getNomeInstitucional(ctx: PdfContext) {
 }
 
 function getDocumentoInstitucional(ctx: PdfContext) {
-  return maskCpfCnpj(
-    ctx.organizacao.cnpj || ctx.empresa.documentoIdentificacao || "—",
+  const documento =
+    ctx.organizacao.cnpj || ctx.empresa.documentoIdentificacao || "—";
+
+  const tipoAgente = ctx.organizacao.tipoAgente;
+
+  if (isColetivoInstitucional(tipoAgente)) {
+    const digits = String(documento).replace(/\D/g, "");
+
+    return digits || safeText(documento);
+  }
+
+  return maskCpfCnpj(documento);
+}
+
+function getTipoAgenteInstitucional(ctx: PdfContext) {
+  return ctx.organizacao.tipoAgente ?? "";
+}
+
+function isPessoaFisicaInstitucional(tipoAgente?: string | null) {
+  return tipoAgente === "PESSOA_FISICA";
+}
+
+function isColetivoInstitucional(tipoAgente?: string | null) {
+  return tipoAgente === "GRUPO_COLETIVO";
+}
+
+function isMeiInstitucional(tipoAgente?: string | null) {
+  return tipoAgente === "MEI";
+}
+
+function isPessoaJuridicaInstitucional(tipoAgente?: string | null) {
+  return (
+    tipoAgente === "PESSOA_JURIDICA_COM_FINS_LUCRATIVOS" ||
+    tipoAgente === "PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS"
   );
+}
+
+function getDocumentoInstitucionalLabel(ctx: PdfContext) {
+  const tipoAgente = getTipoAgenteInstitucional(ctx);
+  const documento = ctx.organizacao.cnpj || ctx.empresa.documentoIdentificacao;
+  const digits = String(documento ?? "").replace(/\D/g, "");
+
+  if (isPessoaFisicaInstitucional(tipoAgente)) return "CPF";
+
+  if (isColetivoInstitucional(tipoAgente)) {
+    return "Documento de Identificação";
+  }
+
+  if (isMeiInstitucional(tipoAgente) || isPessoaJuridicaInstitucional(tipoAgente)) {
+    return "CNPJ";
+  }
+
+  if (digits.length === 11) return "CPF";
+  if (digits.length === 14) return "CNPJ";
+
+  return "Documento";
 }
 
 function getTelefoneInstitucional(ctx: PdfContext) {
@@ -960,10 +1014,11 @@ function drawHeader(doc: jsPDF, opts: PdfOptions, ctx: PdfContext) {
   doc.setFontSize(7.2);
   doc.setTextColor(90);
 
-  const cnpj = getDocumentoInstitucional(ctx);
+  const documentoLabel = getDocumentoInstitucionalLabel(ctx);
+  const documento = getDocumentoInstitucional(ctx);
 
-  if (cnpj && cnpj !== "—") {
-    doc.text(`CNPJ: ${cnpj}`, PAGE_WIDTH - MARGIN_RIGHT, 21, {
+  if (documento && documento !== "—") {
+    doc.text(`${documentoLabel}: ${documento}`, PAGE_WIDTH - MARGIN_RIGHT, 21, {
       align: "right",
     });
   }
@@ -986,9 +1041,10 @@ function drawFooter(
   doc.setTextColor(60);
 
   const nome = safeText(getNomeInstitucional(ctx));
+  const documentoLabel = getDocumentoInstitucionalLabel(ctx);
   const documento = safeText(getDocumentoInstitucional(ctx));
 
-  const linha1 = `${nome} - CNPJ: ${documento}`;
+  const linha1 = `${nome} - ${documentoLabel}: ${documento}`;
   doc.text(linha1, PAGE_WIDTH / 2, y + 5, { align: "center" });
 
   doc.setFont("helvetica", "normal");
