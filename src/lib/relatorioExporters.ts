@@ -36,6 +36,24 @@ interface PdfOptions {
   indicadores?: { label: string; valor: string }[];
 }
 
+interface IndicadoresSociodemograficosPdfOptions {
+  filtros: {
+    ano: string;
+    atividade: string;
+    turma: string;
+    status: string;
+  };
+  total: number;
+  indicadores: {
+    title: string;
+    itens: {
+      label: string;
+      count: number;
+      percentual: number;
+    }[];
+  }[];
+}
+
 type RGB = [number, number, number];
 
 type LoadedLogo =
@@ -645,6 +663,7 @@ function selecionarColunasEssenciaisParaPdf<T>(
   }
 
   return available.slice(0, 12);
+
 }
 
 function findStrictColumnMatch<T>(
@@ -1018,6 +1037,15 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
       { label: "Tipo de Agente", aliases: ["tipo de agente", "tipoAgente", "tipo_agente", "agente cultural"] },
       { label: "Tipo de Iniciativa Cultural", aliases: ["tipo de iniciativa cultural", "tipoIniciativaCultural", "tipo_iniciativa_cultural", "iniciativa cultural"] },
       { label: "Área de Atuação", aliases: ["area de atuacao", "área de atuação", "areaAtuacao", "area_atuacao"] },
+    ];
+  }
+
+  if (normalizedReport.includes("indicadores sociodemograficos")) {
+    return [
+      { label: "Indicador", aliases: ["indicador"] },
+      { label: "Categoria", aliases: ["categoria"] },
+      { label: "Quantidade", aliases: ["quantidade"] },
+      { label: "Percentual", aliases: ["percentual"] },
     ];
   }
 
@@ -3516,4 +3544,167 @@ function triggerDownload(blob: Blob, filename: string) {
   document.body.removeChild(a);
 
   URL.revokeObjectURL(url);
+}
+
+export async function exportIndicadoresSociodemograficosPdf(
+  data: IndicadoresSociodemograficosPdfOptions,
+) {
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4",
+    compress: true,
+  });
+
+  const ctx = await resolvePdfContext();
+
+  const headerOptions: HeaderOptions = {
+    title: formatReportTitle("Indicadores Sociodemográficos"),
+    documentNumber: buildRelatorioDocumentNumber(
+      "Indicadores Sociodemográficos",
+    ),
+  };
+
+  drawHeader(doc, headerOptions, ctx);
+
+  let cursor = BODY_START_Y;
+
+  cursor = drawSectionTitle(
+    doc,
+    "Identificação do Relatório",
+    cursor,
+    headerOptions,
+    ctx,
+  );
+
+  cursor = drawGridFields(
+    doc,
+    [
+      {
+        label: "Organização",
+        value: getNomeInstitucional(ctx),
+      },
+      {
+        label: "Relatório",
+        value: "Indicadores Sociodemográficos",
+      },
+      {
+        label: "Total de participantes",
+        value: data.total,
+      },
+      {
+        label: "Data de geração",
+        value: new Date().toLocaleDateString("pt-BR"),
+      },
+      {
+        label: "Ano",
+        value: data.filtros.ano,
+      },
+      {
+        label: "Atividade",
+        value: data.filtros.atividade,
+      },
+      {
+        label: "Turma",
+        value: data.filtros.turma,
+      },
+      {
+        label: "Status da matrícula",
+        value: data.filtros.status,
+      },
+    ],
+    cursor,
+    headerOptions,
+    ctx,
+  );
+
+  cursor += 3;
+
+  cursor = drawSectionTitle(
+    doc,
+    "Registros do Relatório",
+    cursor,
+    headerOptions,
+    ctx,
+  );
+
+  for (const grupo of data.indicadores) {
+    cursor = ensureSpace(doc, cursor, 38, headerOptions, ctx);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(35, 45, 45);
+    doc.text(grupo.title, MARGIN_LEFT, cursor);
+
+    autoTable(doc, {
+      startY: cursor + 4,
+      head: [["Categoria", "Quantidade", "Percentual"]],
+      body: grupo.itens.map((item) => [
+        item.label,
+        String(item.count),
+        `${Number(item.percentual ?? 0).toFixed(2)}%`,
+      ]),
+      theme: "grid",
+      margin: {
+        left: MARGIN_LEFT,
+        right: MARGIN_RIGHT,
+        bottom: FOOTER_HEIGHT + 8,
+      },
+      styles: {
+        font: "helvetica",
+        fontSize: 7.1,
+        cellPadding: 2,
+        overflow: "linebreak",
+        valign: "middle",
+        lineWidth: 0.12,
+        lineColor: CINZA_BORDA,
+        textColor: [35, 45, 45],
+        minCellHeight: 8,
+      },
+      headStyles: {
+        fillColor: CINZA_HEAD,
+        textColor: CINZA_HEAD_TEXTO,
+        fontStyle: "bold",
+        fontSize: 6.8,
+        cellPadding: 1.8,
+        minCellHeight: 8,
+        valign: "middle",
+        halign: "left",
+        lineColor: CINZA_BORDA,
+        overflow: "linebreak",
+      },
+      alternateRowStyles: {
+        fillColor: [252, 252, 252],
+      },
+      columnStyles: {
+        0: {
+          cellWidth: 120,
+          fontStyle: "bold",
+          halign: "left",
+        },
+        1: {
+          cellWidth: 40,
+          halign: "center",
+        },
+        2: {
+          cellWidth: 40,
+          halign: "center",
+        },
+      },
+      didDrawPage: () => {
+        drawHeader(doc, headerOptions, ctx);
+      },
+    });
+
+    cursor = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  const totalPaginas = doc.getNumberOfPages();
+
+  for (let i = 1; i <= totalPaginas; i += 1) {
+    doc.setPage(i);
+    drawFooter(doc, i, totalPaginas, ctx);
+  }
+
+  doc.save(buildFileName("Indicadores Sociodemográficos", "pdf"));
 }

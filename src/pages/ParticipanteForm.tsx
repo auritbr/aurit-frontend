@@ -47,6 +47,9 @@ import {
   statusParticipante,
   statusMatriculaOptions,
   updateParticipante,
+  generoOptions,
+  racaCorOptions,
+  faixaRendaOptions,
   type AtividadeOption,
   type OrganizacaoOption,
   type Participante,
@@ -98,6 +101,9 @@ interface FormState {
   rg: string;
   telefone: string;
   email: string;
+  genero: string;
+  racaCor: string;
+  faixaRenda: string;
 
   cep: string;
   logradouro: string;
@@ -146,6 +152,9 @@ const initial: FormState = {
   rg: "",
   telefone: "",
   email: "",
+  genero: "",
+  racaCor: "",
+  faixaRenda: "",
 
   cep: "",
   logradouro: "",
@@ -287,6 +296,9 @@ function mapParticipanteToForm(participante: Participante): FormState {
     rg: participante.rg ? maskRGFlex(participante.rg) : "",
     telefone: participante.telefone ? maskPhone(participante.telefone) : "",
     email: participante.email ?? "",
+    genero: participante.genero ?? "",
+    racaCor: participante.racaCor ?? "",
+    faixaRenda: participante.faixaRenda ?? "",
 
     cep: participante.cep ? maskCEP(participante.cep) : "",
     logradouro: participante.logradouro ?? "",
@@ -327,6 +339,9 @@ function formToParticipante(form: FormState): Participante {
     rg: form.rg,
     telefone: form.telefone,
     email: form.email,
+    genero: form.genero,
+    racaCor: form.racaCor,
+    faixaRenda: form.faixaRenda,
 
     cep: form.cep,
     logradouro: form.logradouro,
@@ -714,8 +729,7 @@ export default function ParticipanteForm() {
 
       if (indiceInvalido !== -1) {
         toast.error(
-          `Para marcar o participante como concluído, a matrícula do vínculo ${
-            indiceInvalido + 1
+          `Para marcar o participante como concluído, a matrícula do vínculo ${indiceInvalido + 1
           } precisa estar como Cancelado, Desistente ou Concluído.`,
         );
         return;
@@ -879,6 +893,96 @@ export default function ParticipanteForm() {
                       disabled={bloqueado}
                       readOnly={visualizando}
                     />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="genero"
+                      tooltip="Informe o gênero autodeclarado do participante, quando essa informação for necessária para relatórios, editais ou patrocinadores."
+                    >
+                      Gênero
+                    </FieldLabel>
+
+                    <Select
+                      value={form.genero}
+                      onValueChange={(v) => {
+                        if (visualizando) return;
+                        set("genero", v);
+                      }}
+                      disabled={bloqueado}
+                    >
+                      <SelectTrigger id="genero">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {generoOptions.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="racaCor"
+                      tooltip="Informe a raça/cor autodeclarada do participante. Essa informação apoia relatórios sociodemográficos, editais e prestação de contas."
+                    >
+                      Raça/cor
+                    </FieldLabel>
+
+                    <Select
+                      value={form.racaCor}
+                      onValueChange={(v) => {
+                        if (visualizando) return;
+                        set("racaCor", v);
+                      }}
+                      disabled={bloqueado}
+                    >
+                      <SelectTrigger id="racaCor">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {racaCorOptions.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="faixaRenda"
+                      tooltip="Informe a faixa de renda familiar do participante, quando essa informação for necessária para relatórios, editais ou análise do perfil atendido."
+                    >
+                      Faixa de Renda Familiar
+                    </FieldLabel>
+
+                    <Select
+                      value={form.faixaRenda}
+                      onValueChange={(v) => {
+                        if (visualizando) return;
+                        set("faixaRenda", v);
+                      }}
+                      disabled={bloqueado}
+                    >
+                      <SelectTrigger id="faixaRenda">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {faixaRendaOptions.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </Field>
                 </div>
               </Section>

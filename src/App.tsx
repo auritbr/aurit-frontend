@@ -103,6 +103,7 @@ import RelatorioProjetosExecucaoPage from "./pages/RelatorioProjetosExecucaoPage
 import RelatorioFinanceiroPatrimonioPage from "./pages/RelatorioFinanceiroPatrimonioPage.tsx";
 import RelatorioInstitucionalDocumentalPage from "./pages/RelatorioInstitucionalDocumentalPage.tsx";
 import RelatorioDetalhePage from "./pages/RelatorioDetalhePage.tsx";
+import IndicadoresSociodemograficos from "@/pages/IndicadoresSociodemograficos.tsx";
 
 import ConfiguracaoEmpresa from "./pages/ConfiguracaoEmpresa.tsx";
 
@@ -936,6 +937,10 @@ function AppRoutes() {
             <RelatorioInstitucionalDocumentalPage />,
             permission("RELATORIOS"),
           )}
+        />
+        <Route
+          path="/relatorios/indicadores-sociodemograficos"
+          element={<IndicadoresSociodemograficos />}
         />
         <Route
           path="/relatorios/:slug"

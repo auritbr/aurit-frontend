@@ -15,6 +15,55 @@ export type StatusMatricula =
   | "DESISTENTE"
   | "CONCLUIDO";
 
+export type Genero =
+  | "FEMININO"
+  | "MASCULINO"
+  | "NAO_BINARIO"
+  | "OUTRO"
+  | "PREFERE_NAO_INFORMAR";
+
+export type RacaCor =
+  | "BRANCA"
+  | "PRETA"
+  | "PARDA"
+  | "AMARELA"
+  | "INDIGENA"
+  | "PREFERE_NAO_INFORMAR";
+
+export type FaixaRenda =
+  | "SEM_RENDA"
+  | "ATE_1_SALARIO"
+  | "DE_1_A_2_SALARIOS"
+  | "DE_2_A_3_SALARIOS"
+  | "ACIMA_DE_3_SALARIOS"
+  | "PREFERE_NAO_INFORMAR";
+
+export const generoOptions = [
+  { value: "FEMININO", label: "Feminino" },
+  { value: "MASCULINO", label: "Masculino" },
+  { value: "NAO_BINARIO", label: "Não binário" },
+  { value: "OUTRO", label: "Outro" },
+  { value: "PREFERE_NAO_INFORMAR", label: "Prefere não informar" },
+] as const;
+
+export const racaCorOptions = [
+  { value: "BRANCA", label: "Branca" },
+  { value: "PRETA", label: "Preta" },
+  { value: "PARDA", label: "Parda" },
+  { value: "AMARELA", label: "Amarela" },
+  { value: "INDIGENA", label: "Indígena" },
+  { value: "PREFERE_NAO_INFORMAR", label: "Prefere não informar" },
+] as const;
+
+export const faixaRendaOptions = [
+  { value: "SEM_RENDA", label: "Sem renda" },
+  { value: "ATE_1_SALARIO", label: "Até 1 salário mínimo" },
+  { value: "DE_1_A_2_SALARIOS", label: "De 1 a 2 salários mínimos" },
+  { value: "DE_2_A_3_SALARIOS", label: "De 2 a 3 salários mínimos" },
+  { value: "ACIMA_DE_3_SALARIOS", label: "Acima de 3 salários mínimos" },
+  { value: "PREFERE_NAO_INFORMAR", label: "Prefere não informar" },
+] as const;
+
 export const statusParticipante = [
   { value: "ATIVO", label: "Ativo" },
   { value: "INATIVO", label: "Inativo" },
@@ -70,7 +119,9 @@ export interface Participante {
   status: string;
   organizacaoId: string;
   organizacaoNome?: string;
-
+  genero?: string;
+  racaCor?: string;
+  faixaRenda?: string;
   vinculos: ParticipanteVinculo[];
 }
 
@@ -138,6 +189,9 @@ export interface ParticipanteApiDTO {
   status?: string | null;
   organizacaoId?: number | string | null;
   organizacaoNome?: string | null;
+  genero?: string | null;
+  racaCor?: string | null;
+  faixaRenda?: string | null;
 
   organizacao?: {
     id?: number | string | null;
@@ -174,6 +228,9 @@ export interface ParticipantePayloadDTO {
   cpfResponsavel?: string | null;
   rgResponsavel?: string | null;
   telefoneResponsavel?: string | null;
+  genero?: string | null;
+  racaCor?: string | null;
+  faixaRenda?: string | null;
 
   status: string;
   organizacaoId?: number | null;
@@ -327,7 +384,7 @@ function getVinculos(dto: ParticipanteApiDTO): ParticipanteAtividadeApiDTO[] {
 function resolveOrganizacaoNome(dto: ParticipanteApiDTO) {
   return pickText(
     dto.organizacaoNome,
-        dto.organizacao?.razaoSocial,
+    dto.organizacao?.razaoSocial,
     dto.organizacao?.nomeFantasia,
     dto.organizacao?.nomeOrganizacao,
     dto.organizacao?.nome,
@@ -343,6 +400,9 @@ export function mapParticipante(dto: ParticipanteApiDTO): Participante {
     rg: dto.rg ?? "",
     telefone: dto.telefone ?? "",
     email: dto.email ?? "",
+    genero: dto.genero ?? "",
+    racaCor: dto.racaCor ?? "",
+    faixaRenda: dto.faixaRenda ?? "",
 
     cep: dto.cep ?? "",
     logradouro: dto.logradouro ?? "",
@@ -385,6 +445,9 @@ export function buildParticipantePayload(
     rg: participante.rg?.trim() || null,
     telefone: participante.telefone?.trim() || "",
     email: participante.email?.trim() || null,
+    genero: participante.genero || null,
+    racaCor: participante.racaCor || null,
+    faixaRenda: participante.faixaRenda || null,
 
     cep: onlyDigits(participante.cep),
     logradouro: participante.logradouro?.trim() || "",
@@ -561,4 +624,54 @@ export async function getOrganizacoesParticipante(): Promise<
         ) || `Organização ${item.id}`,
     }))
     .filter((item) => item.id);
+}
+
+export interface IndicadorItem {
+  categoria: string;
+  total: number;
+  percentual: number;
+}
+
+export interface IndicadoresSociodemograficos {
+  totalParticipantes: number;
+  porGenero: IndicadorItem[];
+  porRacaCor: IndicadorItem[];
+  porFaixaRenda: IndicadorItem[];
+  porFaixaEtaria: IndicadorItem[];
+}
+
+export interface IndicadoresSociodemograficosFiltros {
+  ano?: string;
+  atividadeId?: string;
+  turmaId?: string;
+  statusMatricula?: string;
+}
+
+export async function getIndicadoresSociodemograficos(
+  filtros: IndicadoresSociodemograficosFiltros = {},
+): Promise<IndicadoresSociodemograficos> {
+  const params = new URLSearchParams();
+
+  if (filtros.ano) params.set("ano", filtros.ano);
+  if (filtros.atividadeId) params.set("atividadeId", filtros.atividadeId);
+  if (filtros.turmaId) params.set("turmaId", filtros.turmaId);
+  if (filtros.statusMatricula) {
+    params.set("statusMatricula", filtros.statusMatricula);
+  }
+
+  const query = params.toString();
+
+  const response = await fetch(
+    `${API_URL}/participantes/indicadores-sociodemograficos${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: getJsonHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  return response.json();
 }

@@ -245,7 +245,13 @@ const sections: Section[] = [
         id: "relatorios",
         title: "Relatórios",
         icon: FileBarChart2,
-        items: [{ title: "Relatórios", url: "/relatorios" }],
+        items: [
+          { title: "Relatórios", url: "/relatorios" },
+          {
+            title: "Indicadores Sociodemográficos",
+            url: "/relatorios/indicadores-sociodemograficos",
+          },
+        ],
       },
     ],
   },
@@ -493,8 +499,8 @@ export function AppSidebar() {
       >
         <direct.icon
           className={`h-[16px] w-[16px] flex-shrink-0 transition-colors ${active
-              ? "text-sidebar-primary"
-              : "text-sidebar-foreground/65 group-hover/item:text-sidebar-foreground"}`}
+            ? "text-sidebar-primary"
+            : "text-sidebar-foreground/65 group-hover/item:text-sidebar-foreground"}`}
           strokeWidth={1.85}
         />
 
@@ -547,8 +553,8 @@ export function AppSidebar() {
                 >
                   <group.icon
                     className={`h-[16px] w-[16px] ${activeInGroup
-                        ? "text-sidebar-primary"
-                        : "text-sidebar-foreground/60"
+                      ? "text-sidebar-primary"
+                      : "text-sidebar-foreground/60"
                       }`}
                     strokeWidth={1.85}
                   />
@@ -568,14 +574,14 @@ export function AppSidebar() {
             <button
               type="button"
               className={`group/trigger flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-[13px] transition-all duration-150 ${activeInGroup
-                  ? "text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/75 hover:bg-sidebar-accent/40 hover:text-sidebar-accent-foreground"
+                ? "text-sidebar-accent-foreground"
+                : "text-sidebar-foreground/75 hover:bg-sidebar-accent/40 hover:text-sidebar-accent-foreground"
                 }`}
             >
               <group.icon
                 className={`h-[16px] w-[16px] flex-shrink-0 transition-colors ${activeInGroup
-                    ? "text-sidebar-primary"
-                    : "text-sidebar-foreground/60 group-hover/trigger:text-sidebar-foreground/90"
+                  ? "text-sidebar-primary"
+                  : "text-sidebar-foreground/60 group-hover/trigger:text-sidebar-foreground/90"
                   }`}
                 strokeWidth={1.85}
               />
