@@ -1357,7 +1357,7 @@ export default function Organizacao() {
 
         <PageTitle
           title="Dados Institucionais"
-          tooltip="Cadastre as informações principais do cadastro institucional, conforme o tipo selecionado: pessoa física, MEI, grupo/coletivo ou pessoa jurídica."
+          tooltip="Cadastre as informações oficiais do agente, organização, coletivo ou iniciativa cultural. Esses dados serão utilizados em documentos, relatórios, editais, prestações de contas e demais registros institucionais do sistema."
         />
 
         {!showForm && nextStepCard && (
@@ -1391,7 +1391,7 @@ export default function Organizacao() {
                   <FieldLabel
                     htmlFor="tipoAgente"
                     required={!visualizando}
-                    tooltip="Selecione a forma jurídica ou tipo de agente que melhor representa este cadastro. Ex.: pessoa jurídica sem fins lucrativos, MEI, pessoa física ou grupo/coletivo."
+                    tooltip="Selecione o tipo que melhor representa este agente cultural ou instituição. Ex.: pessoa jurídica sem fins lucrativos, MEI, pessoa física ou grupo/coletivo."
                   >
                     Tipo de Agente
                   </FieldLabel>
@@ -1453,7 +1453,7 @@ export default function Organizacao() {
                   <FieldLabel
                     htmlFor="tipoIniciativaCultural"
                     required={!visualizando}
-                    tooltip="Selecione o tipo de iniciativa cultural que melhor representa este cadastro. Ex.: Ponto de Cultura, coletivo cultural, associação cultural, grupo artístico ou produtora cultural."
+                    tooltip="Selecione a categoria que melhor representa a atuação cultural do agente, coletivo ou instituição. Essa informação auxilia na organização do cadastro, identificação da iniciativa cultural e geração de relatórios e documentos institucionais. Ex.: Ponto de Cultura, coletivo cultural, associação cultural, grupo artístico ou produtora cultural."
                   >
                     Tipo de Iniciativa Cultural
                   </FieldLabel>
@@ -2305,7 +2305,7 @@ export default function Organizacao() {
 
       <WikiFloatingButton
         pageTitle="Dados Institucionais"
-        href="https://www.aurit.com.br/wiki/institucional/dados-institucionais"
+        href="https://www.aurit.com.br/wiki/institucional/dados-da-organizacao"
       />
     </AppLayout>
   );
