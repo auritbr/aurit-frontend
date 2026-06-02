@@ -71,6 +71,18 @@ export default function UsuarioForm() {
   const criando = !id;
 
   const acao = criando ? "CRIAR" : editando ? "EDITAR" : "VISUALIZAR";
+  const usuarioLogado = getUsuarioLogadoStorage();
+
+  const modoProprioUsuario =
+    usuarioLogado?.userRole === "USER" &&
+    !!id &&
+    usuarioLogado.id != null &&
+    String(usuarioLogado.id) === String(id) &&
+    !criando;
+
+  if (modoProprioUsuario) {
+    return <UsuarioFormContent modoProprioUsuario />;
+  }
 
   return (
     <PermissionGuard modulo="USUARIOS" acao={acao}>
@@ -79,7 +91,11 @@ export default function UsuarioForm() {
   );
 }
 
-function UsuarioFormContent() {
+function UsuarioFormContent({
+  modoProprioUsuario = false,
+}: {
+  modoProprioUsuario?: boolean;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -100,6 +116,7 @@ function UsuarioFormContent() {
 
   const isProprietario = existing?.userRole === "ADMIN_PROPRIETARIO";
   const bloqueado = loading || saving || visualizando;
+  const bloqueiaPerfilStatus = isProprietario || modoProprioUsuario;
 
   useEffect(() => {
     let active = true;
@@ -111,10 +128,20 @@ function UsuarioFormContent() {
 
         const usuarioLogado = getUsuarioLogadoStorage();
 
-        const [empresasData, usuarioData] = await Promise.all([
-          getConfiguracoesEmpresaOptions(),
-          id ? getUsuarioById(id) : Promise.resolve(undefined),
-        ]);
+        let empresasData: ConfiguracaoEmpresaOption[] = [];
+        let usuarioData: Usuario | undefined = undefined;
+
+        if (modoProprioUsuario) {
+          usuarioData = id ? await getUsuarioById(id) : undefined;
+        } else {
+          const result = await Promise.all([
+            getConfiguracoesEmpresaOptions(),
+            id ? getUsuarioById(id) : Promise.resolve(undefined),
+          ]);
+
+          empresasData = result[0];
+          usuarioData = result[1];
+        }
 
         if (!active) return;
 
@@ -177,16 +204,21 @@ function UsuarioFormContent() {
     return () => {
       active = false;
     };
-  }, [id, navigate]);
+  }, [id, navigate, modoProprioUsuario]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  const empresaNome = (idEmpresa?: string) =>
-    idEmpresa
+  const empresaNome = (idEmpresa?: string) => {
+    if (modoProprioUsuario) {
+      return idEmpresa ? "Organização vinculada" : "Organização vinculada";
+    }
+
+    return idEmpresa
       ? empresas.find((empresa) => empresa.id === idEmpresa)?.nome ??
-      "Configuração da empresa"
+        "Configuração da empresa"
       : "Configuração da empresa vinculada";
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -213,7 +245,7 @@ function UsuarioFormContent() {
       return;
     }
 
-    if (!form.configuracaoEmpresaId) {
+    if (!modoProprioUsuario && !form.configuracaoEmpresaId) {
       toast.error("Não foi possível identificar a configuração da empresa.");
       return;
     }
@@ -222,11 +254,13 @@ function UsuarioFormContent() {
       setSaving(true);
       setAccessDeniedMessage(null);
 
-      const duplicated = await isLoginDuplicated(form.login, existing?.id);
+      if (!modoProprioUsuario) {
+        const duplicated = await isLoginDuplicated(form.login, existing?.id);
 
-      if (duplicated) {
-        toast.error("Este login já está em uso. Escolha outro.");
-        return;
+        if (duplicated) {
+          toast.error("Este login já está em uso. Escolha outro.");
+          return;
+        }
       }
 
       if (criando) {
@@ -271,15 +305,19 @@ function UsuarioFormContent() {
 
         await updateUsuario(existing.id, {
           name: form.name.trim(),
-          login: form.login.trim(),
+          login: modoProprioUsuario ? existing.login : form.login.trim(),
           ...(form.password ? { password: form.password } : {}),
-          userRole: isProprietario
-            ? existing.userRole
-            : (form.userRole as UserRole),
-          statusUsuario: isProprietario
-            ? existing.statusUsuario
-            : (form.statusUsuario as StatusUsuario),
-          configuracaoEmpresaId: form.configuracaoEmpresaId,
+          userRole:
+            isProprietario || modoProprioUsuario
+              ? existing.userRole
+              : (form.userRole as UserRole),
+          statusUsuario:
+            isProprietario || modoProprioUsuario
+              ? existing.statusUsuario
+              : (form.statusUsuario as StatusUsuario),
+          ...(form.configuracaoEmpresaId
+            ? { configuracaoEmpresaId: form.configuracaoEmpresaId }
+            : {}),
         });
 
         toast.success("Usuário atualizado com sucesso.");
@@ -339,7 +377,7 @@ function UsuarioFormContent() {
           </div>
         )}
 
-        {!visualizando && (
+        {!visualizando && !modoProprioUsuario && (
           <div className="mb-4 rounded border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
             No plano gratuito, é permitido cadastrar usuários respeitando o
             limite total definido para a configuração da empresa.
@@ -350,6 +388,13 @@ function UsuarioFormContent() {
           <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
             O administrador proprietário não pode ter perfil nem status
             alterados.
+          </div>
+        )}
+
+        {modoProprioUsuario && !visualizando && (
+          <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+            Você pode alterar apenas seus próprios dados permitidos. Perfil,
+            status, login e organização são definidos pela administração.
           </div>
         )}
 
@@ -415,8 +460,8 @@ function UsuarioFormContent() {
                   value={form.login}
                   onChange={(event) => set("login", event.target.value)}
                   autoComplete="off"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
+                  disabled={bloqueado || modoProprioUsuario}
+                  readOnly={visualizando || modoProprioUsuario}
                 />
               </Field>
 
@@ -494,7 +539,7 @@ function UsuarioFormContent() {
                   <Select
                     value={form.userRole}
                     onValueChange={(value) => set("userRole", value as UserRole)}
-                    disabled={isProprietario || saving}
+                    disabled={bloqueiaPerfilStatus || saving}
                   >
                     <SelectTrigger id="userRole">
                       <SelectValue placeholder="Selecione" />
@@ -539,7 +584,7 @@ function UsuarioFormContent() {
                     onValueChange={(value) =>
                       set("statusUsuario", value as StatusUsuario)
                     }
-                    disabled={isProprietario || saving}
+                    disabled={bloqueiaPerfilStatus || saving}
                   >
                     <SelectTrigger id="statusUsuario">
                       <SelectValue placeholder="Selecione" />

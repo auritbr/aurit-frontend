@@ -24,6 +24,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/hooks/usePagination";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
+import { getUsuarioLogadoStorage } from "@/lib/auth";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -42,6 +43,7 @@ import {
 import { toast } from "sonner";
 import {
   getUsuarios,
+  getUsuarioById,
   deleteUsuario,
   alterarStatusUsuario,
   getConfiguracoesEmpresaOptions,
@@ -81,6 +83,9 @@ export default function Usuarios() {
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
 
+  const usuarioLogado = getUsuarioLogadoStorage();
+  const isUsuarioComum = usuarioLogado?.userRole === "USER";
+
   const podeVisualizar = permissoes.VISUALIZAR;
   const podeCriar = permissoes.CRIAR;
   const podeEditar = permissoes.EDITAR;
@@ -93,6 +98,20 @@ export default function Usuarios() {
     async function carregarPermissoes() {
       try {
         setLoadingPermissoes(true);
+
+        const usuarioAtual = getUsuarioLogadoStorage();
+
+        if (usuarioAtual?.userRole === "USER") {
+          if (!active) return;
+
+          setPermissoes({
+            ...permissoesVazias,
+            VISUALIZAR: true,
+            EDITAR: true,
+          });
+
+          return;
+        }
 
         const data = await getPermissoesUsuarioLogadoPorModulo("USUARIOS");
 
@@ -133,6 +152,21 @@ export default function Usuarios() {
       setLoading(true);
       setAccessDeniedMessage(null);
 
+      const usuarioAtual = getUsuarioLogadoStorage();
+
+      if (usuarioAtual?.userRole === "USER") {
+        if (!usuarioAtual.id) {
+          throw new Error("Usuário logado não identificado.");
+        }
+
+        const usuarioData = await getUsuarioById(String(usuarioAtual.id));
+
+        setItems(usuarioData ? [usuarioData] : []);
+        setEmpresas([]);
+
+        return;
+      }
+
       const [usuariosData, empresasData] = await Promise.all([
         getUsuarios(),
         getConfiguracoesEmpresaOptions(),
@@ -155,11 +189,16 @@ export default function Usuarios() {
     }
   }
 
-  const empresaNome = (id?: string) =>
-    id
+  const empresaNome = (id?: string) => {
+    if (isUsuarioComum) {
+      return id ? "Organização vinculada" : "Sem organização vinculada";
+    }
+
+    return id
       ? empresas.find((empresa) => empresa.id === id)?.nome ??
-      "Empresa não encontrada"
+        "Empresa não encontrada"
       : "Sem empresa vinculada";
+  };
 
   const filtered = useMemo(() => {
     const term = search.toLowerCase().trim();
@@ -178,7 +217,7 @@ export default function Usuarios() {
         .toLowerCase()
         .includes(term),
     );
-  }, [search, items, empresas]);
+  }, [search, items, empresas, isUsuarioComum]);
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
     usePagination(filtered, 25, search);
@@ -278,6 +317,18 @@ export default function Usuarios() {
     }
   };
   
+  if (loadingPermissoes || loading) {
+    return (
+      <AppLayout>
+        <div className="container max-w-7xl py-8">
+          <p className="text-sm text-muted-foreground">
+            Carregando usuários...
+          </p>
+        </div>
+      </AppLayout>
+    );
+  }
+
   if (!podeVisualizar) {
     return (
       <AppLayout>
@@ -320,7 +371,7 @@ export default function Usuarios() {
               />
             </div>
 
-            {podeCriar && (
+            {!isUsuarioComum && podeCriar && (
               <Button
                 onClick={() => navigate("/usuarios/novo")}
                 className="h-9 gap-2"
@@ -369,6 +420,14 @@ export default function Usuarios() {
                   const semEmpresa = !usuario.configuracaoEmpresaId;
                   const isProprietario =
                     usuario.userRole === "ADMIN_PROPRIETARIO";
+                  const isProprioUsuario =
+                    usuarioLogado?.id != null &&
+                    String(usuarioLogado.id) === String(usuario.id);
+                  const podeVisualizarLinha =
+                    !isUsuarioComum || isProprioUsuario;
+                  const podeEditarLinha = isUsuarioComum
+                    ? isProprioUsuario
+                    : podeEditar;
 
                   return (
                     <tr
@@ -377,13 +436,15 @@ export default function Usuarios() {
                     >
                       <td className="whitespace-nowrap px-6 py-2.5">
                         <div className="flex items-center gap-1">
-                          <TableActionIcon
-                            icon={Eye}
-                            label="Visualizar"
-                            onClick={() => navigate(`/usuarios/${usuario.id}`)}
-                          />
+                          {podeVisualizarLinha && (
+                            <TableActionIcon
+                              icon={Eye}
+                              label="Visualizar"
+                              onClick={() => navigate(`/usuarios/${usuario.id}`)}
+                            />
+                          )}
 
-                          {podeEditar && (
+                          {podeEditarLinha && (
                             <TableActionIcon
                               icon={Pencil}
                               label="Editar"
@@ -393,7 +454,7 @@ export default function Usuarios() {
                             />
                           )}
 
-                          {podeEditar && (
+                          {!isUsuarioComum && podeEditar && (
                             <TableActionIcon
                               icon={ShieldCheck}
                               label="Permissões"
@@ -403,7 +464,7 @@ export default function Usuarios() {
                             />
                           )}
 
-                          {podeAlterarStatus && !isProprietario && (
+                          {!isUsuarioComum && podeAlterarStatus && !isProprietario && (
                             <TableActionIcon
                               icon={Power}
                               label={
@@ -418,7 +479,7 @@ export default function Usuarios() {
                             />
                           )}
 
-                          {podeExcluir && !isProprietario && (
+                          {!isUsuarioComum && podeExcluir && !isProprietario && (
                             <TableActionIcon
                               icon={Trash2}
                               label="Excluir"
@@ -500,17 +561,27 @@ export default function Usuarios() {
                 const semEmpresa = !usuario.configuracaoEmpresaId;
                 const isProprietario =
                   usuario.userRole === "ADMIN_PROPRIETARIO";
+                const isProprioUsuario =
+                  usuarioLogado?.id != null &&
+                  String(usuarioLogado.id) === String(usuario.id);
+                const podeVisualizarLinha =
+                  !isUsuarioComum || isProprioUsuario;
+                const podeEditarLinha = isUsuarioComum
+                  ? isProprioUsuario
+                  : podeEditar;
 
                 return (
                   <div key={usuario.id} className="p-4">
                     <div className="mb-3 flex items-center gap-1">
-                      <TableActionIcon
-                        icon={Eye}
-                        label="Visualizar"
-                        onClick={() => navigate(`/usuarios/${usuario.id}`)}
-                      />
+                      {podeVisualizarLinha && (
+                        <TableActionIcon
+                          icon={Eye}
+                          label="Visualizar"
+                          onClick={() => navigate(`/usuarios/${usuario.id}`)}
+                        />
+                      )}
 
-                      {podeEditar && (
+                      {podeEditarLinha && (
                         <TableActionIcon
                           icon={Pencil}
                           label="Editar"
@@ -520,7 +591,7 @@ export default function Usuarios() {
                         />
                       )}
 
-                      {podeEditar && (
+                      {!isUsuarioComum && podeEditar && (
                         <TableActionIcon
                           icon={ShieldCheck}
                           label="Permissões"
@@ -530,7 +601,7 @@ export default function Usuarios() {
                         />
                       )}
 
-                      {podeAlterarStatus && !isProprietario && (
+                      {!isUsuarioComum && podeAlterarStatus && !isProprietario && (
                         <TableActionIcon
                           icon={Power}
                           label={
@@ -545,7 +616,7 @@ export default function Usuarios() {
                         />
                       )}
 
-                      {podeExcluir && !isProprietario && (
+                      {!isUsuarioComum && podeExcluir && !isProprietario && (
                         <TableActionIcon
                           icon={Trash2}
                           label="Excluir"
