@@ -294,8 +294,8 @@ export default function IndicadoresSociodemograficos() {
     <AppLayout>
       <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl mx-auto">
         <PageTitle
-          title="Indicadores Sociodemográficos"
-          tooltip="Relatório com o perfil sociodemográfico dos participantes (gênero, raça/cor, faixa de renda e faixa etária) com filtros por ano, atividade, turma e status da matrícula."
+          title="Relatório Sociodemográfico"
+          tooltip="Relatório com o perfil sociodemográfico dos participantes por gênero, raça/cor, faixa de renda e faixa etária com filtros por ano, atividade, turma e status da matrícula."
         />
 
         <section className="rounded-lg border border-border bg-card p-4 sm:p-5 shadow-sm mb-5">

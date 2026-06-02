@@ -39,6 +39,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   "resultados-propostas": "Resultado da Proposta",
   "prestacao-contas": "Prestação de Contas",
   "prestacao-metas": "Cumprimento de Metas",
+  "indicadores-sociodemograficos": "Relatório Sociodemográfico",
   usuarios: "Usuários"
 };
 
