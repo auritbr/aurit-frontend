@@ -41,7 +41,7 @@ type IndicadorExportItem = {
 const TODOS = "TODOS";
 
 const FILTROS_INICIAIS: Filtros = {
-  ano: String(new Date().getFullYear()),
+  ano: TODOS,
   atividadeId: TODOS,
   turmaId: TODOS,
   statusMatricula: TODOS,
