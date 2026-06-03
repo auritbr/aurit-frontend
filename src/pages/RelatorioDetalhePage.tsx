@@ -382,10 +382,6 @@ function normalizarAliasesRelatorio(slug: string, row: Row): Row {
     normalized.numero_inscricao = numeroInscricao;
   }
 
-  if (SLUGS_COM_ENDERECO.has(slug)) {
-    normalized.endereco = montarEndereco(normalized);
-  }
-
   return normalized;
 }
 
@@ -422,15 +418,6 @@ function normalizarColunasParaExibicao(
         existente?.visivelPorPadrao ?? coluna.visivelPorPadrao ?? true,
     });
   });
-
-  if (SLUGS_COM_ENDERECO.has(slug) && !map.has("endereco")) {
-    map.set("endereco", {
-      chave: "endereco",
-      label: "Endereço",
-      visivelPorPadrao: true,
-      tipo: "texto",
-    });
-  }
 
   return Array.from(map.values());
 }

@@ -921,11 +921,10 @@ export default function AgenteForm() {
                     if (visualizando) return;
                     setTipo(k);
                   }}
-                  className={`rounded border px-3 py-2.5 text-left text-[12px] leading-relaxed transition-colors disabled:cursor-default ${
-                    tipo === k
+                  className={`rounded border px-3 py-2.5 text-left text-[12px] leading-relaxed transition-colors disabled:cursor-default ${tipo === k
                       ? "border-primary/40 bg-primary-soft"
                       : "border-border bg-muted/30"
-                  }`}
+                    }`}
                 >
                   <p className="font-semibold text-foreground text-[12.5px] mb-0.5">
                     {tipoAgenteLabels[k]}
@@ -1355,18 +1354,18 @@ function EnderecoFields({
 
       <Field className="sm:col-span-2">
         <FieldLabel htmlFor="numero" required
-        tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
+          tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
         >
           Número
         </FieldLabel>
 
-<Input
-  id="numero"
-  value={data.numero}
-  onChange={(e) => set("numero", e.target.value)}
-  disabled={disabled}
-  readOnly={visualizando}
-/>
+        <Input
+          id="numero"
+          value={data.numero}
+          onChange={(e) => set("numero", e.target.value)}
+          disabled={disabled}
+          readOnly={visualizando}
+        />
       </Field>
 
       <Field className="sm:col-span-4">
