@@ -48,9 +48,9 @@
     --status-pending-bg: 36 95% 90%;
     --status-pending-fg: 27 82% 32%;
 
-    /* Concluído em verde institucional */
-    --status-done-bg: 145 45% 90%;
-    --status-done-fg: 146 62% 24%;
+    /* Concluído em azul */
+    --status-done-bg: 214 95% 93%;
+    --status-done-fg: 217 91% 32%;
 
     --border: 215 16% 89%;
     --input: 215 16% 86%;
@@ -65,17 +65,18 @@
       Base escura neutra para não poluir a interface.
       Verde Aurit usado apenas como assinatura visual em ativos, foco e detalhes.
     */
---sidebar-background: 155 30% 8%;
---sidebar-foreground: 150 12% 82%;
+    --sidebar-background: 155 30% 8%;
+    --sidebar-foreground: 150 12% 82%;
 
---sidebar-primary: 145 62% 29%; /* #1C7743 */
---sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary: 145 62% 29%;
+    /* #1C7743 */
+    --sidebar-primary-foreground: 0 0% 100%;
 
---sidebar-accent: 155 26% 14%;
---sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-accent: 155 26% 14%;
+    --sidebar-accent-foreground: 0 0% 100%;
 
---sidebar-border: 155 18% 17%;
---sidebar-ring: 145 62% 29%;
+    --sidebar-border: 155 18% 17%;
+    --sidebar-ring: 145 62% 29%;
 
     --shadow-soft: 0 1px 2px hsl(215 28% 17% / 0.04), 0 1px 3px hsl(215 28% 17% / 0.06);
     --shadow-card: 0 1px 3px hsl(215 28% 17% / 0.06), 0 4px 12px hsl(215 28% 17% / 0.04);
@@ -88,10 +89,16 @@
       Tokens extras da marca.
       Use apenas em componentes específicos, sem substituir tudo.
     */
---brand-green-dark: 148 62% 14%; /* #0D3821 */    --brand-lime: 74 80% 59%;             /* #C2EA42 */
-    --brand-orange-strong: 27 87% 52%;    /* #EF7B1A */
-    --brand-orange: 36 100% 48%;          /* #F39200 */
-    --brand-orange-soft: 39 94% 59%;      /* #F9B233 */
+    --brand-green-dark: 148 62% 14%;
+    /* #0D3821 */
+    --brand-lime: 74 80% 59%;
+    /* #C2EA42 */
+    --brand-orange-strong: 27 87% 52%;
+    /* #EF7B1A */
+    --brand-orange: 36 100% 48%;
+    /* #F39200 */
+    --brand-orange-soft: 39 94% 59%;
+    /* #F9B233 */
   }
 
   .dark {
@@ -218,13 +225,13 @@
     border-color: hsl(var(--status-done-fg) / 0.35);
   }
 
-.wiki-bubble {
-  box-shadow: 0 12px 30px -16px rgba(13, 56, 33, 0.85);
-}
+  .wiki-bubble {
+    box-shadow: 0 12px 30px -16px rgba(13, 56, 33, 0.85);
+  }
 
-.wiki-bubble:hover {
-  box-shadow: 0 16px 36px -18px rgba(13, 56, 33, 0.95);
-}
+  .wiki-bubble:hover {
+    box-shadow: 0 16px 36px -18px rgba(13, 56, 33, 0.95);
+  }
 
   .sidebar-scroll {
     scrollbar-width: thin;
