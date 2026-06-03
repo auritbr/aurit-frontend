@@ -108,7 +108,7 @@ interface AgenteDetalhadoDTO {
 
   cep?: string | null;
   logradouro?: string | null;
-  numero?: string | number | null;
+  numero?: string | null;
   complemento?: string | null;
   bairro?: string | null;
   cidade?: string | null;
@@ -126,7 +126,7 @@ interface AgentePayload {
   endereco?: {
     cep: string;
     logradouro: string;
-    numero: number | null;
+    numero: string | null;
     complemento: string | null;
     bairro: string;
     cidade: string;
@@ -413,7 +413,7 @@ function limparEndereco(data: Endereco): AgentePayload["endereco"] {
   return {
     cep: onlyDigits(data.cep),
     logradouro: data.logradouro.trim(),
-    numero: data.numero.trim() ? Number(data.numero.replace(/\D/g, "")) : null,
+    numero: data.numero.trim(),
     complemento: data.complemento.trim() || null,
     bairro: data.bairro.trim(),
     cidade: data.cidade.trim(),
@@ -1354,20 +1354,19 @@ function EnderecoFields({
       </Field>
 
       <Field className="sm:col-span-2">
-        <FieldLabel htmlFor="numero" required>
+        <FieldLabel htmlFor="numero" required
+        tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
+        >
           Número
         </FieldLabel>
 
-        <Input
-          id="numero"
-          value={data.numero}
-          onChange={(e) =>
-            set("numero", e.target.value.replace(/\D/g, "").slice(0, 6))
-          }
-          inputMode="numeric"
-          disabled={disabled}
-          readOnly={visualizando}
-        />
+<Input
+  id="numero"
+  value={data.numero}
+  onChange={(e) => set("numero", e.target.value)}
+  disabled={disabled}
+  readOnly={visualizando}
+/>
       </Field>
 
       <Field className="sm:col-span-4">

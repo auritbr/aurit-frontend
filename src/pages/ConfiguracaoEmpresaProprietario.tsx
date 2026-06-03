@@ -212,7 +212,7 @@ function buildPayload(form: ConfigEmpresaForm): ConfiguracaoEmpresaRequestDTO {
     endereco: {
       cep: form.cep.replace(/\D/g, ""),
       logradouro: form.logradouro.trim(),
-      numero: form.numero.trim() ? Number(form.numero) : null,
+      numero: form.numero.trim(),
       complemento: form.complemento.trim(),
       bairro: form.bairro.trim(),
       cidade: form.cidade.trim(),
@@ -818,20 +818,17 @@ export default function ConfiguracaoEmpresaProprietario() {
                 <FieldLabel
                   htmlFor="numero"
                   required
-                  tooltip="Informe o número do imóvel. Ex.: 150."
+                  tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
                 >
                   Número
                 </FieldLabel>
 
-                <Input
-                  id="numero"
-                  value={form.numero}
-                  onChange={(e) =>
-                    set("numero", e.target.value.replace(/\D/g, ""))
-                  }
-                  inputMode="numeric"
-                  disabled={loading || saving}
-                />
+<Input
+  id="numero"
+  value={form.numero}
+  onChange={(e) => set("numero", e.target.value)}
+  disabled={loading || saving}
+/>
               </Field>
 
               <Field className="sm:col-span-4">

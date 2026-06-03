@@ -5,7 +5,7 @@ export type TipoPlanoApi = "PLANO_GRATUITO" | "PLANO_PAGO";
 export interface EnderecoDTO {
   cep: string;
   logradouro: string;
-  numero: number | null;
+  numero: string;
   complemento?: string | null;
   bairro: string;
   cidade: string;
@@ -39,7 +39,7 @@ export interface ConfiguracaoEmpresaRequestDTO {
   endereco: {
     cep: string;
     logradouro: string;
-    numero: number | null;
+    numero: string;
     complemento?: string;
     bairro: string;
     cidade: string;
@@ -112,7 +112,7 @@ function mapResponseToData(
       dto.limiteUsuarios != null ? String(dto.limiteUsuarios) : "",
     cep: dto.endereco?.cep ?? "",
     logradouro: dto.endereco?.logradouro ?? "",
-    numero: dto.endereco?.numero != null ? String(dto.endereco.numero) : "",
+    numero: dto.endereco?.numero ?? "",
     complemento: dto.endereco?.complemento ?? "",
     bairro: dto.endereco?.bairro ?? "",
     cidade: dto.endereco?.cidade ?? "",

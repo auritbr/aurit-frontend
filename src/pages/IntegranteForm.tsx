@@ -430,7 +430,7 @@ export default function IntegranteForm() {
 
       cep: onlyDigits(form.cep),
       logradouro: form.logradouro.trim(),
-      numero: form.numero.trim() ? Number(form.numero) : null,
+      numero: form.numero.trim(),
       complemento: form.complemento.trim() || null,
       bairro: form.bairro.trim(),
       cidade: form.cidade.trim(),
@@ -732,22 +732,17 @@ export default function IntegranteForm() {
               </Field>
 
               <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="numero" required>
+                <FieldLabel htmlFor="numero" required
+                  tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
+                >
                   Número
                 </FieldLabel>
 
                 <Input
                   id="numero"
                   value={form.numero}
-                  onChange={(e) =>
-                    set(
-                      "numero",
-                      e.target.value.replace(/\D/g, "").slice(0, 6),
-                    )
-                  }
-                  inputMode="numeric"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
+                  onChange={(e) => set("numero", e.target.value)}
+                  disabled={loading || saving}
                 />
               </Field>
 

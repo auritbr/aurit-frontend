@@ -1036,19 +1036,17 @@ export default function ParticipanteForm() {
                   </Field>
 
                   <Field className="sm:col-span-2">
-                    <FieldLabel htmlFor="numero" required={!visualizando}>
+                    <FieldLabel htmlFor="numero" required={!visualizando}
+                      tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
+                    >
                       Número
                     </FieldLabel>
 
                     <Input
                       id="numero"
                       value={form.numero}
-                      onChange={(e) =>
-                        set("numero", onlyDigits(e.target.value))
-                      }
-                      inputMode="numeric"
-                      disabled={bloqueado}
-                      readOnly={visualizando}
+                      onChange={(e) => set("numero", e.target.value)}
+                      disabled={loading || saving}
                     />
                   </Field>
 

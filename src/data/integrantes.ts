@@ -29,7 +29,7 @@ export interface IntegranteDTO {
 
   cep?: string | null;
   logradouro?: string | null;
-  numero?: number | null;
+  numero?: string | null;
   complemento?: string | null;
   bairro?: string | null;
   cidade?: string | null;
@@ -61,7 +61,7 @@ export interface Integrante {
 
   cep: string;
   logradouro: string;
-  numero: number | "";
+  numero: string;
   complemento: string;
   bairro: string;
   cidade: string;
@@ -149,7 +149,7 @@ export function mapIntegrante(dto: IntegranteDTO): Integrante {
 
     cep: normalizeText(dto.cep),
     logradouro: normalizeText(dto.logradouro),
-    numero: dto.numero != null ? Number(dto.numero) : "",
+    numero: normalizeText(dto.numero),
     complemento: normalizeText(dto.complemento),
     bairro: normalizeText(dto.bairro),
     cidade: normalizeText(dto.cidade),

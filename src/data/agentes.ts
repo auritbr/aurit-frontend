@@ -150,7 +150,7 @@ export interface AgenteDetalhadoResponseDTO {
 export interface EnderecoRequestDTO {
   cep: string;
   logradouro: string;
-  numero: number | null;
+  numero: string;
   complemento?: string;
   bairro: string;
   cidade: string;
@@ -388,7 +388,7 @@ export function sanitizeEnderecoInput(input: {
   return {
     cep: input.cep.trim(),
     logradouro: input.logradouro.trim(),
-    numero: input.numero.trim() ? Number(input.numero) : null,
+    numero: input.numero.trim(),
     complemento: input.complemento.trim(),
     bairro: input.bairro.trim(),
     cidade: input.cidade.trim(),

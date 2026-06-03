@@ -175,7 +175,7 @@ export interface ParticipanteApiDTO {
 
   cep?: string | null;
   logradouro?: string | null;
-  numero?: number | string | null;
+  numero?: string | null;
   complemento?: string | null;
   bairro?: string | null;
   cidade?: string | null;
@@ -218,7 +218,7 @@ export interface ParticipantePayloadDTO {
 
   cep: string;
   logradouro: string;
-  numero: number;
+  numero: string;
   complemento?: string | null;
   bairro?: string | null;
   cidade: string;
@@ -406,7 +406,7 @@ export function mapParticipante(dto: ParticipanteApiDTO): Participante {
 
     cep: dto.cep ?? "",
     logradouro: dto.logradouro ?? "",
-    numero: dto.numero != null ? String(dto.numero) : "",
+    numero: dto.numero ?? "",
     complemento: dto.complemento ?? "",
     bairro: dto.bairro ?? "",
     cidade: dto.cidade ?? "",
@@ -451,7 +451,7 @@ export function buildParticipantePayload(
 
     cep: onlyDigits(participante.cep),
     logradouro: participante.logradouro?.trim() || "",
-    numero: Number(participante.numero),
+    numero: participante.numero?.trim() || "",
     complemento: participante.complemento?.trim() || null,
     bairro: participante.bairro?.trim() || null,
     cidade: participante.cidade?.trim() || "",

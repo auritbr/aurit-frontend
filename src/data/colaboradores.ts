@@ -94,7 +94,7 @@ export interface ColaboradorDTO {
 
   cep?: string | null;
   logradouro?: string | null;
-  numero?: number | null;
+  numero?: string;
   complemento?: string | null;
   bairro?: string | null;
   cidade?: string | null;
@@ -250,7 +250,7 @@ export function mapColaborador(dto: ColaboradorDTO): Colaborador {
 
     cep: dto.cep ?? "",
     logradouro: dto.logradouro ?? "",
-    numero: dto.numero != null ? String(dto.numero) : "",
+    numero: dto.numero  ?? "",
     complemento: dto.complemento ?? "",
     bairro: dto.bairro ?? "",
     cidade: dto.cidade ?? "",
@@ -285,7 +285,7 @@ export function buildColaboradorPayload(form: Colaborador): ColaboradorDTO {
 
     cep: form.cep.replace(/\D/g, ""),
     logradouro: form.logradouro.trim(),
-    numero: form.numero.trim() ? Number(form.numero) : null,
+    numero: form.numero.trim(),
     complemento: form.complemento.trim() || null,
     bairro: form.bairro.trim(),
     cidade: form.cidade.trim(),
