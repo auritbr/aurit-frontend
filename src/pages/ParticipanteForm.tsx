@@ -1376,14 +1376,17 @@ export default function ParticipanteForm() {
                               </SelectTrigger>
 
                               <SelectContent>
-                                {atividades.map((a) => (
-                                  <SelectItem
-                                    key={String(a.id)}
-                                    value={String(a.id)}
-                                  >
-                                    {a.nomeAtividade}
-                                  </SelectItem>
-                                ))}
+                                {[...atividades]
+                                  .sort((a, b) =>
+                                    a.nomeAtividade.localeCompare(b.nomeAtividade, "pt-BR", {
+                                      sensitivity: "base",
+                                    })
+                                  )
+                                  .map((a) => (
+                                    <SelectItem key={String(a.id)} value={String(a.id)}>
+                                      {a.nomeAtividade}
+                                    </SelectItem>
+                                  ))}
                               </SelectContent>
                             </Select>
                           </div>
@@ -1421,14 +1424,17 @@ export default function ParticipanteForm() {
                                     Sem turma específica
                                   </SelectItem>
 
-                                  {turmasDaAtividade.map((t) => (
-                                    <SelectItem
-                                      key={String(t.id)}
-                                      value={String(t.id)}
-                                    >
-                                      {t.nomeTurma}
-                                    </SelectItem>
-                                  ))}
+                                  {[...turmasDaAtividade]
+                                    .sort((a, b) =>
+                                      a.nomeTurma.localeCompare(b.nomeTurma, "pt-BR", {
+                                        sensitivity: "base",
+                                      })
+                                    )
+                                    .map((t) => (
+                                      <SelectItem key={String(t.id)} value={String(t.id)}>
+                                        {t.nomeTurma}
+                                      </SelectItem>
+                                    ))}
                                 </SelectContent>
                               </Select>
                             )}
