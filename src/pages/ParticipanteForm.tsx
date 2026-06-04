@@ -384,6 +384,26 @@ function formToParticipante(form: FormState): Participante {
   };
 }
 
+
+function dataMatriculaToTimestamp(data?: string) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(data?.trim() ?? "");
+
+  if (!match) return null;
+
+  const dia = Number(match[1]);
+  const mes = Number(match[2]);
+  const ano = Number(match[3]);
+
+  const date = new Date(ano, mes - 1, dia);
+
+  const dataValida =
+    date.getFullYear() === ano &&
+    date.getMonth() === mes - 1 &&
+    date.getDate() === dia;
+
+  return dataValida ? date.getTime() : null;
+}
+
 export default function ParticipanteForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -474,6 +494,29 @@ export default function ParticipanteForm() {
     form.organizacaoId ||
     String(existingParticipante?.organizacaoId ?? "") ||
     String(organizacoes[0]?.id ?? "");
+
+  const vinculosOrdenados = useMemo(
+    () =>
+      form.vinculos
+        .map((v, originalIndex) => ({
+          v,
+          originalIndex,
+        }))
+        .sort((a, b) => {
+          const dataA = dataMatriculaToTimestamp(a.v.dataMatricula);
+          const dataB = dataMatriculaToTimestamp(b.v.dataMatricula);
+
+          if (dataA === null && dataB === null) {
+            return a.originalIndex - b.originalIndex;
+          }
+
+          if (dataA === null) return 1;
+          if (dataB === null) return -1;
+
+          return dataB - dataA;
+        }),
+    [form.vinculos],
+  );
 
   useEffect(() => {
     let active = true;
@@ -1298,249 +1341,257 @@ export default function ParticipanteForm() {
               </Section>
             </TabsContent>
 
-            <TabsContent value="vinculos" className="mt-4 space-y-5">
-              <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-                <Info
-                  className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
-                  strokeWidth={2.2}
-                />
+<TabsContent value="vinculos" className="mt-4 space-y-5">
+  <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
+    <Info
+      className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
+      strokeWidth={2.2}
+    />
 
-                <p className="text-[13px] leading-relaxed text-foreground">
-                  Preencha esta seção apenas quando o participante estiver
-                  matriculado ou vinculado a uma atividade específica. Para
-                  realizar apenas o cadastro geral do participante, deixe estes
-                  campos em branco.
-                </p>
+    <p className="text-[13px] leading-relaxed text-foreground">
+      Preencha esta seção apenas quando o participante estiver
+      matriculado ou vinculado a uma atividade específica. Para
+      realizar apenas o cadastro geral do participante, deixe estes
+      campos em branco.
+    </p>
+  </div>
+
+  <Section
+    icon={Link2}
+    title="Matrículas em Atividades e Turmas"
+    action={
+      !visualizando ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={addVinculo}
+          className="h-8 gap-1.5"
+        >
+          <Plus className="h-3.5 w-3.5" /> Adicionar Atividade
+        </Button>
+      ) : null
+    }
+  >
+    <div className="space-y-3">
+      {form.vinculos.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          Nenhuma matrícula vinculada. Utilize a opção{" "}
+          <span className="font-semibold">Adicionar Atividade</span>{" "}
+          para vincular este participante a uma atividade.
+        </p>
+      )}
+
+      {vinculosOrdenados.map(({ v, originalIndex }, idx) => {
+        const turmasDaAtividade = v.atividadeId
+          ? turmasPorAtividade(v.atividadeId)
+          : [];
+
+        const semTurmas =
+          !!v.atividadeId && turmasDaAtividade.length === 0;
+
+        return (
+          <div
+            key={`${originalIndex}-${v.id ?? "novo"}`}
+            className="rounded border border-border bg-muted/20 p-4"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Vínculo {idx + 1}
+              </span>
+
+              {!visualizando && (
+                <button
+                  type="button"
+                  onClick={() => removeVinculo(originalIndex)}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
+                  aria-label={`Remover vínculo ${idx + 1}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Remover
+                </button>
+              )}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <FieldLabel
+                  htmlFor={`atividade-${originalIndex}`}
+                  tooltip="Selecione a atividade apenas quando o participante estiver matriculado ou vinculado a uma ação específica. Para cadastro geral, deixe este campo em branco."
+                >
+                  Atividade
+                </FieldLabel>
+
+                <Select
+                  value={v.atividadeId}
+                  onValueChange={(val) => {
+                    if (visualizando) return;
+
+                    setVinculo(originalIndex, {
+                      atividadeId: val,
+                      turmaId: "",
+                    });
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id={`atividade-${originalIndex}`}>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {[...atividades]
+                      .sort((a, b) =>
+                        a.nomeAtividade.localeCompare(
+                          b.nomeAtividade,
+                          "pt-BR",
+                          {
+                            sensitivity: "base",
+                          }
+                        )
+                      )
+                      .map((a) => (
+                        <SelectItem key={String(a.id)} value={String(a.id)}>
+                          {a.nomeAtividade}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              <Section
-                icon={Link2}
-                title="Matrículas em Atividades e Turmas"
-                action={
-                  !visualizando ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={addVinculo}
-                      className="h-8 gap-1.5"
-                    >
-                      <Plus className="h-3.5 w-3.5" /> Adicionar Atividade
-                    </Button>
-                  ) : null
-                }
-              >
-                <div className="space-y-3">
-                  {form.vinculos.length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      Nenhuma matrícula vinculada. Utilize a opção{" "}
-                      <span className="font-semibold">Adicionar Atividade</span>{" "}
-                      para vincular este participante a uma atividade.
-                    </p>
-                  )}
+              <div>
+                <FieldLabel
+                  htmlFor={`turma-${originalIndex}`}
+                  tooltip="Selecione a turma específica, caso a atividade possua turmas. Quando não houver turma, deixe como sem turma específica."
+                >
+                  Turma
+                </FieldLabel>
 
-                  {form.vinculos.map((v, idx) => {
-                    const turmasDaAtividade = v.atividadeId
-                      ? turmasPorAtividade(v.atividadeId)
-                      : [];
+                {semTurmas ? (
+                  <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+                    Não se aplica
+                  </div>
+                ) : (
+                  <Select
+                    value={v.turmaId || SEM_TURMA}
+                    onValueChange={(val) => {
+                      if (visualizando) return;
 
-                    const semTurmas =
-                      !!v.atividadeId && turmasDaAtividade.length === 0;
+                      setVinculo(originalIndex, {
+                        turmaId: val === SEM_TURMA ? "" : val,
+                      });
+                    }}
+                    disabled={bloqueado || !v.atividadeId}
+                  >
+                    <SelectTrigger id={`turma-${originalIndex}`}>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
 
-                    return (
-                      <div
-                        key={`${idx}-${v.id ?? "novo"}`}
-                        className="rounded border border-border bg-muted/20 p-4"
-                      >
-                        <div className="mb-3 flex items-center justify-between">
-                          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Vínculo {idx + 1}
-                          </span>
+                    <SelectContent>
+                      <SelectItem value={SEM_TURMA}>
+                        Sem turma específica
+                      </SelectItem>
 
-                          {!visualizando && (
-                            <button
-                              type="button"
-                              onClick={() => removeVinculo(idx)}
-                              className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
-                              aria-label={`Remover vínculo ${idx + 1}`}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" /> Remover
-                            </button>
-                          )}
-                        </div>
+                      {[...turmasDaAtividade]
+                        .sort((a, b) =>
+                          a.nomeTurma.localeCompare(b.nomeTurma, "pt-BR", {
+                            sensitivity: "base",
+                          })
+                        )
+                        .map((t) => (
+                          <SelectItem key={String(t.id)} value={String(t.id)}>
+                            {t.nomeTurma}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
 
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                          <div>
-                            <FieldLabel
-                              htmlFor={`atividade-${idx}`}
-                              tooltip="Selecione a atividade apenas quando o participante estiver matriculado ou vinculado a uma ação específica. Para cadastro geral, deixe este campo em branco."
-                            >
-                              Atividade
-                            </FieldLabel>
+              <div>
+                <FieldLabel
+                  htmlFor={`dataMatricula-${originalIndex}`}
+                  tooltip="Informe a data em que o participante foi matriculado ou passou a integrar a atividade ou turma."
+                >
+                  Data da Matrícula
+                </FieldLabel>
 
-                            <Select
-                              value={v.atividadeId}
-                              onValueChange={(val) => {
-                                if (visualizando) return;
-                                setVinculo(idx, {
-                                  atividadeId: val,
-                                  turmaId: "",
-                                });
-                              }}
-                              disabled={bloqueado}
-                            >
-                              <SelectTrigger id={`atividade-${idx}`}>
-                                <SelectValue placeholder="Selecione" />
-                              </SelectTrigger>
+                <Input
+                  id={`dataMatricula-${originalIndex}`}
+                  value={v.dataMatricula}
+                  onChange={(e) => {
+                    if (visualizando) return;
 
-                              <SelectContent>
-                                {[...atividades]
-                                  .sort((a, b) =>
-                                    a.nomeAtividade.localeCompare(b.nomeAtividade, "pt-BR", {
-                                      sensitivity: "base",
-                                    })
-                                  )
-                                  .map((a) => (
-                                    <SelectItem key={String(a.id)} value={String(a.id)}>
-                                      {a.nomeAtividade}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                    setVinculo(originalIndex, {
+                      dataMatricula: maskDate(e.target.value),
+                    });
+                  }}
+                  inputMode="numeric"
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </div>
 
-                          <div>
-                            <FieldLabel
-                              htmlFor={`turma-${idx}`}
-                              tooltip="Selecione a turma específica, caso a atividade possua turmas. Quando não houver turma, deixe como sem turma específica."
-                            >
-                              Turma
-                            </FieldLabel>
+              <div>
+                <FieldLabel
+                  htmlFor={`status-vinculo-${originalIndex}`}
+                  tooltip="Indique a situação da matrícula do participante nesta atividade ou turma. Esse status se refere apenas ao vínculo com a atividade selecionada, não ao cadastro geral do participante."
+                >
+                  Status da Matrícula
+                </FieldLabel>
 
-                            {semTurmas ? (
-                              <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
-                                Não se aplica
-                              </div>
-                            ) : (
-                              <Select
-                                value={v.turmaId || SEM_TURMA}
-                                onValueChange={(val) => {
-                                  if (visualizando) return;
+                <Select
+                  value={v.statusMatricula}
+                  onValueChange={(val) => {
+                    if (visualizando) return;
 
-                                  setVinculo(idx, {
-                                    turmaId: val === SEM_TURMA ? "" : val,
-                                  });
-                                }}
-                                disabled={bloqueado || !v.atividadeId}
-                              >
-                                <SelectTrigger id={`turma-${idx}`}>
-                                  <SelectValue placeholder="Selecione" />
-                                </SelectTrigger>
+                    setVinculo(originalIndex, {
+                      statusMatricula: val,
+                    });
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id={`status-vinculo-${originalIndex}`}>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
 
-                                <SelectContent>
-                                  <SelectItem value={SEM_TURMA}>
-                                    Sem turma específica
-                                  </SelectItem>
+                  <SelectContent>
+                    {statusMatriculaOptions.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                                  {[...turmasDaAtividade]
-                                    .sort((a, b) =>
-                                      a.nomeTurma.localeCompare(b.nomeTurma, "pt-BR", {
-                                        sensitivity: "base",
-                                      })
-                                    )
-                                    .map((t) => (
-                                      <SelectItem key={String(t.id)} value={String(t.id)}>
-                                        {t.nomeTurma}
-                                      </SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          </div>
+              <div className="sm:col-span-2 lg:col-span-4">
+                <FieldLabel
+                  htmlFor={`atividadeExercida-${originalIndex}`}
+                  tooltip="Informe como o participante participa ou atua nesta atividade ou turma. Ex.: aluno de violão, participante da oficina de teatro, coralista, brincante, aprendiz, monitor ou integrante do grupo."
+                >
+                  Forma de Participação
+                </FieldLabel>
 
-                          <div>
-                            <FieldLabel
-                              htmlFor={`dataMatricula-${idx}`}
-                              tooltip="Informe a data em que o participante foi matriculado ou passou a integrar a atividade ou turma."
-                            >
-                              Data da Matrícula
-                            </FieldLabel>
+                <Input
+                  id={`atividadeExercida-${originalIndex}`}
+                  value={v.atividadeExercida}
+                  onChange={(e) => {
+                    if (visualizando) return;
 
-                            <Input
-                              id={`dataMatricula-${idx}`}
-                              value={v.dataMatricula}
-                              onChange={(e) => {
-                                if (visualizando) return;
-
-                                setVinculo(idx, {
-                                  dataMatricula: maskDate(e.target.value),
-                                });
-                              }}
-                              inputMode="numeric"
-                              disabled={bloqueado}
-                              readOnly={visualizando}
-                            />
-                          </div>
-
-                          <div>
-                            <FieldLabel
-                              htmlFor={`status-vinculo-${idx}`}
-                              tooltip="Indique a situação da matrícula do participante nesta atividade ou turma. Esse status se refere apenas ao vínculo com a atividade selecionada, não ao cadastro geral do participante."
-                            >
-                              Status da Matrícula
-                            </FieldLabel>
-
-                            <Select
-                              value={v.statusMatricula}
-                              onValueChange={(val) => {
-                                if (visualizando) return;
-                                setVinculo(idx, { statusMatricula: val });
-                              }}
-                              disabled={bloqueado}
-                            >
-                              <SelectTrigger id={`status-vinculo-${idx}`}>
-                                <SelectValue placeholder="Selecione" />
-                              </SelectTrigger>
-
-                              <SelectContent>
-                                {statusMatriculaOptions.map((s) => (
-                                  <SelectItem key={s.value} value={s.value}>
-                                    {s.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="sm:col-span-2 lg:col-span-4">
-                            <FieldLabel
-                              htmlFor={`atividadeExercida-${idx}`}
-                              tooltip="Informe como o participante participa ou atua nesta atividade ou turma. Ex.: aluno de violão, participante da oficina de teatro, coralista, brincante, aprendiz, monitor ou integrante do grupo."
-                            >
-                              Forma de Participação
-                            </FieldLabel>
-
-                            <Input
-                              id={`atividadeExercida-${idx}`}
-                              value={v.atividadeExercida}
-                              onChange={(e) => {
-                                if (visualizando) return;
-
-                                setVinculo(idx, {
-                                  atividadeExercida: e.target.value,
-                                });
-                              }}
-                              disabled={bloqueado}
-                              readOnly={visualizando}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Section>
-            </TabsContent>
+                    setVinculo(originalIndex, {
+                      atividadeExercida: e.target.value,
+                    });
+                  }}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </Section>
+</TabsContent>
           </Tabs>
 
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
