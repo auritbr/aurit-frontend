@@ -272,10 +272,30 @@ function normalizarEstado(value?: string): string {
   }
 
   const encontrado = estadosBrasil.find(
-    (item) => item.toLowerCase() === estado.toLowerCase(),
+    (item) => removerAcentos(item).toLowerCase() === removerAcentos(estado).toLowerCase(),
   );
 
-  return encontrado ?? estado;
+  if (encontrado) return encontrado;
+
+  return formatarNomeEstado(estado);
+}
+
+function formatarNomeEstado(value: string): string {
+  return value
+    .toLowerCase()
+    .split(" ")
+    .map((palavra) => {
+      if (["de", "do", "da", "dos", "das"].includes(palavra)) {
+        return palavra;
+      }
+
+      return palavra.charAt(0).toUpperCase() + palavra.slice(1);
+    })
+    .join(" ");
+}
+
+function removerAcentos(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 function getOrganizacaoId(organizacao?: OrganizacaoOption | null) {
