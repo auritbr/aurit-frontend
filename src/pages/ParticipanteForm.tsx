@@ -349,7 +349,7 @@ function formToParticipante(form: FormState): Participante {
     complemento: form.complemento,
     bairro: form.bairro,
     cidade: form.cidade,
-    estado: form.estado,
+    estado: normalizarEstado(form.estado),
 
     nomeResponsavel: form.nomeResponsavel,
     cpfResponsavel: form.cpfResponsavel,
