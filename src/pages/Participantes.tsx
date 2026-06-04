@@ -478,25 +478,16 @@ export default function Participantes() {
                         </TableCellText>
                       </td>
 
+                      <td className="whitespace-nowrap px-6 py-2.5">
+                        <StatusPill status={statusValueToLabel(p.status) as any} />
+                      </td>
+
                       <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
                         {generoLabel(p.genero)}
                       </td>
 
                       <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
                         {racaCorLabel(p.racaCor)}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <StatusPill status={statusValueToLabel(p.status) as any} />
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText
-                          text={organizacao}
-                          muted={organizacao === "—"}
-                        >
-                          {organizacao}
-                        </TableCellText>
                       </td>
 
                       <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
