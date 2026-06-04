@@ -38,6 +38,8 @@ import {
   getTurmasOptions,
   statusValueToLabel,
   statusMatriculaValueToLabel,
+  generoOptions,
+  racaCorOptions,
   type AtividadeOption,
   type OrganizacaoOption,
   type Participante,
@@ -206,6 +208,12 @@ export default function Participantes() {
 
   const organizacaoNome = (id?: string) =>
     id ? organizacoes.find((o) => o.id === id)?.nome ?? "—" : "—";
+
+  const generoLabel = (value?: string | null) =>
+    value ? generoOptions.find((item) => item.value === value)?.label ?? value : "—";
+
+  const racaCorLabel = (value?: string | null) =>
+    value ? racaCorOptions.find((item) => item.value === value)?.label ?? value : "—";
 
   const formatVinculos = (vs: Participante["vinculos"]) =>
     vs
@@ -376,7 +384,7 @@ export default function Participantes() {
           </div>
 
           <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[1200px]">
+            <table ref={tableRef} className="w-full min-w-[1450px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th
@@ -395,7 +403,11 @@ export default function Participantes() {
                   </th>
 
                   <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Organização
+                    Gênero
+                  </th>
+
+                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Raça/Cor
                   </th>
 
                   <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -466,6 +478,14 @@ export default function Participantes() {
                         </TableCellText>
                       </td>
 
+                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
+                        {generoLabel(p.genero)}
+                      </td>
+
+                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
+                        {racaCorLabel(p.racaCor)}
+                      </td>
+
                       <td className="whitespace-nowrap px-6 py-2.5">
                         <StatusPill status={statusValueToLabel(p.status) as any} />
                       </td>
@@ -525,7 +545,7 @@ export default function Participantes() {
                 })}
 
                 {paginated.length === 0 && (
-                  <EmptyRow colspan={podeGerarPdf ? 8 : 7} />
+                  <EmptyRow colspan={podeGerarPdf ? 10 : 9} />
                 )}
               </tbody>
             </table>
