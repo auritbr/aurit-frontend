@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Search,
   Plus,
@@ -72,7 +72,6 @@ interface ParticipanteNextStepCardData {
 }
 
 export default function Participantes() {
-  const navigate = useNavigate();
   const tableRef = useRef<HTMLTableElement>(null);
 
   const [search, setSearch] = useState("");
@@ -372,14 +371,19 @@ export default function Participantes() {
             </div>
 
             {podeCriar && (
-              <Button
-                onClick={() => navigate("/participantes/novo")}
-                className="h-9 gap-2"
-                disabled={loading}
-              >
-                <Plus className="h-4 w-4" />
-                Cadastrar Participante
-              </Button>
+              loading ? (
+                <Button className="h-9 gap-2" disabled>
+                  <Plus className="h-4 w-4" />
+                  Cadastrar Participante
+                </Button>
+              ) : (
+                <Button asChild className="h-9 gap-2">
+                  <Link to="/participantes/novo">
+                    <Plus className="h-4 w-4" />
+                    Cadastrar Participante
+                  </Link>
+                </Button>
+              )
             )}
           </div>
 
@@ -448,16 +452,14 @@ export default function Participantes() {
                           <TableActionIcon
                             icon={Eye}
                             label="Visualizar"
-                            onClick={() => navigate(`/participantes/${p.id}`)}
+                            to={`/participantes/${p.id}`}
                           />
 
                           {podeEditar && (
                             <TableActionIcon
                               icon={Pencil}
                               label="Editar"
-                              onClick={() =>
-                                navigate(`/participantes/${p.id}/editar`)
-                              }
+                              to={`/participantes/${p.id}/editar`}
                             />
                           )}
 
@@ -559,16 +561,14 @@ export default function Participantes() {
                       <TableActionIcon
                         icon={Eye}
                         label="Visualizar"
-                        onClick={() => navigate(`/participantes/${p.id}`)}
+                        to={`/participantes/${p.id}`}
                       />
 
                       {podeEditar && (
                         <TableActionIcon
                           icon={Pencil}
                           label="Editar"
-                          onClick={() =>
-                            navigate(`/participantes/${p.id}/editar`)
-                          }
+                          to={`/participantes/${p.id}/editar`}
                         />
                       )}
 
