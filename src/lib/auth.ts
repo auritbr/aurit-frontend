@@ -108,7 +108,7 @@ function removeSessionFromStorage(storage: Storage) {
 export function salvarSessaoUsuario(
   token: string,
   usuario: UsuarioLogado,
-  persistir = true,
+  _persistir = true,
 ) {
   removeSessionFromStorage(localStorage);
   removeSessionFromStorage(sessionStorage);
@@ -119,17 +119,15 @@ export function salvarSessaoUsuario(
     throw new Error("Token inválido ao salvar sessão do usuário.");
   }
 
-  const storage = persistir ? localStorage : sessionStorage;
-
-  storage.setItem("token", tokenLimpo);
-  storage.setItem(USER_KEY, JSON.stringify(usuario));
+  localStorage.setItem("token", tokenLimpo);
+  localStorage.setItem(USER_KEY, JSON.stringify(usuario));
 
   if (usuario.userRole) {
-    storage.setItem(USER_ROLE_KEY, usuario.userRole);
+    localStorage.setItem(USER_ROLE_KEY, usuario.userRole);
   }
 
   if (usuario.name) {
-    storage.setItem(USER_NAME_KEY, usuario.name);
+    localStorage.setItem(USER_NAME_KEY, usuario.name);
   }
 }
 
