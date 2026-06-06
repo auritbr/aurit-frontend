@@ -408,11 +408,7 @@ type EventoCulturalPdf = {
   descricaoEvento: string;
   dataEvento: string;
   dataFim?: string | null;
-  objetivoEvento: string;
   localEvento: string;
-  acoesAcessibilidade: string;
-  resultadoEsperado: string;
-  produtoGerado: string;
   tipoEvento: any;
   status: any;
   projeto: string;
@@ -1194,31 +1190,7 @@ export async function exportEventoCulturalPdf(e: EventoCulturalPdf) {
           : [PLACEHOLDER],
       },
       {
-        title: "4. Objetivo do Evento",
-        justifiedParagraphs: e.objetivoEvento
-          ? [e.objetivoEvento]
-          : [PLACEHOLDER],
-      },
-      {
-        title: "5. Ações de Acessibilidade",
-        justifiedParagraphs: e.acoesAcessibilidade
-          ? [e.acoesAcessibilidade]
-          : [PLACEHOLDER],
-      },
-      {
-        title: "6. Resultado Esperado",
-        justifiedParagraphs: e.resultadoEsperado
-          ? [e.resultadoEsperado]
-          : [PLACEHOLDER],
-      },
-      {
-        title: "7. Produto Gerado",
-        justifiedParagraphs: e.produtoGerado
-          ? [e.produtoGerado]
-          : [PLACEHOLDER],
-      },
-      {
-        title: "8. Equipe Envolvida",
+        title: "4. Equipe Envolvida",
         list: {
           items: fmtList(e.colaboradores),
         },

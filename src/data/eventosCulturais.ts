@@ -100,11 +100,7 @@ export interface EventoCulturalDTO {
   id?: number;
   nomeEvento?: string | null;
   descricaoEvento?: string | null;
-  objetivoEvento?: string | null;
-  produtoGerado?: string | null;
   localEvento?: string | null;
-  acoesAcessibilidade?: string | null;
-  resultadoEsperado?: string | null;
   dataEvento?: string | null;
   dataFim?: string | null;
   tipoEvento?: TipoEventoValue | null;
@@ -117,11 +113,7 @@ export interface EventoCulturalPayloadDTO {
   id?: number;
   nomeEvento: string;
   descricaoEvento: string;
-  objetivoEvento: string;
-  produtoGerado: string;
   localEvento: string;
-  acoesAcessibilidade: string;
-  resultadoEsperado: string;
   dataEvento: string;
   dataFim: string | null;
   tipoEvento: TipoEventoValue;
@@ -134,11 +126,7 @@ export interface EventoCultural {
   id: string;
   nomeEvento: string;
   descricaoEvento: string;
-  objetivoEvento: string;
-  produtoGerado: string;
   localEvento: string;
-  acoesAcessibilidade: string;
-  resultadoEsperado: string;
   dataEvento: string;
   dataFim: string;
   tipoEvento: TipoEventoValue | "";
@@ -237,11 +225,7 @@ export function createEmptyEventoCultural(): EventoCultural {
     id: "",
     nomeEvento: "",
     descricaoEvento: "",
-    objetivoEvento: "",
-    produtoGerado: "",
     localEvento: "",
-    acoesAcessibilidade: "",
-    resultadoEsperado: "",
     dataEvento: "",
     dataFim: "",
     tipoEvento: "",
@@ -256,11 +240,7 @@ export function mapEventoCultural(dto: EventoCulturalDTO): EventoCultural {
     id: normalizeId(dto.id),
     nomeEvento: normalizeText(dto.nomeEvento),
     descricaoEvento: normalizeText(dto.descricaoEvento),
-    objetivoEvento: normalizeText(dto.objetivoEvento),
-    produtoGerado: normalizeText(dto.produtoGerado),
     localEvento: normalizeText(dto.localEvento),
-    acoesAcessibilidade: normalizeText(dto.acoesAcessibilidade),
-    resultadoEsperado: normalizeText(dto.resultadoEsperado),
     dataEvento: toInputDate(dto.dataEvento),
     dataFim: toInputDate(dto.dataFim),
     tipoEvento: dto.tipoEvento ?? "",
@@ -277,11 +257,7 @@ export function buildEventoCulturalPayload(
     id: evento.id ? Number(evento.id) : undefined,
     nomeEvento: evento.nomeEvento.trim(),
     descricaoEvento: evento.descricaoEvento.trim(),
-    objetivoEvento: evento.objetivoEvento.trim(),
-    produtoGerado: evento.produtoGerado.trim(),
     localEvento: evento.localEvento.trim(),
-    acoesAcessibilidade: evento.acoesAcessibilidade.trim(),
-    resultadoEsperado: evento.resultadoEsperado.trim(),
     dataEvento: evento.dataEvento,
     dataFim: evento.dataFim || null,
     tipoEvento: evento.tipoEvento as TipoEventoValue,

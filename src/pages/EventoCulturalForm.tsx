@@ -3,7 +3,6 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   CalendarRange,
-  Target,
   Tag,
   Link2,
   CalendarDays,
@@ -227,28 +226,8 @@ export default function EventoCulturalForm() {
       return false;
     }
 
-    if (!evento.objetivoEvento.trim()) {
-      toast.error("Informe o objetivo do evento.");
-      return false;
-    }
-
     if (!evento.localEvento.trim()) {
       toast.error("Informe o local do evento.");
-      return false;
-    }
-
-    if (!evento.acoesAcessibilidade.trim()) {
-      toast.error("Informe as ações de acessibilidade.");
-      return false;
-    }
-
-    if (!evento.resultadoEsperado.trim()) {
-      toast.error("Informe o resultado esperado.");
-      return false;
-    }
-
-    if (!evento.produtoGerado.trim()) {
-      toast.error("Informe o produto gerado do evento.");
       return false;
     }
 
@@ -333,7 +312,7 @@ export default function EventoCulturalForm() {
 
         <PageTitle
           title="Evento Cultural"
-          tooltip="Cadastre eventos culturais vinculados ao projeto, como apresentações, mostras, festivais, exposições, encontros ou ações públicas. Informe objetivo, local, período, acessibilidade, resultados esperados e produtos gerados para organizar a execução, gerar evidências e apoiar relatórios e prestações de contas."
+          tooltip="Cadastre eventos culturais vinculados ao projeto, como apresentações, mostras, festivais, exposições, encontros ou ações públicas. Informe descrição, local, período, tipo, status, projeto e equipe responsável para organizar a execução, gerar evidências e apoiar relatórios e prestações de contas."
         />
 
         <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
@@ -401,6 +380,24 @@ export default function EventoCulturalForm() {
                   readOnly={visualizando}
                 />
               </Field>
+
+              <Field full>
+                <FieldLabel
+                  htmlFor="localEvento"
+                  required
+                  tooltip="Informe o local onde o evento será realizado. Pode ser um espaço cultural, praça, escola, teatro, sede da organização, comunidade, ambiente online ou outro território de realização. Ex.: Praça Central, Teatro Municipal ou Espaço Comunitário."
+                >
+                  Local do Evento
+                </FieldLabel>
+
+                <Input
+                  id="localEvento"
+                  value={form.localEvento}
+                  onChange={(event) => set("localEvento", event.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
             </div>
           </Section>
 
@@ -438,108 +435,6 @@ export default function EventoCulturalForm() {
                   type="date"
                   value={form.dataFim}
                   onChange={(event) => set("dataFim", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Target} title="Objetivo, local e acessibilidade">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field full>
-                <FieldLabel
-                  htmlFor="objetivoEvento"
-                  required
-                  tooltip="Descreva o propósito principal do evento, indicando o que ele pretende promover, fortalecer ou possibilitar para o público, artistas, comunidade ou território. Ex.: Promover a circulação da produção artística local e fortalecer o vínculo entre os participantes do projeto e a comunidade."
-                >
-                  Objetivo do Evento
-                </FieldLabel>
-
-                <Textarea
-                  id="objetivoEvento"
-                  value={form.objetivoEvento}
-                  onChange={(event) => set("objetivoEvento", event.target.value)}
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="localEvento"
-                  required
-                  tooltip="Informe o local onde o evento será realizado. Pode ser um espaço cultural, praça, escola, teatro, sede da organização, comunidade, ambiente online ou outro território de realização. Ex.: Praça Central, Teatro Municipal ou Espaço Comunitário."
-                >
-                  Local do Evento
-                </FieldLabel>
-
-                <Input
-                  id="localEvento"
-                  value={form.localEvento}
-                  onChange={(event) => set("localEvento", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="acoesAcessibilidade"
-                  required
-                  tooltip="Descreva as medidas adotadas para ampliar o acesso e a participação do público, considerando acessibilidade física, comunicacional, social, territorial ou econômica. Ex.: entrada gratuita, local de fácil acesso, apoio da equipe para acolhimento do público, divulgação em linguagem simples, acessibilidade física quando disponível, intérprete de Libras ou adaptação da programação quando necessário."
-                >
-                  Ações de Acessibilidade
-                </FieldLabel>
-
-                <Textarea
-                  id="acoesAcessibilidade"
-                  value={form.acoesAcessibilidade}
-                  onChange={(event) =>
-                    set("acoesAcessibilidade", event.target.value)
-                  }
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="resultadoEsperado"
-                  required
-                  tooltip="Informe os efeitos ou contribuições esperadas com a realização do evento, como público alcançado, participação comunitária, visibilidade artística, formação de público, circulação cultural ou fortalecimento do território. Ex.: Ampliar o acesso da comunidade à produção cultural local, fortalecer a participação dos alunos e alcançar aproximadamente 200 pessoas."
-                >
-                  Resultado Esperado
-                </FieldLabel>
-
-                <Textarea
-                  id="resultadoEsperado"
-                  value={form.resultadoEsperado}
-                  onChange={(event) =>
-                    set("resultadoEsperado", event.target.value)
-                  }
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="produtoGerado"
-                  required
-                  tooltip="Descreva o que o evento entrega ou gera de forma concreta, como apresentações, mostras, espetáculos, exibições, oficinas abertas, rodas culturais, publicações, registros, materiais ou produtos culturais. Ex.: Mostra cultural com apresentações artísticas, exposição dos trabalhos produzidos nas oficinas e registro fotográfico do evento."
-                >
-                  Produto Gerado
-                </FieldLabel>
-
-                <Textarea
-                  id="produtoGerado"
-                  value={form.produtoGerado}
-                  onChange={(event) => set("produtoGerado", event.target.value)}
-                  rows={3}
                   disabled={bloqueado}
                   readOnly={visualizando}
                 />

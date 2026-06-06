@@ -205,11 +205,7 @@ export default function EventosCulturais() {
       const texto = [
         evento.nomeEvento,
         evento.descricaoEvento,
-        evento.objetivoEvento,
         evento.localEvento,
-        evento.produtoGerado,
-        evento.resultadoEsperado,
-        evento.acoesAcessibilidade,
         evento.projetoNome,
         tipoEventoLabel(evento.tipoEvento),
         statusValueToLabel(evento.status),
@@ -278,11 +274,7 @@ export default function EventosCulturais() {
       id: evento.id,
       nomeEvento: evento.nomeEvento,
       descricaoEvento: evento.descricaoEvento,
-      objetivoEvento: evento.objetivoEvento,
       localEvento: evento.localEvento,
-      acoesAcessibilidade: evento.acoesAcessibilidade,
-      resultadoEsperado: evento.resultadoEsperado,
-      produtoGerado: evento.produtoGerado,
       dataEvento: evento.dataEvento,
       dataFim: evento.dataFim,
       tipoEvento: tipoEventoLabel(evento.tipoEvento),
@@ -313,7 +305,7 @@ export default function EventosCulturais() {
       <div className="container max-w-7xl py-6 sm:py-8">
         <PageTitle
           title="Eventos Culturais"
-          tooltip="Cadastre eventos culturais vinculados ao projeto, como apresentações, mostras, festivais, exposições, encontros ou ações públicas. Informe objetivo, local, período, acessibilidade, resultados esperados e produtos gerados para organizar a execução, gerar evidências e apoiar relatórios e prestações de contas."
+          tooltip="Cadastre eventos culturais vinculados ao projeto, como apresentações, mostras, festivais, exposições, encontros ou ações públicas. Informe descrição, local, período, tipo, status, projeto e equipe responsável para organizar a execução, gerar evidências e apoiar relatórios e prestações de contas."
         />
 
         {nextStepCard && (
