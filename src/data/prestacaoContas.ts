@@ -95,12 +95,16 @@ export interface PrestacaoContasDTO {
   resultadosGeradosProjeto?: string | null;
 
   produtosGerados?: ProdutoGerado[] | string[] | null;
+
+  prestacaoMetasIds?: Array<number | string> | null;
   prestacaoMetas?: PrestacaoContasMetaDTO[] | null;
 
   equipeProjetoIds?: Array<number | string> | null;
   acoesDivulgacaoIds?: Array<number | string> | null;
 
   propostaEditalId?: number | string | null;
+  tituloPropostaEdital?: string | null;
+
   agenteId?: number | string | null;
 
   propostaEdital?: {
@@ -317,6 +321,19 @@ function extractIdsFromObjects(
   return uniqueStrings(items.map((item) => toIdString(item.id)));
 }
 
+function extractPrestacaoMetas(dto: PrestacaoContasDTO): PrestacaoMetaForm[] {
+  if (Array.isArray(dto.prestacaoMetasIds)) {
+    return uniqueStrings(dto.prestacaoMetasIds.map(toIdString)).map((id) => ({
+      id,
+      metaProjetoId: "",
+    }));
+  }
+
+  return (dto.prestacaoMetas ?? [])
+    .map(mapPrestacaoMeta)
+    .filter((item) => item.id);
+}
+
 function extractEquipeIds(dto: PrestacaoContasDTO) {
   if (Array.isArray(dto.equipeProjetoIds)) {
     return uniqueStrings(dto.equipeProjetoIds.map(toIdString));
@@ -388,7 +405,7 @@ export function mapPrestacao(dto: PrestacaoContasDTO): PrestacaoContas {
     propostaEdital: toIdString(propostaId),
     agente: toIdString(agenteId),
     dataEntrega: isoOrEmpty(dto.dataEntrega),
-    prestacaoMetas: (dto.prestacaoMetas ?? []).map(mapPrestacaoMeta),
+    prestacaoMetas: extractPrestacaoMetas(dto),
     produtosGerados: (dto.produtosGerados ?? []) as ProdutoGerado[],
     outrosProdutosGerados: dto.outrosProdutosGerados ?? "",
     disponibilizacaoProdutosPublico:
@@ -410,9 +427,9 @@ export function buildPrestacaoPayload(
       ? Number(prestacao.propostaEdital)
       : null,
     agenteId: prestacao.agente ? Number(prestacao.agente) : null,
-    prestacaoMetas: prestacao.prestacaoMetas.map((meta) => ({
-      id: meta.id ? Number(meta.id) : undefined,
-    })),
+    prestacaoMetasIds: normalizeNumberList(
+      prestacao.prestacaoMetas.map((meta) => meta.id),
+    ),
     produtosGerados: prestacao.produtosGerados,
     outrosProdutosGerados:
       prestacao.outrosProdutosGerados.trim() || null,
