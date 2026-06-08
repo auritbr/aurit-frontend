@@ -108,6 +108,7 @@ const initialData: InicioDados = {
   totalCronogramas: 0,
 
   totalAtividades: 0,
+  totalPlanosAula: 0,
   totalTurmas: 0,
   totalPresencas: 0,
 
@@ -290,6 +291,11 @@ export default function Inicio() {
         done: dados.totalAtividades > 0,
       },
       {
+        label: "Plano de Aula",
+        route: "/planos-aula",
+        done: (dados.totalPlanosAula ?? 0) > 0,
+      },
+      {
         label: "Turmas",
         route: "/turmas",
         done: dados.totalTurmas > 0,
@@ -307,15 +313,13 @@ export default function Inicio() {
         route: "/eventos-culturais",
         done: dados.totalEventos > 0,
       },
+    ];
+
+    const evidenciasModules: ModuleLink[] = [
       {
-        label: "Ações de Divulgação",
-        route: "/acoes-divulgacao",
-        done: dados.totalAcoesDivulgacao > 0,
-      },
-      {
-        label: "Execução da Divulgação",
-        route: "/plano-comunicacao",
-        done: dados.totalPlanosComunicacao > 0,
+        label: "Evidências de Execução",
+        route: "/evidencias",
+        done: dados.totalEvidencias > 0,
       },
     ];
 
@@ -344,8 +348,18 @@ export default function Inicio() {
         done: dados.totalEquipesEditais > 0,
       },
       {
-        label: "Orçamento da Proposta",
-        route: "/planejamento-financeiro",
+        label: "Plano de Comunicação",
+        route: "/plano-comunicacao",
+        done: dados.totalPlanosComunicacao > 0,
+      },
+      {
+        label: "Ações de Divulgação",
+        route: "/acoes-divulgacao",
+        done: dados.totalAcoesDivulgacao > 0,
+      },
+      {
+        label: "Aplicações de Recurso",
+        route: "/aplicacao-de-recursos",
         done: dados.totalPlanejamentosFinanceiros > 0,
       },
       {
@@ -357,14 +371,6 @@ export default function Inicio() {
         label: "Habilitação Documental",
         route: "/habilitacoes-propostas",
         done: dados.totalHabilitacoesPropostas > 0,
-      },
-    ];
-
-    const evidenciasModules: ModuleLink[] = [
-      {
-        label: "Evidências de Execução",
-        route: "/evidencias",
-        done: dados.totalEvidencias > 0,
       },
     ];
 
@@ -399,10 +405,10 @@ export default function Inicio() {
         key: "institucional",
         title: "Institucional",
         description:
-          "Organize a base oficial da sua organização: dados cadastrais, diretoria, documentos e agentes culturais.",
+          "Organize a base oficial da organização: dados institucionais, diretoria, documentos e agentes culturais.",
         modules: institucionalModules,
         microcopy:
-          "Essa base ajuda a manter informações institucionais corretas para documentos, relatórios, editais e prestação de contas.",
+          "Com essas informações atualizadas, a organização ganha mais segurança para documentos, relatórios, editais e prestação de contas.",
         icon: Landmark,
         status: computeStatus(
           institucionalModules,
@@ -413,10 +419,10 @@ export default function Inicio() {
         key: "pessoas",
         title: "Pessoas",
         description:
-          "Cadastre as pessoas que colaboram, integram ou participam das ações da organização.",
+          "Cadastre colaboradores, integrantes e participantes envolvidos nas ações da organização.",
         modules: pessoasModules,
         microcopy:
-          "Manter esses dados atualizados facilita o acompanhamento de atividades, vínculos, presenças e comprovações.",
+          "Dados atualizados facilitam o acompanhamento de vínculos, atividades, presenças e comprovações.",
         icon: HeartHandshake,
         status: computeStatus(pessoasModules),
       },
@@ -424,10 +430,10 @@ export default function Inicio() {
         key: "trajetorias",
         title: "Trajetórias",
         description:
-          "Registre currículos e trajetórias culturais para demonstrar experiência, atuação na área e vínculo com projetos e ações culturais.",
+          "Registre currículos e trajetórias culturais dos colaboradores para demonstrar experiência, atuação na área e vínculo com projetos.",
         modules: trajetoriasModules,
         microcopy:
-          "Essas informações ajudam a demonstrar, em editais, que a equipe possui experiência compatível com a proposta e capacidade para executar as ações previstas.",
+          "Esse histórico fortalece propostas e comprova que a equipe possui experiência compatível com as ações previstas.",
         icon: RouteIcon,
         status: computeStatus(trajetoriasModules),
       },
@@ -438,7 +444,7 @@ export default function Inicio() {
           "Estruture projetos, metas e cronogramas para organizar o planejamento antes da execução.",
         modules: projetosModules,
         microcopy:
-          "Esses registros ajudam a mostrar o que será realizado, como cada etapa será executada e quais resultados a organização pretende entregar.",
+          "Essa organização mostra o que será realizado, como cada etapa será conduzida e quais resultados se pretende alcançar.",
         icon: FolderKanban,
         status: computeStatus(projetosModules),
       },
@@ -446,10 +452,10 @@ export default function Inicio() {
         key: "execucao",
         title: "Execução",
         description:
-          "Acompanhe atividades, turmas e presenças para registrar a realização prática das ações previstas no projeto.",
+          "Acompanhe atividades, planos de aula, turmas e presenças durante a realização das ações.",
         modules: execucaoModules,
         microcopy:
-          "Esses registros ajudam a comprovar a execução do projeto, demonstrar participação do público e apoiar relatórios, monitoramento interno e prestação de contas.",
+          "Esses registros comprovam a execução do projeto, demonstram a participação do público e apoiam relatórios, monitoramento e prestação de contas.",
         icon: PlayCircle,
         status: computeStatus(execucaoModules),
       },
@@ -457,45 +463,45 @@ export default function Inicio() {
         key: "acoes-culturais",
         title: "Ações Culturais",
         description:
-          "Registre eventos culturais, ações de divulgação e execução da divulgação para organizar a mobilização e a visibilidade das iniciativas.",
+          "Registre eventos culturais para organizar a realização, a memória e a visibilidade das iniciativas da organização.",
         modules: acoesCulturaisModules,
         microcopy:
-          "Essas informações ajudam a demonstrar o alcance das ações, a mobilização do público e a atuação cultural da organização em editais, relatórios e prestações de contas.",
+          "Essas informações demonstram a atuação cultural da organização, o alcance das ações e a mobilização do público.",
         icon: Sparkles,
         status: computeStatus(acoesCulturaisModules),
-      },
-      {
-        key: "financeiro",
-        title: "Controle Financeiro",
-        description:
-          "Registre receitas e despesas para acompanhar a gestão financeira da organização e os custos vinculados aos projetos e ações.",
-        modules: financeiroModules,
-        microcopy:
-          "Esses registros fortalecem o controle administrativo, ajudam a acompanhar a aplicação dos recursos e preparam a organização para relatórios, auditorias e prestações de contas.",
-        icon: HandCoins,
-        status: computeStatus(financeiroModules),
-      },
-      {
-        key: "editais",
-        title: "Editais",
-        description:
-          "Organize editais, propostas, resultados, habilitação documental, equipe da proposta e orçamento da proposta para apoiar inscrições mais claras, coerentes e bem estruturadas.",
-        modules: editaisModules,
-        microcopy:
-          "Esses registros ajudam a acompanhar todo o percurso da inscrição: edital, proposta enviada, resultado divulgado, eventual recurso, habilitação documental, equipe e orçamento.",
-        icon: FileSignature,
-        status: computeStatus(editaisModules),
       },
       {
         key: "evidencias",
         title: "Evidências",
         description:
-          "Registre evidências de execução para comprovar atividades, eventos, presenças, ações de divulgação e entregas realizadas.",
+          "Registre evidências de execução para comprovar atividades, eventos, presenças, divulgações e entregas realizadas.",
         modules: evidenciasModules,
         microcopy:
-          "As evidências conectam a execução real aos relatórios, ajudando a demonstrar o que foi feito por meio de fotos, documentos, listas, vídeos e links.",
+          "Fotos, documentos, listas, vídeos e links conectam a execução real aos relatórios e comprovações do projeto.",
         icon: Camera,
         status: computeStatus(evidenciasModules),
+      },
+      {
+        key: "editais",
+        title: "Editais",
+        description:
+          "Organize editais, propostas, resultados, habilitação documental, equipe, comunicação e orçamento da proposta.",
+        modules: editaisModules,
+        microcopy:
+          "Essa área acompanha todo o percurso da inscrição, desde o edital mapeado até o resultado, recursos, habilitação e orçamento.",
+        icon: FileSignature,
+        status: computeStatus(editaisModules),
+      },
+      {
+        key: "financeiro",
+        title: "Controle Financeiro",
+        description:
+          "Registre receitas e despesas para acompanhar a gestão financeira da organização e os custos vinculados aos projetos.",
+        modules: financeiroModules,
+        microcopy:
+          "O controle financeiro fortalece a gestão administrativa, acompanha a aplicação dos recursos e prepara a organização para relatórios, auditorias e prestação de contas.",
+        icon: HandCoins,
+        status: computeStatus(financeiroModules),
       },
       {
         key: "prestacao-contas",
@@ -504,7 +510,7 @@ export default function Inicio() {
           "Acompanhe prestações de contas e cumprimento de metas para comprovar a execução física, financeira e documental do projeto.",
         modules: prestacaoModules,
         microcopy:
-          "Esses registros ajudam a demonstrar o que foi realizado, como os recursos foram utilizados e quais metas foram cumpridas, facilitando relatórios e comprovações.",
+          "Essa área reúne informações essenciais para demonstrar o que foi realizado, como os recursos foram utilizados e quais metas foram cumpridas.",
         icon: ClipboardCheck,
         status: computeStatus(prestacaoModules),
       },
@@ -515,7 +521,7 @@ export default function Inicio() {
           "Registre bens, equipamentos e empréstimos para acompanhar o uso e a conservação dos recursos materiais da organização.",
         modules: patrimonioModules,
         microcopy:
-          "Esse controle ajuda a acompanhar o uso dos bens, identificar responsáveis, preservar recursos materiais e manter a organização preparada para relatórios, auditorias e prestação de contas.",
+          "Esse controle identifica responsáveis, preserva os bens da organização e apoia relatórios, auditorias e prestação de contas.",
         icon: Package,
         status: computeStatus(patrimonioModules),
       },
@@ -682,11 +688,7 @@ export default function Inicio() {
                   </h2>
 
                   <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                    Editais, parcerias e prestações de contas costumam exigir
-                    documentos atualizados. Organizar atas, certidões,
-                    comprovantes e registros institucionais com antecedência
-                    evita correria e ajuda a organização a responder
-                    oportunidades com mais segurança.
+                    Editais, parcerias e prestações de contas costumam exigir documentos atualizados. Organizar atas, certidões, comprovantes e registros institucionais com antecedência evita correria e ajuda a organização a responder oportunidades com mais segurança.
                   </p>
 
                   {dados.totalDocumentos > 0 && (

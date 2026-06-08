@@ -28,12 +28,18 @@ import { maskCPF, maskPhone, maskCEP, maskDate } from "@/lib/masks";
 import { estadosBrasil } from "@/data/colaboradores";
 import {
   createIntegrante,
+  generosIntegrante,
   getIntegranteById,
   getOrganizacoes,
+  racasCoresIntegrante,
+  tiposDeficienciaIntegrante,
   updateIntegrante,
+  type GeneroApi,
   type IntegranteDTO,
   type IntegranteStatusApi,
   type OrganizacaoOption,
+  type RacaCorApi,
+  type TipoDeficienciaApi,
 } from "@/data/integrantes";
 import { toast } from "sonner";
 
@@ -72,6 +78,10 @@ interface FormState {
   telefone: string;
   email: string;
 
+  racaCor: RacaCorApi | "";
+  genero: GeneroApi | "";
+  tipoDeficiencia: TipoDeficienciaApi | "";
+
   cep: string;
   logradouro: string;
   numero: string;
@@ -105,6 +115,10 @@ const initial: FormState = {
   rg: "",
   telefone: "",
   email: "",
+
+  racaCor: "",
+  genero: "",
+  tipoDeficiencia: "",
 
   cep: "",
   logradouro: "",
@@ -348,6 +362,10 @@ export default function IntegranteForm() {
         telefone: data.telefone ? maskPhone(data.telefone) : "",
         email: data.email,
 
+        racaCor: data.racaCor,
+        genero: data.genero,
+        tipoDeficiencia: data.tipoDeficiencia,
+
         cep: data.cep ? maskCEP(data.cep) : "",
         logradouro: data.logradouro,
         numero: data.numero === "" ? "" : String(data.numero),
@@ -424,6 +442,10 @@ export default function IntegranteForm() {
       telefone: form.telefone.trim(),
       email: form.email.trim() || null,
 
+      racaCor: form.racaCor,
+      genero: form.genero,
+      tipoDeficiencia: form.tipoDeficiencia,
+
       funcaoIntegrante: form.funcaoIntegrante.trim(),
       dataEntrada: form.dataEntrada,
       dataSaida: statusConcluido ? form.dataSaida || null : null,
@@ -464,6 +486,21 @@ export default function IntegranteForm() {
 
     if (onlyDigits(form.cpf).length !== 11) {
       toast.error("Informe um CPF válido.");
+      return false;
+    }
+
+    if (!form.racaCor) {
+      toast.error("Informe a raça/cor.");
+      return false;
+    }
+
+    if (!form.genero) {
+      toast.error("Informe o gênero.");
+      return false;
+    }
+
+    if (!form.tipoDeficiencia) {
+      toast.error("Informe a deficiência.");
       return false;
     }
 
@@ -655,6 +692,87 @@ export default function IntegranteForm() {
               </Field>
 
               <Field>
+                <FieldLabel htmlFor="racaCor" required>
+                  Raça/Cor
+                </FieldLabel>
+
+                <Select
+                  value={form.racaCor}
+                  onValueChange={(v) => {
+                    if (visualizando) return;
+                    set("racaCor", v as RacaCorApi);
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="racaCor">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {racasCoresIntegrante.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="genero" required>
+                  Gênero
+                </FieldLabel>
+
+                <Select
+                  value={form.genero}
+                  onValueChange={(v) => {
+                    if (visualizando) return;
+                    set("genero", v as GeneroApi);
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="genero">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {generosIntegrante.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="tipoDeficiencia" required>
+                  Deficiência
+                </FieldLabel>
+
+                <Select
+                  value={form.tipoDeficiencia}
+                  onValueChange={(v) => {
+                    if (visualizando) return;
+                    set("tipoDeficiencia", v as TipoDeficienciaApi);
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="tipoDeficiencia">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent className="max-h-72">
+                    {tiposDeficienciaIntegrante.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
                 <FieldLabel htmlFor="telefone" required>
                   Telefone
                 </FieldLabel>
@@ -732,7 +850,9 @@ export default function IntegranteForm() {
               </Field>
 
               <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="numero" required
+                <FieldLabel
+                  htmlFor="numero"
+                  required
                   tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
                 >
                   Número

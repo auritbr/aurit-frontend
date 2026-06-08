@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -6,6 +6,7 @@ import {
   MapPin,
   Briefcase,
   CalendarClock,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -30,8 +31,11 @@ import {
   createColaborador,
   createEmptyColaborador,
   estadosBrasil,
+  generoOptions,
   getColaboradorById,
+  racaCorOptions,
   statusColaboradorOptions,
+  tipoDeficienciaOptions,
   tipoVinculoOptions,
   updateColaborador,
   type Colaborador,
@@ -52,7 +56,8 @@ interface ColaboradorNextStepCardData {
 
 function salvarProximaAcaoColaborador() {
   const card: ColaboradorNextStepCardData = {
-    titulo: "Após cadastrar os colaboradores, registre os integrantes vinculados à organização",
+    titulo:
+      "Após cadastrar os colaboradores, registre os integrantes vinculados à organização",
     descricao:
       "Os integrantes ajudam a representar pessoas, grupos, coletivos ou parceiros culturais que atuam junto à organização, mesmo quando não fazem parte da equipe fixa ou do cadastro de participantes.",
     acaoLabel: "Cadastrar integrantes",
@@ -298,6 +303,21 @@ export default function ColaboradorForm() {
       return false;
     }
 
+    if (!form.racaCor) {
+      toast.error("Selecione a raça/cor.");
+      return false;
+    }
+
+    if (!form.genero) {
+      toast.error("Selecione o gênero.");
+      return false;
+    }
+
+    if (!form.tipoDeficiencia) {
+      toast.error("Selecione o tipo de deficiência.");
+      return false;
+    }
+
     if (onlyDigits(form.cep).length !== 8) {
       toast.error("Informe um CEP válido com 8 dígitos.");
       return false;
@@ -425,7 +445,7 @@ export default function ColaboradorForm() {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
     if (visualizando) return;
@@ -461,9 +481,10 @@ export default function ColaboradorForm() {
         <button
           type="button"
           onClick={() => navigate("/colaboradores")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
+          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
         >
-          <ArrowLeft className="h-4 w-4" /> Voltar
+          <ArrowLeft className="h-4 w-4" />
+          Voltar
         </button>
 
         <PageTitle
@@ -483,7 +504,7 @@ export default function ColaboradorForm() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Section icon={User} title="Dados pessoais">
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="nomeCompleto" required>
                   Nome Completo
@@ -566,11 +587,104 @@ export default function ColaboradorForm() {
                   readOnly={visualizando}
                 />
               </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="racaCor"
+                  required
+                  tooltip="Selecione a raça/cor declarada pelo colaborador."
+                >
+                  Raça/Cor
+                </FieldLabel>
+
+                <Select
+                  value={form.racaCor}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
+                    set("racaCor", value);
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="racaCor">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {racaCorOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="genero"
+                  required
+                  tooltip="Selecione o gênero declarado pelo colaborador."
+                >
+                  Gênero
+                </FieldLabel>
+
+                <Select
+                  value={form.genero}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
+                    set("genero", value);
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="genero">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {generoOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="tipoDeficiencia"
+                  required
+                  tooltip="Selecione o tipo de deficiência informado pelo colaborador. Caso não possua, utilize a opção Não possui."
+                >
+                  Tipo de Deficiência
+                </FieldLabel>
+
+                <Select
+                  value={form.tipoDeficiencia}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
+                    set("tipoDeficiencia", value);
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="tipoDeficiencia">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {tipoDeficienciaOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
             </div>
           </Section>
 
           <Section icon={MapPin} title="Endereço">
-            <div className="grid sm:grid-cols-6 gap-4">
+            <div className="grid gap-4 sm:grid-cols-6">
               <Field className="sm:col-span-2">
                 <FieldLabel htmlFor="cep" required>
                   CEP
@@ -617,7 +731,9 @@ export default function ColaboradorForm() {
               </Field>
 
               <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="numero" required
+                <FieldLabel
+                  htmlFor="numero"
+                  required
                   tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
                 >
                   Número
@@ -627,7 +743,8 @@ export default function ColaboradorForm() {
                   id="numero"
                   value={form.numero}
                   onChange={(e) => set("numero", e.target.value)}
-                  disabled={loading || saving}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
                 />
               </Field>
 
@@ -678,9 +795,9 @@ export default function ColaboradorForm() {
 
                 <Select
                   value={form.estado}
-                  onValueChange={(v) => {
+                  onValueChange={(value) => {
                     if (visualizando) return;
-                    set("estado", v);
+                    set("estado", value);
                   }}
                   disabled={bloqueado}
                 >
@@ -701,7 +818,7 @@ export default function ColaboradorForm() {
           </Section>
 
           <Section icon={Briefcase} title="Dados de atuação">
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="funcaoColaborador"
@@ -766,7 +883,7 @@ export default function ColaboradorForm() {
           </Section>
 
           <Section icon={CalendarClock} title="Vínculo e situação">
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="dataInicioVinculo"
@@ -815,9 +932,9 @@ export default function ColaboradorForm() {
 
                 <Select
                   value={form.status}
-                  onValueChange={(v) => {
+                  onValueChange={(value) => {
                     if (visualizando) return;
-                    set("status", v);
+                    set("status", value);
                   }}
                   disabled={bloqueado}
                 >
@@ -846,9 +963,9 @@ export default function ColaboradorForm() {
 
                 <Select
                   value={form.tipoVinculo}
-                  onValueChange={(v) => {
+                  onValueChange={(value) => {
                     if (visualizando) return;
-                    set("tipoVinculo", v);
+                    set("tipoVinculo", value);
                   }}
                   disabled={bloqueado}
                 >
@@ -868,7 +985,7 @@ export default function ColaboradorForm() {
             </div>
           </Section>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="outline"
@@ -899,16 +1016,16 @@ function Section({
   title,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
-      <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
+    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
+      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
         <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
 
-        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
+        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
           {title}
         </h2>
       </div>
@@ -923,7 +1040,7 @@ function Field({
   full,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   full?: boolean;
   className?: string;
 }) {

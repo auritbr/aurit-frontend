@@ -1,12 +1,18 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Megaphone,
   Target,
-  Share2,
   Link2,
   PackageCheck,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -24,22 +30,17 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { MultiSelect } from "@/components/MultiSelect";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import {
   buildAcaoDivulgacaoPayload,
   createAcaoDivulgacao,
   getAcaoDivulgacaoById,
-  getColaboradoresOptions,
-  getProjetosOptions,
+  getPropostasEditaisOptions,
   updateAcaoDivulgacao,
-  estrategiasDivulgacao,
   statusAcao,
-  estrategiaLabel,
   type AcaoDivulgacao,
   type AcaoStatusApi,
-  type ColaboradorOption,
-  type ProjetoOption,
+  type PropostaEditalOption,
 } from "@/data/acoesDivulgacao";
 import { toast } from "sonner";
 
@@ -58,10 +59,10 @@ interface AcaoDivulgacaoNextStepCardData {
 
 function salvarProximaAcaoDivulgacao() {
   const card: AcaoDivulgacaoNextStepCardData = {
-    titulo: "Após cadastrar as ações de divulgação, registre as evidências",
+    titulo: "Após cadastrar a ação de divulgação, registre o plano de comunicação",
     descricao:
-      "As evidências de divulgação ajudam a comprovar como a ação foi comunicada ao público, reunindo publicações, links, prints, cards, cartazes, vídeos, fotos, materiais gráficos e outros registros importantes para relatórios e prestação de contas.",
-    acaoLabel: "Cadastrar evidências",
+      "O plano de comunicação detalha os meios, formatos, quantidades, estratégias e período de divulgação vinculados à proposta de edital.",
+    acaoLabel: "Cadastrar plano de comunicação",
     acaoUrl: "/plano-comunicacao",
     acaoSecundariaLabel: "Ver ações de divulgação",
     acaoSecundariaUrl: "/acoes-divulgacao",
@@ -83,12 +84,8 @@ interface FormState {
   acoesAcessibilidade: string;
   resultadoEsperado: string;
   produtosGerados: string;
-  dataInicio: string;
-  dataFim: string;
-  estrategiasDivulgacao: string[];
   status: AcaoStatusApi | "";
-  projetoId: string;
-  colaboradoresIds: string[];
+  propostaEditalId: string;
 }
 
 const initial: FormState = {
@@ -100,12 +97,8 @@ const initial: FormState = {
   acoesAcessibilidade: "",
   resultadoEsperado: "",
   produtosGerados: "",
-  dataInicio: "",
-  dataFim: "",
-  estrategiasDivulgacao: [],
   status: "",
-  projetoId: "",
-  colaboradoresIds: [],
+  propostaEditalId: "",
 };
 
 function normalizeId(value: unknown): string {
@@ -126,12 +119,8 @@ function mapAcaoToForm(acao: AcaoDivulgacao): FormState {
     acoesAcessibilidade: acao.acoesAcessibilidade ?? "",
     resultadoEsperado: acao.resultadoEsperado ?? "",
     produtosGerados: acao.produtosGerados ?? "",
-    dataInicio: acao.dataInicio ?? "",
-    dataFim: acao.dataFim ?? "",
-    estrategiasDivulgacao: acao.estrategiasDivulgacao ?? [],
     status: acao.status ?? "",
-    projetoId: normalizeId(acao.projetoId),
-    colaboradoresIds: (acao.colaboradoresIds ?? []).map(String),
+    propostaEditalId: normalizeId(acao.propostaEditalId),
   };
 }
 
@@ -145,40 +134,26 @@ function mapFormToAcao(form: FormState): AcaoDivulgacao {
     acoesAcessibilidade: form.acoesAcessibilidade,
     resultadoEsperado: form.resultadoEsperado,
     produtosGerados: form.produtosGerados,
-    dataInicio: form.dataInicio,
-    dataFim: form.dataFim,
-    estrategiasDivulgacao: form.estrategiasDivulgacao,
     status: form.status || "ATIVO",
-    projetoId: form.projetoId,
-    colaboradoresIds: form.colaboradoresIds,
+    propostaEditalId: form.propostaEditalId,
+    nomePropostaEdital: "",
+    editalId: "",
+    nomeEdital: "",
+    projetoId: "",
+    nomeProjeto: "",
   };
 }
 
-function dataFimPassada(dataFim: string) {
-  if (!dataFim) return false;
-
-  const hoje = new Date();
-  const ano = hoje.getFullYear();
-  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
-  const dia = String(hoje.getDate()).padStart(2, "0");
-
-  return dataFim < `${ano}-${mes}-${dia}`;
-}
-
-function statusPermiteDataFimPassada(status: string) {
-  return status === "INATIVO" || status === "CONCLUIDO";
-}
-
-function getProjetoNome(
-  projetos: ProjetoOption[],
-  projetoId: string,
+function getPropostaNome(
+  propostas: PropostaEditalOption[],
+  propostaEditalId: string,
   acao?: AcaoDivulgacao | null,
 ) {
   return (
-    projetos.find((projeto) => normalizeId(projeto.id) === projetoId)?.nome ||
-    (acao as any)?.projetoNome?.trim?.() ||
-    (acao as any)?.nomeProjeto?.trim?.() ||
-    `Projeto ${projetoId}`
+    propostas.find((proposta) => normalizeId(proposta.id) === propostaEditalId)
+      ?.nome ||
+    acao?.nomePropostaEdital?.trim() ||
+    `Proposta ${propostaEditalId}`
   );
 }
 
@@ -192,8 +167,7 @@ export default function AcaoDivulgacaoForm() {
 
   const [form, setForm] = useState<FormState>(initial);
   const [existingAcao, setExistingAcao] = useState<AcaoDivulgacao | null>(null);
-  const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
-  const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
+  const [propostas, setPropostas] = useState<PropostaEditalOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -202,8 +176,8 @@ export default function AcaoDivulgacaoForm() {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((p) => ({ ...p, [k]: v }));
 
-  const projetoSelectValue =
-    form.projetoId || normalizeId(existingAcao?.projetoId);
+  const propostaSelectValue =
+    form.propostaEditalId || normalizeId(existingAcao?.propostaEditalId);
 
   useEffect(() => {
     let active = true;
@@ -212,25 +186,20 @@ export default function AcaoDivulgacaoForm() {
       try {
         setLoading(true);
 
-        const [projetosData, colaboradoresData, acaoData] = await Promise.all([
-          getProjetosOptions(),
-          getColaboradoresOptions(),
+        const [propostasData, acaoData] = await Promise.all([
+          getPropostasEditaisOptions(),
           id ? getAcaoDivulgacaoById(Number(id)) : Promise.resolve(null),
         ]);
 
         if (!active) return;
 
-        setProjetos(projetosData);
-        setColaboradores(colaboradoresData);
+        setPropostas(propostasData);
 
         if (acaoData) {
-          const projetoId = normalizeId(acaoData.projetoId);
-
           const acaoNormalizada: AcaoDivulgacao = {
             ...acaoData,
             id: normalizeId(acaoData.id),
-            projetoId,
-            colaboradoresIds: (acaoData.colaboradoresIds ?? []).map(String),
+            propostaEditalId: normalizeId(acaoData.propostaEditalId),
           };
 
           setExistingAcao(acaoNormalizada);
@@ -263,91 +232,31 @@ export default function AcaoDivulgacaoForm() {
     };
   }, [id, navigate]);
 
-  const projetosComFallback = useMemo(() => {
-    const options = [...projetos];
-    const projetoId = projetoSelectValue;
+  const propostasComFallback = useMemo(() => {
+    const options = [...propostas];
+    const propostaId = propostaSelectValue;
 
     if (
-      projetoId &&
-      !options.some((projeto) => normalizeId(projeto.id) === projetoId)
+      propostaId &&
+      !options.some((proposta) => normalizeId(proposta.id) === propostaId)
     ) {
       options.unshift({
-        id: projetoId,
-        nome: getProjetoNome(projetos, projetoId, existingAcao),
+        id: propostaId,
+        nome: getPropostaNome(propostas, propostaId, existingAcao),
+        editalId: existingAcao?.editalId ?? "",
+        edital: existingAcao?.nomeEdital ?? "",
+        projetoId: existingAcao?.projetoId ?? "",
+        projeto: existingAcao?.nomeProjeto ?? "",
       });
     }
 
     return options;
-  }, [projetos, projetoSelectValue, existingAcao]);
+  }, [propostas, propostaSelectValue, existingAcao]);
 
-  const colaboradoresComFallback = useMemo(() => {
-    const options = [...colaboradores];
-
-    const faltantes = form.colaboradoresIds.filter(
-      (colaboradorId) =>
-        colaboradorId &&
-        !options.some(
-          (colaborador) => normalizeId(colaborador.id) === colaboradorId,
-        ),
-    );
-
-    faltantes.forEach((colaboradorId) => {
-      options.push({
-        id: colaboradorId,
-        nome: `Colaborador ${colaboradorId}`,
-      });
-    });
-
-    return options;
-  }, [colaboradores, form.colaboradoresIds]);
-
-  const estrategiasSelecionadasLabels = form.estrategiasDivulgacao.map(
-    (value) => estrategiaLabel(value),
-  );
-
-  const estrategiaOptions = estrategiasDivulgacao.map((item) => item.label);
-
-  const colaboradorOptions = colaboradoresComFallback.map(
-    (colaborador) => colaborador.nome,
-  );
-
-  const colaboradoresSelecionadosLabels = form.colaboradoresIds.map(
-    (colaboradorId) =>
-      colaboradoresComFallback.find(
-        (colaborador) => normalizeId(colaborador.id) === colaboradorId,
-      )?.nome ?? colaboradorId,
-  );
-
-  function handleEstrategiasChange(labels: string[]) {
-    const values = labels
-      .map(
-        (label) =>
-          estrategiasDivulgacao.find((item) => item.label === label)?.value ??
-          label,
-      )
-      .filter(Boolean);
-
-    set("estrategiasDivulgacao", values);
-  }
-
-  function handleColaboradoresChange(labels: string[]) {
-    const ids = labels
-      .map(
-        (label) =>
-          colaboradoresComFallback.find(
-            (colaborador) => colaborador.nome === label,
-          )?.id ?? label,
-      )
-      .map(String)
-      .filter(Boolean);
-
-    set("colaboradoresIds", ids);
-  }
-
-  function getFormComProjeto(): FormState {
+  function getFormComProposta(): FormState {
     return {
       ...form,
-      projetoId: projetoSelectValue,
+      propostaEditalId: propostaSelectValue,
     };
   }
 
@@ -356,86 +265,50 @@ export default function AcaoDivulgacaoForm() {
 
     if (visualizando) return;
 
-    const formComProjeto = getFormComProjeto();
+    const formComProposta = getFormComProposta();
 
-    if (!formComProjeto.nomeAcao.trim()) {
+    if (!formComProposta.nomeAcao.trim()) {
       toast.error("Informe o nome da ação.");
       return;
     }
 
-    if (!formComProjeto.descricaoAcao.trim()) {
+    if (!formComProposta.descricaoAcao.trim()) {
       toast.error("Informe a descrição da ação.");
       return;
     }
 
-    if (!formComProjeto.realizacaoAcao.trim()) {
+    if (!formComProposta.realizacaoAcao.trim()) {
       toast.error("Informe a realização da ação.");
       return;
     }
 
-    if (!formComProjeto.objetivoAcao.trim()) {
+    if (!formComProposta.objetivoAcao.trim()) {
       toast.error("Informe o objetivo da ação.");
       return;
     }
 
-    if (!formComProjeto.acoesAcessibilidade.trim()) {
+    if (!formComProposta.acoesAcessibilidade.trim()) {
       toast.error("Informe as ações de acessibilidade.");
       return;
     }
 
-    if (!formComProjeto.resultadoEsperado.trim()) {
+    if (!formComProposta.resultadoEsperado.trim()) {
       toast.error("Informe o resultado esperado.");
       return;
     }
 
-    if (!formComProjeto.produtosGerados.trim()) {
+    if (!formComProposta.produtosGerados.trim()) {
       toast.error("Informe os produtos gerados.");
       return;
     }
 
-    if (!formComProjeto.dataInicio) {
-      toast.error("Informe a data de início.");
-      return;
-    }
-
-    if (!formComProjeto.dataFim) {
-      toast.error("Informe a data de término.");
-      return;
-    }
-
-    if (formComProjeto.dataFim < formComProjeto.dataInicio) {
-      toast.error("A data de término não pode ser anterior à data de início.");
-      return;
-    }
-
-    if (
-      formComProjeto.dataFim &&
-      dataFimPassada(formComProjeto.dataFim) &&
-      !statusPermiteDataFimPassada(formComProjeto.status)
-    ) {
-      toast.error(
-        "Ação com data de término passada deve estar com status Inativo ou Concluído.",
-      );
-      return;
-    }
-
-    if (formComProjeto.estrategiasDivulgacao.length === 0) {
-      toast.error("Selecione ao menos uma estratégia de divulgação.");
-      return;
-    }
-
-    if (!formComProjeto.status) {
+    if (!formComProposta.status) {
       toast.error("Selecione o status da ação.");
       return;
     }
 
-    if (!formComProjeto.projetoId) {
-      toast.error("Selecione o projeto.");
-      return;
-    }
-
-    if (formComProjeto.colaboradoresIds.length === 0) {
-      toast.error("Vincule ao menos um colaborador responsável pela ação.");
+    if (!formComProposta.propostaEditalId) {
+      toast.error("Selecione a proposta de edital.");
       return;
     }
 
@@ -443,7 +316,7 @@ export default function AcaoDivulgacaoForm() {
       setSaving(true);
 
       const payload = buildAcaoDivulgacaoPayload(
-        mapFormToAcao(formComProjeto),
+        mapFormToAcao(formComProposta),
       );
 
       if (editando && id) {
@@ -483,7 +356,7 @@ export default function AcaoDivulgacaoForm() {
 
         <PageTitle
           title="Ação de Divulgação"
-          tooltip="Planeje como as ações culturais serão divulgadas, realizadas e documentadas. Informe estratégias de comunicação, período, responsáveis, produtos gerados e resultados esperados."
+          tooltip="Registre a ação de divulgação vinculada à proposta de edital, descrevendo sua finalidade, forma de realização, acessibilidade, resultados esperados e produtos gerados."
         />
 
         {!visualizando && <FormLegend />}
@@ -496,12 +369,14 @@ export default function AcaoDivulgacaoForm() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={Megaphone} title="Dados principais">
+
+          <Section icon={Megaphone} title="Identificação da ação">
             <div className="grid sm:grid-cols-2 gap-4">
               <Field full>
                 <FieldLabel htmlFor="nomeAcao" required>
                   Nome da Ação
                 </FieldLabel>
+
                 <Input
                   id="nomeAcao"
                   value={form.nomeAcao}
@@ -512,9 +387,29 @@ export default function AcaoDivulgacaoForm() {
               </Field>
 
               <Field full>
+                <FieldLabel
+                  htmlFor="objetivoAcao"
+                  required
+                  tooltip="Explique o objetivo da ação, como ampliar o público, dar visibilidade ao projeto, fortalecer a comunicação ou registrar atividades realizadas."
+                >
+                  Objetivo da Ação
+                </FieldLabel>
+
+                <Textarea
+                  id="objetivoAcao"
+                  value={form.objetivoAcao}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                  onChange={(e) => set("objetivoAcao", e.target.value)}
+                  rows={3}
+                />
+              </Field>
+
+              <Field full>
                 <FieldLabel htmlFor="descricaoAcao" required>
                   Descrição da Ação
                 </FieldLabel>
+
                 <Textarea
                   id="descricaoAcao"
                   value={form.descricaoAcao}
@@ -533,6 +428,7 @@ export default function AcaoDivulgacaoForm() {
                 >
                   Realização da Ação
                 </FieldLabel>
+
                 <Textarea
                   id="realizacaoAcao"
                   value={form.realizacaoAcao}
@@ -545,25 +441,8 @@ export default function AcaoDivulgacaoForm() {
             </div>
           </Section>
 
-          <Section icon={Target} title="Objetivo e acessibilidade">
+          <Section icon={Target} title="Acessibilidade, resultados e produtos">
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel
-                  htmlFor="objetivoAcao"
-                  required
-                  tooltip="Explique o objetivo da ação, como ampliar o público, dar visibilidade ao projeto, fortalecer a comunicação ou registrar atividades realizadas."
-                >
-                  Objetivo da Ação
-                </FieldLabel>
-                <Textarea
-                  id="objetivoAcao"
-                  value={form.objetivoAcao}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                  onChange={(e) => set("objetivoAcao", e.target.value)}
-                  rows={3}
-                />
-              </Field>
 
               <Field full>
                 <FieldLabel
@@ -573,6 +452,7 @@ export default function AcaoDivulgacaoForm() {
                 >
                   Ações de Acessibilidade
                 </FieldLabel>
+
                 <Textarea
                   id="acoesAcessibilidade"
                   value={form.acoesAcessibilidade}
@@ -591,6 +471,7 @@ export default function AcaoDivulgacaoForm() {
                 >
                   Resultado Esperado
                 </FieldLabel>
+
                 <Textarea
                   id="resultadoEsperado"
                   value={form.resultadoEsperado}
@@ -600,11 +481,7 @@ export default function AcaoDivulgacaoForm() {
                   rows={3}
                 />
               </Field>
-            </div>
-          </Section>
 
-          <Section icon={PackageCheck} title="Produtos e período">
-            <div className="grid sm:grid-cols-2 gap-4">
               <Field full>
                 <FieldLabel
                   htmlFor="produtosGerados"
@@ -613,6 +490,7 @@ export default function AcaoDivulgacaoForm() {
                 >
                   Produtos Gerados
                 </FieldLabel>
+
                 <Textarea
                   id="produtosGerados"
                   value={form.produtosGerados}
@@ -622,63 +500,51 @@ export default function AcaoDivulgacaoForm() {
                   rows={3}
                 />
               </Field>
-
-              <Field>
-                <FieldLabel htmlFor="dataInicio" required>
-                  Data de Início da Ação
-                </FieldLabel>
-                <Input
-                  id="dataInicio"
-                  type="date"
-                  value={form.dataInicio}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                  onChange={(e) => set("dataInicio", e.target.value)}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="dataFim" required>
-                  Data de Término da Ação
-                </FieldLabel>
-                <Input
-                  id="dataFim"
-                  type="date"
-                  value={form.dataFim}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                  onChange={(e) => set("dataFim", e.target.value)}
-                />
-              </Field>
             </div>
           </Section>
 
-          <Section icon={Share2} title="Estratégia de divulgação">
+          <Section icon={Link2} title="Vínculo e acompanhamento">
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel
-                  htmlFor="estrategiasDivulgacao"
-                  required
-                  tooltip="Selecione um ou mais meios utilizados para divulgação da ação. Ex.: redes sociais, cartazes, mídia local, rádio, parcerias ou mobilização comunitária."
-                >
-                  Estratégias de Divulgação
+              <Field>
+                <FieldLabel htmlFor="propostaEdital" required>
+                  Proposta de Edital
                 </FieldLabel>
-                <div
-                  className={visualizando ? "pointer-events-none opacity-80" : ""}
+
+                <Select
+                  value={propostaSelectValue}
+                  onValueChange={(v) =>
+                    set("propostaEditalId", normalizeId(v))
+                  }
+                  disabled={bloqueado}
                 >
-                  <MultiSelect
-                    id="estrategiasDivulgacao"
-                    options={estrategiaOptions}
-                    value={estrategiasSelecionadasLabels}
-                    onChange={handleEstrategiasChange}
-                  />
-                </div>
+                  <SelectTrigger id="propostaEdital">
+                    <SelectValue placeholder="Selecione a proposta de edital" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {propostasComFallback.length === 0 ? (
+                      <SelectItem value="sem-proposta" disabled>
+                        Nenhuma proposta disponível
+                      </SelectItem>
+                    ) : (
+                      propostasComFallback.map((proposta) => (
+                        <SelectItem
+                          key={normalizeId(proposta.id)}
+                          value={normalizeId(proposta.id)}
+                        >
+                          {proposta.nome}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </Field>
 
               <Field>
                 <FieldLabel htmlFor="status" required>
                   Status
                 </FieldLabel>
+
                 <Select
                   value={form.status}
                   onValueChange={(v) => set("status", v as AcaoStatusApi)}
@@ -687,6 +553,7 @@ export default function AcaoDivulgacaoForm() {
                   <SelectTrigger id="status">
                     <SelectValue placeholder="Selecione o status" />
                   </SelectTrigger>
+
                   <SelectContent>
                     {statusAcao.map((s) => (
                       <SelectItem key={s.value} value={s.value}>
@@ -699,126 +566,32 @@ export default function AcaoDivulgacaoForm() {
             </div>
           </Section>
 
-          <Section icon={Link2} title="Vínculos e equipe">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel htmlFor="projeto" required>
-                  Projeto
-                </FieldLabel>
-                <Select
-                  value={projetoSelectValue}
-                  onValueChange={(v) => set("projetoId", normalizeId(v))}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="projeto">
-                    <SelectValue placeholder="Selecione o projeto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projetosComFallback.length === 0 ? (
-                      <SelectItem value="sem-projeto" disabled>
-                        Nenhum projeto disponível
-                      </SelectItem>
-                    ) : (
-                      projetosComFallback.map((projeto) => (
-                        <SelectItem
-                          key={normalizeId(projeto.id)}
-                          value={normalizeId(projeto.id)}
-                        >
-                          {projeto.nome}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/acoes-divulgacao")}
+              disabled={loading || saving}
+            >
+              {visualizando ? "Voltar" : "Cancelar"}
+            </Button>
 
-              <Field full>
-                <FieldLabel htmlFor="colaboradores" required>
-                  Colaboradores Responsáveis
-                </FieldLabel>
-                <div
-                  className={visualizando ? "pointer-events-none opacity-80" : ""}
-                >
-                  <MultiSelect
-                    id="colaboradores"
-                    options={colaboradorOptions}
-                    value={colaboradoresSelecionadosLabels}
-                    onChange={handleColaboradoresChange}
-                  />
-                </div>
-              </Field>
-            </div>
-          </Section>
-
-          {!visualizando && (
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+            {!visualizando && (
               <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate("/acoes-divulgacao")}
-                disabled={saving}
+                type="submit"
+                className="sm:min-w-32"
+                disabled={loading || saving}
               >
-                Cancelar
-              </Button>
-
-              <Button type="submit" className="sm:min-w-32" disabled={saving}>
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
-            </div>
-          )}
-
-          {visualizando && (
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate("/acoes-divulgacao")}
-              >
-                Voltar
-              </Button>
-
-              {id && (
-                <Button
-                  type="button"
-                  onClick={() => navigate(`/acoes-divulgacao/${id}/editar`)}
-                >
-                  Editar
-                </Button>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </form>
       </div>
 
       <WikiFloatingButton
-        pageTitle="Cadastro de Ação de Divulgação"
-        sections={[
-          {
-            title: "Como preencher?",
-            content:
-              "O formulário está dividido em dados principais, objetivo e acessibilidade, produtos e período, estratégia de divulgação e vínculos. Preencha de cima para baixo.",
-          },
-          {
-            title: "Realização da ação",
-            content:
-              "Explique como a ação será executada na prática, incluindo etapas, canais utilizados, responsáveis e dinâmica de divulgação.",
-          },
-          {
-            title: "Produtos gerados",
-            content:
-              "Informe os materiais ou registros produzidos pela ação, como cards, vídeos, publicações, cartazes, releases, fotografias ou relatórios.",
-          },
-          {
-            title: "Estratégias de divulgação",
-            content:
-              "Selecione os meios utilizados para divulgar a ação. Essas informações ajudam a comprovar o planejamento de comunicação do projeto.",
-          },
-          {
-            title: "Vínculos",
-            content:
-              "Vincule a ação a um projeto e informe os colaboradores responsáveis. Esses vínculos são importantes para relatórios e prestação de contas.",
-          },
-        ]}
+        pageTitle="Ações de Divulgação"
+        href="https://www.aurit.com.br/wiki/acoes-culturais/acoes-de-divulgacao"
       />
     </AppLayout>
   );
@@ -829,14 +602,15 @@ function Section({
   title,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
       <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
         <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
+
         <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
           {title}
         </h2>
@@ -852,7 +626,7 @@ function Field({
   full,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   full?: boolean;
   className?: string;
 }) {

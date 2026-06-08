@@ -64,13 +64,22 @@ import {
   createEmptyDiretoria,
   deleteDiretoria,
   formatDateBR,
+  generoDiretoriaLabel,
+  generosDiretoria,
   getDiretorias,
   getOrganizacoesDiretoria,
+  racaCorDiretoriaLabel,
+  racasCoresDiretoria,
   statusDiretoriaLabel,
   statusDiretoriaOptions,
+  tipoDeficienciaDiretoriaLabel,
+  tiposDeficienciaDiretoria,
   updateDiretoria,
   type DiretoriaData,
+  type GeneroApi,
   type OrganizacaoDiretoriaOption,
+  type RacaCorApi,
+  type TipoDeficienciaApi,
 } from "@/lib/diretoriaStore";
 import { toast } from "sonner";
 
@@ -104,6 +113,9 @@ const requiredFields: Array<[keyof DiretoriaData, string]> = [
   ["nomeCompleto", "Nome Completo"],
   ["dataNascimento", "Data de Nascimento"],
   ["cpf", "CPF"],
+  ["racaCor", "Raça/Cor"],
+  ["genero", "Gênero"],
+  ["tipoDeficiencia", "Deficiência"],
   ["telefone", "Telefone"],
   ["cargoDiretoria", "Cargo na Diretoria"],
   ["dataInicioMandato", "Data de Início do Mandato"],
@@ -423,6 +435,9 @@ export default function Diretoria() {
         item.rg,
         item.telefone,
         item.email,
+        racaCorDiretoriaLabel(item.racaCor),
+        generoDiretoriaLabel(item.genero),
+        tipoDeficienciaDiretoriaLabel(item.tipoDeficiencia),
         cargoDiretoriaLabel(item.cargoDiretoria),
         statusDiretoriaLabel(item.statusDiretoria),
         formatDateBR(item.dataInicioMandato),
@@ -545,6 +560,10 @@ export default function Diretoria() {
       telefone: item.telefone,
       email: item.email,
 
+      racaCor: racaCorDiretoriaLabel(item.racaCor),
+      genero: generoDiretoriaLabel(item.genero),
+      tipoDeficiencia: tipoDeficienciaDiretoriaLabel(item.tipoDeficiencia),
+
       cep: item.cep,
       logradouro: item.logradouro,
       numero: item.numero,
@@ -562,7 +581,7 @@ export default function Diretoria() {
 
       organizacao: organizacaoNome(item.organizacaoId),
       observacao: item.observacao,
-    });
+    } as any);
   }
 
   async function buscarEnderecoPorCep(cepFormatado: string) {
@@ -859,10 +878,93 @@ export default function Diretoria() {
                     <Input
                       id="rg"
                       value={form.rg}
-                      onChange={(e) => setField("rg", maskRGFlex(e.target.value))}
+                      onChange={(e) =>
+                        setField("rg", maskRGFlex(e.target.value))
+                      }
                       disabled={bloqueado}
                       readOnly={readOnly}
                     />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="racaCor" required={!readOnly}>
+                      Raça/Cor
+                    </FieldLabel>
+
+                    <Select
+                      value={form.racaCor}
+                      onValueChange={(value) => {
+                        if (readOnly) return;
+                        setField("racaCor", value as RacaCorApi);
+                      }}
+                      disabled={bloqueado}
+                    >
+                      <SelectTrigger id="racaCor">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {racasCoresDiretoria.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="genero" required={!readOnly}>
+                      Gênero
+                    </FieldLabel>
+
+                    <Select
+                      value={form.genero}
+                      onValueChange={(value) => {
+                        if (readOnly) return;
+                        setField("genero", value as GeneroApi);
+                      }}
+                      disabled={bloqueado}
+                    >
+                      <SelectTrigger id="genero">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {generosDiretoria.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="tipoDeficiencia" required={!readOnly}>
+                      Deficiência
+                    </FieldLabel>
+
+                    <Select
+                      value={form.tipoDeficiencia}
+                      onValueChange={(value) => {
+                        if (readOnly) return;
+                        setField("tipoDeficiencia", value as TipoDeficienciaApi);
+                      }}
+                      disabled={bloqueado}
+                    >
+                      <SelectTrigger id="tipoDeficiencia">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+
+                      <SelectContent className="max-h-72">
+                        {tiposDeficienciaDiretoria.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </Field>
 
                   <Field>

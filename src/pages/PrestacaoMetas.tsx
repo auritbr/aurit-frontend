@@ -34,7 +34,6 @@ import {
 import {
   getPrestacaoMetas,
   deletePrestacaoMeta,
-  getPrestacoesContasOptions,
   getMetasProjetoOptions,
   statusCumprimentoLabel,
   statusCumprimentoTone,
@@ -42,7 +41,6 @@ import {
   getEvidenciasExecucaoOptions,
   type EvidenciaOption,
   type PrestacaoMeta,
-  type PrestacaoContasOption,
   type MetaProjetoOption,
 } from "@/data/prestacaoMetas";
 import {
@@ -99,7 +97,6 @@ export default function PrestacaoMetasPage() {
 
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<PrestacaoMeta[]>([]);
-  const [prestacoes, setPrestacoes] = useState<PrestacaoContasOption[]>([]);
   const [metas, setMetas] = useState<MetaProjetoOption[]>([]);
   const [evidencias, setEvidencias] = useState<EvidenciaOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,16 +186,14 @@ export default function PrestacaoMetasPage() {
       setLoading(true);
       setAccessDeniedMessage(null);
 
-      const [prestacaoMetasData, prestacoesData, metasData, evidenciasData] =
+      const [prestacaoMetasData, metasData, evidenciasData] =
         await Promise.all([
           getPrestacaoMetas(),
-          getPrestacoesContasOptions(),
           getMetasProjetoOptions(),
           getEvidenciasExecucaoOptions(),
         ]);
 
       setItems(prestacaoMetasData);
-      setPrestacoes(prestacoesData);
       setMetas(metasData);
       setEvidencias(evidenciasData);
     } catch (error) {
@@ -217,9 +212,6 @@ export default function PrestacaoMetasPage() {
       setLoading(false);
     }
   }
-
-  const prestacaoContasNome = (id?: string) =>
-    id ? prestacoes.find((p) => p.id === id)?.label ?? "—" : "—";
 
   const metaProjetoNome = (id?: string) =>
     id ? metas.find((m) => m.id === id)?.tituloMeta ?? "—" : "—";
@@ -242,12 +234,10 @@ export default function PrestacaoMetasPage() {
     if (!s) return items;
 
     return items.filter((m) => {
-      const prestacao = prestacaoContasNome(m.prestacaoContas).toLowerCase();
       const meta = metaProjetoNome(m.metaProjeto).toLowerCase();
       const evidenciasTexto = evidenciasNomes(m.evidencias).toLowerCase();
 
       return (
-        prestacao.includes(s) ||
         meta.includes(s) ||
         evidenciasTexto.includes(s) ||
         statusCumprimentoLabel(m.statusCumprimentoMeta)
@@ -262,7 +252,7 @@ export default function PrestacaoMetasPage() {
           .includes(s)
       );
     });
-  }, [search, items, prestacoes, metas, evidencias]);
+  }, [search, items, metas, evidencias]);
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
     usePagination(filtered, 25, search);
@@ -315,7 +305,6 @@ export default function PrestacaoMetasPage() {
       return;
     }
 
-    const prestacao = prestacaoContasNome(m.prestacaoContas);
     const meta = metaProjetoNome(m.metaProjeto);
     const quantidadeExecutada = formatQuantidadeExecutada(m.quantidadeExecutada);
     const status = statusCumprimentoLabel(m.statusCumprimentoMeta);
@@ -327,7 +316,6 @@ export default function PrestacaoMetasPage() {
 
     await exportPrestacaoMetasPdf({
       id: m.id,
-      prestacaoContas: prestacao,
       metaProjeto: meta,
       quantidadeExecutada,
       observacaoCumprimento: m.observacaoCumprimento,
@@ -355,31 +343,23 @@ export default function PrestacaoMetasPage() {
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
-        <div className="mb-5 rounded-lg border border-border bg-secondary/40 px-5 py-5 sm:px-6 sm:py-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary-soft px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
-                <ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.2} />
-                Prestação de Contas
-              </span>
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                Cumprimento de Metas
+              </h1>
 
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                  Cumprimento de Metas
-                </h1>
-
-                <HelpTooltip
-                  text="Acompanhe o cumprimento das metas previstas no projeto, comparando o que foi planejado com o que foi executado. Informe a quantidade realizada, o status de cumprimento, observações e evidências que comprovem a execução."
-                  label="Cumprimento de metas"
-                  size="md"
-                  side="bottom"
-                  align="start"
-                />
-              </div>
+              <HelpTooltip
+                text="Acompanhe o cumprimento das metas previstas no projeto, comparando o que foi planejado com o que foi executado. Informe a quantidade realizada, o status de cumprimento, observações e evidências que comprovem a execução."
+                label="Cumprimento de metas"
+                size="md"
+                side="bottom"
+                align="start"
+              />
             </div>
           </div>
         </div>
-
         {nextStepCard && (
           <NextStepCard
             titulo={nextStepCard.titulo}
@@ -392,18 +372,6 @@ export default function PrestacaoMetasPage() {
             onDismiss={() => setNextStepCard(null)}
           />
         )}
-
-        <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          Use esta página{" "}
-          <span className="font-semibold">
-            apenas quando o projeto estiver vinculado a metas formais
-          </span>
-          , geralmente em casos de{" "}
-          <span className="font-semibold">edital</span>, convênio, termo de
-          fomento ou parceria. Aqui você compara a meta prevista com o que foi
-          executado, informa o resultado alcançado e vincula evidências que
-          comprovem a execução.
-        </div>
 
         <div className="rounded border border-border bg-card">
           <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
@@ -430,12 +398,11 @@ export default function PrestacaoMetasPage() {
           </div>
 
           <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[1280px]">
+            <table ref={tableRef} className="w-full min-w-[1120px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   {[
                     "Ações",
-                    "Prestação de contas",
                     "Meta do projeto",
                     "Quantidade executada",
                     "Status de cumprimento",
@@ -464,7 +431,6 @@ export default function PrestacaoMetasPage() {
 
               <tbody>
                 {paginated.map((m) => {
-                  const prestacao = prestacaoContasNome(m.prestacaoContas);
                   const meta = metaProjetoNome(m.metaProjeto);
                   const qtd = formatQuantidadeExecutada(m.quantidadeExecutada);
                   const obs = m.observacaoCumprimento?.trim() || "—";
@@ -510,13 +476,7 @@ export default function PrestacaoMetasPage() {
                       </td>
 
                       <td className="px-6 py-2.5">
-                        <TableCellText text={prestacao} bold>
-                          {prestacao}
-                        </TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={meta} muted>
+                        <TableCellText text={meta} bold>
                           {meta}
                         </TableCellText>
                       </td>
@@ -563,7 +523,7 @@ export default function PrestacaoMetasPage() {
                 {paginated.length === 0 && (
                   <tr>
                     <td
-                      colSpan={podeGerarPdf ? 8 : 7}
+                      colSpan={podeGerarPdf ? 7 : 6}
                       className="px-5 py-16 text-center"
                     >
                       <ClipboardCheck className="mx-auto h-10 w-10 text-muted-foreground/40" />
@@ -633,10 +593,6 @@ export default function PrestacaoMetasPage() {
 
                   <p className="font-medium text-foreground">
                     {metaProjetoNome(m.metaProjeto)}
-                  </p>
-
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {prestacaoContasNome(m.prestacaoContas)}
                   </p>
 
                   <div className="mt-2 flex items-center gap-2">

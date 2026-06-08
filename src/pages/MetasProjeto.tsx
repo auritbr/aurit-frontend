@@ -425,12 +425,6 @@ export default function MetasProjetoPage() {
                         </div>
                       </td>
 
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText text={String(meta.ordem)} bold>
-                          {meta.ordem}
-                        </TableCellText>
-                      </td>
-
                       <td className="px-6 py-2.5">
                         <TableCellText text={meta.tituloMeta} bold>
                           {meta.tituloMeta}

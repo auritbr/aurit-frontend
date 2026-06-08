@@ -36,69 +36,72 @@ async function parseError(response: Response): Promise<string> {
   }
 }
 
-export const statusPrestacaoContasOptions = [
-  { value: "NAO_INICIADA", label: "Não iniciada" },
-  { value: "EM_ELABORACAO", label: "Em elaboração" },
-  { value: "AGUARDANDO_DOCUMENTOS", label: "Aguardando documentos" },
-  { value: "PRONTA_PARA_ENVIO", label: "Pronta para envio" },
-  { value: "ENVIADA", label: "Enviada" },
-  { value: "EM_ANALISE", label: "Em análise" },
-  { value: "APROVADA", label: "Aprovada" },
-  { value: "APROVADA_COM_RESSALVAS", label: "Aprovada com ressalvas" },
-  { value: "REPROVADA", label: "Reprovada" },
+export const produtoGeradoOptions = [
+  { value: "PUBLICACAO", label: "Publicação" },
+  { value: "LIVRO", label: "Livro" },
+  { value: "CATALOGO", label: "Catálogo" },
+  { value: "LIVE_TRANSMISSAO_ONLINE", label: "Live (transmissão on-line)" },
+  { value: "VIDEO", label: "Vídeo" },
+  { value: "DOCUMENTARIO", label: "Documentário" },
+  { value: "FILME", label: "Filme" },
+  { value: "RELATORIO_PESQUISA", label: "Relatório de pesquisa" },
+  { value: "PRODUCAO_MUSICAL", label: "Produção musical" },
+  { value: "JOGO", label: "Jogo" },
+  { value: "ARTESANATO", label: "Artesanato" },
+  { value: "OBRAS", label: "Obras" },
+  { value: "ESPETACULO", label: "Espetáculo" },
+  { value: "SHOW_MUSICAL", label: "Show musical" },
+  { value: "SITE", label: "Site" },
+  { value: "MUSICA", label: "Música" },
+  { value: "OUTROS", label: "Outros" },
 ] as const;
 
-export type StatusPrestacaoContas =
-  (typeof statusPrestacaoContasOptions)[number]["value"];
+export type ProdutoGerado = (typeof produtoGeradoOptions)[number]["value"];
 
-export const statusPrestacaoContasLabel = (value?: string | null) =>
-  statusPrestacaoContasOptions.find((item) => item.value === value)?.label ??
+export const produtoGeradoLabel = (value?: string | null) =>
+  produtoGeradoOptions.find((item) => item.value === value)?.label ??
+  value ??
   "—";
 
-export const statusPrestacaoContasTone = (
-  value?: string | null,
-): "neutral" | "info" | "warning" | "success" | "danger" => {
-  switch (value) {
-    case "APROVADA":
-      return "success";
+export function produtosGeradosTexto(values?: string[] | null) {
+  if (!values || values.length === 0) return "—";
 
-    case "APROVADA_COM_RESSALVAS":
-      return "warning";
+  return values.map(produtoGeradoLabel).join(", ");
+}
 
-    case "REPROVADA":
-      return "danger";
+export interface PrestacaoContasMetaDTO {
+  id?: number | string | null;
+  metaProjetoId?: number | string | null;
 
-    case "ENVIADA":
-    case "EM_ANALISE":
-    case "PRONTA_PARA_ENVIO":
-      return "info";
-
-    case "NAO_INICIADA":
-    case "EM_ELABORACAO":
-    case "AGUARDANDO_DOCUMENTOS":
-      return "warning";
-
-    default:
-      return "neutral";
-  }
-};
+  metaProjeto?: {
+    id?: number | string | null;
+    tituloMeta?: string | null;
+    descricaoMeta?: string | null;
+    propostaEditalId?: number | string | null;
+    propostaEdital?: {
+      id?: number | string | null;
+    } | null;
+  } | null;
+}
 
 export interface PrestacaoContasDTO {
-  id?: number;
-  periodoInicio?: string | null;
-  periodoFim?: string | null;
-  dataEnvio?: string | null;
-  dataAprovacao?: string | null;
-  parecerInterno?: string | null;
-  parecerExterno?: string | null;
-  observacoesGerais?: string | null;
-  statusPrestacaoContas?: StatusPrestacaoContas | null;
+  id?: number | string | null;
+
+  dataEntrega?: string | null;
+
+  resumoResultados?: string | null;
+  outrosProdutosGerados?: string | null;
+  disponibilizacaoProdutosPublico?: string | null;
+  resultadosGeradosProjeto?: string | null;
+
+  produtosGerados?: ProdutoGerado[] | string[] | null;
+  prestacaoMetas?: PrestacaoContasMetaDTO[] | null;
+
+  equipeProjetoIds?: Array<number | string> | null;
+  acoesDivulgacaoIds?: Array<number | string> | null;
 
   propostaEditalId?: number | string | null;
-  planejamentosFinanceirosIds?: Array<number | string> | null;
-
-  planejamentoFinanceiroIds?: Array<number | string> | null;
-  planejamentoFinanceiroId?: number | string | null;
+  agenteId?: number | string | null;
 
   propostaEdital?: {
     id?: number | string | null;
@@ -111,35 +114,59 @@ export interface PrestacaoContasDTO {
     nome?: string | null;
   } | null;
 
-  planejamentosFinanceiros?: Array<{
+  agente?: {
     id?: number | string | null;
-    itemPlanejamento?: string | null;
-    nomePlanejamento?: string | null;
+    nomePrincipal?: string | null;
+    nomeCompleto?: string | null;
+    nomeFantasia?: string | null;
+    razaoSocial?: string | null;
     nome?: string | null;
-    descricao?: string | null;
+  } | null;
+
+  equipeProjeto?: Array<{
+    id?: number | string | null;
+    funcaoProjeto?: string | null;
+    colaboradorId?: number | string | null;
+    integranteId?: number | string | null;
+    colaborador?: {
+      id?: number | string | null;
+      nomeCompleto?: string | null;
+      nome?: string | null;
+    } | null;
+    integrante?: {
+      id?: number | string | null;
+      nomeCompleto?: string | null;
+      nome?: string | null;
+    } | null;
   }> | null;
 
-  planejamentoFinanceiro?: {
+  acoesDivulgacao?: Array<{
     id?: number | string | null;
-    itemPlanejamento?: string | null;
-    nomePlanejamento?: string | null;
-    nome?: string | null;
-    descricao?: string | null;
-  } | null;
+    nomeAcao?: string | null;
+  }> | null;
+}
+
+export interface PrestacaoMetaForm {
+  id: string;
+  metaProjetoId: string;
 }
 
 export interface PrestacaoContas {
   id: string;
   propostaEdital: string;
-  planejamentosFinanceiros: string[];
-  periodoInicio: string;
-  periodoFim: string;
-  dataEnvio: string;
-  dataAprovacao: string;
-  statusPrestacaoContas: StatusPrestacaoContas | "";
-  parecerInterno: string;
-  parecerExterno: string;
-  observacoesGerais: string;
+  agente: string;
+  dataEntrega: string;
+
+  prestacaoMetas: PrestacaoMetaForm[];
+  produtosGerados: ProdutoGerado[];
+  outrosProdutosGerados: string;
+
+  disponibilizacaoProdutosPublico: string;
+  resultadosGeradosProjeto: string;
+  resumoResultados: string;
+
+  equipeProjeto: string[];
+  acoesDivulgacao: string[];
 }
 
 export interface PropostaEditalOption {
@@ -147,9 +174,29 @@ export interface PropostaEditalOption {
   nome: string;
 }
 
-export interface PlanejamentoFinanceiroOption {
+export interface AgenteOption {
   id: string;
   nome: string;
+}
+
+export interface PrestacaoMetaOption {
+  id: string;
+  nome: string;
+  metaProjetoId: string;
+  propostaEditalId: string;
+}
+
+export interface EquipeProjetoOption {
+  id: string;
+  nome: string;
+  funcao: string;
+  propostaEditalId: string;
+}
+
+export interface AcaoDivulgacaoOption {
+  id: string;
+  nome: string;
+  propostaEditalId: string;
 }
 
 interface PropostaEditalApiResponse {
@@ -163,12 +210,64 @@ interface PropostaEditalApiResponse {
   nome?: string | null;
 }
 
-interface PlanejamentoFinanceiroApiResponse {
+interface AgenteApiResponse {
   id?: number | string | null;
-  itemPlanejamento?: string | null;
-  nomePlanejamento?: string | null;
+  nomePrincipal?: string | null;
+  nomeCompleto?: string | null;
+  nomeFantasia?: string | null;
+  razaoSocial?: string | null;
   nome?: string | null;
-  descricao?: string | null;
+}
+
+interface PrestacaoMetaApiResponse {
+  id?: number | string | null;
+  metaProjetoId?: number | string | null;
+  statusCumprimentoMeta?: string | null;
+  metaProjeto?: {
+    id?: number | string | null;
+    tituloMeta?: string | null;
+    descricaoMeta?: string | null;
+    propostaEditalId?: number | string | null;
+    propostaEdital?: {
+      id?: number | string | null;
+    } | null;
+  } | null;
+}
+
+interface EquipeEditalApiResponse {
+  id?: number | string | null;
+  funcaoProjeto?: string | null;
+  colaboradorId?: number | string | null;
+  integranteId?: number | string | null;
+  propostaEditalId?: number | string | null;
+  propostaEdital?: {
+    id?: number | string | null;
+  } | null;
+  colaborador?: {
+    id?: number | string | null;
+    nomeCompleto?: string | null;
+    nome?: string | null;
+  } | null;
+  integrante?: {
+    id?: number | string | null;
+    nomeCompleto?: string | null;
+    nome?: string | null;
+  } | null;
+}
+
+interface PessoaApiResponse {
+  id?: number | string | null;
+  nomeCompleto?: string | null;
+  nome?: string | null;
+}
+
+interface AcaoDivulgacaoApiResponse {
+  id?: number | string | null;
+  nomeAcao?: string | null;
+  propostaEditalId?: number | string | null;
+  propostaEdital?: {
+    id?: number | string | null;
+  } | null;
 }
 
 function isoOrEmpty(value?: string | null) {
@@ -177,6 +276,15 @@ function isoOrEmpty(value?: string | null) {
 
 function toIdString(value?: number | string | null) {
   if (value === null || value === undefined || value === "") return "";
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+
+    if (record.id !== null && record.id !== undefined) {
+      return String(record.id);
+    }
+  }
+
   return String(value);
 }
 
@@ -201,19 +309,63 @@ function normalizeNumberList(values: string[]) {
     .filter((value) => Number.isFinite(value));
 }
 
+function extractIdsFromObjects(
+  items?: Array<{ id?: number | string | null }> | null,
+) {
+  if (!items || items.length === 0) return [];
+
+  return uniqueStrings(items.map((item) => toIdString(item.id)));
+}
+
+function extractEquipeIds(dto: PrestacaoContasDTO) {
+  if (Array.isArray(dto.equipeProjetoIds)) {
+    return uniqueStrings(dto.equipeProjetoIds.map(toIdString));
+  }
+
+  return extractIdsFromObjects(dto.equipeProjeto);
+}
+
+function extractAcoesIds(dto: PrestacaoContasDTO) {
+  if (Array.isArray(dto.acoesDivulgacaoIds)) {
+    return uniqueStrings(dto.acoesDivulgacaoIds.map(toIdString));
+  }
+
+  return extractIdsFromObjects(dto.acoesDivulgacao);
+}
+
+function mapPrestacaoMeta(dto: PrestacaoContasMetaDTO): PrestacaoMetaForm {
+  const metaProjetoId = dto.metaProjetoId ?? dto.metaProjeto?.id ?? null;
+
+  return {
+    id: toIdString(dto.id),
+    metaProjetoId: toIdString(metaProjetoId),
+  };
+}
+
 export function createEmptyPrestacaoContas(): PrestacaoContas {
   return {
     id: "",
     propostaEdital: "",
-    planejamentosFinanceiros: [],
-    periodoInicio: "",
-    periodoFim: "",
-    dataEnvio: "",
-    dataAprovacao: "",
-    statusPrestacaoContas: "",
-    parecerInterno: "",
-    parecerExterno: "",
-    observacoesGerais: "",
+    agente: "",
+    dataEntrega: "",
+    prestacaoMetas: [],
+    produtosGerados: [],
+    outrosProdutosGerados: "",
+    disponibilizacaoProdutosPublico: "",
+    resultadosGeradosProjeto: "",
+    resumoResultados: "",
+    equipeProjeto: [],
+    acoesDivulgacao: [],
+  };
+}
+
+export function createEmptyPrestacaoMeta(
+  prestacaoMetaId = "",
+  metaProjetoId = "",
+): PrestacaoMetaForm {
+  return {
+    id: prestacaoMetaId,
+    metaProjetoId,
   };
 }
 
@@ -227,68 +379,50 @@ export function formatDateBr(iso?: string | null) {
   return `${day}/${month}/${year}`;
 }
 
-function extractPlanejamentosIds(dto: PrestacaoContasDTO): string[] {
-  const fromIds =
-    dto.planejamentosFinanceirosIds ??
-    dto.planejamentoFinanceiroIds ??
-    null;
-
-  if (Array.isArray(fromIds)) {
-    return uniqueStrings(fromIds.map(toIdString));
-  }
-
-  if (Array.isArray(dto.planejamentosFinanceiros)) {
-    return uniqueStrings(
-      dto.planejamentosFinanceiros.map((item) => toIdString(item.id)),
-    );
-  }
-
-  const fallbackId =
-    dto.planejamentoFinanceiroId ?? dto.planejamentoFinanceiro?.id ?? null;
-
-  return fallbackId ? [toIdString(fallbackId)] : [];
-}
-
 export function mapPrestacao(dto: PrestacaoContasDTO): PrestacaoContas {
   const propostaId = dto.propostaEditalId ?? dto.propostaEdital?.id ?? null;
+  const agenteId = dto.agenteId ?? dto.agente?.id ?? null;
 
   return {
     id: toIdString(dto.id),
     propostaEdital: toIdString(propostaId),
-    planejamentosFinanceiros: extractPlanejamentosIds(dto),
-    periodoInicio: isoOrEmpty(dto.periodoInicio),
-    periodoFim: isoOrEmpty(dto.periodoFim),
-    dataEnvio: isoOrEmpty(dto.dataEnvio),
-    dataAprovacao: isoOrEmpty(dto.dataAprovacao),
-    statusPrestacaoContas: dto.statusPrestacaoContas ?? "",
-    parecerInterno: dto.parecerInterno ?? "",
-    parecerExterno: dto.parecerExterno ?? "",
-    observacoesGerais: dto.observacoesGerais ?? "",
+    agente: toIdString(agenteId),
+    dataEntrega: isoOrEmpty(dto.dataEntrega),
+    prestacaoMetas: (dto.prestacaoMetas ?? []).map(mapPrestacaoMeta),
+    produtosGerados: (dto.produtosGerados ?? []) as ProdutoGerado[],
+    outrosProdutosGerados: dto.outrosProdutosGerados ?? "",
+    disponibilizacaoProdutosPublico:
+      dto.disponibilizacaoProdutosPublico ?? "",
+    resultadosGeradosProjeto: dto.resultadosGeradosProjeto ?? "",
+    resumoResultados: dto.resumoResultados ?? "",
+    equipeProjeto: extractEquipeIds(dto),
+    acoesDivulgacao: extractAcoesIds(dto),
   };
 }
 
 export function buildPrestacaoPayload(
   prestacao: PrestacaoContas,
 ): PrestacaoContasDTO {
-  const planejamentosIds = normalizeNumberList(
-    prestacao.planejamentosFinanceiros,
-  );
-
   return {
     id: prestacao.id ? Number(prestacao.id) : undefined,
-    periodoInicio: prestacao.periodoInicio || null,
-    periodoFim: prestacao.periodoFim || null,
-    dataEnvio: prestacao.dataEnvio || null,
-    dataAprovacao: prestacao.dataAprovacao || null,
-    parecerInterno: prestacao.parecerInterno?.trim() || null,
-    parecerExterno: prestacao.parecerExterno?.trim() || null,
-    observacoesGerais: prestacao.observacoesGerais?.trim() || null,
-    statusPrestacaoContas:
-      prestacao.statusPrestacaoContas as StatusPrestacaoContas,
+    dataEntrega: prestacao.dataEntrega || null,
     propostaEditalId: prestacao.propostaEdital
       ? Number(prestacao.propostaEdital)
       : null,
-    planejamentosFinanceirosIds: planejamentosIds,
+    agenteId: prestacao.agente ? Number(prestacao.agente) : null,
+    prestacaoMetas: prestacao.prestacaoMetas.map((meta) => ({
+      id: meta.id ? Number(meta.id) : undefined,
+    })),
+    produtosGerados: prestacao.produtosGerados,
+    outrosProdutosGerados:
+      prestacao.outrosProdutosGerados.trim() || null,
+    disponibilizacaoProdutosPublico:
+      prestacao.disponibilizacaoProdutosPublico.trim() || null,
+    resultadosGeradosProjeto:
+      prestacao.resultadosGeradosProjeto.trim() || null,
+    resumoResultados: prestacao.resumoResultados.trim() || null,
+    equipeProjetoIds: normalizeNumberList(prestacao.equipeProjeto),
+    acoesDivulgacaoIds: normalizeNumberList(prestacao.acoesDivulgacao),
   };
 }
 
@@ -389,7 +523,7 @@ export async function getPropostasEditalOptions(): Promise<
   return (Array.isArray(data) ? data : [])
     .filter((item) => item.id !== null && item.id !== undefined)
     .map((item) => {
-      const id = String(item.id);
+      const id = toIdString(item.id);
 
       return {
         id,
@@ -408,10 +542,8 @@ export async function getPropostasEditalOptions(): Promise<
     .filter((item) => item.id);
 }
 
-export async function getPlanejamentosFinanceirosOptions(): Promise<
-  PlanejamentoFinanceiroOption[]
-> {
-  const response = await fetch(`${API_URL}/planejamentos-financeiros`, {
+export async function getAgentesOptions(): Promise<AgenteOption[]> {
+  const response = await fetch(`${API_URL}/agentes`, {
     method: "GET",
     headers: getJsonHeaders(),
   });
@@ -420,22 +552,189 @@ export async function getPlanejamentosFinanceirosOptions(): Promise<
     throw new Error(await parseError(response));
   }
 
-  const data: PlanejamentoFinanceiroApiResponse[] = await response.json();
+  const data: AgenteApiResponse[] = await response.json();
 
   return (Array.isArray(data) ? data : [])
     .filter((item) => item.id !== null && item.id !== undefined)
     .map((item) => {
-      const id = String(item.id);
+      const id = toIdString(item.id);
 
       return {
         id,
         nome:
           pickFirstText(
-            item.itemPlanejamento,
-            item.nomePlanejamento,
+            item.nomePrincipal,
+            item.nomeCompleto,
+            item.nomeFantasia,
+            item.razaoSocial,
             item.nome,
-            item.descricao,
-          ) || `Planejamento ${id}`,
+          ) || `Agente ${id}`,
+      };
+    })
+    .filter((item) => item.id);
+}
+
+export async function getPrestacaoMetasOptions(): Promise<
+  PrestacaoMetaOption[]
+> {
+  const response = await fetch(`${API_URL}/prestacao-metas`, {
+    method: "GET",
+    headers: getJsonHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data: PrestacaoMetaApiResponse[] = await response.json();
+
+  return (Array.isArray(data) ? data : [])
+    .filter((item) => item.id !== null && item.id !== undefined)
+    .map((item) => {
+      const id = toIdString(item.id);
+      const metaProjetoId = toIdString(
+        item.metaProjetoId ?? item.metaProjeto?.id,
+      );
+      const propostaEditalId = toIdString(
+        item.metaProjeto?.propostaEditalId ??
+          item.metaProjeto?.propostaEdital?.id,
+      );
+
+      const nome =
+        pickFirstText(
+          item.metaProjeto?.tituloMeta,
+          item.metaProjeto?.descricaoMeta,
+        ) || `Prestação de meta ${id}`;
+
+      return {
+        id,
+        nome,
+        metaProjetoId,
+        propostaEditalId,
+      };
+    })
+    .filter((item) => item.id);
+}
+
+export async function getEquipeProjetoOptions(): Promise<
+  EquipeProjetoOption[]
+> {
+  const [equipesRes, colaboradoresRes, integrantesRes] = await Promise.all([
+    fetch(`${API_URL}/equipes-editais`, {
+      method: "GET",
+      headers: getJsonHeaders(),
+    }),
+    fetch(`${API_URL}/colaboradores`, {
+      method: "GET",
+      headers: getJsonHeaders(),
+    }),
+    fetch(`${API_URL}/integrantes`, {
+      method: "GET",
+      headers: getJsonHeaders(),
+    }),
+  ]);
+
+  if (!equipesRes.ok) {
+    throw new Error(await parseError(equipesRes));
+  }
+
+  if (!colaboradoresRes.ok) {
+    throw new Error(await parseError(colaboradoresRes));
+  }
+
+  if (!integrantesRes.ok) {
+    throw new Error(await parseError(integrantesRes));
+  }
+
+  const equipesData: EquipeEditalApiResponse[] = await equipesRes.json();
+  const colaboradoresData: PessoaApiResponse[] = await colaboradoresRes.json();
+  const integrantesData: PessoaApiResponse[] = await integrantesRes.json();
+
+  const colaboradoresMap = new Map(
+    (colaboradoresData ?? [])
+      .map((item) => {
+        const id = toIdString(item.id);
+        const nome =
+          pickFirstText(item.nomeCompleto, item.nome) ||
+          `Colaborador ${id}`;
+
+        return id ? [id, nome] : null;
+      })
+      .filter(Boolean) as Array<[string, string]>,
+  );
+
+  const integrantesMap = new Map(
+    (integrantesData ?? [])
+      .map((item) => {
+        const id = toIdString(item.id);
+        const nome =
+          pickFirstText(item.nomeCompleto, item.nome) || `Integrante ${id}`;
+
+        return id ? [id, nome] : null;
+      })
+      .filter(Boolean) as Array<[string, string]>,
+  );
+
+  return (equipesData ?? [])
+    .map((item) => {
+      const id = toIdString(item.id);
+      const colaboradorId = toIdString(
+        item.colaboradorId ?? item.colaborador?.id,
+      );
+      const integranteId = toIdString(
+        item.integranteId ?? item.integrante?.id,
+      );
+      const propostaEditalId = toIdString(
+        item.propostaEditalId ?? item.propostaEdital?.id,
+      );
+
+      const nome =
+        (colaboradorId && colaboradoresMap.get(colaboradorId)) ||
+        (integranteId && integrantesMap.get(integranteId)) ||
+        pickFirstText(
+          item.colaborador?.nomeCompleto,
+          item.colaborador?.nome,
+          item.integrante?.nomeCompleto,
+          item.integrante?.nome,
+        ) ||
+        `Membro ${id}`;
+
+      return {
+        id,
+        nome,
+        funcao: item.funcaoProjeto?.trim() || "",
+        propostaEditalId,
+      };
+    })
+    .filter((item) => item.id);
+}
+
+export async function getAcoesDivulgacaoOptions(): Promise<
+  AcaoDivulgacaoOption[]
+> {
+  const response = await fetch(`${API_URL}/acoes-divulgacao`, {
+    method: "GET",
+    headers: getJsonHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data: AcaoDivulgacaoApiResponse[] = await response.json();
+
+  return (Array.isArray(data) ? data : [])
+    .filter((item) => item.id !== null && item.id !== undefined)
+    .map((item) => {
+      const id = toIdString(item.id);
+      const propostaEditalId = toIdString(
+        item.propostaEditalId ?? item.propostaEdital?.id,
+      );
+
+      return {
+        id,
+        propostaEditalId,
+        nome: item.nomeAcao?.trim() || `Ação de divulgação ${id}`,
       };
     })
     .filter((item) => item.id);

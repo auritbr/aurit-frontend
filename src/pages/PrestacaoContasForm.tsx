@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -7,6 +7,9 @@ import {
   ClipboardCheck,
   MessageSquareText,
   Info,
+  PackageCheck,
+  UsersRound,
+  Megaphone,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -31,13 +34,20 @@ import {
   updatePrestacaoContas,
   buildPrestacaoPayload,
   getPropostasEditalOptions,
-  getPlanejamentosFinanceirosOptions,
-  statusPrestacaoContasOptions,
+  getAgentesOptions,
+  getPrestacaoMetasOptions,
+  getEquipeProjetoOptions,
+  getAcoesDivulgacaoOptions,
   createEmptyPrestacaoContas,
+  produtoGeradoOptions,
+  produtoGeradoLabel,
   type PrestacaoContas,
-  type StatusPrestacaoContas,
+  type ProdutoGerado,
   type PropostaEditalOption,
-  type PlanejamentoFinanceiroOption,
+  type AgenteOption,
+  type PrestacaoMetaOption,
+  type EquipeProjetoOption,
+  type AcaoDivulgacaoOption,
 } from "@/data/prestacaoContas";
 import { toast } from "sonner";
 
@@ -56,12 +66,11 @@ interface PrestacaoContasNextStepCardData {
 
 function salvarProximaAcaoPrestacaoContas() {
   const card: PrestacaoContasNextStepCardData = {
-    titulo:
-      "Após acompanhar a prestação de contas, valide o cumprimento das metas",
+    titulo: "Após registrar a prestação, organize as evidências",
     descricao:
-      "A prestação de metas ajuda a comparar o que foi planejado com o que foi executado, registrando quantidade realizada, status de cumprimento, justificativas e evidências que comprovam os resultados alcançados.",
-    acaoLabel: "Cadastrar metas prestadas",
-    acaoUrl: "/prestacao-metas/novo",
+      "As evidências ajudam a comprovar os produtos, resultados, ações de divulgação e cumprimento das metas informadas na prestação de contas.",
+    acaoLabel: "Cadastrar evidências",
+    acaoUrl: "/evidencias/novo",
     acaoSecundariaLabel: "Ver prestações",
     acaoSecundariaUrl: "/prestacao-contas",
     variante: "pendente",
@@ -73,31 +82,51 @@ function salvarProximaAcaoPrestacaoContas() {
   );
 }
 
-interface FormState {
-  propostaEdital: string;
-  planejamentosFinanceiros: string[];
-  periodoInicio: string;
-  periodoFim: string;
-  dataEnvio: string;
-  dataAprovacao: string;
-  statusPrestacaoContas: StatusPrestacaoContas | "";
-  parecerInterno: string;
-  parecerExterno: string;
-  observacoesGerais: string;
+type FormState = PrestacaoContas;
+
+const initial: FormState = createEmptyPrestacaoContas();
+
+function normalizeId(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "";
+
+  return String(value).trim();
 }
 
-const initial: FormState = {
-  propostaEdital: "",
-  planejamentosFinanceiros: [],
-  periodoInicio: "",
-  periodoFim: "",
-  dataEnvio: "",
-  dataAprovacao: "",
-  statusPrestacaoContas: "",
-  parecerInterno: "",
-  parecerExterno: "",
-  observacoesGerais: "",
-};
+function getPropostaNome(propostas: PropostaEditalOption[], id: string) {
+  return (
+    propostas.find((item) => normalizeId(item.id) === id)?.nome ||
+    `Proposta ${id}`
+  );
+}
+
+function getAgenteNome(agentes: AgenteOption[], id: string) {
+  return (
+    agentes.find((item) => normalizeId(item.id) === id)?.nome ||
+    `Agente ${id}`
+  );
+}
+
+function getPrestacaoMetaNome(options: PrestacaoMetaOption[], id: string) {
+  return (
+    options.find((item) => normalizeId(item.id) === id)?.nome ||
+    `Prestação de meta ${id}`
+  );
+}
+
+function getEquipeNome(equipes: EquipeProjetoOption[], id: string) {
+  const equipe = equipes.find((item) => normalizeId(item.id) === id);
+
+  if (!equipe) return `Membro ${id}`;
+
+  return equipe.funcao ? `${equipe.nome} — ${equipe.funcao}` : equipe.nome;
+}
+
+function getAcaoNome(acoes: AcaoDivulgacaoOption[], id: string) {
+  return (
+    acoes.find((item) => normalizeId(item.id) === id)?.nome ||
+    `Ação de divulgação ${id}`
+  );
+}
 
 export default function PrestacaoContasForm() {
   const navigate = useNavigate();
@@ -111,8 +140,13 @@ export default function PrestacaoContasForm() {
   const [loading, setLoading] = useState<boolean>(!!id);
   const [saving, setSaving] = useState(false);
   const [propostas, setPropostas] = useState<PropostaEditalOption[]>([]);
-  const [planejamentos, setPlanejamentos] = useState<
-    PlanejamentoFinanceiroOption[]
+  const [agentes, setAgentes] = useState<AgenteOption[]>([]);
+  const [prestacaoMetasOptions, setPrestacaoMetasOptions] = useState<
+    PrestacaoMetaOption[]
+  >([]);
+  const [equipeProjeto, setEquipeProjeto] = useState<EquipeProjetoOption[]>([]);
+  const [acoesDivulgacao, setAcoesDivulgacao] = useState<
+    AcaoDivulgacaoOption[]
   >([]);
 
   const bloqueado = loading || saving || visualizando;
@@ -124,88 +158,90 @@ export default function PrestacaoContasForm() {
       try {
         setLoading(true);
 
-        const [prestacaoData, propostasData, planejamentosData] =
-          await Promise.all([
-            id ? getPrestacaoContasById(Number(id)) : Promise.resolve(null),
-            getPropostasEditalOptions(),
-            getPlanejamentosFinanceirosOptions(),
-          ]);
+        const [
+          prestacaoData,
+          propostasData,
+          agentesData,
+          prestacaoMetasData,
+          equipeData,
+          acoesData,
+        ] = await Promise.all([
+          id ? getPrestacaoContasById(Number(id)) : Promise.resolve(null),
+          getPropostasEditalOptions(),
+          getAgentesOptions(),
+          getPrestacaoMetasOptions(),
+          getEquipeProjetoOptions(),
+          getAcoesDivulgacaoOptions(),
+        ]);
 
         if (!active) return;
 
-        const propostaId = String(prestacaoData?.propostaEdital ?? "");
-        const planejamentosIds = (prestacaoData?.planejamentosFinanceiros ?? [])
-          .filter(Boolean)
-          .map(String);
-
         const propostasNormalizadas = (propostasData ?? [])
-          .filter(
-            (item) =>
-              item.id !== null &&
-              item.id !== undefined &&
-              String(item.id).trim() !== "",
-          )
+          .filter((item) => normalizeId(item.id))
           .map((item) => ({
-            id: String(item.id),
+            id: normalizeId(item.id),
             nome: item.nome?.trim() || `Proposta ${item.id}`,
           }));
 
-        const planejamentosNormalizados = (planejamentosData ?? [])
-          .filter(
-            (item) =>
-              item.id !== null &&
-              item.id !== undefined &&
-              String(item.id).trim() !== "",
-          )
+        const agentesNormalizados = (agentesData ?? [])
+          .filter((item) => normalizeId(item.id))
           .map((item) => ({
-            id: String(item.id),
-            nome: item.nome?.trim() || `Planejamento ${item.id}`,
+            id: normalizeId(item.id),
+            nome: item.nome?.trim() || `Agente ${item.id}`,
           }));
 
-        if (
-          propostaId &&
-          !propostasNormalizadas.some(
-            (item) => String(item.id) === String(propostaId),
-          )
-        ) {
-          propostasNormalizadas.push({
-            id: propostaId,
-            nome: `Proposta vinculada #${propostaId}`,
-          });
-        }
+        const prestacaoMetasNormalizadas = (prestacaoMetasData ?? [])
+          .filter((item) => normalizeId(item.id))
+          .map((item) => ({
+            id: normalizeId(item.id),
+            nome: item.nome?.trim() || `Prestação de meta ${item.id}`,
+            metaProjetoId: normalizeId(item.metaProjetoId),
+            propostaEditalId: normalizeId(item.propostaEditalId),
+          }));
 
-        planejamentosIds.forEach((planejamentoId) => {
-          if (
-            planejamentoId &&
-            !planejamentosNormalizados.some(
-              (item) => String(item.id) === String(planejamentoId),
-            )
-          ) {
-            planejamentosNormalizados.push({
-              id: planejamentoId,
-              nome: `Planejamento vinculado #${planejamentoId}`,
-            });
-          }
-        });
+        const equipeNormalizada = (equipeData ?? [])
+          .filter((item) => normalizeId(item.id))
+          .map((item) => ({
+            id: normalizeId(item.id),
+            nome: item.nome?.trim() || `Membro ${item.id}`,
+            funcao: item.funcao?.trim() || "",
+            propostaEditalId: normalizeId(item.propostaEditalId),
+          }));
+
+        const acoesNormalizadas = (acoesData ?? [])
+          .filter((item) => normalizeId(item.id))
+          .map((item) => ({
+            id: normalizeId(item.id),
+            nome: item.nome?.trim() || `Ação de divulgação ${item.id}`,
+            propostaEditalId: normalizeId(item.propostaEditalId),
+          }));
 
         setPropostas(propostasNormalizadas);
-        setPlanejamentos(planejamentosNormalizados);
+        setAgentes(agentesNormalizados);
+        setPrestacaoMetasOptions(prestacaoMetasNormalizadas);
+        setEquipeProjeto(equipeNormalizada);
+        setAcoesDivulgacao(acoesNormalizadas);
 
         if (prestacaoData) {
           setForm({
-            propostaEdital: propostaId,
-            planejamentosFinanceiros: planejamentosIds,
-            periodoInicio: prestacaoData.periodoInicio ?? "",
-            periodoFim: prestacaoData.periodoFim ?? "",
-            dataEnvio: prestacaoData.dataEnvio ?? "",
-            dataAprovacao: prestacaoData.dataAprovacao ?? "",
-            statusPrestacaoContas: prestacaoData.statusPrestacaoContas ?? "",
-            parecerInterno: prestacaoData.parecerInterno ?? "",
-            parecerExterno: prestacaoData.parecerExterno ?? "",
-            observacoesGerais: prestacaoData.observacoesGerais ?? "",
+            ...prestacaoData,
+            id: normalizeId(prestacaoData.id),
+            propostaEdital: normalizeId(prestacaoData.propostaEdital),
+            agente: normalizeId(prestacaoData.agente),
+            prestacaoMetas: (prestacaoData.prestacaoMetas ?? []).map(
+              (meta) => ({
+                id: normalizeId(meta.id),
+                metaProjetoId: normalizeId(meta.metaProjetoId),
+              }),
+            ),
+            produtosGerados: prestacaoData.produtosGerados ?? [],
+            equipeProjeto: (prestacaoData.equipeProjeto ?? []).map(String),
+            acoesDivulgacao: (prestacaoData.acoesDivulgacao ?? []).map(
+              String,
+            ),
           });
         } else {
-          setForm(initial);
+          setForm(createEmptyPrestacaoContas());
         }
       } catch (error) {
         toast.error(
@@ -231,156 +267,215 @@ export default function PrestacaoContasForm() {
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const propostasComSelecao = useMemo(() => {
-    const normalizadas = propostas.map((item) => ({
-      id: String(item.id),
-      nome: item.nome?.trim() || `Proposta ${item.id}`,
-    }));
+    const options = [...propostas];
 
     if (
       form.propostaEdital &&
-      !normalizadas.some(
-        (item) => String(item.id) === String(form.propostaEdital),
-      )
+      !options.some((item) => normalizeId(item.id) === form.propostaEdital)
     ) {
-      normalizadas.push({
-        id: String(form.propostaEdital),
+      options.unshift({
+        id: form.propostaEdital,
         nome: `Proposta vinculada #${form.propostaEdital}`,
       });
     }
 
-    return normalizadas;
+    return options;
   }, [propostas, form.propostaEdital]);
 
-  const planejamentosComSelecao = useMemo(() => {
-    const normalizados = planejamentos.map((item) => ({
-      id: String(item.id),
-      nome: item.nome?.trim() || `Planejamento ${item.id}`,
-    }));
+  const agentesComSelecao = useMemo(() => {
+    const options = [...agentes];
 
-    form.planejamentosFinanceiros.forEach((planejamentoId) => {
-      if (
-        planejamentoId &&
-        !normalizados.some(
-          (item) => String(item.id) === String(planejamentoId),
-        )
-      ) {
-        normalizados.push({
-          id: String(planejamentoId),
-          nome: `Planejamento vinculado #${planejamentoId}`,
-        });
-      }
-    });
+    if (
+      form.agente &&
+      !options.some((item) => normalizeId(item.id) === form.agente)
+    ) {
+      options.unshift({
+        id: form.agente,
+        nome: `Agente vinculado #${form.agente}`,
+      });
+    }
 
-    return normalizados;
-  }, [planejamentos, form.planejamentosFinanceiros]);
+    return options;
+  }, [agentes, form.agente]);
+
+  const prestacoesMetasDaProposta = useMemo(() => {
+    if (!form.propostaEdital) return prestacaoMetasOptions;
+
+    return prestacaoMetasOptions.filter(
+      (item) =>
+        !item.propostaEditalId ||
+        item.propostaEditalId === form.propostaEdital,
+    );
+  }, [prestacaoMetasOptions, form.propostaEdital]);
+
+  const equipeDaProposta = useMemo(() => {
+    if (!form.propostaEdital) return equipeProjeto;
+
+    return equipeProjeto.filter(
+      (equipe) =>
+        !equipe.propostaEditalId ||
+        equipe.propostaEditalId === form.propostaEdital,
+    );
+  }, [equipeProjeto, form.propostaEdital]);
+
+  const acoesDaProposta = useMemo(() => {
+    if (!form.propostaEdital) return acoesDivulgacao;
+
+    return acoesDivulgacao.filter(
+      (acao) =>
+        !acao.propostaEditalId ||
+        acao.propostaEditalId === form.propostaEdital,
+    );
+  }, [acoesDivulgacao, form.propostaEdital]);
+
+  const prestacaoMetaOptions = useMemo(
+    () => prestacoesMetasDaProposta.map((item) => normalizeId(item.id)),
+    [prestacoesMetasDaProposta],
+  );
+
+  const produtoOptions = useMemo(
+    () => produtoGeradoOptions.map((item) => item.value),
+    [],
+  );
+
+  const equipeOptions = useMemo(
+    () => equipeDaProposta.map((item) => normalizeId(item.id)),
+    [equipeDaProposta],
+  );
+
+  const acoesOptions = useMemo(
+    () => acoesDaProposta.map((item) => normalizeId(item.id)),
+    [acoesDaProposta],
+  );
+
+  const prestacoesMetasSelecionadasIds = useMemo(
+    () => form.prestacaoMetas.map((meta) => meta.id).filter(Boolean),
+    [form.prestacaoMetas],
+  );
 
   const propostaSelecionadaNome = useMemo(() => {
     if (!form.propostaEdital) return "";
 
-    return (
-      propostasComSelecao.find(
-        (item) => String(item.id) === String(form.propostaEdital),
-      )?.nome ?? `Proposta vinculada #${form.propostaEdital}`
-    );
+    return getPropostaNome(propostasComSelecao, form.propostaEdital);
   }, [propostasComSelecao, form.propostaEdital]);
 
-  const statusSelecionadoNome = useMemo(() => {
-    if (!form.statusPrestacaoContas) return "";
+  const agenteSelecionadoNome = useMemo(() => {
+    if (!form.agente) return "";
 
-    return (
-      statusPrestacaoContasOptions.find(
-        (item) => item.value === form.statusPrestacaoContas,
-      )?.label ?? form.statusPrestacaoContas
-    );
-  }, [form.statusPrestacaoContas]);
+    return getAgenteNome(agentesComSelecao, form.agente);
+  }, [agentesComSelecao, form.agente]);
 
-  const periodoInvertido = !!(
-    form.periodoInicio &&
-    form.periodoFim &&
-    form.periodoFim < form.periodoInicio
-  );
+  const handlePropostaChange = (value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      propostaEdital: value,
+      prestacaoMetas: [],
+      equipeProjeto: [],
+      acoesDivulgacao: [],
+    }));
+  };
 
-  const envioAntesPeriodo = !!(
-    form.periodoInicio &&
-    form.dataEnvio &&
-    form.dataEnvio < form.periodoInicio
-  );
+  const handlePrestacaoMetasChange = (values: string[]) => {
+    if (visualizando) return;
 
-  const aprovacaoAntesEnvio = !!(
-    form.dataEnvio &&
-    form.dataAprovacao &&
-    form.dataAprovacao < form.dataEnvio
-  );
+    const ids = values.filter(Boolean).map(String);
 
-  const planejamentosOptions = useMemo(
-    () => planejamentosComSelecao.map((item) => String(item.id)),
-    [planejamentosComSelecao],
-  );
+    setForm((prev) => {
+      const atuais = new Map(
+        prev.prestacaoMetas.map((meta) => [meta.id, meta]),
+      );
 
-  const planejamentoLabel = (id: string) =>
-    planejamentosComSelecao.find((item) => String(item.id) === String(id))
-      ?.nome ?? `Planejamento ${id}`;
+      return {
+        ...prev,
+        prestacaoMetas: ids.map((prestacaoMetaId) => {
+          const existente = atuais.get(prestacaoMetaId);
+
+          if (existente) return existente;
+
+          const option = prestacaoMetasOptions.find(
+            (item) => item.id === prestacaoMetaId,
+          );
+
+          return {
+            id: prestacaoMetaId,
+            metaProjetoId: option?.metaProjetoId ?? "",
+          };
+        }),
+      };
+    });
+  };
+
+  const possuiOutrosProdutos = form.produtosGerados.includes("OUTROS");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     if (visualizando) return;
 
-    const propostaEditalId = String(form.propostaEdital || "").trim();
-
-    if (!propostaEditalId) {
+    if (!form.propostaEdital) {
       toast.error("Selecione a proposta de edital.");
       return;
     }
 
-    if (form.planejamentosFinanceiros.length === 0) {
-      toast.error("Selecione ao menos um planejamento financeiro.");
+    if (!form.agente) {
+      toast.error("Selecione o agente.");
       return;
     }
 
-    if (!form.statusPrestacaoContas) {
-      toast.error("Selecione o status da prestação.");
+    if (!form.dataEntrega) {
+      toast.error("Informe a data de entrega.");
       return;
     }
 
-    if (periodoInvertido) {
+    if (form.prestacaoMetas.length === 0) {
+      toast.error("Informe ao menos uma prestação de meta.");
+      return;
+    }
+
+    if (form.produtosGerados.length === 0) {
+      toast.error("Informe ao menos um produto gerado.");
+      return;
+    }
+
+    if (possuiOutrosProdutos && !form.outrosProdutosGerados.trim()) {
+      toast.error("Descreva o produto gerado quando selecionar Outros.");
+      return;
+    }
+
+    if (!form.disponibilizacaoProdutosPublico.trim()) {
       toast.error(
-        "A data final do período não pode ser anterior à data inicial.",
+        "Informe como os produtos ficaram disponíveis para o público.",
       );
       return;
     }
 
-    if (envioAntesPeriodo) {
-      toast.error("A data de envio não pode ser anterior ao início do período.");
+    if (!form.resultadosGeradosProjeto.trim()) {
+      toast.error("Informe quais foram os resultados gerados pelo projeto.");
       return;
     }
 
-    if (aprovacaoAntesEnvio) {
-      toast.error("A data de aprovação não pode ser anterior à data de envio.");
+    if (!form.resumoResultados.trim()) {
+      toast.error("Informe o resumo dos resultados.");
+      return;
+    }
+
+    if (form.equipeProjeto.length === 0) {
+      toast.error("Informe ao menos uma pessoa da equipe do projeto.");
+      return;
+    }
+
+    if (form.acoesDivulgacao.length === 0) {
+      toast.error("Informe ao menos uma ação de divulgação.");
       return;
     }
 
     try {
       setSaving(true);
 
-      const prestacaoPayload: PrestacaoContas = {
-        ...createEmptyPrestacaoContas(),
-        id: id ?? "",
-        propostaEdital: propostaEditalId,
-        planejamentosFinanceiros: form.planejamentosFinanceiros
-          .filter(Boolean)
-          .map(String),
-        periodoInicio: form.periodoInicio,
-        periodoFim: form.periodoFim,
-        dataEnvio: form.dataEnvio,
-        dataAprovacao: form.dataAprovacao,
-        statusPrestacaoContas: form.statusPrestacaoContas,
-        parecerInterno: form.parecerInterno,
-        parecerExterno: form.parecerExterno,
-        observacoesGerais: form.observacoesGerais,
-      };
-
-      const payload = buildPrestacaoPayload(prestacaoPayload);
+      const payload = buildPrestacaoPayload({
+        ...form,
+        id: id ?? form.id,
+      });
 
       if (editando && id) {
         await updatePrestacaoContas(Number(id), payload);
@@ -409,7 +504,7 @@ export default function PrestacaoContasForm() {
         <button
           type="button"
           onClick={() => navigate("/prestacao-contas")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
+          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
         >
           <ArrowLeft className="h-4 w-4" />
           Voltar
@@ -417,12 +512,12 @@ export default function PrestacaoContasForm() {
 
         <div className="mb-5 space-y-1.5">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
+            <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
               Prestação de Contas
             </h1>
 
             <HelpTooltip
-              text="Organize o acompanhamento da prestação de contas do projeto, registrando período, datas de envio e aprovação, pareceres, observações e vínculos com proposta e planejamento financeiro. Esta página ajuda a controlar a situação da prestação e manter o histórico do processo atualizado."
+              text="Registre o relatório de entrega da prestação de contas, vinculando proposta de edital, agente, prestações de metas já cadastradas, produtos gerados, equipe do projeto, ações de divulgação e resultados alcançados."
               label="Prestação de contas"
               size="md"
               side="bottom"
@@ -433,16 +528,15 @@ export default function PrestacaoContasForm() {
 
         <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
           <Info
-            className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"
+            className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
             strokeWidth={2.2}
           />
 
           <p className="text-[13px] leading-relaxed text-foreground">
-            Use esta página para{" "}
-            <span className="font-semibold">acompanhar</span> o processo de
-            prestação de contas do projeto. Registre períodos, datas
-            importantes, pareceres, observações e mantenha o status atualizado
-            para facilitar conferências, comprovações e histórico do processo.
+            Use esta página para registrar a entrega da execução cultural:
+            selecione a proposta, o agente, as prestações de metas já
+            cadastradas, os produtos gerados, a equipe do projeto, as ações de
+            divulgação e descreva os resultados alcançados.
           </p>
         </div>
 
@@ -458,12 +552,12 @@ export default function PrestacaoContasForm() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Section icon={Link2} title="Vínculos da prestação">
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="propostaEdital"
                   required
-                  tooltip="Selecione a proposta de edital relacionada a esta prestação de contas. Esse vínculo conecta a prestação ao projeto inscrito, edital, agente responsável, equipe, metas e demais registros da candidatura."
+                  tooltip="Selecione a proposta de edital relacionada a esta prestação de contas."
                 >
                   Proposta de Edital
                 </FieldLabel>
@@ -474,15 +568,13 @@ export default function PrestacaoContasForm() {
                     value={propostaSelecionadaNome || "—"}
                     disabled
                     readOnly
-                    className="bg-muted/40 cursor-not-allowed"
+                    className="cursor-not-allowed bg-muted/40"
                   />
                 ) : (
                   <Select
                     key={`proposta-${form.propostaEdital}-${propostasComSelecao.length}`}
                     value={String(form.propostaEdital || "")}
-                    onValueChange={(value) =>
-                      set("propostaEdital", String(value))
-                    }
+                    onValueChange={handlePropostaChange}
                     disabled={bloqueado}
                   >
                     <SelectTrigger id="propostaEdital">
@@ -511,173 +603,47 @@ export default function PrestacaoContasForm() {
 
               <Field>
                 <FieldLabel
-                  htmlFor="planejamentosFinanceiros"
+                  htmlFor="agente"
                   required
-                  tooltip="Selecione um ou mais itens de planejamento financeiro relacionados a esta prestação de contas. Esse vínculo ajuda a comparar valores previstos, movimentações realizadas, comprovantes e aplicação dos recursos."
+                  tooltip="Selecione o agente cultural responsável pela prestação de contas."
                 >
-                  Planejamentos Financeiros
-                </FieldLabel>
-
-                <div
-                  className={
-                    visualizando ? "pointer-events-none opacity-80" : ""
-                  }
-                >
-                  <MultiSelect
-                    id="planejamentosFinanceiros"
-                    options={planejamentosOptions}
-                    value={form.planejamentosFinanceiros}
-                    onChange={(value) => {
-                      if (visualizando) return;
-
-                      set(
-                        "planejamentosFinanceiros",
-                        value.filter(Boolean).map(String),
-                      );
-                    }}
-                    getOptionLabel={planejamentoLabel}
-                  />
-                </div>
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={CalendarRange} title="Período e datas importantes">
-            <div className="space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel
-                    htmlFor="periodoInicio"
-                    tooltip="Informe a data inicial do período que será considerado nesta prestação de contas. Pode corresponder ao início da execução, do uso dos recursos ou do período exigido pelo edital."
-                  >
-                    Período Inicial
-                  </FieldLabel>
-
-                  <Input
-                    id="periodoInicio"
-                    type="date"
-                    value={form.periodoInicio}
-                    onChange={(e) => set("periodoInicio", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="periodoFim"
-                    tooltip="Informe a data final do período considerado nesta prestação de contas. Essa data ajuda a delimitar quais ações, despesas e evidências fazem parte do processo."
-                  >
-                    Período Final
-                  </FieldLabel>
-
-                  <Input
-                    id="periodoFim"
-                    type="date"
-                    value={form.periodoFim}
-                    onChange={(e) => set("periodoFim", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                    className={
-                      periodoInvertido
-                        ? "border-amber-500/40 focus-visible:ring-amber-500/30"
-                        : ""
-                    }
-                  />
-                </Field>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel
-                    htmlFor="dataEnvio"
-                    tooltip="Informe a data em que a prestação de contas foi enviada, protocolada ou submetida ao órgão responsável."
-                  >
-                    Data de Envio
-                  </FieldLabel>
-
-                  <Input
-                    id="dataEnvio"
-                    type="date"
-                    value={form.dataEnvio}
-                    onChange={(e) => set("dataEnvio", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                    className={
-                      envioAntesPeriodo
-                        ? "border-amber-500/40 focus-visible:ring-amber-500/30"
-                        : ""
-                    }
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel
-                    htmlFor="dataAprovacao"
-                    tooltip="Informe a data em que a prestação de contas foi aprovada, quando houver confirmação formal."
-                  >
-                    Data de Aprovação
-                  </FieldLabel>
-
-                  <Input
-                    id="dataAprovacao"
-                    type="date"
-                    value={form.dataAprovacao}
-                    onChange={(e) => set("dataAprovacao", e.target.value)}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                    className={
-                      aprovacaoAntesEnvio
-                        ? "border-amber-500/40 focus-visible:ring-amber-500/30"
-                        : ""
-                    }
-                  />
-                </Field>
-              </div>
-            </div>
-          </Section>
-
-          <Section icon={ClipboardCheck} title="Status e acompanhamento">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel
-                  htmlFor="statusPrestacaoContas"
-                  required
-                  tooltip="Indique a situação atual da prestação de contas, como não iniciada, em elaboração, aguardando documentos, pronta para envio, enviada, em análise, aprovada, aprovada com ressalvas ou reprovada."
-                >
-                  Status da Prestação
+                  Agente
                 </FieldLabel>
 
                 {visualizando ? (
                   <Input
-                    id="statusPrestacaoContas"
-                    value={statusSelecionadoNome || "—"}
+                    id="agente"
+                    value={agenteSelecionadoNome || "—"}
                     disabled
                     readOnly
-                    className="bg-muted/40 cursor-not-allowed"
+                    className="cursor-not-allowed bg-muted/40"
                   />
                 ) : (
                   <Select
-                    key={`status-${form.statusPrestacaoContas}`}
-                    value={String(form.statusPrestacaoContas || "")}
-                    onValueChange={(value) =>
-                      set(
-                        "statusPrestacaoContas",
-                        value as StatusPrestacaoContas,
-                      )
-                    }
+                    key={`agente-${form.agente}-${agentesComSelecao.length}`}
+                    value={String(form.agente || "")}
+                    onValueChange={(value) => set("agente", String(value))}
                     disabled={bloqueado}
                   >
-                    <SelectTrigger id="statusPrestacaoContas">
-                      <SelectValue placeholder="Selecione o status" />
+                    <SelectTrigger id="agente">
+                      <SelectValue placeholder="Selecione o agente" />
                     </SelectTrigger>
 
                     <SelectContent className="max-h-72">
-                      {statusPrestacaoContasOptions.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
+                      {agentesComSelecao.length === 0 ? (
+                        <SelectItem value="sem-agente" disabled>
+                          Nenhum agente cadastrado
                         </SelectItem>
-                      ))}
+                      ) : (
+                        agentesComSelecao.map((item) => (
+                          <SelectItem
+                            key={String(item.id)}
+                            value={String(item.id)}
+                          >
+                            {item.nome}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 )}
@@ -685,57 +651,22 @@ export default function PrestacaoContasForm() {
             </div>
           </Section>
 
-          <Section icon={MessageSquareText} title="Pareceres e observações">
-            <div className="space-y-4">
+          <Section icon={CalendarRange} title="Data de entrega">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
-                  htmlFor="parecerInterno"
-                  tooltip="Registre a análise interna da organização sobre a prestação de contas, como conferências realizadas, pendências identificadas, justificativas, riscos, ajustes necessários ou avaliação da equipe."
+                  htmlFor="dataEntrega"
+                  required
+                  tooltip="Informe a data de entrega ou envio do relatório de prestação de contas."
                 >
-                  Parecer Interno
+                  Data de Entrega
                 </FieldLabel>
 
-                <Textarea
-                  id="parecerInterno"
-                  value={form.parecerInterno}
-                  onChange={(e) => set("parecerInterno", e.target.value)}
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="parecerExterno"
-                  tooltip="Registre o parecer, retorno, diligência, aprovação, ressalva ou observação enviada pelo órgão responsável, patrocinador ou instituição avaliadora."
-                >
-                  Parecer Externo
-                </FieldLabel>
-
-                <Textarea
-                  id="parecerExterno"
-                  value={form.parecerExterno}
-                  onChange={(e) => set("parecerExterno", e.target.value)}
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="observacoesGerais"
-                  tooltip="Registre informações complementares sobre o processo, como contatos, documentos pendentes, justificativas, decisões internas ou próximos passos."
-                >
-                  Observações Gerais
-                </FieldLabel>
-
-                <Textarea
-                  id="observacoesGerais"
-                  value={form.observacoesGerais}
-                  onChange={(e) => set("observacoesGerais", e.target.value)}
-                  rows={3}
+                <Input
+                  id="dataEntrega"
+                  type="date"
+                  value={form.dataEntrega}
+                  onChange={(e) => set("dataEntrega", e.target.value)}
                   disabled={bloqueado}
                   readOnly={visualizando}
                 />
@@ -743,7 +674,199 @@ export default function PrestacaoContasForm() {
             </div>
           </Section>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">
+          <Section icon={MessageSquareText} title="Resumo dos resultados">
+            <Field>
+              <FieldLabel
+                htmlFor="resumoResultados"
+                required
+                tooltip="Registre um resumo geral dos resultados obtidos com a execução do projeto."
+              >
+                Resumo dos Resultados
+              </FieldLabel>
+
+              <Textarea
+                id="resumoResultados"
+                value={form.resumoResultados}
+                onChange={(e) => set("resumoResultados", e.target.value)}
+                rows={5}
+                disabled={bloqueado}
+                readOnly={visualizando}
+              />
+            </Field>
+          </Section>
+
+          <Section icon={ClipboardCheck} title="Prestações de metas vinculadas">
+            <Field>
+              <FieldLabel
+                htmlFor="prestacaoMetas"
+                required
+                tooltip="Selecione as prestações de metas já cadastradas que fazem parte desta prestação de contas."
+              >
+                Prestações de Metas
+              </FieldLabel>
+
+              <div className={visualizando ? "pointer-events-none opacity-80" : ""}>
+                <MultiSelect
+                  id="prestacaoMetas"
+                  options={prestacaoMetaOptions}
+                  value={prestacoesMetasSelecionadasIds}
+                  onChange={handlePrestacaoMetasChange}
+                  getOptionLabel={(value) =>
+                    getPrestacaoMetaNome(prestacaoMetasOptions, value)
+                  }
+                />
+              </div>
+            </Field>
+          </Section>
+
+          <Section icon={PackageCheck} title="Produtos gerados">
+            <div className="space-y-4">
+              <Field>
+                <FieldLabel
+                  htmlFor="produtosGerados"
+                  required
+                  tooltip="Selecione os produtos culturais gerados pela execução do projeto."
+                >
+                  Produtos Gerados
+                </FieldLabel>
+
+                <div className={visualizando ? "pointer-events-none opacity-80" : ""}>
+                  <MultiSelect
+                    id="produtosGerados"
+                    options={produtoOptions}
+                    value={form.produtosGerados}
+                    onChange={(value) =>
+                      set(
+                        "produtosGerados",
+                        value.filter(Boolean) as ProdutoGerado[],
+                      )
+                    }
+                    getOptionLabel={produtoGeradoLabel}
+                  />
+                </div>
+              </Field>
+
+              {possuiOutrosProdutos && (
+                <Field>
+                  <FieldLabel
+                    htmlFor="outrosProdutosGerados"
+                    required
+                    tooltip="Descreva quais outros produtos foram gerados."
+                  >
+                    Outros Produtos Gerados
+                  </FieldLabel>
+
+                  <Textarea
+                    id="outrosProdutosGerados"
+                    value={form.outrosProdutosGerados}
+                    onChange={(e) =>
+                      set("outrosProdutosGerados", e.target.value)
+                    }
+                    rows={3}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              )}
+
+              <Field>
+                <FieldLabel
+                  htmlFor="disponibilizacaoProdutosPublico"
+                  required
+                  tooltip="Explique como os produtos desenvolvidos ficaram disponíveis para o público após o fim do projeto."
+                >
+                  Como os produtos desenvolvidos ficaram disponíveis para o
+                  público após o fim do projeto?
+                </FieldLabel>
+
+                <Textarea
+                  id="disponibilizacaoProdutosPublico"
+                  value={form.disponibilizacaoProdutosPublico}
+                  onChange={(e) =>
+                    set("disponibilizacaoProdutosPublico", e.target.value)
+                  }
+                  rows={4}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="resultadosGeradosProjeto"
+                  required
+                  tooltip="Descreva os resultados gerados pelo projeto."
+                >
+                  Resultados Gerados
+                </FieldLabel>
+
+                <Textarea
+                  id="resultadosGeradosProjeto"
+                  value={form.resultadosGeradosProjeto}
+                  onChange={(e) =>
+                    set("resultadosGeradosProjeto", e.target.value)
+                  }
+                  rows={4}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <Section icon={UsersRound} title="Equipe do projeto">
+            <Field>
+              <FieldLabel
+                htmlFor="equipeProjeto"
+                required
+                tooltip="Selecione as pessoas da equipe da proposta que participaram da execução do projeto."
+              >
+                Equipe do Projeto
+              </FieldLabel>
+
+              <div className={visualizando ? "pointer-events-none opacity-80" : ""}>
+                <MultiSelect
+                  id="equipeProjeto"
+                  options={equipeOptions}
+                  value={form.equipeProjeto}
+                  onChange={(value) =>
+                    set("equipeProjeto", value.filter(Boolean).map(String))
+                  }
+                  getOptionLabel={(value) =>
+                    getEquipeNome(equipeProjeto, value)
+                  }
+                />
+              </div>
+            </Field>
+          </Section>
+
+          <Section icon={Megaphone} title="Ações de divulgação">
+            <Field>
+              <FieldLabel
+                htmlFor="acoesDivulgacao"
+                required
+                tooltip="Selecione as ações de divulgação vinculadas à proposta."
+              >
+                Ações de Divulgação
+              </FieldLabel>
+
+              <div className={visualizando ? "pointer-events-none opacity-80" : ""}>
+                <MultiSelect
+                  id="acoesDivulgacao"
+                  options={acoesOptions}
+                  value={form.acoesDivulgacao}
+                  onChange={(value) =>
+                    set("acoesDivulgacao", value.filter(Boolean).map(String))
+                  }
+                  getOptionLabel={(value) =>
+                    getAcaoNome(acoesDivulgacao, value)
+                  }
+                />
+              </div>
+            </Field>
+          </Section>
+
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
             <Button
               type="button"
               variant="outline"
@@ -776,14 +899,14 @@ function Section({
 }: {
   icon: any;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
-      <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
+    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
+      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
         <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
 
-        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
+        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
           {title}
         </h2>
       </div>
@@ -793,6 +916,12 @@ function Section({
   );
 }
 
-function Field({ children }: { children: React.ReactNode }) {
-  return <div>{children}</div>;
+function Field({
+  children,
+  full,
+}: {
+  children: ReactNode;
+  full?: boolean;
+}) {
+  return <div className={full ? "sm:col-span-3" : ""}>{children}</div>;
 }

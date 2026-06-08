@@ -23,6 +23,8 @@ export interface InicioDados {
   totalProjetos: number;
   totalMetasProjeto: number;
   totalAtividades: number;
+  totalPlanosAula: number,
+
   totalTurmas: number;
   totalPresencas: number;
   totalCronogramas: number;
@@ -270,10 +272,10 @@ function hasOrganizacaoValida(organizacoes: OrganizacaoLike[]) {
 
   return Boolean(
     org.razaoSocial?.trim() ||
-      org.nomeFantasia?.trim() ||
-      org.nomeOrganizacao?.trim() ||
-      org.nome?.trim() ||
-      org.cnpj?.trim(),
+    org.nomeFantasia?.trim() ||
+    org.nomeOrganizacao?.trim() ||
+    org.nome?.trim() ||
+    org.cnpj?.trim(),
   );
 }
 
@@ -323,6 +325,7 @@ export async function getInicioDados(): Promise<InicioDados> {
     cronogramas,
 
     atividades,
+    planoAula,
     turmas,
     presencas,
 
@@ -369,6 +372,7 @@ export async function getInicioDados(): Promise<InicioDados> {
     fetchFirstAvailableList(["/cronogramas", "/cronograma"]),
 
     fetchListSafe("/atividades"),
+    fetchListSafe("/planos-aula"),
     fetchListSafe("/turmas"),
     fetchListSafe("/presencas"),
 
@@ -453,6 +457,7 @@ export async function getInicioDados(): Promise<InicioDados> {
     totalProjetos: count(projetos),
     totalMetasProjeto: count(metasProjeto),
     totalAtividades: count(atividades),
+    totalPlanosAula: count(planoAula),
     totalTurmas: count(turmas),
     totalPresencas: count(presencas),
     totalCronogramas: count(cronogramas),

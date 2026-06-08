@@ -374,7 +374,7 @@ export default function EventosCulturais() {
                   </th>
 
                   <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Projeto
+                    Projetos
                   </th>
 
                   <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

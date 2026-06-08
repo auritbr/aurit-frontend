@@ -14,6 +14,82 @@ export type IntegranteStatusLabel =
   | "Pendente"
   | "Concluído";
 
+export type RacaCorApi =
+  | "BRANCA"
+  | "PRETA"
+  | "PARDA"
+  | "AMARELA"
+  | "INDIGENA"
+  | "PREFERE_NAO_INFORMAR";
+
+export type GeneroApi =
+  | "FEMININO"
+  | "MASCULINO"
+  | "NAO_BINARIO"
+  | "OUTRO"
+  | "PREFERE_NAO_INFORMAR";
+
+export type TipoDeficienciaApi =
+  | "NAO_POSSUI"
+  | "FISICA"
+  | "AUDITIVA"
+  | "VISUAL"
+  | "INTELECTUAL"
+  | "PSICOSSOCIAL"
+  | "MULTIPLA"
+  | "TRANSTORNO_ESPECTRO_AUTISTA"
+  | "OUTRA"
+  | "NAO_INFORMADO";
+
+export const racasCoresIntegrante = [
+  { value: "BRANCA", label: "Branca" },
+  { value: "PRETA", label: "Preta" },
+  { value: "PARDA", label: "Parda" },
+  { value: "AMARELA", label: "Amarela" },
+  { value: "INDIGENA", label: "Indígena" },
+  { value: "PREFERE_NAO_INFORMAR", label: "Prefere não informar" },
+] as const;
+
+export const generosIntegrante = [
+  { value: "FEMININO", label: "Feminino" },
+  { value: "MASCULINO", label: "Masculino" },
+  { value: "NAO_BINARIO", label: "Não binário" },
+  { value: "OUTRO", label: "Outro" },
+  { value: "PREFERE_NAO_INFORMAR", label: "Prefere não informar" },
+] as const;
+
+export const tiposDeficienciaIntegrante = [
+  { value: "NAO_POSSUI", label: "Não possui" },
+  { value: "FISICA", label: "Física" },
+  { value: "AUDITIVA", label: "Auditiva" },
+  { value: "VISUAL", label: "Visual" },
+  { value: "INTELECTUAL", label: "Intelectual" },
+  { value: "PSICOSSOCIAL", label: "Psicossocial" },
+  { value: "MULTIPLA", label: "Múltipla" },
+  { value: "TRANSTORNO_ESPECTRO_AUTISTA", label: "Transtorno do Espectro Autista" },
+  { value: "OUTRA", label: "Outra" },
+  { value: "NAO_INFORMADO", label: "Não informado" },
+] as const;
+
+export function racaCorValueToLabel(value?: RacaCorApi | string | null) {
+  return (
+    racasCoresIntegrante.find((item) => item.value === value)?.label ?? "—"
+  );
+}
+
+export function generoValueToLabel(value?: GeneroApi | string | null) {
+  return generosIntegrante.find((item) => item.value === value)?.label ?? "—";
+}
+
+export function tipoDeficienciaValueToLabel(
+  value?: TipoDeficienciaApi | string | null,
+) {
+  return (
+    tiposDeficienciaIntegrante.find((item) => item.value === value)?.label ??
+    "—"
+  );
+}
+
 export interface IntegranteDTO {
   id?: number | string;
   nomeCompleto?: string | null;
@@ -26,6 +102,10 @@ export interface IntegranteDTO {
   funcaoIntegrante?: string | null;
   dataEntrada?: string | null;
   dataSaida?: string | null;
+
+  racaCor?: RacaCorApi | string | null;
+  genero?: GeneroApi | string | null;
+  tipoDeficiencia?: TipoDeficienciaApi | string | null;
 
   cep?: string | null;
   logradouro?: string | null;
@@ -58,6 +138,10 @@ export interface Integrante {
   funcaoIntegrante: string;
   dataEntrada: string;
   dataSaida: string;
+
+  racaCor: RacaCorApi | "";
+  genero: GeneroApi | "";
+  tipoDeficiencia: TipoDeficienciaApi | "";
 
   cep: string;
   logradouro: string;
@@ -118,6 +202,52 @@ function normalizeStatus(value?: string | null): IntegranteStatusApi {
     : "ATIVO";
 }
 
+function normalizeRacaCor(value?: string | null): RacaCorApi | "" {
+  const allowed: RacaCorApi[] = [
+    "BRANCA",
+    "PRETA",
+    "PARDA",
+    "AMARELA",
+    "INDIGENA",
+    "PREFERE_NAO_INFORMAR",
+  ];
+
+  return allowed.includes(value as RacaCorApi) ? (value as RacaCorApi) : "";
+}
+
+function normalizeGenero(value?: string | null): GeneroApi | "" {
+  const allowed: GeneroApi[] = [
+    "FEMININO",
+    "MASCULINO",
+    "NAO_BINARIO",
+    "OUTRO",
+    "PREFERE_NAO_INFORMAR",
+  ];
+
+  return allowed.includes(value as GeneroApi) ? (value as GeneroApi) : "";
+}
+
+function normalizeTipoDeficiencia(
+  value?: string | null,
+): TipoDeficienciaApi | "" {
+  const allowed: TipoDeficienciaApi[] = [
+    "NAO_POSSUI",
+    "FISICA",
+    "AUDITIVA",
+    "VISUAL",
+    "INTELECTUAL",
+    "PSICOSSOCIAL",
+    "MULTIPLA",
+    "TRANSTORNO_ESPECTRO_AUTISTA",
+    "OUTRA",
+    "NAO_INFORMADO",
+  ];
+
+  return allowed.includes(value as TipoDeficienciaApi)
+    ? (value as TipoDeficienciaApi)
+    : "";
+}
+
 export function statusValueToLabel(
   status: IntegranteStatusApi | string,
 ): IntegranteStatusLabel {
@@ -146,6 +276,10 @@ export function mapIntegrante(dto: IntegranteDTO): Integrante {
     funcaoIntegrante: normalizeText(dto.funcaoIntegrante),
     dataEntrada: normalizeText(dto.dataEntrada),
     dataSaida: normalizeText(dto.dataSaida),
+
+    racaCor: normalizeRacaCor(dto.racaCor),
+    genero: normalizeGenero(dto.genero),
+    tipoDeficiencia: normalizeTipoDeficiencia(dto.tipoDeficiencia),
 
     cep: normalizeText(dto.cep),
     logradouro: normalizeText(dto.logradouro),

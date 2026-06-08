@@ -110,33 +110,36 @@ export default function EventoCulturalForm() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const projetoSelectValue =
-    String(form.projetoId || existingEvento?.projetoId || "");
+  const projetosSelectValue = useMemo(() => {
+    const ids = (form.projetosIds ?? []).filter(Boolean);
+
+    if (ids.length > 0) {
+      return ids;
+    }
+
+    const projetoId = String(form.projetoId || existingEvento?.projetoId || "");
+
+    return projetoId ? [projetoId] : [];
+  }, [form.projetosIds, form.projetoId, existingEvento]);
 
   const projetosComFallback = useMemo(() => {
     const options = [...projetos];
 
-    const projetoId = String(
-      form.projetoId || existingEvento?.projetoId || "",
-    );
+    projetosSelectValue.forEach((projetoId) => {
+      const existe = options.some(
+        (projeto) => String(projeto.id) === String(projetoId),
+      );
 
-    if (!projetoId) {
-      return options;
-    }
-
-    const existe = options.some(
-      (projeto) => String(projeto.id) === String(projetoId),
-    );
-
-    if (!existe) {
-      options.unshift({
-        id: projetoId,
-        nome: getProjetoNome(projetos, projetoId, existingEvento),
-      });
-    }
+      if (!existe) {
+        options.push({
+          id: projetoId,
+          nome: getProjetoNome(projetos, projetoId, existingEvento),
+        });
+      }
+    });
 
     return options;
-  }, [projetos, form.projetoId, existingEvento]);
+  }, [projetos, projetosSelectValue, existingEvento]);
 
   useEffect(() => {
     let active = true;
@@ -158,19 +161,21 @@ export default function EventoCulturalForm() {
         setColaboradores(colaboradoresData);
 
         if (eventoData) {
-          const projetoId = String(eventoData.projetoId || "");
+          const projetosIds = (
+            eventoData.projetosIds?.length
+              ? eventoData.projetosIds
+              : eventoData.projetoId
+                ? [eventoData.projetoId]
+                : []
+          ).map(String);
 
-          const projetoSelecionado = projetosData.find(
-            (projeto) => String(projeto.id) === String(projetoId),
-          );
+          const projetoId = projetosIds[0] ?? "";
 
           const eventoNormalizado: EventoCultural = {
             ...eventoData,
             projetoId,
+            projetosIds,
             colaboradoresIds: (eventoData.colaboradoresIds ?? []).map(String),
-            ...(projetoSelecionado
-              ? { projetoNome: projetoSelecionado.nome }
-              : {}),
           } as EventoCultural;
 
           setExistingEvento(eventoNormalizado);
@@ -199,6 +204,15 @@ export default function EventoCulturalForm() {
     };
   }, [id, navigate]);
 
+  const projetosOptions = useMemo(
+    () => projetosComFallback.map((projeto) => String(projeto.id)),
+    [projetosComFallback],
+  );
+
+  const projetoLabel = (option: string) =>
+    projetosComFallback.find((projeto) => String(projeto.id) === String(option))
+      ?.nome ?? option;
+
   const colaboradoresOptions = useMemo(
     () => colaboradores.map((colaborador) => String(colaborador.id)),
     [colaboradores],
@@ -211,7 +225,8 @@ export default function EventoCulturalForm() {
   function getFormComProjeto(): EventoCultural {
     return {
       ...form,
-      projetoId: projetoSelectValue,
+      projetoId: projetosSelectValue[0] ?? "",
+      projetosIds: projetosSelectValue,
     };
   }
 
@@ -251,8 +266,8 @@ export default function EventoCulturalForm() {
       return false;
     }
 
-    if (!evento.projetoId) {
-      toast.error("Selecione o projeto.");
+    if (!evento.projetosIds || evento.projetosIds.length === 0) {
+      toast.error("Selecione ao menos um projeto.");
       return false;
     }
 
@@ -512,42 +527,26 @@ export default function EventoCulturalForm() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field full>
                 <FieldLabel
-                  htmlFor="projetoId"
+                  htmlFor="projetosIds"
                   required
-                  tooltip="Selecione o projeto ao qual este evento cultural pertence. Esse vínculo conecta o evento ao planejamento, execução, evidências, relatórios e prestação de contas."
+                  tooltip="Selecione o projeto ou os projetos aos quais este evento cultural pertence. Esse vínculo conecta o evento ao planejamento, execução, evidências, relatórios e prestação de contas."
                 >
-                  Projeto
+                  Projetos
                 </FieldLabel>
 
-                <Select
-                  value={projetoSelectValue}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("projetoId", String(value));
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="projetoId">
-                    <SelectValue placeholder="Selecione um projeto" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {projetosComFallback.length === 0 ? (
-                      <SelectItem value="sem-projetos" disabled>
-                        Nenhum projeto cadastrado
-                      </SelectItem>
-                    ) : (
-                      projetosComFallback.map((projeto) => (
-                        <SelectItem
-                          key={String(projeto.id)}
-                          value={String(projeto.id)}
-                        >
-                          {projeto.nome}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <div className={bloqueado ? "pointer-events-none opacity-80" : ""}>
+                  <MultiSelect
+                    id="projetosIds"
+                    options={projetosOptions}
+                    value={projetosSelectValue}
+                    onChange={(value) => {
+                      if (visualizando) return;
+                      set("projetosIds", value);
+                      set("projetoId", value[0] ?? "");
+                    }}
+                    getOptionLabel={projetoLabel}
+                  />
+                </div>
               </Field>
 
               <Field full>

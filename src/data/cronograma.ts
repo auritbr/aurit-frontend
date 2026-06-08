@@ -40,6 +40,23 @@ export const cronogramaTitleTooltip =
 export const cronogramaDateError =
   "A data de término deve ser posterior à data de início.";
 
+export const etapaCronogramaOptions = [
+  { value: "PLANEJAMENTO", label: "Planejamento" },
+  { value: "PRE_PRODUCAO", label: "Pré-produção" },
+  { value: "PRODUCAO", label: "Produção" },
+  { value: "DIVULGACAO", label: "Divulgação" },
+  { value: "EXECUCAO", label: "Execução" },
+  { value: "POS_PRODUCAO", label: "Pós-produção" },
+  { value: "PRESTACAO_CONTAS", label: "Prestação de contas" },
+] as const;
+
+export type EtapaCronograma = (typeof etapaCronogramaOptions)[number]["value"];
+
+export const etapaCronogramaLabel = (value?: string | null) =>
+  etapaCronogramaOptions.find((item) => item.value === value)?.label ??
+  value ??
+  "";
+
 export const statusCronogramaOptions = [
   { value: "PLANEJADO", label: "Planejado" },
   { value: "EM_ANDAMENTO", label: "Em Andamento" },
@@ -58,6 +75,7 @@ export interface CronogramaDTO {
   id?: number;
   nomeEtapa: string;
   descricaoEtapa: string;
+  etapaCronograma: EtapaCronograma;
   dataInicioEtapa: string;
   dataFimEtapa: string;
   statusCronograma: StatusCronograma;
@@ -71,6 +89,7 @@ export interface CronogramaData {
   id: string;
   nomeEtapa: string;
   descricaoEtapa: string;
+  etapaCronograma: string;
   dataInicioEtapa: string;
   dataFimEtapa: string;
   statusCronograma: string;
@@ -95,6 +114,7 @@ export interface EventoOption {
   id: string;
   nome: string;
   projetoId?: string;
+  projetosIds: string[];
 }
 
 export interface AcaoOption {
@@ -121,6 +141,7 @@ interface EventoApiDTO {
   id?: number;
   nomeEvento?: string;
   projetoId?: number | null;
+  projetosIds?: Array<number | string> | null;
   projeto?: {
     id?: number | null;
   } | null;
@@ -140,6 +161,7 @@ export function createEmptyCronograma(): CronogramaData {
     id: "",
     nomeEtapa: "",
     descricaoEtapa: "",
+    etapaCronograma: "",
     dataInicioEtapa: "",
     dataFimEtapa: "",
     statusCronograma: "",
@@ -155,6 +177,7 @@ export function mapCronograma(dto: CronogramaDTO): CronogramaData {
     id: String(dto.id ?? ""),
     nomeEtapa: dto.nomeEtapa ?? "",
     descricaoEtapa: dto.descricaoEtapa ?? "",
+    etapaCronograma: dto.etapaCronograma ?? "",
     dataInicioEtapa: dto.dataInicioEtapa ?? "",
     dataFimEtapa: dto.dataFimEtapa ?? "",
     statusCronograma: dto.statusCronograma ?? "",
@@ -172,6 +195,7 @@ export function buildCronogramaPayload(data: CronogramaData): CronogramaDTO {
     id: data.id ? Number(data.id) : undefined,
     nomeEtapa: data.nomeEtapa.trim(),
     descricaoEtapa: data.descricaoEtapa.trim(),
+    etapaCronograma: data.etapaCronograma as EtapaCronograma,
     dataInicioEtapa: data.dataInicioEtapa,
     dataFimEtapa: data.dataFimEtapa,
     statusCronograma: data.statusCronograma as StatusCronograma,
@@ -190,6 +214,9 @@ function sortCronogramas(items: CronogramaData[]) {
   return [...items].sort(
     (a, b) =>
       (a.dataInicioEtapa || "").localeCompare(b.dataInicioEtapa || "") ||
+      etapaCronogramaLabel(a.etapaCronograma).localeCompare(
+        etapaCronogramaLabel(b.etapaCronograma),
+      ) ||
       (a.nomeEtapa || "").localeCompare(b.nomeEtapa || ""),
   );
 }
@@ -349,16 +376,23 @@ export async function getEventosOptions(): Promise<EventoOption[]> {
 
   return (data ?? [])
     .filter((evento) => evento.id != null)
-    .map((evento) => ({
-      id: String(evento.id),
-      nome: evento.nomeEvento?.trim() || `Evento ${evento.id}`,
-      projetoId:
-        evento.projetoId != null
-          ? String(evento.projetoId)
-          : evento.projeto?.id != null
-            ? String(evento.projeto.id)
-            : undefined,
-    }));
+    .map((evento) => {
+      const projetosIds =
+        Array.isArray(evento.projetosIds) && evento.projetosIds.length > 0
+          ? evento.projetosIds.map(String)
+          : evento.projetoId != null
+            ? [String(evento.projetoId)]
+            : evento.projeto?.id != null
+              ? [String(evento.projeto.id)]
+              : [];
+
+      return {
+        id: String(evento.id),
+        nome: evento.nomeEvento?.trim() || `Evento ${evento.id}`,
+        projetoId: projetosIds[0],
+        projetosIds,
+      };
+    });
 }
 
 export async function getAcoesOptions(): Promise<AcaoOption[]> {

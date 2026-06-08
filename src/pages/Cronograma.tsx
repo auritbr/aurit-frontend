@@ -66,6 +66,8 @@ import {
   cronogramaDateError,
   cronogramaTitleTooltip,
   deleteCronograma,
+  etapaCronogramaLabel,
+  etapaCronogramaOptions,
   getAcoesOptions,
   getAtividadesOptions,
   getCronogramas,
@@ -116,6 +118,7 @@ function salvarProximaAcaoCronograma() {
 const requiredFields: Array<[keyof CronogramaData, string]> = [
   ["nomeEtapa", "Nome da etapa"],
   ["descricaoEtapa", "Descrição da etapa"],
+  ["etapaCronograma", "Etapa"],
   ["dataInicioEtapa", "Data de início"],
   ["dataFimEtapa", "Data de término"],
   ["statusCronograma", "Status do cronograma"],
@@ -330,9 +333,13 @@ export default function Cronograma() {
   const eventosFiltrados = useMemo(() => {
     if (!form.projetoId) return eventos;
 
-    return eventos.filter(
-      (evento) => !evento.projetoId || evento.projetoId === form.projetoId,
-    );
+    return eventos.filter((evento) => {
+      if (evento.projetosIds?.length) {
+        return evento.projetosIds.includes(form.projetoId);
+      }
+
+      return !evento.projetoId || evento.projetoId === form.projetoId;
+    });
   }, [eventos, form.projetoId]);
 
   const acoesFiltradas = useMemo(() => {
@@ -385,6 +392,7 @@ export default function Cronograma() {
       await exportCronogramaPdf({
         id: item.id,
         nomeEtapa: item.nomeEtapa,
+        etapaCronograma: etapaCronogramaLabel(item.etapaCronograma),
         descricaoEtapa: item.descricaoEtapa,
         dataInicio: item.dataInicioEtapa,
         dataTermino: item.dataFimEtapa,
@@ -420,6 +428,7 @@ export default function Cronograma() {
     return sorted.filter((item) => {
       return [
         item.nomeEtapa,
+        etapaCronogramaLabel(item.etapaCronograma),
         item.descricaoEtapa,
         item.dataInicioEtapa,
         item.dataFimEtapa,
@@ -721,6 +730,34 @@ export default function Cronograma() {
                       disabled={readOnly || saving}
                       readOnly={readOnly}
                     />
+                  </Field>
+
+                  <Field full>
+                    <FieldLabel
+                      htmlFor="etapaCronograma"
+                      required={!readOnly}
+                      tooltip="Classifique a fase do cronograma. Use Planejamento, Pré-produção, Produção, Divulgação, Execução, Pós-produção ou Prestação de contas conforme o momento da etapa."
+                    >
+                      Etapa
+                    </FieldLabel>
+
+                    <Select
+                      value={form.etapaCronograma}
+                      onValueChange={(value) => setField("etapaCronograma", value)}
+                      disabled={readOnly || saving}
+                    >
+                      <SelectTrigger id="etapaCronograma">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {etapaCronogramaOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </Field>
 
                   <Field full>

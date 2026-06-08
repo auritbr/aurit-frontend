@@ -75,6 +75,12 @@ function normalizeNumber(value: unknown): number | undefined {
   return Number.isFinite(numberValue) ? numberValue : undefined;
 }
 
+function normalizeText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+
+  return String(value).trim();
+}
+
 function normalizeEvidenciasIds(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
 
@@ -150,11 +156,6 @@ export const statusCumprimentoTone = (
 export interface PrestacaoMetaDTO {
   id?: number | string;
 
-  prestacaoContasId?: number | string | null;
-  prestacaoContas?: number | string | { id?: number | string | null } | null;
-  prestacaoContaId?: number | string | null;
-  prestacaoConta?: number | string | { id?: number | string | null } | null;
-
   metaProjetoId?: number | string | null;
   metaProjeto?:
     | number
@@ -174,7 +175,7 @@ export interface PrestacaoMetaDTO {
   meta?: number | string | { id?: number | string | null } | null;
 
   statusCumprimentoMeta?: StatusCumprimentoMeta | null;
-  quantidadeExecutada?: number | string | null;
+  quantidadeExecutada?: string | number | null;
   percentualExecutado?: number | string | null;
   observacaoCumprimento?: string | null;
   justificativaNaoCumprimentoIntegral?: string | null;
@@ -201,19 +202,13 @@ export interface PrestacaoMetaDTO {
 
 export interface PrestacaoMeta {
   id: string;
-  prestacaoContas: string;
   metaProjeto: string;
-  quantidadeExecutada?: number;
+  quantidadeExecutada: string;
   percentualExecutado?: number;
   observacaoCumprimento: string;
   statusCumprimentoMeta: StatusCumprimentoMeta | "";
   justificativaNaoCumprimentoIntegral: string;
   evidencias: string[];
-}
-
-export interface PrestacaoContasOption {
-  id: string;
-  label: string;
 }
 
 export interface MetaProjetoOption {
@@ -224,24 +219,6 @@ export interface MetaProjetoOption {
 export interface EvidenciaOption {
   id: string;
   tituloEvidencia: string;
-}
-
-interface PrestacaoContasApiItem {
-  id?: number | string | null;
-  propostaEditalId?: number | string | null;
-  propostaEdital?: number | string | { id?: number | string | null } | null;
-  planejamentoFinanceiroId?: number | string | null;
-}
-
-interface PropostaApiItem {
-  id?: number | string | null;
-  tituloProjeto?: string | null;
-  tituloProposta?: string | null;
-  nomeProposta?: string | null;
-  nomeProjeto?: string | null;
-  nomeEdital?: string | null;
-  titulo?: string | null;
-  nome?: string | null;
 }
 
 interface MetaProjetoApiItem {
@@ -263,9 +240,8 @@ interface EvidenciaApiItem {
 export function createEmptyPrestacaoMeta(): PrestacaoMeta {
   return {
     id: "",
-    prestacaoContas: "",
     metaProjeto: "",
-    quantidadeExecutada: undefined,
+    quantidadeExecutada: "",
     percentualExecutado: undefined,
     observacaoCumprimento: "",
     statusCumprimentoMeta: "",
@@ -274,23 +250,24 @@ export function createEmptyPrestacaoMeta(): PrestacaoMeta {
   };
 }
 
-export function formatQuantidadeExecutada(value?: number) {
-  if (value == null || Number.isNaN(Number(value))) return "—";
+export function formatQuantidadeExecutada(value?: string | number | null) {
+  if (value === null || value === undefined) return "—";
 
-  return Number(value).toLocaleString("pt-BR", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
+  if (typeof value === "number") {
+    if (Number.isNaN(value)) return "—";
+
+    return value.toLocaleString("pt-BR", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  const text = value.trim();
+
+  return text || "—";
 }
 
 export function mapPrestacaoMeta(dto: PrestacaoMetaDTO): PrestacaoMeta {
-  const prestacaoContasId = normalizeId(
-    dto.prestacaoContasId ??
-      dto.prestacaoContas ??
-      dto.prestacaoContaId ??
-      dto.prestacaoConta,
-  );
-
   const metaProjetoId = normalizeId(
     dto.metaProjetoId ?? dto.metaProjeto ?? dto.metaId ?? dto.meta,
   );
@@ -300,9 +277,8 @@ export function mapPrestacaoMeta(dto: PrestacaoMetaDTO): PrestacaoMeta {
 
   return {
     id: normalizeId(dto.id),
-    prestacaoContas: prestacaoContasId,
     metaProjeto: metaProjetoId,
-    quantidadeExecutada: normalizeNumber(dto.quantidadeExecutada),
+    quantidadeExecutada: normalizeText(dto.quantidadeExecutada),
     percentualExecutado: normalizeNumber(dto.percentualExecutado),
     observacaoCumprimento: dto.observacaoCumprimento ?? "",
     statusCumprimentoMeta: dto.statusCumprimentoMeta ?? "",
@@ -318,19 +294,11 @@ export function buildPrestacaoMetaPayload(
   return {
     id: item.id ? Number(item.id) : undefined,
 
-    prestacaoContasId: item.prestacaoContas
-      ? Number(item.prestacaoContas)
-      : null,
-
     metaProjetoId: item.metaProjeto ? Number(item.metaProjeto) : null,
 
     statusCumprimentoMeta: item.statusCumprimentoMeta as StatusCumprimentoMeta,
 
-    quantidadeExecutada:
-      item.quantidadeExecutada == null ||
-      Number.isNaN(Number(item.quantidadeExecutada))
-        ? null
-        : Number(item.quantidadeExecutada),
+    quantidadeExecutada: item.quantidadeExecutada?.trim() || null,
 
     percentualExecutado:
       item.percentualExecutado == null ||
@@ -428,78 +396,6 @@ export async function deletePrestacaoMeta(id: number): Promise<void> {
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
-}
-
-async function getPropostasMap(): Promise<Map<string, string>> {
-  const response = await fetch(`${API_URL}/propostas-editais`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: PropostaApiItem[] = await response.json();
-
-  const map = new Map<string, string>();
-
-  (Array.isArray(data) ? data : []).forEach((item) => {
-    const id = normalizeId(item.id);
-
-    const nome =
-      pickFirstText(
-        item.nomeProposta,
-        item.tituloProposta,
-        item.nomeProjeto,
-        item.tituloProjeto,
-        item.nomeEdital,
-        item.titulo,
-        item.nome,
-      ) || `Proposta ${id || item.id}`;
-
-    if (id) {
-      map.set(id, nome);
-    }
-  });
-
-  return map;
-}
-
-export async function getPrestacoesContasOptions(): Promise<
-  PrestacaoContasOption[]
-> {
-  const [prestacoesRes, propostasMap] = await Promise.all([
-    fetch(`${API_URL}/prestacoes-contas`, {
-      method: "GET",
-      headers: getJsonHeaders(),
-    }),
-    getPropostasMap(),
-  ]);
-
-  if (!prestacoesRes.ok) {
-    throw new Error(await parseError(prestacoesRes));
-  }
-
-  const data: PrestacaoContasApiItem[] = await prestacoesRes.json();
-
-  return (Array.isArray(data) ? data : [])
-    .map((item) => {
-      const id = normalizeId(item.id);
-
-      const propostaId = normalizeId(
-        item.propostaEditalId ?? item.propostaEdital,
-      );
-
-      const propostaNome =
-        propostasMap.get(propostaId) ?? `Proposta ${propostaId || "—"}`;
-
-      return {
-        id,
-        label: `Prestação #${id} — ${propostaNome}`,
-      };
-    })
-    .filter((item) => item.id);
 }
 
 export async function getMetasProjetoOptions(): Promise<MetaProjetoOption[]> {

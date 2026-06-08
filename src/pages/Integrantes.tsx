@@ -31,9 +31,12 @@ import {
 } from "@/lib/permissoes";
 import {
   deleteIntegrante,
+  generoValueToLabel,
   getIntegrantes,
   getOrganizacoes,
+  racaCorValueToLabel,
   statusValueToLabel,
+  tipoDeficienciaValueToLabel,
   type Integrante,
   type OrganizacaoOption,
 } from "@/data/integrantes";
@@ -189,6 +192,9 @@ export default function Integrantes() {
         i.nomeCompleto,
         i.funcaoIntegrante,
         statusValueToLabel(i.status),
+        racaCorValueToLabel(i.racaCor),
+        generoValueToLabel(i.genero),
+        tipoDeficienciaValueToLabel(i.tipoDeficiencia),
         i.email,
         i.telefone,
         i.cpf,
@@ -261,6 +267,10 @@ export default function Integrantes() {
       telefone: i.telefone,
       email: i.email,
 
+      racaCor: racaCorValueToLabel(i.racaCor),
+      genero: generoValueToLabel(i.genero),
+      tipoDeficiencia: tipoDeficienciaValueToLabel(i.tipoDeficiencia),
+
       cep: i.cep,
       logradouro: i.logradouro,
       numero: i.numero,
@@ -274,7 +284,7 @@ export default function Integrantes() {
       dataEntrada: i.dataEntrada,
       dataSaida: i.dataSaida,
       status: statusValueToLabel(i.status),
-    });
+    } as any);
   }
 
   if (!podeVisualizar) {

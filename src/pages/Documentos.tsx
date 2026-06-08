@@ -9,8 +9,10 @@ import {
   Download,
   AlertTriangle,
   Eye,
+  Target
 } from "lucide-react";
 
+import { PageInfoCard } from "@/components/PageInfoCard";
 import { AppLayout } from "@/components/AppLayout";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
@@ -385,11 +387,12 @@ export default function DocumentosPage() {
           />
         )}
 
-        <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          Cadastre os documentos da organização e acompanhe sua situação.
+        <PageInfoCard
+          description="Cadastre os documentos da organização e acompanhe sua situação.
           Documentos vencidos, pendentes ou que precisam de revisão podem
-          comprometer inscrições em editais, habilitações e prestações de contas.
-        </div>
+          comprometer inscrições em editais, habilitações e prestações de contas."
+          icon={Target}
+        />
 
         {vencidosCount > 0 && (
           <div className="mb-5 flex items-start gap-2.5 rounded border border-red-300/80 bg-red-50/80 px-4 py-3 text-[13px]">

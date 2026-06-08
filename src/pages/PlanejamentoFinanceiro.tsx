@@ -72,10 +72,12 @@ import {
   deletePlanejamentoFinanceiro,
   formatCurrencyBR,
   formatCurrencyInput,
+  formatDateBr,
   getEquipesEditalOptions,
   getPlanejamentosFinanceiros,
   getPropostasEditalOptions,
   parseCurrencyInput,
+  planejamentoFinanceiroPeriodoError,
   planejamentoFinanceiroQuantidadeError,
   planejamentoFinanceiroValorTotalError,
   planejamentoFinanceiroValorUnitarioError,
@@ -107,20 +109,22 @@ interface PlanejamentoFinanceiroNextStepCardData {
 function criarProximaAcaoPlanejamentoFinanceiro(): PlanejamentoFinanceiroNextStepCardData {
   return {
     titulo:
-      "Após estruturar o orçamento da proposta, registre o resultado da proposta",
+      "Após estruturar a aplicação de recursos, registre o resultado da proposta",
     descricao:
       "O resultado da proposta permite acompanhar a situação da candidatura após a análise do edital, registrando se foi aprovada, não classificada ou suplente, além de guardar datas, observações e informações importantes para o histórico institucional.",
     acaoLabel: "Cadastrar resultado",
     acaoUrl: "/resultados-propostas/novo",
-    acaoSecundariaLabel: "Ver orçamento da proposta",
+    acaoSecundariaLabel: "Ver aplicação de recursos",
     acaoSecundariaUrl: "/planejamento-financeiro",
     variante: "pendente",
   };
 }
 
 const requiredFields: Array<[keyof PlanejamentoFinanceiroData, string]> = [
-  ["nomePlanejamento", "Item do orçamento"],
+  ["nomePlanejamento", "Item da aplicação"],
   ["justificativaPlanejamento", "Justificativa"],
+  ["dataInicio", "Data de início"],
+  ["dataFim", "Data de fim"],
   ["quantidade", "Quantidade"],
   ["unidadeMedida", "Unidade de medida"],
   ["valorUnitario", "Valor unitário"],
@@ -199,6 +203,9 @@ export default function PlanejamentoFinanceiro() {
     !!form.valorTotal &&
     !!calculatedTotal &&
     !moneyEqual(valorTotalNumero, calculatedTotalNumero);
+
+  const invalidPeriodo =
+    !!form.dataInicio && !!form.dataFim && form.dataFim < form.dataInicio;
 
   useEffect(() => {
     let active = true;
@@ -288,7 +295,7 @@ export default function PlanejamentoFinanceiro() {
       const message =
         error instanceof Error
           ? error.message
-          : "Erro ao carregar orçamento da proposta.";
+          : "Erro ao carregar aplicação de recursos.";
 
       if (isPlanoAccessDenied(message)) {
         setAccessDeniedMessage(message);
@@ -366,6 +373,8 @@ export default function PlanejamentoFinanceiro() {
       return [
         item.nomePlanejamento,
         item.justificativaPlanejamento,
+        formatDateBr(item.dataInicio),
+        formatDateBr(item.dataFim),
         item.quantidade,
         unidadeMedidaLabel(item.unidadeMedida),
         item.valorUnitario,
@@ -405,7 +414,7 @@ export default function PlanejamentoFinanceiro() {
   const handleNew = () => {
     if (!podeCriar) {
       toast.error(
-        "Você não possui permissão para cadastrar orçamento da proposta.",
+        "Você não possui permissão para cadastrar aplicação de recursos.",
       );
       return;
     }
@@ -429,7 +438,7 @@ export default function PlanejamentoFinanceiro() {
   ) => {
     if (nextMode === "edit" && !podeEditar) {
       toast.error(
-        "Você não possui permissão para editar orçamento da proposta.",
+        "Você não possui permissão para editar aplicação de recursos.",
       );
       return;
     }
@@ -447,14 +456,14 @@ export default function PlanejamentoFinanceiro() {
 
     if (mode === "create" && !podeCriar) {
       toast.error(
-        "Você não possui permissão para cadastrar orçamento da proposta.",
+        "Você não possui permissão para cadastrar aplicação de recursos.",
       );
       return;
     }
 
     if (mode === "edit" && !podeEditar) {
       toast.error(
-        "Você não possui permissão para editar orçamento da proposta.",
+        "Você não possui permissão para editar aplicação de recursos.",
       );
       return;
     }
@@ -465,6 +474,11 @@ export default function PlanejamentoFinanceiro() {
 
     if (missing) {
       toast.error(`Preencha o campo: ${missing[1]}.`);
+      return;
+    }
+
+    if (invalidPeriodo) {
+      toast.error(planejamentoFinanceiroPeriodoError);
       return;
     }
 
@@ -522,14 +536,14 @@ export default function PlanejamentoFinanceiro() {
 
       toast.success(
         mode === "create"
-          ? "Item do orçamento cadastrado com sucesso."
-          : "Item do orçamento salvo com sucesso.",
+          ? "Aplicação de recursos cadastrada com sucesso."
+          : "Aplicação de recursos salva com sucesso.",
       );
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : "Erro ao salvar item do orçamento da proposta.";
+          : "Erro ao salvar aplicação de recursos.";
 
       if (isPlanoAccessDenied(message)) {
         setAccessDeniedMessage(message);
@@ -548,7 +562,7 @@ export default function PlanejamentoFinanceiro() {
 
     if (!podeExcluir) {
       toast.error(
-        "Você não possui permissão para excluir orçamento da proposta.",
+        "Você não possui permissão para excluir aplicação de recursos.",
       );
       setConfirmDeleteId(null);
       return;
@@ -565,12 +579,12 @@ export default function PlanejamentoFinanceiro() {
 
       setConfirmDeleteId(null);
 
-      toast.success("Item do orçamento excluído com sucesso.");
+      toast.success("Aplicação de recursos excluída com sucesso.");
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : "Erro ao excluir item do orçamento da proposta.";
+          : "Erro ao excluir aplicação de recursos.";
 
       if (isPlanoAccessDenied(message)) {
         setAccessDeniedMessage(message);
@@ -594,6 +608,9 @@ export default function PlanejamentoFinanceiro() {
 
       nomePlanejamento: item.nomePlanejamento,
       justificativaPlanejamento: item.justificativaPlanejamento,
+
+      dataInicio: formatDateBr(item.dataInicio),
+      dataFim: formatDateBr(item.dataFim),
 
       quantidade: item.quantidade,
       unidadeMedida: unidadeMedidaLabel(item.unidadeMedida),
@@ -625,8 +642,9 @@ export default function PlanejamentoFinanceiro() {
   return (
     <AppLayout>
       <div
-        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"
-          } py-6 sm:py-8`}
+        className={`container ${
+          showForm ? "max-w-4xl" : "max-w-7xl"
+        } py-6 sm:py-8`}
       >
         {showForm && (
           <button
@@ -639,39 +657,21 @@ export default function PlanejamentoFinanceiro() {
           </button>
         )}
 
-        {isPaginaInicial ? (
-          <div className="mb-5 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                Orçamento da Proposta
-              </h1>
+        <div className="mb-5 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+              Aplicação de Recursos
+            </h1>
 
-              <HelpTooltip
-                text="Organize o orçamento da proposta de edital, detalhando cada item previsto, sua justificativa, quantidade, unidade de medida, valores e vínculo opcional com a equipe. Essas informações ajudam na construção do orçamento, na coerência da proposta, no acompanhamento dos recursos e na futura prestação de contas."
-                label="Orçamento da proposta"
-                size="md"
-                side="bottom"
-                align="start"
-              />
-            </div>
+            <HelpTooltip
+              text="Organize a aplicação de recursos da proposta de edital, detalhando cada item previsto, sua justificativa, quantidade, unidade de medida, valores, período de aplicação e vínculo opcional com a equipe. Essas informações ajudam na construção do plano de trabalho, no acompanhamento dos recursos e na futura prestação de contas."
+              label="Aplicação de recursos"
+              size="md"
+              side="bottom"
+              align="start"
+            />
           </div>
-        ) : (
-          <div className="mb-5 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                Orçamento da Proposta
-              </h1>
-
-              <HelpTooltip
-                text="Organize o orçamento da proposta de edital, detalhando cada item previsto, sua justificativa, quantidade, unidade de medida, valores e vínculo opcional com a equipe. Essas informações ajudam na construção do orçamento, na coerência da proposta, no acompanhamento dos recursos e na futura prestação de contas."
-                label="Orçamento da proposta"
-                size="md"
-                side="bottom"
-                align="start"
-              />
-            </div>
-          </div>
-        )}
+        </div>
 
         {isPaginaInicial && nextStepCard && (
           <NextStepCard
@@ -703,10 +703,11 @@ export default function PlanejamentoFinanceiro() {
               />
 
               <p className="text-[13px] leading-relaxed text-foreground">
-                Use esta página para registrar os itens previstos no orçamento da
-                proposta de edital. Cada item deve indicar o que será contratado,
-                comprado ou executado, por que é necessário, como será medido e
-                qual valor está previsto.
+                Use esta página para registrar como os recursos da proposta de
+                edital serão aplicados. Cada item deve indicar o que será
+                contratado, comprado ou executado, por que é necessário, em qual
+                período será realizado, como será medido e qual valor está
+                previsto.
               </p>
             </div>
 
@@ -719,9 +720,9 @@ export default function PlanejamentoFinanceiro() {
                     <FieldLabel
                       htmlFor="nomePlanejamento"
                       required={!readOnly}
-                      tooltip="Informe um nome claro para o item previsto no orçamento, indicando o que será contratado, adquirido ou executado. Ex.: Professor de violão, material pedagógico, serviço de som, transporte ou divulgação em redes sociais."
+                      tooltip="Informe um nome claro para o item previsto na aplicação de recursos, indicando o que será contratado, adquirido ou executado. Ex.: Professor de violão, material pedagógico, serviço de som, transporte ou divulgação em redes sociais."
                     >
-                      Item do Orçamento
+                      Item da Aplicação
                     </FieldLabel>
 
                     <Input
@@ -739,7 +740,7 @@ export default function PlanejamentoFinanceiro() {
                     <FieldLabel
                       htmlFor="justificativaPlanejamento"
                       required={!readOnly}
-                      tooltip="Explique por que este item é necessário para a execução da proposta, relacionando sua finalidade às atividades, metas, equipe, público atendido ou resultados previstos. Ex.: Contratação de educador musical necessária para conduzir as oficinas previstas no plano de trabalho."
+                      tooltip="Explique por que este item é necessário para a execução da proposta, relacionando sua finalidade às atividades, metas, equipe, público atendido ou resultados previstos."
                     >
                       Justificativa
                     </FieldLabel>
@@ -758,13 +759,63 @@ export default function PlanejamentoFinanceiro() {
                 </div>
               </Section>
 
+              <Section icon={ShieldCheck} title="Período previsto">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel
+                      htmlFor="dataInicio"
+                      required={!readOnly}
+                      tooltip="Informe a data de início prevista para este item da aplicação de recursos."
+                    >
+                      Data de Início
+                    </FieldLabel>
+
+                    <Input
+                      id="dataInicio"
+                      type="date"
+                      value={form.dataInicio}
+                      onChange={(e) => setField("dataInicio", e.target.value)}
+                      disabled={readOnly || saving}
+                      readOnly={readOnly}
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="dataFim"
+                      required={!readOnly}
+                      tooltip="Informe a data de fim prevista para este item da aplicação de recursos. A data de fim não pode ser anterior à data de início."
+                    >
+                      Data de Fim
+                    </FieldLabel>
+
+                    <Input
+                      id="dataFim"
+                      type="date"
+                      value={form.dataFim}
+                      onChange={(e) => setField("dataFim", e.target.value)}
+                      disabled={readOnly || saving}
+                      readOnly={readOnly}
+                    />
+                  </Field>
+
+                  {invalidPeriodo && (
+                    <Field full>
+                      <p className="text-sm text-destructive">
+                        {planejamentoFinanceiroPeriodoError}
+                      </p>
+                    </Field>
+                  )}
+                </div>
+              </Section>
+
               <Section icon={Calculator} title="Quantidade e valores">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel
                       htmlFor="quantidade"
                       required={!readOnly}
-                      tooltip="Informe apenas o número correspondente à quantidade prevista para este item, de acordo com a unidade de medida selecionada. Ex.: 3 meses, 10 unidades, 20 horas ou 1 serviço."
+                      tooltip="Informe apenas o número correspondente à quantidade prevista para este item, de acordo com a unidade de medida selecionada."
                     >
                       Quantidade
                     </FieldLabel>
@@ -818,7 +869,7 @@ export default function PlanejamentoFinanceiro() {
                     <FieldLabel
                       htmlFor="valorUnitario"
                       required={!readOnly}
-                      tooltip="Informe o valor de uma unidade deste item, considerando a unidade de medida selecionada. Ex.: se a unidade for “mês”, informe o valor mensal; se for “hora”, informe o valor por hora."
+                      tooltip="Informe o valor de uma unidade deste item, considerando a unidade de medida selecionada."
                     >
                       Valor Unitário
                     </FieldLabel>
@@ -887,7 +938,7 @@ export default function PlanejamentoFinanceiro() {
                     <FieldLabel
                       htmlFor="propostaEditalId"
                       required={!readOnly}
-                      tooltip="Selecione a proposta de edital à qual este item do orçamento pertence. Esse vínculo ajuda a comparar o valor solicitado, a equipe prevista e o orçamento apresentado no edital."
+                      tooltip="Selecione a proposta de edital à qual este item da aplicação de recursos pertence."
                     >
                       Proposta de Edital
                     </FieldLabel>
@@ -1027,11 +1078,11 @@ export default function PlanejamentoFinanceiro() {
             <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Resumo do orçamento da proposta
+                  Resumo da aplicação de recursos
                 </p>
 
                 <p className="mt-1 text-sm text-foreground">
-                  Total orçado:{" "}
+                  Total previsto:{" "}
                   <span className="font-semibold">
                     {formatCurrencyBR(totalPlanejado)}
                   </span>
@@ -1047,20 +1098,20 @@ export default function PlanejamentoFinanceiro() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="h-9 pl-9"
-                  aria-label="Buscar item do orçamento da proposta"
+                  aria-label="Buscar aplicação de recursos"
                 />
               </div>
 
               {podeCriar && (
                 <Button onClick={handleNew} className="h-9 gap-2">
                   <Plus className="h-4 w-4" />
-                  Cadastrar Orçamento
+                  Cadastrar Aplicação
                 </Button>
               )}
             </div>
 
             <div className="hidden overflow-x-auto md:block">
-              <table ref={tableRef} className="w-full min-w-[1280px]">
+              <table ref={tableRef} className="w-full min-w-[1380px]">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th
@@ -1072,6 +1123,14 @@ export default function PlanejamentoFinanceiro() {
 
                     <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Item
+                    </th>
+
+                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Início
+                    </th>
+
+                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Fim
                     </th>
 
                     <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1152,6 +1211,14 @@ export default function PlanejamentoFinanceiro() {
                           </TableCellText>
                         </td>
 
+                        <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
+                          {formatDateBr(item.dataInicio)}
+                        </td>
+
+                        <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
+                          {formatDateBr(item.dataFim)}
+                        </td>
+
                         <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
                           {item.quantidade}
                         </td>
@@ -1205,7 +1272,7 @@ export default function PlanejamentoFinanceiro() {
                   })}
 
                   {paginated.length === 0 && (
-                    <EmptyRow colSpan={podeGerarPdf ? 9 : 8} />
+                    <EmptyRow colSpan={podeGerarPdf ? 11 : 10} />
                   )}
                 </tbody>
               </table>
@@ -1217,7 +1284,7 @@ export default function PlanejamentoFinanceiro() {
                   <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground/40" />
 
                   <p className="mt-3 text-sm text-muted-foreground">
-                    Nenhum item encontrado.
+                    Nenhuma aplicação de recursos encontrada.
                   </p>
                 </div>
               ) : (
@@ -1268,6 +1335,11 @@ export default function PlanejamentoFinanceiro() {
 
                       <p className="font-medium text-foreground">
                         {item.nomePlanejamento}
+                      </p>
+
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {formatDateBr(item.dataInicio)} —{" "}
+                        {formatDateBr(item.dataFim)}
                       </p>
 
                       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
@@ -1321,7 +1393,7 @@ export default function PlanejamentoFinanceiro() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir item do orçamento?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir aplicação de recursos?</AlertDialogTitle>
 
             <AlertDialogDescription>
               Esta ação não pode ser desfeita. Caso este item esteja vinculado a
@@ -1344,8 +1416,8 @@ export default function PlanejamentoFinanceiro() {
       </AlertDialog>
 
       <WikiFloatingButton
-        pageTitle="Orçamento da Proposta"
-        href="https://www.aurit.com.br/wiki/editais/orcamento-da-proposta"
+        pageTitle="Aplicação de Recursos"
+        href="https://www.aurit.com.br/wiki/editais/aplicacao-de-recursos"
       />
     </AppLayout>
   );
@@ -1398,7 +1470,7 @@ function EmptyRow({ colSpan }: { colSpan: number }) {
         <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground/40" />
 
         <p className="mt-3 text-sm text-muted-foreground">
-          Nenhum item encontrado.
+          Nenhuma aplicação de recursos encontrada.
         </p>
       </td>
     </tr>

@@ -1,21 +1,19 @@
-import { generateInstitutionalPdf, fmtList, type PdfClause } from "./pdfGenerator";
+import {
+  generateInstitutionalPdf,
+  fmtList,
+  type PdfClause,
+} from "./pdfGenerator";
 import type { Turma } from "@/data/turmas";
 import { statusTurmaLabel, diaLabel } from "@/data/turmas";
+import { statusProjetoLabel, areaAtuacaoLabel } from "@/data/projetos";
 import {
-  statusProjetoLabel,
-  areaAtuacaoLabel,
-} from "@/data/projetos";
-import { tipoEventoLabel, statusValueToLabel as evtStatus } from "@/data/eventosCulturais";
-import {
-  estrategiaLabel,
-  statusValueToLabel as acaoStatus,
-} from "@/data/acoesDivulgacao";
+  tipoEventoLabel,
+  statusValueToLabel as evtStatus,
+} from "@/data/eventosCulturais";
+import { statusValueToLabel as acaoStatus } from "@/data/acoesDivulgacao";
 import type { CurriculoListItem } from "@/data/curriculos";
 import type { TrajetoriaCultural } from "@/data/trajetoriasCulturais";
-import {
-  tipoAgenteLabels,
-  type TipoAgente,
-} from "@/data/agentes";
+import { tipoAgenteLabels, type TipoAgente } from "@/data/agentes";
 import type { Participante } from "@/data/participantes";
 import {
   tipoPatrimonioLabel,
@@ -29,10 +27,7 @@ import {
   tiposOperacao,
   labelFromList,
 } from "@/data/financeiro";
-import {
-  statusValueToLabel,
-  tipoLabel,
-} from "@/data/atividades";
+import { statusValueToLabel, tipoLabel } from "@/data/atividades";
 import type { Emprestimo } from "@/data/emprestimos";
 import { getConfiguracaoEmpresa } from "./configuracaoEmpresaStore";
 import type { AgenteDetalhadoResponseDTO } from "@/data/agentes";
@@ -102,7 +97,6 @@ function labelOrValue(value?: string | null) {
   return v(value);
 }
 
-
 // =====================================================================
 // TIPOS LOCAIS PARA PDF
 // =====================================================================
@@ -111,32 +105,30 @@ type PrestacaoContasPdf = {
   id: string | number;
 
   propostaEdital?: string | null;
-  planejamentosFinanceiros?: string | string[] | null;
+  agente?: string | null;
+  dataEntrega?: string | null;
 
-  periodoInicio?: string | null;
-  periodoFim?: string | null;
-  dataEnvio?: string | null;
-  dataAprovacao?: string | null;
+  prestacaoMetas?: string[] | null;
+  produtosGerados?: string[] | null;
+  outrosProdutosGerados?: string | null;
 
-  statusPrestacaoContas?: string | null;
+  disponibilizacaoProdutosPublico?: string | null;
+  resultadosGeradosProjeto?: string | null;
+  resumoResultados?: string | null;
 
-  parecerInterno?: string | null;
-  parecerExterno?: string | null;
-  observacoesGerais?: string | null;
+  equipeProjeto?: string[] | null;
+  acoesDivulgacao?: string[] | null;
 };
 
-type PrestacaoMetasPdf = {
-  id: string | number;
-
-  prestacaoContas?: string | null;
-  metaProjeto?: string | null;
-
-  quantidadeExecutada?: string | number | null;
-  observacaoCumprimento?: string | null;
-  statusCumprimentoMeta?: string | null;
-
-  evidencias?: string[] | null;
-};
+export interface PrestacaoMetasPdf {
+  id?: string | number;
+  metaProjeto?: string;
+  quantidadeExecutada?: string;
+  statusCumprimentoMeta?: string;
+  observacaoCumprimento?: string;
+  justificativaNaoCumprimentoIntegral?: string;
+  evidencias?: string[];
+}
 
 type EvidenciaExecucaoPdf = {
   id: string | number;
@@ -219,12 +211,14 @@ type FinanceiroPdf = {
   acaoDivulgacao?: string | null;
 };
 
-
 type PlanejamentoFinanceiroPdf = {
   id: string | number;
 
   nomePlanejamento?: string | null;
   justificativaPlanejamento?: string | null;
+
+  dataInicio?: string | null;
+  dataFim?: string | null;
 
   quantidade?: string | number | null;
   unidadeMedida?: string | null;
@@ -283,6 +277,10 @@ type DiretoriaPdf = {
   telefone?: string | null;
   email?: string | null;
 
+  racaCor?: string;
+  genero?: string;
+  tipoDeficiencia?: string;
+
   cep?: string | null;
   logradouro?: string | null;
   numero?: string | null;
@@ -331,7 +329,6 @@ type EquipeEditalPdf = {
   id: string | number;
 
   propostaEdital?: string | null;
-  agente?: string | null;
 
   tipoPessoa?: string | null;
   colaborador?: string | null;
@@ -346,22 +343,6 @@ type EquipeEditalPdf = {
   justificativaFuncao?: string | null;
   miniBiografia?: string | null;
 };
-
-type PlanoComunicacaoPdf = {
-  id: string | number;
-
-  quantidade?: string | number | null;
-  formatoPlanoComunicacao?: string | null;
-  localCirculacaoComunicacao?: string | null;
-
-  dataInicio?: string | null;
-  dataFim?: string | null;
-
-  acaoDivulgacao?: string | null;
-  organizacao?: string | null;
-  status?: string | null;
-};
-
 
 type AtividadePdf = {
   id: string | number;
@@ -405,14 +386,27 @@ type EventoCulturalPdf = {
   id: string | number;
 
   nomeEvento: string;
-  descricaoEvento: string;
-  dataEvento: string;
+  descricaoEvento?: string | null;
+  objetivoEvento?: string | null;
+  localEvento?: string | null;
+
+  acoesAcessibilidade?: string | null;
+  resultadoEsperado?: string | null;
+  produtoGerado?: string | null;
+
+  justificativaSemProjeto?: string | null;
+
+  dataEvento?: string | null;
   dataFim?: string | null;
-  localEvento: string;
-  tipoEvento: any;
-  status: any;
-  projeto: string;
-  colaboradores: string[];
+
+  tipoEvento?: any;
+  status?: any;
+
+  projeto?: string | null;
+  projetos?: string[] | null;
+  projetosTexto?: string | null;
+
+  colaboradores?: string[] | null;
 };
 
 type AcaoDivulgacaoPdf = {
@@ -422,18 +416,15 @@ type AcaoDivulgacaoPdf = {
   descricaoAcao: string;
   objetivoAcao: string;
   realizacaoAcao: string;
-  dataInicio: string;
-  dataFim: string;
   acoesAcessibilidade: string;
   resultadoEsperado: string;
   produtosGerados: string;
 
   status: any;
-  projeto: string;
-  colaboradores: string[];
 
-  estrategiasDivulgacao?: string[];
-  estrategiaDivulgacao?: string[];
+  propostaEdital?: string | null;
+  edital?: string | null;
+  projeto?: string | null;
 };
 
 type MetaProjetoPdf = {
@@ -447,7 +438,6 @@ type MetaProjetoPdf = {
   projeto?: string | null;
   propostaEdital?: string | null;
 };
-
 
 type PatrimonioPdf = {
   id: string | number;
@@ -473,6 +463,11 @@ type ColaboradorPdf = {
   rg?: string;
   cpf?: string;
   telefone?: string;
+
+  racaCor?: string;
+  genero?: string;
+  tipoDeficiencia?: string;
+
   cep?: string;
   logradouro?: string;
   numero?: string | number;
@@ -498,6 +493,7 @@ type CronogramaPdf = {
   id: string | number;
 
   nomeEtapa?: string | null;
+  etapaCronograma?: string | null;
   descricaoEtapa?: string | null;
 
   dataInicio?: string | null;
@@ -577,6 +573,10 @@ type IntegrantePdf = {
   rg?: string | null;
   telefone?: string | null;
   email?: string | null;
+
+  racaCor?: string;
+  genero?: string;
+  tipoDeficiencia?: string;
 
   cep?: string | null;
   logradouro?: string | null;
@@ -683,7 +683,9 @@ function formatEnderecoCompleto(data: {
     .join(", ");
 }
 
-function getColaboradorDisplayName(c: Partial<ColaboradorPdf> | undefined | null) {
+function getColaboradorDisplayName(
+  c: Partial<ColaboradorPdf> | undefined | null,
+) {
   if (!c) return PLACEHOLDER;
   return c.nomeCompleto ?? c.nome ?? PLACEHOLDER;
 }
@@ -698,9 +700,53 @@ function getColaboradorEmail(c: Partial<ColaboradorPdf> | undefined | null) {
   return c.email ?? PLACEHOLDER;
 }
 
-function getColaboradorTipoVinculo(c: Partial<ColaboradorPdf> | undefined | null) {
+function getColaboradorTipoVinculo(
+  c: Partial<ColaboradorPdf> | undefined | null,
+) {
   if (!c) return PLACEHOLDER;
   return c.tipoVinculoLabel ?? c.tipoVinculo ?? PLACEHOLDER;
+}
+
+function getColaboradorRacaCor(value?: string | null) {
+  const map: Record<string, string> = {
+    BRANCA: "Branca",
+    PRETA: "Preta",
+    PARDA: "Parda",
+    AMARELA: "Amarela",
+    INDIGENA: "Indígena",
+    PREFERE_NAO_INFORMAR: "Prefere não informar",
+  };
+
+  return value ? map[value] ?? value : PLACEHOLDER;
+}
+
+function getColaboradorGenero(value?: string | null) {
+  const map: Record<string, string> = {
+    FEMININO: "Feminino",
+    MASCULINO: "Masculino",
+    NAO_BINARIO: "Não binário",
+    OUTRO: "Outro",
+    PREFERE_NAO_INFORMAR: "Prefere não informar",
+  };
+
+  return value ? map[value] ?? value : PLACEHOLDER;
+}
+
+function getColaboradorTipoDeficiencia(value?: string | null) {
+  const map: Record<string, string> = {
+    NAO_POSSUI: "Não possui",
+    FISICA: "Física",
+    AUDITIVA: "Auditiva",
+    VISUAL: "Visual",
+    INTELECTUAL: "Intelectual",
+    PSICOSSOCIAL: "Psicossocial",
+    MULTIPLA: "Múltipla",
+    TRANSTORNO_ESPECTRO_AUTISTA: "Transtorno do Espectro Autista",
+    OUTRA: "Outra",
+    NAO_INFORMADO: "Não informado",
+  };
+
+  return value ? map[value] ?? value : PLACEHOLDER;
 }
 
 async function parseJsonSafe<T>(response: Response): Promise<T | null> {
@@ -916,18 +962,15 @@ export async function exportTurmaPdf(t: Turma) {
     (t as any).atividade?.trim?.() ||
     PLACEHOLDER;
 
-  const DESCRICAO =
-    (t as any).descricaoTurma?.trim?.() || PLACEHOLDER;
+  const DESCRICAO = (t as any).descricaoTurma?.trim?.() || PLACEHOLDER;
 
   const DIA_ATIVIDADE = (t as any).diaAtividade
     ? diaLabel((t as any).diaAtividade)
     : PLACEHOLDER;
 
-  const HORARIO_INICIO =
-    (t as any).horarioInicio?.trim?.() || PLACEHOLDER;
+  const HORARIO_INICIO = (t as any).horarioInicio?.trim?.() || PLACEHOLDER;
 
-  const HORARIO_FIM =
-    (t as any).horarioFim?.trim?.() || PLACEHOLDER;
+  const HORARIO_FIM = (t as any).horarioFim?.trim?.() || PLACEHOLDER;
 
   const QUANTIDADE_VAGAS =
     (t as any).quantidadeVagas !== null &&
@@ -937,9 +980,7 @@ export async function exportTurmaPdf(t: Turma) {
       : PLACEHOLDER;
 
   const COLABORADORES = fmtList(
-    (t as any).colaboradoresNomes ??
-    (t as any).colaboradores ??
-    [],
+    (t as any).colaboradoresNomes ?? (t as any).colaboradores ?? [],
   );
 
   await generateInstitutionalPdf({
@@ -1016,8 +1057,7 @@ export async function exportProjetoPdf(p: ProjetoPdf) {
 
   const PUBLICO_ALVO = p.publicoAlvo?.trim() || PLACEHOLDER;
 
-  const ACOES_ACESSIBILIDADE =
-    p.acoesAcessibilidade?.trim() || PLACEHOLDER;
+  const ACOES_ACESSIBILIDADE = p.acoesAcessibilidade?.trim() || PLACEHOLDER;
 
   const LOCAL_EXECUCAO = p.localExecucao?.trim() || PLACEHOLDER;
 
@@ -1031,8 +1071,7 @@ export async function exportProjetoPdf(p: ProjetoPdf) {
       ? areaAtuacaoLabel(p.areaAtuacao as any)
       : PLACEHOLDER;
 
-  const ORIGEM_PROJETO =
-    p.origemProjeto?.trim() || PLACEHOLDER;
+  const ORIGEM_PROJETO = p.origemProjeto?.trim() || PLACEHOLDER;
 
   const ORGANIZACAO = p.organizacao?.trim() || PLACEHOLDER;
 
@@ -1126,10 +1165,7 @@ export async function exportProjetoPdf(p: ProjetoPdf) {
       {
         title: "8. Colaboradores",
         list: {
-          items:
-            COLABORADORES.length > 0
-              ? COLABORADORES
-              : [PLACEHOLDER],
+          items: COLABORADORES.length > 0 ? COLABORADORES : [PLACEHOLDER],
         },
       },
     ],
@@ -1140,62 +1176,131 @@ export async function exportProjetoPdf(p: ProjetoPdf) {
 // EVENTO CULTURAL
 // =====================================================================
 
+function formatPeriodoEventoPdf(dataEvento?: string | null, dataFim?: string | null) {
+  if (!dataEvento) return PLACEHOLDER;
+
+  if (!dataFim || dataFim === dataEvento) {
+    return formatDateBR(dataEvento);
+  }
+
+  return `${formatDateBR(dataEvento)} a ${formatDateBR(dataFim)}`;
+}
+
 export async function exportEventoCulturalPdf(e: EventoCulturalPdf) {
+  const NOME_EVENTO = v(e.nomeEvento);
+
+  const DESCRICAO = e.descricaoEvento?.trim() || PLACEHOLDER;
+
+  const OBJETIVO = e.objetivoEvento?.trim() || PLACEHOLDER;
+
+  const LOCAL = e.localEvento?.trim() || PLACEHOLDER;
+
+  const ACOES_ACESSIBILIDADE =
+    e.acoesAcessibilidade?.trim() || PLACEHOLDER;
+
+  const RESULTADO_ESPERADO =
+    e.resultadoEsperado?.trim() || PLACEHOLDER;
+
+  const PRODUTO_GERADO =
+    e.produtoGerado?.trim() || PLACEHOLDER;
+
+  const JUSTIFICATIVA_SEM_PROJETO =
+    e.justificativaSemProjeto?.trim() || PLACEHOLDER;
+
+  const PERIODO = formatPeriodoEventoPdf(e.dataEvento, e.dataFim);
+
+  const TIPO_EVENTO =
+    e.tipoEvento && String(e.tipoEvento).trim()
+      ? tipoEventoLabel(String(e.tipoEvento))
+      : PLACEHOLDER;
+
+  const STATUS_EVENTO =
+    e.status && String(e.status).trim()
+      ? evtStatus(String(e.status))
+      : PLACEHOLDER;
+
+  const PROJETOS = Array.isArray(e.projetos)
+    ? e.projetos.map((item) => item?.trim()).filter(Boolean)
+    : [];
+
+  const PROJETOS_TEXTO =
+    PROJETOS.length > 0
+      ? fmtList(PROJETOS)
+      : e.projetosTexto?.trim()
+        ? [e.projetosTexto.trim()]
+        : e.projeto?.trim()
+          ? [e.projeto.trim()]
+          : ["Sem projeto vinculado"];
+
+  const POSSUI_PROJETOS = PROJETOS.length > 0 || !!e.projeto?.trim();
+
+  const COLABORADORES = Array.isArray(e.colaboradores)
+    ? e.colaboradores.map((item) => item?.trim()).filter(Boolean)
+    : [];
+
+  const sections = [
+    {
+      title: "1. Identificação do Evento",
+      fields: [
+        {
+          label: "Nome do Evento",
+          value: NOME_EVENTO,
+        },
+        {
+          label: "Tipo de Evento",
+          value: TIPO_EVENTO,
+        },
+        {
+          label: "Status do Evento",
+          value: STATUS_EVENTO,
+        },
+      ],
+    },
+    {
+      title: "2. Período e Local de Realização",
+      fields: [
+        {
+          label: "Período do Evento",
+          value: PERIODO,
+        },
+        {
+          label: "Local do Evento",
+          value: LOCAL,
+        },
+      ],
+    },
+    {
+      title: "3. Descrição do Evento",
+      justifiedParagraphs: [DESCRICAO],
+    },
+    {
+      title: "4. Projetos",
+      list: {
+        items: PROJETOS_TEXTO.length > 0 ? PROJETOS_TEXTO : [PLACEHOLDER],
+      },
+    },
+    ...(!POSSUI_PROJETOS
+      ? [
+        {
+          title: "5. Justificativa do Evento sem Projeto",
+          justifiedParagraphs: [JUSTIFICATIVA_SEM_PROJETO],
+        },
+      ]
+      : []),
+    {
+      title: POSSUI_PROJETOS
+        ? "5. Equipe Responsável"
+        : "7. Equipe Responsável",
+      list: {
+        items: COLABORADORES.length > 0 ? COLABORADORES : [PLACEHOLDER],
+      },
+    },
+  ];
+
   await generateInstitutionalPdf({
     title: "Ficha de Evento Cultural",
-    documentNumber: `EVT-${String(e.id).padStart(4, "0")}`,
-    sections: [
-      {
-        title: "1. Dados Gerais do Evento",
-        fields: [
-          {
-            label: "Nome do Evento",
-            value: e.nomeEvento,
-          },
-          {
-            label: "Tipo de Evento",
-            value: tipoEventoLabel(e.tipoEvento),
-          },
-          {
-            label: "Status do Evento",
-            value: evtStatus(e.status),
-          },
-          {
-            label: "Projeto",
-            value: e.projeto,
-          },
-        ],
-      },
-      {
-        title: "2. Período e Local de Realização",
-        fields: [
-          {
-            label: "Data do Evento",
-            value: formatDateBR(e.dataEvento),
-          },
-          {
-            label: "Data de Término do Evento",
-            value: formatDateBR(e.dataFim),
-          },
-          {
-            label: "Local do Evento",
-            value: e.localEvento,
-          },
-        ],
-      },
-      {
-        title: "3. Descrição do Evento",
-        justifiedParagraphs: e.descricaoEvento
-          ? [e.descricaoEvento]
-          : [PLACEHOLDER],
-      },
-      {
-        title: "4. Equipe Envolvida",
-        list: {
-          items: fmtList(e.colaboradores),
-        },
-      },
-    ],
+    documentNumber: `EVC-${String(e.id).padStart(4, "0")}`,
+    sections,
   });
 }
 
@@ -1204,8 +1309,6 @@ export async function exportEventoCulturalPdf(e: EventoCulturalPdf) {
 // =====================================================================
 
 export async function exportAcaoDivulgacaoPdf(a: AcaoDivulgacaoPdf) {
-  const estrategias = a.estrategiasDivulgacao ?? a.estrategiaDivulgacao ?? [];
-
   await generateInstitutionalPdf({
     title: "Ficha de Ação de Divulgação",
     documentNumber: `ADV-${String(a.id).padStart(4, "0")}`,
@@ -1222,27 +1325,14 @@ export async function exportAcaoDivulgacaoPdf(a: AcaoDivulgacaoPdf) {
             value: acaoStatus(a.status),
           },
           {
-            label: "Projeto",
-            value: a.projeto,
-          },
+            label: "Proposta de Edital",
+            value: v(a.propostaEdital),
+          }
         ],
       },
       {
-        title: "2. Período e Realização",
-        fields: [
-          {
-            label: "Realização da Ação",
-            value: a.realizacaoAcao,
-          },
-          {
-            label: "Data de Início da Ação",
-            value: formatDateBR(a.dataInicio),
-          },
-          {
-            label: "Data de Término da Ação",
-            value: formatDateBR(a.dataFim),
-          },
-        ],
+        title: "4. Objetivo da Ação",
+        justifiedParagraphs: a.objetivoAcao ? [a.objetivoAcao] : [PLACEHOLDER],
       },
       {
         title: "3. Descrição da Ação",
@@ -1251,9 +1341,9 @@ export async function exportAcaoDivulgacaoPdf(a: AcaoDivulgacaoPdf) {
           : [PLACEHOLDER],
       },
       {
-        title: "4. Objetivo da Ação",
-        justifiedParagraphs: a.objetivoAcao
-          ? [a.objetivoAcao]
+        title: "2. Realização da Ação",
+        justifiedParagraphs: a.realizacaoAcao
+          ? [a.realizacaoAcao]
           : [PLACEHOLDER],
       },
       {
@@ -1274,20 +1364,6 @@ export async function exportAcaoDivulgacaoPdf(a: AcaoDivulgacaoPdf) {
           ? [a.produtosGerados]
           : [PLACEHOLDER],
       },
-      {
-        title: "8. Estratégias de Divulgação",
-        list: {
-          items: estrategias.length
-            ? estrategias.map(estrategiaLabel)
-            : [PLACEHOLDER],
-        },
-      },
-      {
-        title: "9. Equipe Envolvida",
-        list: {
-          items: fmtList(a.colaboradores),
-        },
-      },
     ],
   });
 }
@@ -1302,15 +1378,30 @@ export async function exportCurriculoPdf(c: CurriculoListItem) {
     documentNumber: `CUR-${String(c.id).padStart(4, "0")}`,
     sections: [
       { centeredHeading: c.nomeCompleto ?? PLACEHOLDER },
-      { title: "Formação acadêmica", list: { items: fmtList(c.formacaoAcademica) } },
-      { title: "Atuação profissional", list: { items: fmtList(c.atuacaoProfissional) } },
-      { title: "Experiências relevantes", list: { items: fmtList(c.experienciasRelevantes) } },
+      {
+        title: "Formação acadêmica",
+        list: { items: fmtList(c.formacaoAcademica) },
+      },
+      {
+        title: "Atuação profissional",
+        list: { items: fmtList(c.atuacaoProfissional) },
+      },
+      {
+        title: "Experiências relevantes",
+        list: { items: fmtList(c.experienciasRelevantes) },
+      },
       {
         title: "Atividades formativas e participações",
         list: { items: fmtList(c.atividadesFormativasParticipacoes) },
       },
-      { title: "Habilidades e competências", list: { items: fmtList(c.habilidadesCompetencias) } },
-      { title: "Atuação sociocultural", list: { items: fmtList(c.atuacaoSociocultural) } },
+      {
+        title: "Habilidades e competências",
+        list: { items: fmtList(c.habilidadesCompetencias) },
+      },
+      {
+        title: "Atuação sociocultural",
+        list: { items: fmtList(c.atuacaoSociocultural) },
+      },
     ],
   });
 }
@@ -1333,8 +1424,7 @@ export async function exportTrajetoriaCulturalPdf(t: TrajetoriaCultural) {
     sections: [
       { centeredHeading: t.nomeCompleto || "—" },
       {
-        justifiedParagraphs:
-          paragraphs.length > 0 ? paragraphs : ["—"],
+        justifiedParagraphs: paragraphs.length > 0 ? paragraphs : ["—"],
       },
     ],
   });
@@ -1623,11 +1713,7 @@ async function buildContextoEmprestimoFields(e: Emprestimo) {
 
   const [projetoNome, propostaEditalNome, atividadeNome, eventoCulturalNome] =
     await Promise.all([
-      buscarNomePorId("projetos", projetoId, [
-        "nomeProjeto",
-        "nome",
-        "titulo",
-      ]),
+      buscarNomePorId("projetos", projetoId, ["nomeProjeto", "nome", "titulo"]),
 
       buscarNomePorId("propostas-editais", propostaEditalId, [
         "tituloProjeto",
@@ -1816,11 +1902,7 @@ export async function exportTermoEmprestimoPdf(e: Emprestimo) {
     documentNumber: `TEB-${String((e as any).id).padStart(4, "0")}`,
     sections: [
       {
-        justifiedParagraphs: [
-          introCedente,
-          introResponsavel,
-          introFechamento,
-        ],
+        justifiedParagraphs: [introCedente, introResponsavel, introFechamento],
       },
       { clauses },
       {
@@ -1867,33 +1949,24 @@ export async function exportTermoAgentePdf(a: AgenteDetalhadoResponseDTO) {
   const NOME_AGENTE = v(
     isPF
       ? a.nomeCompleto
-      : a.nomeRepresentante || a.razaoSocial || a.nomeFantasia || a.nomeColetivo,
+      : a.nomeRepresentante ||
+      a.razaoSocial ||
+      a.nomeFantasia ||
+      a.nomeColetivo,
   );
 
   const NOME_ENTE = v(
-    isPF
-      ? a.nomeCompleto
-      : a.razaoSocial || a.nomeFantasia || a.nomeColetivo,
+    isPF ? a.nomeCompleto : a.razaoSocial || a.nomeFantasia || a.nomeColetivo,
   );
 
-  const CPF = formatCpfCnpj(
-    isPF ? a.cpf : a.cpfRepresentante,
-  );
+  const CPF = formatCpfCnpj(isPF ? a.cpf : a.cpfRepresentante);
 
-  const RG = v(
-    isPF ? a.rg : a.rgRepresentante,
-  );
+  const RG = v(isPF ? a.rg : a.rgRepresentante);
 
-  const CNPJ = formatCpfCnpj(
-    isPJ ? a.cnpj : PLACEHOLDER,
-  );
+  const CNPJ = formatCpfCnpj(isPJ ? a.cnpj : PLACEHOLDER);
 
   const CPF_OU_CNPJ = formatCpfCnpj(
-    isPF
-      ? a.cpf
-      : isPJ
-        ? a.cnpj
-        : a.cpfRepresentante,
+    isPF ? a.cpf : isPJ ? a.cnpj : a.cpfRepresentante,
   );
 
   const NOME_INST = getNomeInstitucional(org);
@@ -2031,6 +2104,9 @@ async function exportTermoVoluntarioPdf(c: ColaboradorPdf) {
 
   const RG_VOL = v(c.rg);
   const CPF_VOL = formatCpfCnpj(c.cpf);
+  const RACA_COR_VOL = getColaboradorRacaCor(c.racaCor);
+  const GENERO_VOL = getColaboradorGenero(c.genero);
+  const DEFICIENCIA_VOL = getColaboradorTipoDeficiencia(c.tipoDeficiencia);
 
   const ENDERECO_VOL = v(
     formatEnderecoCompleto({
@@ -2056,7 +2132,7 @@ async function exportTermoVoluntarioPdf(c: ColaboradorPdf) {
 
   const introInstituicao = `Pelo presente instrumento particular, de um lado, ${NOME_INST}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${CNPJ}, com sede em ${ENDERECO_INST}, neste ato representada por ${REPRESENTANTE}, ${CARGO_REPR}, portador(a) do RG nº ${RG_REPR} e inscrito(a) no CPF sob o nº ${CPF_REPR}, doravante denominada simplesmente INSTITUIÇÃO.`;
 
-  const introVoluntario = `De outro lado, ${NOME}, portador(a) do RG nº ${RG_VOL} e inscrito(a) no CPF sob o nº ${CPF_VOL}, residente e domiciliado(a) em ${ENDERECO_VOL}, doravante denominado(a) simplesmente PESSOA VOLUNTÁRIA.`;
+  const introVoluntario = `De outro lado, ${NOME}, portador(a) do RG nº ${RG_VOL} e inscrito(a) no CPF sob o nº ${CPF_VOL}, raça/cor: ${RACA_COR_VOL}, gênero: ${GENERO_VOL}, deficiência: ${DEFICIENCIA_VOL}, residente e domiciliado(a) em ${ENDERECO_VOL}, doravante denominado(a) simplesmente PESSOA VOLUNTÁRIA.`;
 
   const introFechamento = `As partes acima identificadas resolvem celebrar o presente TERMO DE ADESÃO AO SERVIÇO VOLUNTÁRIO, com fundamento na Lei nº 9.608, de 18 de fevereiro de 1998, mediante as cláusulas e condições seguintes.`;
 
@@ -2219,6 +2295,9 @@ async function exportContratoPrestacaoPdf(c: ColaboradorPdf) {
 
   const RG_CONTR = v(c.rg);
   const CPF_CONTR = formatCpfCnpj(c.cpf);
+  const RACA_COR_CONTR = getColaboradorRacaCor(c.racaCor);
+  const GENERO_CONTR = getColaboradorGenero(c.genero);
+  const DEFICIENCIA_CONTR = getColaboradorTipoDeficiencia(c.tipoDeficiencia);
   const ENDERECO_CONTR = v(
     formatEnderecoCompleto({
       logradouro: c.logradouro,
@@ -2245,7 +2324,7 @@ async function exportContratoPrestacaoPdf(c: ColaboradorPdf) {
 
   const introContratante = `CONTRATANTE: ${RAZAO_SOCIAL}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${CNPJ}, com sede em ${ENDERECO_INST}, neste ato representada por seu(sua) representante legal ${REPRESENTANTE}, portador(a) do RG nº ${RG_REPR} e inscrito(a) no CPF sob o nº ${CPF_REPR}, doravante denominada simplesmente CONTRATANTE;`;
 
-  const introContratado = `CONTRATADO(A): ${NOME}, portador(a) do RG nº ${RG_CONTR} e inscrito(a) no CPF sob o nº ${CPF_CONTR}, residente e domiciliado(a) em ${ENDERECO_CONTR}, doravante denominado(a) simplesmente CONTRATADO(A);`;
+  const introContratado = `CONTRATADO(A): ${NOME}, portador(a) do RG nº ${RG_CONTR} e inscrito(a) no CPF sob o nº ${CPF_CONTR}, raça/cor ${RACA_COR_CONTR}, gênero ${GENERO_CONTR}, deficiência: ${DEFICIENCIA_CONTR}, residente e domiciliado(a) em ${ENDERECO_CONTR}, doravante denominado(a) simplesmente CONTRATADO(A);`;
 
   const introFecha = `as partes acima identificadas têm entre si justo e contratado o presente CONTRATO DE PRESTAÇÃO DE SERVIÇOS, de natureza civil, que se regerá pelas cláusulas e condições seguintes.`;
 
@@ -2423,22 +2502,16 @@ async function exportContratoPrestacaoPdf(c: ColaboradorPdf) {
 // =====================================================================
 
 export async function exportPrestacaoContasPdf(p: PrestacaoContasPdf) {
-  const PLANEJAMENTOS =
-    Array.isArray(p.planejamentosFinanceiros)
-      ? p.planejamentosFinanceiros.length > 0
-        ? p.planejamentosFinanceiros
-        : [PLACEHOLDER]
-      : p.planejamentosFinanceiros?.trim()
-        ? [p.planejamentosFinanceiros.trim()]
-        : [PLACEHOLDER];
+  const METAS = safeList(p.prestacaoMetas);
+  const PRODUTOS = safeList(p.produtosGerados);
+  const EQUIPE = safeList(p.equipeProjeto);
+  const ACOES = safeList(p.acoesDivulgacao);
 
-  const STATUS = v(p.statusPrestacaoContas);
+  const produtosGerados = [...PRODUTOS];
 
-  const DATA_APROVACAO =
-    STATUS.toLowerCase().includes("reprovada") ||
-      STATUS.toLowerCase().includes("reprovado")
-      ? "Prestação de contas não aprovada."
-      : formatDateBR(p.dataAprovacao);
+  if (p.outrosProdutosGerados?.trim()) {
+    produtosGerados.push(`Outros: ${p.outrosProdutosGerados.trim()}`);
+  }
 
   await generateInstitutionalPdf({
     title: "Ficha de Prestação de Contas",
@@ -2452,54 +2525,55 @@ export async function exportPrestacaoContasPdf(p: PrestacaoContasPdf) {
             value: v(p.propostaEdital),
           },
           {
-            label: "Status da Prestação",
-            value: STATUS,
+            label: "Agente",
+            value: v(p.agente),
+          },
+          {
+            label: "Data de Entrega",
+            value: formatDateBR(p.dataEntrega),
           },
         ],
       },
       {
-        title: "2. Planejamentos Financeiros",
+        title: "2. Cumprimento das Metas",
         list: {
-          items: PLANEJAMENTOS,
+          items: METAS,
         },
       },
       {
-        title: "3. Período e Datas",
-        fields: [
-          {
-            label: "Período Inicial",
-            value: formatDateBR(p.periodoInicio),
-          },
-          {
-            label: "Período Final",
-            value: formatDateBR(p.periodoFim),
-          },
-          {
-            label: "Data de Envio",
-            value: formatDateBR(p.dataEnvio),
-          },
-          {
-            label: "Data de Aprovação",
-            value: DATA_APROVACAO,
-          },
-        ],
+        title: "3. Produtos Gerados",
+        list: {
+          items: produtosGerados.length > 0 ? produtosGerados : [PLACEHOLDER],
+        },
       },
       {
-        title: "4. Parecer Interno",
-        justifiedParagraphs: p.parecerInterno
-          ? [p.parecerInterno]
+        title: "4. Disponibilização dos Produtos ao Público",
+        justifiedParagraphs: p.disponibilizacaoProdutosPublico
+          ? [p.disponibilizacaoProdutosPublico]
           : [PLACEHOLDER],
       },
       {
-        title: "5. Parecer Externo",
-        justifiedParagraphs: p.parecerExterno
-          ? [p.parecerExterno]
+        title: "5. Resultados Gerados pelo Projeto",
+        justifiedParagraphs: p.resultadosGeradosProjeto
+          ? [p.resultadosGeradosProjeto]
           : [PLACEHOLDER],
       },
       {
-        title: "6. Observações Gerais",
-        justifiedParagraphs: p.observacoesGerais
-          ? [p.observacoesGerais]
+        title: "6. Equipe do Projeto",
+        list: {
+          items: EQUIPE,
+        },
+      },
+      {
+        title: "7. Ações de Divulgação",
+        list: {
+          items: ACOES,
+        },
+      },
+      {
+        title: "8. Resumo dos Resultados",
+        justifiedParagraphs: p.resumoResultados
+          ? [p.resumoResultados]
           : [PLACEHOLDER],
       },
     ],
@@ -2514,6 +2588,18 @@ export async function exportPrestacaoMetasPdf(m: PrestacaoMetasPdf) {
   const EVIDENCIAS =
     m.evidencias && m.evidencias.length > 0 ? m.evidencias : [PLACEHOLDER];
 
+  const status = String(m.statusCumprimentoMeta ?? "").toLowerCase();
+
+  const deveExibirJustificativa =
+    status.includes("parcialmente") ||
+    status.includes("não cumprida") ||
+    status.includes("nao cumprida") ||
+    status.includes("não se aplica") ||
+    status.includes("nao se aplica") ||
+    status.includes("CUMPRIDA_PARCIALMENTE".toLowerCase()) ||
+    status.includes("NAO_CUMPRIDA".toLowerCase()) ||
+    status.includes("NAO_SE_APLICA".toLowerCase());
+
   await generateInstitutionalPdf({
     title: "Ficha de Cumprimento de Meta",
     documentNumber: `MET-${String(m.id).padStart(4, "0")}`,
@@ -2521,10 +2607,6 @@ export async function exportPrestacaoMetasPdf(m: PrestacaoMetasPdf) {
       {
         title: "1. Vínculos da Prestação",
         fields: [
-          {
-            label: "Prestação de Contas",
-            value: v(m.prestacaoContas),
-          },
           {
             label: "Meta do Projeto",
             value: v(m.metaProjeto),
@@ -2550,12 +2632,29 @@ export async function exportPrestacaoMetasPdf(m: PrestacaoMetasPdf) {
           ? [m.observacaoCumprimento]
           : [PLACEHOLDER],
       },
-      {
-        title: "4. Evidências",
-        list: {
-          items: EVIDENCIAS,
-        },
-      },
+      ...(deveExibirJustificativa
+        ? [
+          {
+            title: "4. Justificativa",
+            justifiedParagraphs: m.justificativaNaoCumprimentoIntegral
+              ? [m.justificativaNaoCumprimentoIntegral]
+              : [PLACEHOLDER],
+          },
+          {
+            title: "5. Evidências",
+            list: {
+              items: EVIDENCIAS,
+            },
+          },
+        ]
+        : [
+          {
+            title: "4. Evidências",
+            list: {
+              items: EVIDENCIAS,
+            },
+          },
+        ]),
     ],
   });
 }
@@ -2735,38 +2834,27 @@ export async function exportPropostaEditalPdf(p: PropostaEditalPdf) {
     STATUS.toLowerCase().includes("reprovado");
 
   const JUSTIFICATIVA =
-    p.justificativa?.trim() ||
-    p.justificativaProjeto?.trim() ||
-    PLACEHOLDER;
+    p.justificativa?.trim() || p.justificativaProjeto?.trim() || PLACEHOLDER;
 
   const METODOLOGIA =
-    p.metodologiaExecucao?.trim() ||
-    p.metodologia?.trim() ||
-    PLACEHOLDER;
+    p.metodologiaExecucao?.trim() || p.metodologia?.trim() || PLACEHOLDER;
 
   const ACESSIBILIDADE =
-    p.acoesAcessibilidade?.trim() ||
-    p.acessibilidade?.trim() ||
-    PLACEHOLDER;
+    p.acoesAcessibilidade?.trim() || p.acessibilidade?.trim() || PLACEHOLDER;
 
   const PROJETO_BASE =
-    p.projetoBase?.trim() ||
-    p.projeto?.trim() ||
-    PLACEHOLDER;
+    p.projetoBase?.trim() || p.projeto?.trim() || PLACEHOLDER;
 
   const AGENTE_RESPONSAVEL =
-    p.agenteResponsavel?.trim() ||
-    p.agente?.trim() ||
-    PLACEHOLDER;
+    p.agenteResponsavel?.trim() || p.agente?.trim() || PLACEHOLDER;
 
-  const EQUIPE_EDITAL =
-    Array.isArray(p.equipeEdital)
-      ? p.equipeEdital.length > 0
-        ? p.equipeEdital
-        : [PLACEHOLDER]
-      : p.equipeEdital?.trim()
-        ? [p.equipeEdital.trim()]
-        : [PLACEHOLDER];
+  const EQUIPE_EDITAL = Array.isArray(p.equipeEdital)
+    ? p.equipeEdital.length > 0
+      ? p.equipeEdital
+      : [PLACEHOLDER]
+    : p.equipeEdital?.trim()
+      ? [p.equipeEdital.trim()]
+      : [PLACEHOLDER];
 
   const sections: any[] = [
     {
@@ -2817,9 +2905,7 @@ export async function exportPropostaEditalPdf(p: PropostaEditalPdf) {
     },
     {
       title: "3. Resumo do Projeto",
-      justifiedParagraphs: p.resumoProjeto
-        ? [p.resumoProjeto]
-        : [PLACEHOLDER],
+      justifiedParagraphs: p.resumoProjeto ? [p.resumoProjeto] : [PLACEHOLDER],
     },
     {
       title: "4. Justificativa",
@@ -3005,79 +3091,45 @@ export async function exportHabilitacaoPdf(h: HabilitacaoPdf) {
 // =====================================================================
 
 export async function exportEquipeEditalPdf(e: EquipeEditalPdf) {
-  const TIPO_PESSOA = v(e.tipoPessoa);
-
-  const isColaborador = TIPO_PESSOA.toLowerCase().includes("colaborador");
-  const isIntegrante = TIPO_PESSOA.toLowerCase().includes("integrante");
-
-  const PESSOA_SELECIONADA = v(e.colaborador || e.integrante || e.pessoa);
-
-  const CARGA_HORARIA_VALOR =
-    e.cargaHorariaSemanal ?? e.cargaHorariaPrevista;
-
-  const CARGA_HORARIA =
-    CARGA_HORARIA_VALOR !== null &&
-      CARGA_HORARIA_VALOR !== undefined &&
-      String(CARGA_HORARIA_VALOR).trim() !== ""
-      ? `${CARGA_HORARIA_VALOR}h`
-      : PLACEHOLDER;
-
-  const JUSTIFICATIVA = e.justificativaFuncao?.trim() || PLACEHOLDER;
-
-  const identificacaoPessoaFields = [
-    {
-      label: "Tipo de Pessoa",
-      value: TIPO_PESSOA,
-    },
-    ...(isColaborador
-      ? [
-        {
-          label: "Colaborador",
-          value: PESSOA_SELECIONADA,
-        },
-      ]
-      : []),
-    ...(isIntegrante
-      ? [
-        {
-          label: "Integrante",
-          value: PESSOA_SELECIONADA,
-        },
-      ]
-      : []),
-    ...(!isColaborador && !isIntegrante
-      ? [
-        {
-          label: "Pessoa",
-          value: PESSOA_SELECIONADA,
-        },
-      ]
-      : []),
-  ];
+  const cargaHoraria =
+    e.cargaHorariaSemanal ?? e.cargaHorariaPrevista ?? PLACEHOLDER;
 
   await generateInstitutionalPdf({
-    title: "Ficha de Equipe do Edital",
-    documentNumber: `EQE-${String(e.id).padStart(4, "0")}`,
+    title: "Ficha de Equipe da Proposta",
+    documentNumber: `EQP-${String(e.id).padStart(4, "0")}`,
     sections: [
       {
-        title: "1. Vínculo com a Proposta",
+        title: "1. Dados da Proposta",
         fields: [
           {
             label: "Proposta de Edital",
             value: v(e.propostaEdital),
           },
+        ],
+      },
+      {
+        title: "2. Pessoa Vinculada à Equipe",
+        fields: [
           {
-            label: "Agente Responsável",
-            value: v(e.agente),
+            label: "Tipo de Pessoa",
+            value: v(e.tipoPessoa),
+          },
+          {
+            label: "Pessoa",
+            value: v(e.pessoa || e.colaborador || e.integrante),
+          },
+          {
+            label: "Colaborador",
+            value: v(e.colaborador),
+          },
+          {
+            label: "Integrante",
+            value: v(e.integrante),
           },
         ],
       },
       {
-        title: "2. Identificação da Pessoa",
-        fields: identificacaoPessoaFields,
-      },
-      {
-        title: "3. Função e Atuação no Projeto",
+        title: "3. Função e Previsão de Atuação",
         fields: [
           {
             label: "Função no Projeto",
@@ -3085,7 +3137,8 @@ export async function exportEquipeEditalPdf(e: EquipeEditalPdf) {
           },
           {
             label: "Carga Horária Semanal",
-            value: CARGA_HORARIA,
+            value:
+              cargaHoraria !== PLACEHOLDER ? `${cargaHoraria}h` : PLACEHOLDER,
           },
           {
             label: "Valor Previsto",
@@ -3095,8 +3148,9 @@ export async function exportEquipeEditalPdf(e: EquipeEditalPdf) {
       },
       {
         title: "4. Justificativa da Função",
-        justifiedParagraphs:
-          JUSTIFICATIVA !== PLACEHOLDER ? [JUSTIFICATIVA] : [PLACEHOLDER],
+        justifiedParagraphs: e.justificativaFuncao
+          ? [e.justificativaFuncao]
+          : [PLACEHOLDER],
       },
       {
         title: "5. Mini Biografia",
@@ -3112,57 +3166,118 @@ export async function exportEquipeEditalPdf(e: EquipeEditalPdf) {
 // PLANO DE COMUNICAÇÃO
 // =====================================================================
 
-export async function exportPlanoComunicacaoPdf(p: PlanoComunicacaoPdf) {
+export interface PlanoComunicacaoPdfData {
+  id?: string | number;
+
+  nomePlano?: string | null;
+  quantidade?: string | number | null;
+  formatoPlanoComunicacao?: string | null;
+  localCirculacaoComunicacao?: string | null;
+  estrategiasDivulgacao?: string | string[] | null;
+
+  dataInicio?: string | null;
+  dataFim?: string | null;
+
+  propostaEdital?: string | null;
+  status?: string | null;
+}
+
+function formatEstrategiasPlanoComunicacao(
+  estrategias?: string | string[] | null,
+) {
+  if (Array.isArray(estrategias)) {
+    const items = estrategias
+      .map((item) => item?.trim())
+      .filter(Boolean);
+
+    return items.length > 0 ? items.join(", ") : PLACEHOLDER;
+  }
+
+  return estrategias?.trim() || PLACEHOLDER;
+}
+
+export async function exportPlanoComunicacaoPdf(
+  data: PlanoComunicacaoPdfData,
+) {
+  const NOME_PLANO = v(data.nomePlano);
+
+  const FORMATO_COMUNICACAO = v(data.formatoPlanoComunicacao);
+
+  const QUANTIDADE = v(data.quantidade);
+
+  const LOCAL_CIRCULACAO = v(data.localCirculacaoComunicacao);
+
+  const ESTRATEGIAS_DIVULGACAO = formatEstrategiasPlanoComunicacao(
+    data.estrategiasDivulgacao,
+  );
+
+  const DATA_INICIO = formatDateBR(data.dataInicio);
+
+  const DATA_FIM = formatDateBR(data.dataFim);
+
+  const PROPOSTA_EDITAL = v(data.propostaEdital);
+
+  const STATUS = v(data.status);
+
   await generateInstitutionalPdf({
     title: "Ficha de Plano de Comunicação",
-    documentNumber: `PLC-${String(p.id).padStart(4, "0")}`,
+    documentNumber: `PLC-${String(data.id ?? "0").padStart(4, "0")}`,
     sections: [
       {
-        title: "1. Identificação do Plano de Comunicação",
+        title: "1. Vinculação da Proposta",
         fields: [
           {
-            label: "Quantidade",
-            value: v(p.quantidade),
+            label: "Proposta de Edital",
+            value: PROPOSTA_EDITAL,
+          },
+          {
+            label: "Status do Plano",
+            value: STATUS,
+          },
+        ],
+      },
+      {
+        title: "2. Item / Peça de Comunicação",
+        fields: [
+          {
+            label: "Nome do Plano",
+            value: NOME_PLANO,
           },
           {
             label: "Formato da Comunicação",
-            value: v(p.formatoPlanoComunicacao),
+            value: FORMATO_COMUNICACAO,
           },
           {
-            label: "Local de Circulação",
-            value: v(p.localCirculacaoComunicacao),
+            label: "Quantidade",
+            value: QUANTIDADE,
           },
         ],
       },
       {
-        title: "2. Período de Execução",
+        title: "3. Período de Execução",
         fields: [
           {
             label: "Data de Início",
-            value: formatDateBR(p.dataInicio),
+            value: DATA_INICIO,
           },
           {
             label: "Data de Fim",
-            value: formatDateBR(p.dataFim),
+            value: DATA_FIM,
           },
         ],
       },
       {
-        title: "3. Vínculos Institucionais",
+        title: "4. Veículo / Circulação",
         fields: [
           {
-            label: "Ação de Divulgação",
-            value: v(p.acaoDivulgacao),
-          },
-          {
-            label: "Organização",
-            value: v(p.organizacao),
-          },
-          {
-            label: "Status do Registro",
-            value: v(p.status),
+            label: "Local de Circulação",
+            value: LOCAL_CIRCULACAO,
           },
         ],
+      },
+      {
+        title: "5. Estratégias de Divulgação",
+        justifiedParagraphs: [ESTRATEGIAS_DIVULGACAO],
       },
     ],
   });
@@ -3270,21 +3385,21 @@ export async function exportAtividadePdf(a: AtividadePdf) {
 }
 
 // =====================================================================
-// PLANEJAMENTO FINANCEIRO
+// APLICAÇÃO DE RECURSOS
 // =====================================================================
 
 export async function exportPlanejamentoFinanceiroPdf(
   p: PlanejamentoFinanceiroPdf,
 ) {
   await generateInstitutionalPdf({
-    title: "Ficha de Planejamento Financeiro",
-    documentNumber: `PLF-${String(p.id).padStart(4, "0")}`,
+    title: "Ficha de Aplicação de Recursos",
+    documentNumber: `REC-${String(p.id).padStart(4, "0")}`,
     sections: [
       {
         title: "1. Identificação do Item",
         fields: [
           {
-            label: "Item do Planejamento",
+            label: "Item da Aplicação",
             value: v(p.nomePlanejamento),
           },
           {
@@ -3292,13 +3407,26 @@ export async function exportPlanejamentoFinanceiroPdf(
             value: v(p.propostaEdital),
           },
           {
-            label: "Equipe do Edital",
+            label: "Equipe da Proposta",
             value: v(p.equipeEdital),
           },
         ],
       },
       {
-        title: "2. Quantidade e Valores",
+        title: "2. Período Previsto",
+        fields: [
+          {
+            label: "Data de Início",
+            value: v(p.dataInicio),
+          },
+          {
+            label: "Data de Fim",
+            value: v(p.dataFim),
+          },
+        ],
+      },
+      {
+        title: "3. Quantidade e Valores",
         fields: [
           {
             label: "Quantidade",
@@ -3319,7 +3447,7 @@ export async function exportPlanejamentoFinanceiroPdf(
         ],
       },
       {
-        title: "3. Justificativa",
+        title: "4. Justificativa",
         justifiedParagraphs: p.justificativaPlanejamento
           ? [p.justificativaPlanejamento]
           : [PLACEHOLDER],
@@ -3486,7 +3614,7 @@ export async function exportFinanceiroPdf(f: FinanceiroPdf) {
   });
 
   await generateInstitutionalPdf({
-    title: "Ficha Financeira",
+    title: "Ficha Controle Financeiro",
     documentNumber: `FIN-${String(f.id).padStart(4, "0")}`,
     sections,
   });
@@ -3561,8 +3689,7 @@ export async function exportDiretoriaPdf(d: DiretoriaPdf) {
     .toUpperCase();
 
   const exibirDataAfastamento =
-    statusNormalizado === "AFASTADO" ||
-    statusNormalizado === "AFASTADA";
+    statusNormalizado === "AFASTADO" || statusNormalizado === "AFASTADA";
 
   const camposCargoMandato = [
     {
@@ -3612,6 +3739,18 @@ export async function exportDiretoriaPdf(d: DiretoriaPdf) {
           {
             label: "RG",
             value: v(d.rg),
+          },
+                    {
+            label: "Gênero",
+            value: v(d.genero),
+          },
+          {
+            label: "Raça/Cor",
+            value: v(d.racaCor),
+          },
+          {
+            label: "Tipo de Deficiência",
+            value: v(d.tipoDeficiencia),
           },
           {
             label: "Telefone",
@@ -3697,14 +3836,20 @@ function normalizarTexto(value?: string | null) {
     .trim();
 }
 
-function getTipoCadastroInstitucional(tipo?: string | null): TipoCadastroInstitucional {
+function getTipoCadastroInstitucional(
+  tipo?: string | null,
+): TipoCadastroInstitucional {
   const value = normalizarTexto(tipo);
 
   if (value.includes("PESSOA_FISICA") || value === "PESSOA FISICA") {
     return "PESSOA_FISICA";
   }
 
-  if (value.includes("GRUPO_COLETIVO") || value.includes("GRUPO") || value.includes("COLETIVO")) {
+  if (
+    value.includes("GRUPO_COLETIVO") ||
+    value.includes("GRUPO") ||
+    value.includes("COLETIVO")
+  ) {
     return "GRUPO_COLETIVO";
   }
 
@@ -3856,14 +4001,20 @@ function getLabelRepresentanteEmailInstitucional(tipo?: string | null) {
   return "E-mail do Representante Legal";
 }
 
-function formatDocumentoInstitucional(value?: string | number | null, tipo?: string | null) {
+function formatDocumentoInstitucional(
+  value?: string | number | null,
+  tipo?: string | null,
+) {
   const digits = onlyDigits(value);
 
   if (isPessoaFisicaInstitucional(tipo) && digits.length === 11) {
     return formatCpfCnpj(digits);
   }
 
-  if ((isMeiInstitucional(tipo) || isPessoaJuridicaInstitucional(tipo)) && digits.length === 14) {
+  if (
+    (isMeiInstitucional(tipo) || isPessoaJuridicaInstitucional(tipo)) &&
+    digits.length === 14
+  ) {
     return formatCpfCnpj(digits);
   }
 
@@ -3878,33 +4029,22 @@ function getRepresentanteData(o: OrganizacaoPdf) {
   const representante = o.representanteLegal;
 
   return {
-    nome:
-      o.nomeRepresentanteLegal ||
-      representante?.nomeRepresentante ||
-      "",
-    cpf:
-      o.cpfRepresentanteLegal ||
-      representante?.cpfRepresentante ||
-      "",
-    rg:
-      o.rgRepresentanteLegal ||
-      representante?.rgRepresentante ||
-      "",
+    nome: o.nomeRepresentanteLegal || representante?.nomeRepresentante || "",
+    cpf: o.cpfRepresentanteLegal || representante?.cpfRepresentante || "",
+    rg: o.rgRepresentanteLegal || representante?.rgRepresentante || "",
     telefone:
       o.telefoneRepresentanteLegal ||
       representante?.telefoneRepresentante ||
       "",
-    email:
-      o.emailRepresentanteLegal ||
-      representante?.emailRepresentante ||
-      "",
+    email: o.emailRepresentanteLegal || representante?.emailRepresentante || "",
   };
 }
 
 export async function exportOrganizacaoPdf(o: OrganizacaoPdf) {
   const tipoCadastro = getTipoCadastroInstitucional(o.tipoAgente);
   const mostrarRepresentante = !isPessoaFisicaInstitucional(tipoCadastro);
-  const mostrarAtuacaoInstitucional = isPessoaJuridicaInstitucional(tipoCadastro);
+  const mostrarAtuacaoInstitucional =
+    isPessoaJuridicaInstitucional(tipoCadastro);
 
   const representante = getRepresentanteData(o);
 
@@ -4068,8 +4208,7 @@ export async function exportIntegrantePdf(i: IntegrantePdf) {
     .toUpperCase()
     .trim();
 
-  const mostrarDataSaida =
-    statusNormalizado === "CONCLUIDO" || statusNormalizado === "CONCLUIDO";
+  const mostrarDataSaida = statusNormalizado === "CONCLUIDO";
 
   const vinculoFields = [
     {
@@ -4120,6 +4259,18 @@ export async function exportIntegrantePdf(i: IntegrantePdf) {
           {
             label: "RG",
             value: v(i.rg),
+          },
+          {
+            label: "Gênero",
+            value: v(i.genero),
+          },
+          {
+            label: "Raça/Cor",
+            value: v(i.racaCor),
+          },
+          {
+            label: "Tipo de Deficiência",
+            value: v(i.tipoDeficiencia),
           },
           {
             label: "Telefone",
@@ -4190,38 +4341,12 @@ export async function exportCronogramaPdf(c: CronogramaPdf) {
     documentNumber: `CRO-${String(c.id).padStart(4, "0")}`,
     sections: [
       {
-        title: "1. Identificação da Etapa",
+        title: "1. Vínculo do Cronograma",
         fields: [
-          {
-            label: "Nome da Etapa",
-            value: v(c.nomeEtapa),
-          },
-          {
-            label: "Status do Cronograma",
-            value: v(c.statusCronograma),
-          },
           {
             label: "Projeto",
             value: v(c.projeto),
           },
-        ],
-      },
-      {
-        title: "2. Período da Etapa",
-        fields: [
-          {
-            label: "Data de Início",
-            value: formatDateBR(c.dataInicio),
-          },
-          {
-            label: "Data de Término",
-            value: formatDateBR(c.dataTermino),
-          },
-        ],
-      },
-      {
-        title: "3. Vínculo do Cronograma",
-        fields: [
           {
             label: "Tipo de Vínculo",
             value: v(c.tipoVinculo),
@@ -4233,10 +4358,40 @@ export async function exportCronogramaPdf(c: CronogramaPdf) {
         ],
       },
       {
-        title: "4. Descrição da Etapa",
+        title: "2. Dados da Execução",
+        fields: [
+          {
+            label: "Atividade Geral",
+            value: v(c.nomeEtapa),
+          },
+          {
+            label: "Etapa",
+            value: v(c.etapaCronograma),
+          },
+          {
+            label: "Status do Cronograma",
+            value: v(c.statusCronograma),
+          },
+        ],
+      },
+      {
+        title: "3. Descrição",
         justifiedParagraphs: c.descricaoEtapa
           ? [c.descricaoEtapa]
           : [PLACEHOLDER],
+      },
+      {
+        title: "4. Período da Etapa",
+        fields: [
+          {
+            label: "Início",
+            value: formatDateBR(c.dataInicio),
+          },
+          {
+            label: "Fim",
+            value: formatDateBR(c.dataTermino),
+          },
+        ],
       },
     ],
   });
@@ -4303,16 +4458,12 @@ export async function exportResultadoPropostaPdf(r: ResultadoPropostaPdf) {
 
     sections.push({
       title: "5. Observações",
-      justifiedParagraphs: r.observacoes
-        ? [r.observacoes]
-        : [PLACEHOLDER],
+      justifiedParagraphs: r.observacoes ? [r.observacoes] : [PLACEHOLDER],
     });
   } else {
     sections.push({
       title: "3. Observações",
-      justifiedParagraphs: r.observacoes
-        ? [r.observacoes]
-        : [PLACEHOLDER],
+      justifiedParagraphs: r.observacoes ? [r.observacoes] : [PLACEHOLDER],
     });
   }
 
@@ -4320,5 +4471,116 @@ export async function exportResultadoPropostaPdf(r: ResultadoPropostaPdf) {
     title: "Ficha de Resultado da Proposta",
     documentNumber: `RPR-${String(r.id).padStart(4, "0")}`,
     sections,
+  });
+}
+
+// =====================================================================
+// PLANO DE AULA
+// =====================================================================
+
+type PlanoAulaPdf = {
+  id: string | number;
+
+  atividade?: string | null;
+  turma?: string | null;
+  colaborador?: string | null;
+
+  dataInicio?: string | null;
+  dataFim?: string | null;
+
+  aulaReposicao?: boolean | null;
+  statusPlanoAula?: string | null;
+
+  conteudo?: string | null;
+  observacao?: string | null;
+};
+
+function statusPlanoAulaLabel(value?: string | null) {
+  const map: Record<string, string> = {
+    PLANEJADO: "Planejado",
+    REALIZADO: "Concluído",
+    CANCELADO: "Cancelado",
+    CONCLUIDO: "Concluído",
+    EM_ANDAMENTO: "Em andamento",
+  };
+
+  return value ? map[value] ?? value : PLACEHOLDER;
+}
+
+export async function exportPlanoAulaPdf(p: PlanoAulaPdf) {
+  const ATIVIDADE = v(p.atividade);
+
+  const TURMA = v(p.turma);
+
+  const COLABORADOR = v(p.colaborador);
+
+  const DATA_INICIO = formatDateBR(p.dataInicio);
+
+  const DATA_FIM = formatDateBR(p.dataFim);
+
+  const AULA_REPOSICAO =
+    p.aulaReposicao === true
+      ? "Sim"
+      : p.aulaReposicao === false
+        ? "Não"
+        : PLACEHOLDER;
+
+  const STATUS = statusPlanoAulaLabel(p.statusPlanoAula);
+
+  const CONTEUDO = p.conteudo?.trim() || PLACEHOLDER;
+
+  const OBSERVACAO = p.observacao?.trim() || PLACEHOLDER;
+
+  await generateInstitutionalPdf({
+    title: "Ficha de Plano de Aula",
+    documentNumber: `PLA-${String(p.id).padStart(4, "0")}`,
+    sections: [
+      {
+        title: "1. Vínculos do Plano de Aula",
+        fields: [
+          {
+            label: "Atividade",
+            value: ATIVIDADE,
+          },
+          {
+            label: "Turma",
+            value: TURMA,
+          },
+          {
+            label: "Colaborador Responsável",
+            value: COLABORADOR,
+          },
+        ],
+      },
+      {
+        title: "2. Período e Situação",
+        fields: [
+          {
+            label: "Data de Início",
+            value: DATA_INICIO,
+          },
+          {
+            label: "Data de Fim",
+            value: DATA_FIM,
+          },
+          {
+            label: "Aula de Reposição",
+            value: AULA_REPOSICAO,
+          },
+          {
+            label: "Status do Plano de Aula",
+            value: STATUS,
+          },
+        ],
+      },
+      {
+        title: "3. Conteúdo Previsto",
+        justifiedParagraphs: [CONTEUDO],
+      },
+      {
+        title: "4. Observações",
+        justifiedParagraphs: [OBSERVACAO],
+      },
+    ],
   });
 }

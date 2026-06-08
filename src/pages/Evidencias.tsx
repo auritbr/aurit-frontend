@@ -11,9 +11,12 @@ import {
   Eye,
   ShieldCheck,
   FileDown,
+  Target
 } from "lucide-react";
 
+import { PageInfoCard } from "@/components/PageInfoCard";
 import { AppLayout } from "@/components/AppLayout";
+import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
@@ -390,30 +393,10 @@ export default function EvidenciasPage() {
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
-        <div className="mb-5 rounded-lg border border-border bg-secondary/40 px-5 py-5 sm:px-6 sm:py-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary-soft px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
-                <ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.2} />
-                Prestação de Contas
-              </span>
-
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                  Evidências de Execução
-                </h1>
-
-                <HelpTooltip
-                  text="Registre e organize evidências da execução do projeto e da proposta de edital, como fotos, vídeos, listas de presença, relatórios, materiais gráficos, documentos e links de publicações. Vincule cada evidência ao item que ela comprova para facilitar relatórios, comprovações e prestação de contas."
-                  label="Evidências de execução"
-                  size="md"
-                  side="bottom"
-                  align="start"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <PageTitle
+          title="Evidências de Execução"
+          tooltip="Registre e organize evidências da execução do projeto e da proposta de edital, como fotos, vídeos, listas de presença, relatórios, materiais gráficos, documentos e links de publicações. Vincule cada evidência ao item que ela comprova para facilitar relatórios, comprovações e prestação de contas."
+        />
 
         {nextStepCard && (
           <NextStepCard
@@ -428,12 +411,13 @@ export default function EvidenciasPage() {
           />
         )}
 
-        <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          Registre aqui fotos, vídeos, listas de presença, documentos, materiais
+        <PageInfoCard
+          description="Registre aqui fotos, vídeos, listas de presença, documentos, materiais
           gráficos e links que comprovem a execução das ações do projeto. Sempre
           vincule cada evidência ao item correspondente, como proposta de edital,
-          atividade, turma, presença, evento cultural ou ação de divulgação.
-        </div>
+          atividade, turma, presença, evento cultural ou ação de divulgação."
+          icon={Target}
+        />
 
         <div className="rounded border border-border bg-card">
           <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">

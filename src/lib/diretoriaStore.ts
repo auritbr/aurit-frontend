@@ -57,8 +57,45 @@ export const statusDiretoriaOptions = [
   { value: "INATIVO", label: "Inativo" },
 ] as const;
 
+export const racasCoresDiretoria = [
+  { value: "BRANCA", label: "Branca" },
+  { value: "PRETA", label: "Preta" },
+  { value: "PARDA", label: "Parda" },
+  { value: "AMARELA", label: "Amarela" },
+  { value: "INDIGENA", label: "Indígena" },
+  { value: "PREFERE_NAO_INFORMAR", label: "Prefere não informar" },
+] as const;
+
+export const generosDiretoria = [
+  { value: "FEMININO", label: "Feminino" },
+  { value: "MASCULINO", label: "Masculino" },
+  { value: "NAO_BINARIO", label: "Não binário" },
+  { value: "OUTRO", label: "Outro" },
+  { value: "PREFERE_NAO_INFORMAR", label: "Prefere não informar" },
+] as const;
+
+export const tiposDeficienciaDiretoria = [
+  { value: "NAO_POSSUI", label: "Não possui" },
+  { value: "FISICA", label: "Física" },
+  { value: "AUDITIVA", label: "Auditiva" },
+  { value: "VISUAL", label: "Visual" },
+  { value: "INTELECTUAL", label: "Intelectual" },
+  { value: "PSICOSSOCIAL", label: "Psicossocial" },
+  { value: "MULTIPLA", label: "Múltipla" },
+  {
+    value: "TRANSTORNO_ESPECTRO_AUTISTA",
+    label: "Transtorno do Espectro Autista",
+  },
+  { value: "OUTRA", label: "Outra" },
+  { value: "NAO_INFORMADO", label: "Não informado" },
+] as const;
+
 export type CargoDiretoria = (typeof cargosDiretoria)[number]["value"];
 export type StatusDiretoria = (typeof statusDiretoriaOptions)[number]["value"];
+export type RacaCorApi = (typeof racasCoresDiretoria)[number]["value"];
+export type GeneroApi = (typeof generosDiretoria)[number]["value"];
+export type TipoDeficienciaApi =
+  (typeof tiposDeficienciaDiretoria)[number]["value"];
 
 type DateApiValue =
   | string
@@ -82,6 +119,10 @@ export interface DiretoriaDTO {
   rg?: string | null;
   telefone?: string | null;
   email?: string | null;
+
+  racaCor?: RacaCorApi | string | null;
+  genero?: GeneroApi | string | null;
+  tipoDeficiencia?: TipoDeficienciaApi | string | null;
 
   cep?: string | null;
   logradouro?: string | null;
@@ -121,6 +162,10 @@ export interface DiretoriaData {
   rg: string;
   telefone: string;
   email: string;
+
+  racaCor: string;
+  genero: string;
+  tipoDeficiencia: string;
 
   cep: string;
   logradouro: string;
@@ -248,6 +293,15 @@ export const statusDiretoriaLabel = (value?: string) =>
   value ??
   "—";
 
+export const racaCorDiretoriaLabel = (value?: string | null) =>
+  racasCoresDiretoria.find((item) => item.value === value)?.label ?? "—";
+
+export const generoDiretoriaLabel = (value?: string | null) =>
+  generosDiretoria.find((item) => item.value === value)?.label ?? "—";
+
+export const tipoDeficienciaDiretoriaLabel = (value?: string | null) =>
+  tiposDeficienciaDiretoria.find((item) => item.value === value)?.label ?? "—";
+
 export function formatDateBR(value?: string) {
   if (!value) return "—";
 
@@ -270,6 +324,10 @@ export function createEmptyDiretoria(): DiretoriaData {
     rg: "",
     telefone: "",
     email: "",
+
+    racaCor: "",
+    genero: "",
+    tipoDeficiencia: "",
 
     cep: "",
     logradouro: "",
@@ -307,6 +365,10 @@ export function mapDiretoria(dto: DiretoriaDTO): DiretoriaData {
     telefone: dto.telefone ?? "",
     email: dto.email ?? "",
 
+    racaCor: dto.racaCor ?? "",
+    genero: dto.genero ?? "",
+    tipoDeficiencia: dto.tipoDeficiencia ?? "",
+
     cep: dto.cep ?? "",
     logradouro: dto.logradouro ?? "",
     numero: dto.numero != null ? String(dto.numero) : "",
@@ -336,6 +398,10 @@ export function buildDiretoriaPayload(form: DiretoriaData): DiretoriaDTO {
     rg: form.rg.trim() || null,
     telefone: form.telefone.trim(),
     email: form.email.trim() || null,
+
+    racaCor: form.racaCor,
+    genero: form.genero,
+    tipoDeficiencia: form.tipoDeficiencia,
 
     cep: onlyDigits(form.cep),
     logradouro: form.logradouro.trim(),

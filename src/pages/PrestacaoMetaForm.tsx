@@ -29,14 +29,12 @@ import {
   getPrestacaoMetaById,
   createPrestacaoMeta,
   updatePrestacaoMeta,
-  getPrestacoesContasOptions,
   getMetasProjetoOptions,
   getEvidenciasExecucaoOptions,
   getPrestacaoMetas,
   buildPrestacaoMetaPayload,
   statusCumprimentoOptions,
   type StatusCumprimentoMeta,
-  type PrestacaoContasOption,
   type MetaProjetoOption,
   type EvidenciaOption,
   type PrestacaoMeta,
@@ -75,7 +73,6 @@ function salvarProximaAcaoPrestacaoMeta() {
 }
 
 interface FormState {
-  prestacaoContas: string;
   metaProjeto: string;
   quantidadeExecutada: string;
   observacaoCumprimento: string;
@@ -85,44 +82,12 @@ interface FormState {
 }
 
 const initial: FormState = {
-  prestacaoContas: "",
   metaProjeto: "",
   quantidadeExecutada: "",
   observacaoCumprimento: "",
   statusCumprimentoMeta: "",
   justificativaNaoCumprimentoIntegral: "",
   evidencias: [],
-};
-
-const sanitizeQuantidade = (raw: string) => {
-  let value = raw.replace(/[^\d,.]/g, "");
-
-  const firstSeparatorIndex = value.search(/[,.]/);
-
-  if (firstSeparatorIndex >= 0) {
-    const head = value.slice(0, firstSeparatorIndex + 1);
-    const tail = value.slice(firstSeparatorIndex + 1).replace(/[,.]/g, "");
-
-    value = head + tail;
-  }
-
-  return value;
-};
-
-const parseQuantidade = (value: string) => {
-  if (!value.trim()) return undefined;
-
-  const parsed = parseFloat(value.replace(",", "."));
-
-  return Number.isFinite(parsed) ? parsed : NaN;
-};
-
-const toQuantidadeString = (value?: number) => {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
-    return "";
-  }
-
-  return String(value).replace(".", ",");
 };
 
 export default function PrestacaoMetaForm() {
@@ -137,7 +102,6 @@ export default function PrestacaoMetaForm() {
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState(false);
 
-  const [prestacoes, setPrestacoes] = useState<PrestacaoContasOption[]>([]);
   const [metas, setMetas] = useState<MetaProjetoOption[]>([]);
   const [evidencias, setEvidencias] = useState<EvidenciaOption[]>([]);
   const [allItems, setAllItems] = useState<PrestacaoMeta[]>([]);
@@ -151,37 +115,18 @@ export default function PrestacaoMetaForm() {
       try {
         setLoading(true);
 
-        const [
-          itemData,
-          prestacoesData,
-          metasData,
-          evidenciasData,
-          listaData,
-        ] = await Promise.all([
-          id ? getPrestacaoMetaById(Number(id)) : Promise.resolve(null),
-          getPrestacoesContasOptions(),
-          getMetasProjetoOptions(),
-          getEvidenciasExecucaoOptions(),
-          getPrestacaoMetas(),
-        ]);
+        const [itemData, metasData, evidenciasData, listaData] =
+          await Promise.all([
+            id ? getPrestacaoMetaById(Number(id)) : Promise.resolve(null),
+            getMetasProjetoOptions(),
+            getEvidenciasExecucaoOptions(),
+            getPrestacaoMetas(),
+          ]);
 
         if (!active) return;
 
-        const prestacaoId = String(itemData?.prestacaoContas ?? "");
         const metaId = String(itemData?.metaProjeto ?? "");
         const evidenciasIds = (itemData?.evidencias ?? []).map(String);
-
-        const prestacoesNormalizadas = (prestacoesData ?? [])
-          .filter(
-            (item) =>
-              item.id !== null &&
-              item.id !== undefined &&
-              String(item.id).trim(),
-          )
-          .map((item) => ({
-            id: String(item.id),
-            label: item.label?.trim() || `Cumprimento ${item.id}`,
-          }));
 
         const metasNormalizadas = (metasData ?? [])
           .filter(
@@ -208,16 +153,6 @@ export default function PrestacaoMetaForm() {
               item.tituloEvidencia?.trim() || `Evidência ${item.id}`,
           }));
 
-        if (
-          prestacaoId &&
-          !prestacoesNormalizadas.some((item) => item.id === prestacaoId)
-        ) {
-          prestacoesNormalizadas.push({
-            id: prestacaoId,
-            label: `Cumprimento vinculado #${prestacaoId}`,
-          });
-        }
-
         if (metaId && !metasNormalizadas.some((item) => item.id === metaId)) {
           metasNormalizadas.push({
             id: metaId,
@@ -237,18 +172,14 @@ export default function PrestacaoMetaForm() {
           }
         });
 
-        setPrestacoes(prestacoesNormalizadas);
         setMetas(metasNormalizadas);
         setEvidencias(evidenciasNormalizadas);
         setAllItems(listaData ?? []);
 
         if (itemData) {
           setForm({
-            prestacaoContas: prestacaoId,
             metaProjeto: metaId,
-            quantidadeExecutada: toQuantidadeString(
-              itemData.quantidadeExecutada,
-            ),
+            quantidadeExecutada: itemData.quantidadeExecutada ?? "",
             observacaoCumprimento: itemData.observacaoCumprimento ?? "",
             statusCumprimentoMeta: itemData.statusCumprimentoMeta ?? "",
             justificativaNaoCumprimentoIntegral:
@@ -296,27 +227,7 @@ export default function PrestacaoMetaForm() {
   const mostrarJustificativa =
     form.statusCumprimentoMeta !== "" && !isIntegral;
 
-  const prestacoesComSelecao = useMemo(() => {
-    const normalizadas = prestacoes.map((item) => ({
-      ...item,
-      id: String(item.id),
-      label: item.label?.trim() || `Cumprimento ${item.id}`,
-    }));
-
-    if (
-      form.prestacaoContas &&
-      !normalizadas.some(
-        (item) => String(item.id) === String(form.prestacaoContas),
-      )
-    ) {
-      normalizadas.push({
-        id: String(form.prestacaoContas),
-        label: `Cumprimento vinculado #${form.prestacaoContas}`,
-      });
-    }
-
-    return normalizadas;
-  }, [prestacoes, form.prestacaoContas]);
+  const quantidadeObrigatoria = isIntegral || isParcial;
 
   const metasComSelecao = useMemo(() => {
     const normalizadas = metas.map((item) => ({
@@ -362,16 +273,6 @@ export default function PrestacaoMetaForm() {
     return [...normalizadas, ...faltantes];
   }, [evidencias, form.evidencias]);
 
-  const prestacaoSelecionadaNome = useMemo(() => {
-    if (!form.prestacaoContas) return "";
-
-    return (
-      prestacoesComSelecao.find(
-        (item) => String(item.id) === String(form.prestacaoContas),
-      )?.label ?? `Cumprimento vinculado #${form.prestacaoContas}`
-    );
-  }, [prestacoesComSelecao, form.prestacaoContas]);
-
   const metaSelecionadaNome = useMemo(() => {
     if (!form.metaProjeto) return "";
 
@@ -406,13 +307,7 @@ export default function PrestacaoMetaForm() {
 
     if (visualizando) return;
 
-    const prestacaoContasId = form.prestacaoContas.trim();
     const metaProjetoId = form.metaProjeto.trim();
-
-    if (!prestacaoContasId) {
-      toast.error("Selecione a prestação de contas.");
-      return;
-    }
 
     if (!metaProjetoId) {
       toast.error("Selecione a meta do projeto.");
@@ -424,27 +319,22 @@ export default function PrestacaoMetaForm() {
       return;
     }
 
+    if (quantidadeObrigatoria && !form.quantidadeExecutada.trim()) {
+      toast.error(
+        "Informe a quantidade executada quando a meta estiver cumprida ou parcialmente cumprida.",
+      );
+      return;
+    }
+
     const duplicada = allItems.find(
       (item) =>
-        String(item.prestacaoContas) === String(prestacaoContasId) &&
         String(item.metaProjeto) === String(metaProjetoId) &&
         String(item.id) !== String(id ?? ""),
     );
 
     if (duplicada) {
-      toast.error("Esta meta já foi adicionada nesta prestação de contas.");
+      toast.error("Esta meta já possui um cumprimento cadastrado.");
       return;
-    }
-
-    let quantidadeExecutada: number | undefined = undefined;
-
-    if (form.quantidadeExecutada.trim()) {
-      quantidadeExecutada = parseQuantidade(form.quantidadeExecutada);
-
-      if (!Number.isFinite(quantidadeExecutada) || quantidadeExecutada < 0) {
-        toast.error("Informe uma quantidade executada válida e não negativa.");
-        return;
-      }
     }
 
     if (
@@ -464,9 +354,8 @@ export default function PrestacaoMetaForm() {
 
       const item: PrestacaoMeta = {
         id: id ?? "",
-        prestacaoContas: prestacaoContasId,
         metaProjeto: metaProjetoId,
-        quantidadeExecutada,
+        quantidadeExecutada: form.quantidadeExecutada.trim(),
         percentualExecutado: undefined,
         observacaoCumprimento: form.observacaoCumprimento,
         statusCumprimentoMeta: form.statusCumprimentoMeta,
@@ -551,134 +440,77 @@ export default function PrestacaoMetaForm() {
         {!visualizando && <FormLegend />}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={Link2} title="Vínculos do cumprimento">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel
-                  htmlFor="prestacaoContas"
-                  required
-                  tooltip="Selecione a prestação de contas à qual este acompanhamento de meta pertence."
+          <Section icon={Link2} title="Vínculo da meta">
+            <Field>
+              <FieldLabel
+                htmlFor="metaProjeto"
+                required
+                tooltip="Selecione a meta prevista no projeto que será comparada com o resultado executado."
+              >
+                Meta do Projeto
+              </FieldLabel>
+
+              {visualizando ? (
+                <Input
+                  id="metaProjeto"
+                  value={metaSelecionadaNome || "—"}
+                  disabled
+                  readOnly
+                  className="bg-muted/40 cursor-not-allowed"
+                />
+              ) : (
+                <Select
+                  key={`meta-${form.metaProjeto}-${metasComSelecao.length}`}
+                  value={String(form.metaProjeto || "")}
+                  onValueChange={(value) => set("metaProjeto", String(value))}
+                  disabled={bloqueado}
                 >
-                  Prestação de Contas
-                </FieldLabel>
+                  <SelectTrigger id="metaProjeto">
+                    <SelectValue placeholder="Selecione a meta" />
+                  </SelectTrigger>
 
-                {visualizando ? (
-                  <Input
-                    id="prestacaoContas"
-                    value={prestacaoSelecionadaNome || "—"}
-                    disabled
-                    readOnly
-                    className="bg-muted/40 cursor-not-allowed"
-                  />
-                ) : (
-                  <Select
-                    key={`prestacao-${form.prestacaoContas}-${prestacoesComSelecao.length}`}
-                    value={String(form.prestacaoContas || "")}
-                    onValueChange={(value) =>
-                      set("prestacaoContas", String(value))
-                    }
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="prestacaoContas">
-                      <SelectValue placeholder="Selecione a prestação" />
-                    </SelectTrigger>
-
-                    <SelectContent className="max-h-72">
-                      {prestacoesComSelecao.length === 0 ? (
-                        <SelectItem value="sem-prestacao" disabled>
-                          Nenhuma prestação de contas cadastrada
+                  <SelectContent className="max-h-72">
+                    {metasComSelecao.length === 0 ? (
+                      <SelectItem value="sem-meta" disabled>
+                        Nenhuma meta cadastrada
+                      </SelectItem>
+                    ) : (
+                      metasComSelecao.map((meta) => (
+                        <SelectItem
+                          key={String(meta.id)}
+                          value={String(meta.id)}
+                        >
+                          {meta.tituloMeta}
                         </SelectItem>
-                      ) : (
-                        prestacoesComSelecao.map((prestacao) => (
-                          <SelectItem
-                            key={String(prestacao.id)}
-                            value={String(prestacao.id)}
-                          >
-                            {prestacao.label}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="metaProjeto"
-                  required
-                  tooltip="Selecione a meta prevista no projeto que será comparada com o resultado executado nesta prestação de contas."
-                >
-                  Meta do Projeto
-                </FieldLabel>
-
-                {visualizando ? (
-                  <Input
-                    id="metaProjeto"
-                    value={metaSelecionadaNome || "—"}
-                    disabled
-                    readOnly
-                    className="bg-muted/40 cursor-not-allowed"
-                  />
-                ) : (
-                  <Select
-                    key={`meta-${form.metaProjeto}-${metasComSelecao.length}`}
-                    value={String(form.metaProjeto || "")}
-                    onValueChange={(value) => set("metaProjeto", String(value))}
-                    disabled={bloqueado}
-                  >
-                    <SelectTrigger id="metaProjeto">
-                      <SelectValue placeholder="Selecione a meta" />
-                    </SelectTrigger>
-
-                    <SelectContent className="max-h-72">
-                      {metasComSelecao.length === 0 ? (
-                        <SelectItem value="sem-meta" disabled>
-                          Nenhuma meta cadastrada
-                        </SelectItem>
-                      ) : (
-                        metasComSelecao.map((meta) => (
-                          <SelectItem
-                            key={String(meta.id)}
-                            value={String(meta.id)}
-                          >
-                            {meta.tituloMeta}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              </Field>
-            </div>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
           </Section>
 
           <Section icon={BarChart3} title="Resultado executado">
             <div className="space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel
-                    htmlFor="quantidadeExecutada"
-                    tooltip="Informe a quantidade efetivamente realizada em relação à meta prevista. Ex.: Se a meta era realizar 10 oficinas e foram realizadas 8, informe 8."
-                  >
-                    Quantidade Executada
-                  </FieldLabel>
+              <Field>
+                <FieldLabel
+                  htmlFor="quantidadeExecutada"
+                  required={quantidadeObrigatoria}
+                  tooltip="Informe a quantidade efetivamente realizada em relação à meta prevista. Como este campo é textual, você pode informar valores com unidade. Ex.: 8 oficinas, 120 participantes, 3 apresentações, 10 encontros realizados."
+                >
+                  Quantidade Executada
+                </FieldLabel>
 
-                  <Input
-                    id="quantidadeExecutada"
-                    inputMode="decimal"
-                    value={form.quantidadeExecutada}
-                    onChange={(e) =>
-                      set(
-                        "quantidadeExecutada",
-                        sanitizeQuantidade(e.target.value),
-                      )
-                    }
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-              </div>
+                <Input
+                  id="quantidadeExecutada"
+                  value={form.quantidadeExecutada}
+                  onChange={(e) =>
+                    set("quantidadeExecutada", e.target.value)
+                  }
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
 
               <Field>
                 <FieldLabel

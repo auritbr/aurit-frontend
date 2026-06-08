@@ -26,18 +26,15 @@ import { usePagination } from "@/hooks/usePagination";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
-  colaboradoresTextoAcao,
   deleteAcaoDivulgacao,
-  estrategiasTexto,
-  formatDateBr,
+  editalNomeAcao,
   getAcoesDivulgacao,
-  getColaboradoresOptions,
-  getProjetosOptions,
+  getPropostasEditaisOptions,
   projetoNomeAcao,
+  propostaNomeAcao,
   statusValueToLabel,
   type AcaoDivulgacao,
-  type ColaboradorOption,
-  type ProjetoOption,
+  type PropostaEditalOption,
 } from "@/data/acoesDivulgacao";
 import {
   getPermissoesUsuarioLogadoPorModulo,
@@ -76,8 +73,7 @@ export default function AcoesDivulgacao() {
 
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<AcaoDivulgacao[]>([]);
-  const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
-  const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
+  const [propostas, setPropostas] = useState<PropostaEditalOption[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
@@ -166,15 +162,13 @@ export default function AcoesDivulgacao() {
       setLoading(true);
       setAccessDeniedMessage(null);
 
-      const [acoesData, projetosData, colaboradoresData] = await Promise.all([
+      const [acoesData, propostasData] = await Promise.all([
         getAcoesDivulgacao(),
-        getProjetosOptions(),
-        getColaboradoresOptions(),
+        getPropostasEditaisOptions(),
       ]);
 
       setItems(acoesData);
-      setProjetos(projetosData);
-      setColaboradores(colaboradoresData);
+      setPropostas(propostasData);
     } catch (error) {
       const message =
         error instanceof Error
@@ -193,11 +187,14 @@ export default function AcoesDivulgacao() {
     }
   }
 
-  const projetoNome = (projetoId: string) =>
-    projetoNomeAcao(projetoId, projetos);
+  const propostaNome = (item: AcaoDivulgacao) =>
+    propostaNomeAcao(item.propostaEditalId, propostas, item);
 
-  const colaboradoresTexto = (ids: string[]) =>
-    colaboradoresTextoAcao(ids, colaboradores);
+  const editalNome = (item: AcaoDivulgacao) =>
+    editalNomeAcao(item.propostaEditalId, propostas, item);
+
+  const projetoNome = (item: AcaoDivulgacao) =>
+    projetoNomeAcao(item.propostaEditalId, propostas, item);
 
   const filtered = useMemo(() => {
     const term = search.toLowerCase().trim();
@@ -205,12 +202,9 @@ export default function AcoesDivulgacao() {
     if (!term) return items;
 
     return items.filter((item) => {
-      const estrategias = estrategiasTexto(
-        item.estrategiasDivulgacao,
-      ).toLowerCase();
-
-      const projeto = projetoNome(item.projetoId).toLowerCase();
-      const colabs = colaboradoresTexto(item.colaboradoresIds).toLowerCase();
+      const proposta = propostaNome(item).toLowerCase();
+      const edital = editalNome(item).toLowerCase();
+      const projeto = projetoNome(item).toLowerCase();
       const status = statusValueToLabel(item.status).toLowerCase();
 
       return [
@@ -221,18 +215,16 @@ export default function AcoesDivulgacao() {
         item.acoesAcessibilidade,
         item.resultadoEsperado,
         item.produtosGerados,
-        formatDateBr(item.dataInicio),
-        formatDateBr(item.dataFim),
-        estrategias,
+        proposta,
+        edital,
         projeto,
-        colabs,
         status,
       ]
         .join(" ")
         .toLowerCase()
         .includes(term);
     });
-  }, [search, items, projetos, colaboradores]);
+  }, [search, items, propostas]);
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
     usePagination(filtered, 25, search);
@@ -286,17 +278,11 @@ export default function AcoesDivulgacao() {
       return;
     }
 
-    const projeto = projetoNome(item.projetoId);
-    const colaboradoresFormatados = colaboradoresTexto(item.colaboradoresIds);
-
     exportAcaoDivulgacaoPdf({
       ...item,
-      projeto,
-      colaboradores: colaboradoresFormatados
-        ? colaboradoresFormatados.split(", ")
-        : [],
-      estrategiaDivulgacao: item.estrategiasDivulgacao,
-      estrategiasDivulgacao: item.estrategiasDivulgacao,
+      propostaEdital: propostaNome(item),
+      edital: editalNome(item),
+      projeto: projetoNome(item),
       registroDocumentacao: [],
     } as any);
   }
@@ -322,7 +308,7 @@ export default function AcoesDivulgacao() {
       <div className="container max-w-7xl py-6 sm:py-8">
         <PageTitle
           title="Ações de Divulgação"
-          tooltip="Cadastre as ações de divulgação do projeto, detalhando como serão realizadas, quais objetivos serão alcançados e quais registros e resultados serão gerados. Essas informações são essenciais para visibilidade e prestação de contas."
+          tooltip="Cadastre as ações de divulgação da proposta de edital, detalhando como serão realizadas, quais objetivos serão alcançados e quais registros e resultados serão gerados. Essas informações são essenciais para visibilidade e prestação de contas."
         />
 
         {nextStepCard && (
@@ -378,27 +364,11 @@ export default function AcoesDivulgacao() {
                   </th>
 
                   <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Início
-                  </th>
-
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Término
-                  </th>
-
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Estratégias
+                    Proposta de edital
                   </th>
 
                   <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Status
-                  </th>
-
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Projeto
-                  </th>
-
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Colaboradores
                   </th>
 
                   {podeGerarPdf && (
@@ -414,11 +384,9 @@ export default function AcoesDivulgacao() {
 
               <tbody>
                 {paginated.map((item) => {
-                  const estrategias = estrategiasTexto(
-                    item.estrategiasDivulgacao,
-                  );
-                  const projeto = projetoNome(item.projetoId);
-                  const colabs = colaboradoresTexto(item.colaboradoresIds);
+                  const proposta = propostaNome(item);
+                  const edital = editalNome(item);
+                  const projeto = projetoNome(item);
                   const status = statusValueToLabel(item.status) as Status;
 
                   return (
@@ -463,38 +431,14 @@ export default function AcoesDivulgacao() {
                         </TableCellText>
                       </td>
 
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                        {formatDateBr(item.dataInicio)}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                        {formatDateBr(item.dataFim)}
-                      </td>
-
                       <td className="px-6 py-2.5">
-                        <TableCellText text={estrategias} muted>
-                          {estrategias || "—"}
+                        <TableCellText text={proposta}>
+                          {proposta}
                         </TableCellText>
                       </td>
 
                       <td className="whitespace-nowrap px-6 py-2.5">
                         <StatusPill status={status} />
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={projeto}>{projeto}</TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        {colabs ? (
-                          <TableCellText text={colabs} muted>
-                            {colabs}
-                          </TableCellText>
-                        ) : (
-                          <span className="text-[13px] text-muted-foreground/60">
-                            —
-                          </span>
-                        )}
                       </td>
 
                       {podeGerarPdf && (
@@ -515,7 +459,7 @@ export default function AcoesDivulgacao() {
                 })}
 
                 {paginated.length === 0 && (
-                  <EmptyRow colSpan={podeGerarPdf ? 9 : 8} />
+                  <EmptyRow colSpan={podeGerarPdf ? 7 : 6} />
                 )}
               </tbody>
             </table>
@@ -532,11 +476,9 @@ export default function AcoesDivulgacao() {
               </div>
             ) : (
               paginated.map((item) => {
-                const projeto = projetoNome(item.projetoId);
-                const colabs = colaboradoresTexto(item.colaboradoresIds);
-                const estrategias = estrategiasTexto(
-                  item.estrategiasDivulgacao,
-                );
+                const proposta = propostaNome(item);
+                const edital = editalNome(item);
+                const projeto = projetoNome(item);
                 const status = statusValueToLabel(item.status) as Status;
 
                 return (
@@ -588,23 +530,20 @@ export default function AcoesDivulgacao() {
                       {item.nomeAcao}
                     </p>
 
+                    <p className="mt-1 text-sm text-foreground">
+                      {proposta}
+                    </p>
+
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {formatDateBr(item.dataInicio)} —{" "}
-                      {formatDateBr(item.dataFim)}
+                      {edital}
                     </p>
 
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {estrategias || "Sem estratégias informadas"}
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {projeto}
                     </p>
-
-                    <p className="mt-2 text-sm text-foreground">{projeto}</p>
 
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <StatusPill status={status} />
-
-                      <span className="line-clamp-1 text-xs text-muted-foreground">
-                        • {colabs || "Sem colaboradores"}
-                      </span>
                     </div>
                   </div>
                 );

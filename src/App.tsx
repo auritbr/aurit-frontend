@@ -63,6 +63,9 @@ import TurmaForm from "./pages/TurmaForm.tsx";
 
 import Presencas from "./pages/Presencas.tsx";
 
+import PlanoAula from "./pages/PlanoAula.tsx";
+import PlanoAulaForm from "./pages/PlanoAulaForm.tsx";
+
 import Documentos from "./pages/Documentos.tsx";
 import DocumentoForm from "./pages/DocumentoForm.tsx";
 
@@ -483,6 +486,23 @@ function AppRoutes() {
         />
 
         <Route
+          path="/planos-aula"
+          element={protectedPage(<PlanoAula />)}
+        />
+        <Route
+          path="/planos-aula/novo"
+          element={protectedPage(<PlanoAulaForm />)}
+        />
+        <Route
+          path="/planos-aula/:id"
+          element={protectedPage(<PlanoAulaForm />)}
+        />
+        <Route
+          path="/planos-aula/:id/editar"
+          element={protectedPage(<PlanoAulaForm />)}
+        />
+
+        <Route
           path="/documentos"
           element={protectedPage(<Documentos />, permission("DOCUMENTOS"))}
         />
@@ -664,7 +684,7 @@ function AppRoutes() {
         />
 
         <Route
-          path="/planejamento-financeiro"
+          path="/aplicacao-de-recursos"
           element={protectedPage(
             <PlanejamentoFinanceiro />,
             permission("PLANEJAMENTO_FINANCEIRO"),

@@ -37,68 +37,6 @@ async function parseError(response: Response): Promise<string> {
 export type AcaoStatusApi = "ATIVO" | "INATIVO" | "PENDENTE" | "CONCLUIDO";
 export type AcaoStatusLabel = "Ativo" | "Inativo" | "Pendente" | "Concluído";
 
-export type EstrategiaDivulgacao =
-  | "MATERIAIS_IMPRESSOS"
-  | "CARTAZES"
-  | "PANFLETOS"
-  | "FAIXAS"
-  | "BANNERS"
-  | "ZINES_E_CATALOGOS"
-  | "REDES_SOCIAIS"
-  | "SITES"
-  | "BLOG"
-  | "E_MAIL_MARKETING"
-  | "MIDIA_LOCAL"
-  | "RADIO"
-  | "TV"
-  | "ASSESSORIA_DE_IMPRENSA"
-  | "ANUNCIOS_PATROCINADOS"
-  | "PARCERIAS_VEICULOS_COMUNICACAO"
-  | "PARCERIAS_ORGAOS_PUBLICOS"
-  | "PARCERIAS_INSTITUICOES_CULTURAIS"
-  | "ARTICULACAO_COM_ATORES_LOCAIS"
-  | "INFLUENCIADORES_E_EMBAIXADORES"
-  | "MOBILIZACAO_COMUNITARIA";
-
-export const estrategiasDivulgacao = [
-  { value: "MATERIAIS_IMPRESSOS", label: "Materiais Impressos" },
-  { value: "CARTAZES", label: "Cartazes" },
-  { value: "PANFLETOS", label: "Panfletos" },
-  { value: "FAIXAS", label: "Faixas" },
-  { value: "BANNERS", label: "Banners" },
-  { value: "ZINES_E_CATALOGOS", label: "Zines e Catálogos" },
-  { value: "REDES_SOCIAIS", label: "Redes Sociais" },
-  { value: "SITES", label: "Sites" },
-  { value: "BLOG", label: "Blog" },
-  { value: "E_MAIL_MARKETING", label: "E-mail Marketing" },
-  { value: "MIDIA_LOCAL", label: "Mídia Local" },
-  { value: "RADIO", label: "Rádio" },
-  { value: "TV", label: "TV" },
-  { value: "ASSESSORIA_DE_IMPRENSA", label: "Assessoria de Imprensa" },
-  { value: "ANUNCIOS_PATROCINADOS", label: "Anúncios Patrocinados" },
-  {
-    value: "PARCERIAS_VEICULOS_COMUNICACAO",
-    label: "Parcerias com Veículos de Comunicação",
-  },
-  {
-    value: "PARCERIAS_ORGAOS_PUBLICOS",
-    label: "Parcerias com Órgãos Públicos",
-  },
-  {
-    value: "PARCERIAS_INSTITUICOES_CULTURAIS",
-    label: "Parcerias com Instituições Culturais",
-  },
-  {
-    value: "ARTICULACAO_COM_ATORES_LOCAIS",
-    label: "Articulação com Atores Locais",
-  },
-  {
-    value: "INFLUENCIADORES_E_EMBAIXADORES",
-    label: "Influenciadores e Embaixadores",
-  },
-  { value: "MOBILIZACAO_COMUNITARIA", label: "Mobilização Comunitária" },
-] as const;
-
 export const statusAcao = [
   { value: "ATIVO", label: "Ativo" },
   { value: "INATIVO", label: "Inativo" },
@@ -108,6 +46,7 @@ export const statusAcao = [
 
 export interface AcaoDivulgacaoDTO {
   id?: number;
+
   nomeAcao: string;
   descricaoAcao: string;
   realizacaoAcao: string;
@@ -115,16 +54,24 @@ export interface AcaoDivulgacaoDTO {
   acoesAcessibilidade: string;
   resultadoEsperado: string;
   produtosGerados: string;
-  dataInicio: string;
-  dataFim: string;
-  estrategiasDivulgacao: string[];
+
   status: AcaoStatusApi;
-  projetoId: number;
-  colaboradoresIds?: number[];
+
+  propostaEditalId: number;
+  nomePropostaEdital?: string;
+  tituloPropostaEdital?: string;
+  tituloProjeto?: string;
+
+  editalId?: number;
+  nomeEdital?: string;
+
+  projetoId?: number;
+  nomeProjeto?: string;
 }
 
 export interface AcaoDivulgacao {
   id: string;
+
   nomeAcao: string;
   descricaoAcao: string;
   realizacaoAcao: string;
@@ -132,37 +79,45 @@ export interface AcaoDivulgacao {
   acoesAcessibilidade: string;
   resultadoEsperado: string;
   produtosGerados: string;
-  dataInicio: string;
-  dataFim: string;
-  estrategiasDivulgacao: string[];
+
   status: AcaoStatusApi;
+
+  propostaEditalId: string;
+  nomePropostaEdital: string;
+
+  editalId: string;
+  nomeEdital: string;
+
   projetoId: string;
-  colaboradoresIds: string[];
+  nomeProjeto: string;
 }
 
-export interface ProjetoOption {
+export interface PropostaEditalOption {
   id: string;
   nome: string;
+  editalId: string;
+  edital: string;
+  projetoId: string;
+  projeto: string;
 }
 
-export interface ColaboradorOption {
-  id: string;
-  nome: string;
-}
-
-interface ProjetoApiResponse {
+interface PropostaEditalApiResponse {
   id?: number;
+  tituloProjeto?: string;
+  nomePropostaEdital?: string;
+  tituloPropostaEdital?: string;
+
+  editalId?: number;
+  nomeEdital?: string;
+
+  projetoId?: number;
   nomeProjeto?: string;
-}
-
-interface ColaboradorApiResponse {
-  id?: number;
-  nomeCompleto?: string;
 }
 
 export function mapAcaoDivulgacao(dto: AcaoDivulgacaoDTO): AcaoDivulgacao {
   return {
     id: String(dto.id ?? ""),
+
     nomeAcao: dto.nomeAcao ?? "",
     descricaoAcao: dto.descricaoAcao ?? "",
     realizacaoAcao: dto.realizacaoAcao ?? "",
@@ -170,12 +125,23 @@ export function mapAcaoDivulgacao(dto: AcaoDivulgacaoDTO): AcaoDivulgacao {
     acoesAcessibilidade: dto.acoesAcessibilidade ?? "",
     resultadoEsperado: dto.resultadoEsperado ?? "",
     produtosGerados: dto.produtosGerados ?? "",
-    dataInicio: dto.dataInicio ?? "",
-    dataFim: dto.dataFim ?? "",
-    estrategiasDivulgacao: dto.estrategiasDivulgacao ?? [],
+
     status: dto.status ?? "ATIVO",
+
+    propostaEditalId:
+      dto.propostaEditalId != null ? String(dto.propostaEditalId) : "",
+
+    nomePropostaEdital:
+      dto.nomePropostaEdital?.trim() ||
+      dto.tituloPropostaEdital?.trim() ||
+      dto.tituloProjeto?.trim() ||
+      "",
+
+    editalId: dto.editalId != null ? String(dto.editalId) : "",
+    nomeEdital: dto.nomeEdital?.trim() || "",
+
     projetoId: dto.projetoId != null ? String(dto.projetoId) : "",
-    colaboradoresIds: (dto.colaboradoresIds ?? []).map(String),
+    nomeProjeto: dto.nomeProjeto?.trim() || "",
   };
 }
 
@@ -184,6 +150,7 @@ export function buildAcaoDivulgacaoPayload(
 ): AcaoDivulgacaoDTO {
   return {
     id: acao.id ? Number(acao.id) : undefined,
+
     nomeAcao: acao.nomeAcao.trim(),
     descricaoAcao: acao.descricaoAcao.trim(),
     realizacaoAcao: acao.realizacaoAcao.trim(),
@@ -191,12 +158,9 @@ export function buildAcaoDivulgacaoPayload(
     acoesAcessibilidade: acao.acoesAcessibilidade.trim(),
     resultadoEsperado: acao.resultadoEsperado.trim(),
     produtosGerados: acao.produtosGerados.trim(),
-    dataInicio: acao.dataInicio,
-    dataFim: acao.dataFim,
-    estrategiasDivulgacao: acao.estrategiasDivulgacao,
+
     status: acao.status,
-    projetoId: Number(acao.projetoId),
-    colaboradoresIds: acao.colaboradoresIds.map(Number),
+    propostaEditalId: Number(acao.propostaEditalId),
   };
 }
 
@@ -213,36 +177,53 @@ export function statusValueToLabel(
   return map[status as AcaoStatusApi] ?? "Ativo";
 }
 
-export const estrategiaLabel = (value: string) =>
-  estrategiasDivulgacao.find((item) => item.value === value)?.label ?? value;
-
-export function formatDateBr(iso?: string) {
-  if (!iso) return "—";
-
-  const [year, month, day] = iso.split("-");
-
-  if (!year || !month || !day) return iso;
-
-  return `${day}/${month}/${year}`;
-}
-
-export function estrategiasTexto(values: string[]) {
-  return values.map(estrategiaLabel).join(", ");
-}
-
-export const projetoNomeAcao = (
+export function propostaNomeAcao(
   id?: string,
-  projetos: ProjetoOption[] = [],
-) => (id ? projetos.find((item) => item.id === id)?.nome ?? "—" : "—");
+  propostas: PropostaEditalOption[] = [],
+  acao?: AcaoDivulgacao,
+) {
+  if (acao?.nomePropostaEdital) {
+    return acao.nomePropostaEdital;
+  }
 
-export const colaboradoresTextoAcao = (
-  ids: string[] = [],
-  colaboradores: ColaboradorOption[] = [],
-) =>
-  ids
-    .map((id) => colaboradores.find((item) => item.id === id)?.nome ?? id)
-    .filter(Boolean)
-    .join(", ");
+  if (!id) {
+    return "—";
+  }
+
+  return propostas.find((item) => item.id === id)?.nome ?? `Proposta ${id}`;
+}
+
+export function editalNomeAcao(
+  id?: string,
+  propostas: PropostaEditalOption[] = [],
+  acao?: AcaoDivulgacao,
+) {
+  if (acao?.nomeEdital) {
+    return acao.nomeEdital;
+  }
+
+  if (!id) {
+    return "—";
+  }
+
+  return propostas.find((item) => item.id === id)?.edital || "—";
+}
+
+export function projetoNomeAcao(
+  id?: string,
+  propostas: PropostaEditalOption[] = [],
+  acao?: AcaoDivulgacao,
+) {
+  if (acao?.nomeProjeto) {
+    return acao.nomeProjeto;
+  }
+
+  if (!id) {
+    return "—";
+  }
+
+  return propostas.find((item) => item.id === id)?.projeto || "—";
+}
 
 export async function getAcoesDivulgacao(): Promise<AcaoDivulgacao[]> {
   const response = await fetch(`${API_URL}/acoes-divulgacao`, {
@@ -290,12 +271,8 @@ export async function createAcaoDivulgacao(
       acoesAcessibilidade: payload.acoesAcessibilidade,
       resultadoEsperado: payload.resultadoEsperado,
       produtosGerados: payload.produtosGerados,
-      dataInicio: payload.dataInicio,
-      dataFim: payload.dataFim,
-      estrategiasDivulgacao: payload.estrategiasDivulgacao,
       status: payload.status,
-      projetoId: payload.projetoId,
-      colaboradoresIds: payload.colaboradoresIds ?? [],
+      propostaEditalId: payload.propostaEditalId,
     }),
   });
 
@@ -323,12 +300,8 @@ export async function updateAcaoDivulgacao(
       acoesAcessibilidade: payload.acoesAcessibilidade,
       resultadoEsperado: payload.resultadoEsperado,
       produtosGerados: payload.produtosGerados,
-      dataInicio: payload.dataInicio,
-      dataFim: payload.dataFim,
-      estrategiasDivulgacao: payload.estrategiasDivulgacao,
       status: payload.status,
-      projetoId: payload.projetoId,
-      colaboradoresIds: payload.colaboradoresIds ?? [],
+      propostaEditalId: payload.propostaEditalId,
     }),
   });
 
@@ -352,8 +325,10 @@ export async function deleteAcaoDivulgacao(id: number): Promise<void> {
   }
 }
 
-export async function getProjetosOptions(): Promise<ProjetoOption[]> {
-  const response = await fetch(`${API_URL}/projetos`, {
+export async function getPropostasEditaisOptions(): Promise<
+  PropostaEditalOption[]
+> {
+  const response = await fetch(`${API_URL}/propostas-editais`, {
     method: "GET",
     headers: getJsonHeaders(),
   });
@@ -362,32 +337,20 @@ export async function getProjetosOptions(): Promise<ProjetoOption[]> {
     throw new Error(await parseError(response));
   }
 
-  const data: ProjetoApiResponse[] = await response.json();
+  const data: PropostaEditalApiResponse[] = await response.json();
 
   return (data ?? [])
     .filter((item) => item.id != null)
     .map((item) => ({
       id: String(item.id),
-      nome: item.nomeProjeto?.trim() || `Projeto ${item.id}`,
-    }));
-}
-
-export async function getColaboradoresOptions(): Promise<ColaboradorOption[]> {
-  const response = await fetch(`${API_URL}/colaboradores`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: ColaboradorApiResponse[] = await response.json();
-
-  return (data ?? [])
-    .filter((item) => item.id != null)
-    .map((item) => ({
-      id: String(item.id),
-      nome: item.nomeCompleto?.trim() || `Colaborador ${item.id}`,
+      nome:
+        item.tituloProjeto?.trim() ||
+        item.nomePropostaEdital?.trim() ||
+        item.tituloPropostaEdital?.trim() ||
+        `Proposta ${item.id}`,
+      editalId: item.editalId != null ? String(item.editalId) : "",
+      edital: item.nomeEdital?.trim() || "",
+      projetoId: item.projetoId != null ? String(item.projetoId) : "",
+      projeto: item.nomeProjeto?.trim() || "",
     }));
 }

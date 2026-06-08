@@ -8,8 +8,10 @@ import {
   Users,
   Eye,
   FileDown,
+  Target
 } from "lucide-react";
 
+import { PageInfoCard } from "@/components/PageInfoCard";
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
@@ -43,13 +45,11 @@ import {
 import {
   deleteEquipeEdital,
   formatBRL,
-  getAgentesOptions,
   getColaboradoresOptions,
   getEquipesEditais,
   getIntegrantesOptions,
   getPropostasEditalOptions,
   tipoPessoaLabel,
-  type AgenteOption,
   type EquipeEdital,
   type PessoaOption,
   type PropostaEditalOption,
@@ -76,7 +76,6 @@ export default function EquipeEditalPage() {
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<EquipeEdital[]>([]);
   const [propostas, setPropostas] = useState<PropostaEditalOption[]>([]);
-  const [agentes, setAgentes] = useState<AgenteOption[]>([]);
   const [colaboradores, setColaboradores] = useState<PessoaOption[]>([]);
   const [integrantes, setIntegrantes] = useState<PessoaOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,20 +167,17 @@ export default function EquipeEditalPage() {
       const [
         equipesData,
         propostasData,
-        agentesData,
         colaboradoresData,
         integrantesData,
       ] = await Promise.all([
         getEquipesEditais(),
         getPropostasEditalOptions(),
-        getAgentesOptions(),
         getColaboradoresOptions(),
         getIntegrantesOptions(),
       ]);
 
       setItems(equipesData);
       setPropostas(propostasData);
-      setAgentes(agentesData);
       setColaboradores(colaboradoresData);
       setIntegrantes(integrantesData);
     } catch (error) {
@@ -204,11 +200,6 @@ export default function EquipeEditalPage() {
   const propostaNome = (id?: string) =>
     id
       ? propostas.find((p) => String(p.id) === String(id))?.nome ?? "—"
-      : "—";
-
-  const agenteNome = (id?: string) =>
-    id
-      ? agentes.find((a) => String(a.id) === String(id))?.nome ?? "—"
       : "—";
 
   const pessoaNome = (m: EquipeEdital) => {
@@ -234,16 +225,15 @@ export default function EquipeEditalPage() {
       const pessoa = pessoaNome(m).toLowerCase();
       const funcao = (m.funcaoProjeto ?? "").toLowerCase();
       const proposta = propostaNome(m.propostaEdital).toLowerCase();
-      const agente = agenteNome(m.agente).toLowerCase();
       const tipo = tipoPessoaLabel(m.tipoPessoa).toLowerCase();
       const valor = formatBRL(m.valorPrevisto).toLowerCase();
       const miniBio = (m.miniBiografia ?? "").toLowerCase();
 
-      return [pessoa, funcao, proposta, agente, tipo, valor, miniBio]
+      return [pessoa, funcao, proposta, tipo, valor, miniBio]
         .join(" ")
         .includes(s);
     });
-  }, [search, items, propostas, agentes, colaboradores, integrantes]);
+  }, [search, items, propostas, colaboradores, integrantes]);
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
     usePagination(filtered, 25, search);
@@ -300,7 +290,6 @@ export default function EquipeEditalPage() {
     await exportEquipeEditalPdf({
       id: m.id,
       propostaEdital: propostaNome(m.propostaEdital),
-      agente: agenteNome(m.agente),
 
       tipoPessoa,
       colaborador: m.tipoPessoa === "COLABORADOR" ? pessoa : "",
@@ -353,11 +342,12 @@ export default function EquipeEditalPage() {
           />
         )}
 
-        <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          Esta área reúne as pessoas que atuarão na proposta de edital. Informe
+        <PageInfoCard
+          description="Esta área reúne as pessoas que atuarão na proposta de edital. Informe
           a função de cada membro, sua contribuição para o projeto, carga horária
-          prevista, valor planejado e vínculo com a proposta.
-        </div>
+          prevista, valor planejado e vínculo com a proposta."
+          icon={Target}
+        />
 
         <div className="rounded border border-border bg-card">
           <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
@@ -396,7 +386,6 @@ export default function EquipeEditalPage() {
                     "Carga horária",
                     "Valor previsto",
                     "Proposta de edital",
-                    "Agente responsável",
                   ].map((h) => (
                     <th
                       key={h}
@@ -422,7 +411,6 @@ export default function EquipeEditalPage() {
                 {paginated.map((m) => {
                   const pessoa = pessoaNome(m);
                   const proposta = propostaNome(m.propostaEdital);
-                  const agente = agenteNome(m.agente);
 
                   return (
                     <tr
@@ -500,12 +488,6 @@ export default function EquipeEditalPage() {
                         </TableCellText>
                       </td>
 
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={agente} muted>
-                          {agente}
-                        </TableCellText>
-                      </td>
-
                       {podeGerarPdf && (
                         <td className="whitespace-nowrap px-6 py-2.5">
                           <Button
@@ -526,7 +508,7 @@ export default function EquipeEditalPage() {
                 {paginated.length === 0 && (
                   <tr>
                     <td
-                      colSpan={podeGerarPdf ? 9 : 8}
+                      colSpan={podeGerarPdf ? 8 : 7}
                       className="px-5 py-16 text-center"
                     >
                       <Users className="mx-auto h-10 w-10 text-muted-foreground/40" />
@@ -603,10 +585,6 @@ export default function EquipeEditalPage() {
 
                   <p className="mt-2 text-sm text-foreground">
                     {propostaNome(m.propostaEdital)}
-                  </p>
-
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Agente: {agenteNome(m.agente)}
                   </p>
 
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">

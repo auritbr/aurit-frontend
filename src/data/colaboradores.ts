@@ -78,10 +78,50 @@ export const tipoVinculoOptions = [
   { value: "VOLUNTARIO", label: "Voluntário" },
 ] as const;
 
+export const racaCorOptions = [
+  { value: "BRANCA", label: "Branca" },
+  { value: "PRETA", label: "Preta" },
+  { value: "PARDA", label: "Parda" },
+  { value: "AMARELA", label: "Amarela" },
+  { value: "INDIGENA", label: "Indígena" },
+  { value: "PREFERE_NAO_INFORMAR", label: "Prefere não informar" },
+] as const;
+
+export const generoOptions = [
+  { value: "FEMININO", label: "Feminino" },
+  { value: "MASCULINO", label: "Masculino" },
+  { value: "NAO_BINARIO", label: "Não binário" },
+  { value: "OUTRO", label: "Outro" },
+  { value: "PREFERE_NAO_INFORMAR", label: "Prefere não informar" },
+] as const;
+
+export const tipoDeficienciaOptions = [
+  { value: "NAO_POSSUI", label: "Não possui" },
+  { value: "FISICA", label: "Física" },
+  { value: "AUDITIVA", label: "Auditiva" },
+  { value: "VISUAL", label: "Visual" },
+  { value: "INTELECTUAL", label: "Intelectual" },
+  { value: "PSICOSSOCIAL", label: "Psicossocial" },
+  { value: "MULTIPLA", label: "Múltipla" },
+  {
+    value: "TRANSTORNO_ESPECTRO_AUTISTA",
+    label: "Transtorno do Espectro Autista",
+  },
+  { value: "OUTRA", label: "Outra" },
+  { value: "NAO_INFORMADO", label: "Não informado" },
+] as const;
+
 export type ColaboradorStatusApi =
   (typeof statusColaboradorOptions)[number]["value"];
 
 export type TipoVinculoApi = (typeof tipoVinculoOptions)[number]["value"];
+
+export type RacaCorApi = (typeof racaCorOptions)[number]["value"];
+
+export type GeneroApi = (typeof generoOptions)[number]["value"];
+
+export type TipoDeficienciaApi =
+  (typeof tipoDeficienciaOptions)[number]["value"];
 
 export interface ColaboradorDTO {
   id?: number;
@@ -91,6 +131,10 @@ export interface ColaboradorDTO {
   rg?: string | null;
   telefone?: string | null;
   email?: string | null;
+
+  racaCor?: RacaCorApi | string | null;
+  genero?: GeneroApi | string | null;
+  tipoDeficiencia?: TipoDeficienciaApi | string | null;
 
   cep?: string | null;
   logradouro?: string | null;
@@ -123,6 +167,10 @@ export interface Colaborador {
   rg: string;
   telefone: string;
   email: string;
+
+  racaCor: string;
+  genero: string;
+  tipoDeficiencia: string;
 
   cep: string;
   logradouro: string;
@@ -228,6 +276,30 @@ export function tipoVinculoValueToLabel(
   return map[tipo ?? ""] ?? tipo ?? "—";
 }
 
+export function racaCorValueToLabel(value?: string): string {
+  return (
+    racaCorOptions.find((item) => item.value === value)?.label ??
+    value ??
+    "—"
+  );
+}
+
+export function generoValueToLabel(value?: string): string {
+  return (
+    generoOptions.find((item) => item.value === value)?.label ??
+    value ??
+    "—"
+  );
+}
+
+export function tipoDeficienciaValueToLabel(value?: string): string {
+  return (
+    tipoDeficienciaOptions.find((item) => item.value === value)?.label ??
+    value ??
+    "—"
+  );
+}
+
 export function formatDateBR(value?: string) {
   if (!value) return "—";
 
@@ -248,9 +320,13 @@ export function mapColaborador(dto: ColaboradorDTO): Colaborador {
     telefone: dto.telefone ?? "",
     email: dto.email ?? "",
 
+    racaCor: dto.racaCor ?? "",
+    genero: dto.genero ?? "",
+    tipoDeficiencia: dto.tipoDeficiencia ?? "",
+
     cep: dto.cep ?? "",
     logradouro: dto.logradouro ?? "",
-    numero: dto.numero  ?? "",
+    numero: dto.numero ?? "",
     complemento: dto.complemento ?? "",
     bairro: dto.bairro ?? "",
     cidade: dto.cidade ?? "",
@@ -282,6 +358,10 @@ export function buildColaboradorPayload(form: Colaborador): ColaboradorDTO {
     rg: form.rg.trim() || null,
     telefone: form.telefone.trim(),
     email: form.email.trim() || null,
+
+    racaCor: form.racaCor || null,
+    genero: form.genero || null,
+    tipoDeficiencia: form.tipoDeficiencia || null,
 
     cep: form.cep.replace(/\D/g, ""),
     logradouro: form.logradouro.trim(),
@@ -319,6 +399,10 @@ export function createEmptyColaborador(): Colaborador {
     rg: "",
     telefone: "",
     email: "",
+
+    racaCor: "",
+    genero: "",
+    tipoDeficiencia: "",
 
     cep: "",
     logradouro: "",

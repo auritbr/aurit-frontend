@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   AlertTriangle,
-  ClipboardList,
   CalendarRange,
+  ClipboardList,
   Link2,
-  CircleDot,
+  Share2,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -23,27 +24,28 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
+import { MultiSelect } from "@/components/MultiSelect";
 import { toast } from "sonner";
 import {
   buildPlanoComunicacaoPayload,
   createEmptyPlanoComunicacao,
   createPlanoComunicacao,
   formatosComunicacaoOptions,
-  getAcoesDivulgacaoOptions,
-  getOrganizacoesOptions,
   getPlanoComunicacaoById,
+  getPropostasEditalOptions,
   statusPlanoComunicacaoOptions,
   updatePlanoComunicacao,
-  type AcaoDivulgacaoOption,
-  type OrganizacaoOption,
+  estrategiasDivulgacao,
+  estrategiaLabel,
   type PlanoComunicacao,
+  type PropostaEditalOption,
   type StatusPlanoComunicacao,
 } from "@/data/planoComunicacao";
 
-const EXECUCAO_DIVULGACAO_NEXT_STEP_KEY =
+const PLANO_COMUNICACAO_NEXT_STEP_KEY =
   "aurit:plano-comunicacao:next-step-card";
 
-interface ExecucaoDivulgacaoNextStepCardData {
+interface PlanoComunicacaoNextStepCardData {
   titulo: string;
   descricao: string;
   acaoLabel: string;
@@ -53,21 +55,21 @@ interface ExecucaoDivulgacaoNextStepCardData {
   variante?: "pendente" | "atencao" | "concluido" | "prioridade";
 }
 
-function salvarProximaAcaoExecucaoDivulgacao() {
-  const card: ExecucaoDivulgacaoNextStepCardData = {
+function salvarProximaAcaoPlanoComunicacao() {
+  const card: PlanoComunicacaoNextStepCardData = {
     titulo:
-      "Após detalhar a execução da divulgação, registre as movimentações financeiras",
+      "Após cadastrar o plano de comunicação, organize as ações de divulgação",
     descricao:
-      "O financeiro ajuda a acompanhar entradas e saídas vinculadas aos projetos e ações, organizar comprovantes, manter transparência e preparar relatórios e prestações de contas.",
-    acaoLabel: "Cadastrar financeiro",
-    acaoUrl: "/financeiro/novo",
-    acaoSecundariaLabel: "Ver execução da divulgação",
+      "As ações de divulgação ajudam a detalhar como o projeto será comunicado ao público, quais canais serão utilizados, quais resultados são esperados e quais registros poderão compor a prestação de contas.",
+    acaoLabel: "Cadastrar ação de divulgação",
+    acaoUrl: "/acoes-divulgacao/novo",
+    acaoSecundariaLabel: "Ver planos de comunicação",
     acaoSecundariaUrl: "/plano-comunicacao",
     variante: "pendente",
   };
 
   sessionStorage.setItem(
-    EXECUCAO_DIVULGACAO_NEXT_STEP_KEY,
+    PLANO_COMUNICACAO_NEXT_STEP_KEY,
     JSON.stringify(card),
   );
 }
@@ -80,30 +82,16 @@ function normalizeId(value: unknown): string {
   return String(value).trim();
 }
 
-function getAcaoNome(
-  acoes: AcaoDivulgacaoOption[],
-  acaoId: string,
+function getPropostaNome(
+  propostas: PropostaEditalOption[],
+  propostaId: string,
   plano?: PlanoComunicacao | null,
 ) {
   return (
-    acoes.find((acao) => normalizeId(acao.id) === acaoId)?.nome ||
-    (plano as any)?.nomeAcaoDivulgacao?.trim?.() ||
-    (plano as any)?.acaoDivulgacaoNome?.trim?.() ||
-    `Ação vinculada #${acaoId}`
-  );
-}
-
-function getOrganizacaoNome(
-  organizacoes: OrganizacaoOption[],
-  organizacaoId: string,
-  plano?: PlanoComunicacao | null,
-) {
-  return (
-    organizacoes.find((organizacao) => normalizeId(organizacao.id) === organizacaoId)
+    propostas.find((proposta) => normalizeId(proposta.id) === propostaId)
       ?.nome ||
-    (plano as any)?.nomeOrganizacao?.trim?.() ||
-    (plano as any)?.organizacaoNome?.trim?.() ||
-    `Organização vinculada #${organizacaoId}`
+    plano?.nomePropostaEdital?.trim?.() ||
+    `Proposta vinculada #${propostaId}`
   );
 }
 
@@ -122,17 +110,13 @@ export default function PlanoComunicacaoForm() {
     useState<PlanoComunicacao | null>(null);
   const [loading, setLoading] = useState<boolean>(!!id);
   const [saving, setSaving] = useState(false);
-  const [acoes, setAcoes] = useState<AcaoDivulgacaoOption[]>([]);
-  const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
+  const [propostas, setPropostas] = useState<PropostaEditalOption[]>([]);
 
   const bloqueado = visualizando || loading || saving;
 
-  const acaoSelectValue =
-    normalizeId(form.acaoDivulgacao) ||
-    normalizeId(existingPlano?.acaoDivulgacao);
-
-  const organizacaoSelectValue =
-    normalizeId(form.organizacao) || normalizeId(existingPlano?.organizacao);
+  const propostaSelectValue =
+    normalizeId(form.propostaEdital) ||
+    normalizeId(existingPlano?.propostaEdital);
 
   useEffect(() => {
     let active = true;
@@ -141,35 +125,27 @@ export default function PlanoComunicacaoForm() {
       try {
         setLoading(true);
 
-        const [acoesData, organizacoesData, registroData] = await Promise.all([
-          getAcoesDivulgacaoOptions(),
-          getOrganizacoesOptions(),
+        const [propostasData, registroData] = await Promise.all([
+          getPropostasEditalOptions(),
           id ? getPlanoComunicacaoById(Number(id)) : Promise.resolve(null),
         ]);
 
         if (!active) return;
 
-        setAcoes(acoesData);
-        setOrganizacoes(organizacoesData);
+        setPropostas(propostasData);
 
         if (registroData) {
           const registroNormalizado: PlanoComunicacao = {
             ...registroData,
-            acaoDivulgacao: normalizeId(registroData.acaoDivulgacao),
-            organizacao: normalizeId(registroData.organizacao),
+            propostaEdital: normalizeId(registroData.propostaEdital),
+            estrategiasDivulgacao: registroData.estrategiasDivulgacao ?? [],
           };
 
           setExistingPlano(registroNormalizado);
           setForm(registroNormalizado);
         } else {
           setExistingPlano(null);
-          setForm({
-            ...createEmptyPlanoComunicacao(),
-            organizacao:
-              organizacoesData.length === 1
-                ? normalizeId(organizacoesData[0].id)
-                : "",
-          });
+          setForm(createEmptyPlanoComunicacao());
         }
       } catch (error) {
         toast.error(
@@ -198,56 +174,62 @@ export default function PlanoComunicacaoForm() {
     }));
   };
 
-  const acoesComFallback = useMemo(() => {
-    const options = [...acoes];
-    const acaoId = acaoSelectValue;
+  const propostasComFallback = useMemo(() => {
+    const options = [...propostas];
+    const propostaId = propostaSelectValue;
 
     if (
-      acaoId &&
-      !options.some((acao) => normalizeId(acao.id) === acaoId)
+      propostaId &&
+      !options.some((proposta) => normalizeId(proposta.id) === propostaId)
     ) {
       options.unshift({
-        id: acaoId,
-        nome: getAcaoNome(acoes, acaoId, existingPlano),
+        id: propostaId,
+        nome: getPropostaNome(propostas, propostaId, existingPlano),
       });
     }
 
     return options;
-  }, [acoes, acaoSelectValue, existingPlano]);
+  }, [propostas, propostaSelectValue, existingPlano]);
 
-  const organizacoesComFallback = useMemo(() => {
-    const options = [...organizacoes];
-    const organizacaoId = organizacaoSelectValue;
+  const estrategiasSelecionadasLabels = form.estrategiasDivulgacao.map(
+    (value) => estrategiaLabel(value),
+  );
 
-    if (
-      organizacaoId &&
-      !options.some(
-        (organizacao) => normalizeId(organizacao.id) === organizacaoId,
+  const estrategiaOptions = estrategiasDivulgacao.map((item) => item.label);
+
+  function handleEstrategiasChange(labels: string[]) {
+    const values = labels
+      .map(
+        (label) =>
+          estrategiasDivulgacao.find((item) => item.label === label)?.value ??
+          label,
       )
-    ) {
-      options.unshift({
-        id: organizacaoId,
-        nome: getOrganizacaoNome(organizacoes, organizacaoId, existingPlano),
-      });
-    }
+      .filter(Boolean);
 
-    return options;
-  }, [organizacoes, organizacaoSelectValue, existingPlano]);
+    set(
+      "estrategiasDivulgacao",
+      values as PlanoComunicacao["estrategiasDivulgacao"],
+    );
+  }
 
   function getFormComVinculos(): PlanoComunicacao {
     return {
       ...form,
-      acaoDivulgacao: acaoSelectValue,
-      organizacao: organizacaoSelectValue,
+      propostaEdital: propostaSelectValue,
     };
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     if (visualizando) return;
 
     const formComVinculos = getFormComVinculos();
+
+    if (!formComVinculos.nomePlano.trim()) {
+      toast.error("Informe o nome do plano.");
+      return;
+    }
 
     if (!formComVinculos.quantidade.trim()) {
       toast.error("Informe a quantidade.");
@@ -261,6 +243,11 @@ export default function PlanoComunicacaoForm() {
 
     if (!formComVinculos.localCirculacaoComunicacao.trim()) {
       toast.error("Informe o local de circulação.");
+      return;
+    }
+
+    if (formComVinculos.estrategiasDivulgacao.length === 0) {
+      toast.error("Selecione ao menos uma estratégia de divulgação.");
       return;
     }
 
@@ -279,13 +266,13 @@ export default function PlanoComunicacaoForm() {
       return;
     }
 
-    if (!formComVinculos.acaoDivulgacao) {
-      toast.error("Selecione a ação de divulgação vinculada.");
+    if (!formComVinculos.propostaEdital) {
+      toast.error("Selecione a proposta de edital.");
       return;
     }
 
     if (!formComVinculos.status) {
-      toast.error("Selecione o status do registro.");
+      toast.error("Selecione o status do plano.");
       return;
     }
 
@@ -296,11 +283,11 @@ export default function PlanoComunicacaoForm() {
 
       if (editando && id) {
         await updatePlanoComunicacao(Number(id), payload);
-        toast.success("Execução da Divulgação atualizada com sucesso.");
+        toast.success("Plano de comunicação atualizado com sucesso.");
       } else {
         await createPlanoComunicacao(payload);
-        salvarProximaAcaoExecucaoDivulgacao();
-        toast.success("Execução da Divulgação cadastrada com sucesso.");
+        salvarProximaAcaoPlanoComunicacao();
+        toast.success("Plano de comunicação cadastrado com sucesso.");
       }
 
       navigate("/plano-comunicacao");
@@ -308,7 +295,7 @@ export default function PlanoComunicacaoForm() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Erro ao salvar Execução da Divulgação.",
+          : "Erro ao salvar plano de comunicação.",
       );
     } finally {
       setSaving(false);
@@ -328,8 +315,8 @@ export default function PlanoComunicacaoForm() {
         </button>
 
         <PageTitle
-          title="Execução da Divulgação"
-          tooltip="Registre como a ação de divulgação será executada na prática, informando formato, quantidade, período, local de circulação, ação vinculada, organização responsável e situação atual do registro."
+          title="Plano de Comunicação"
+          tooltip="Registre o plano de comunicação vinculado à proposta de edital, informando formato, quantidade, estratégias de divulgação, período, local de circulação e situação atual."
         />
 
         {visualizando && (
@@ -354,31 +341,30 @@ export default function PlanoComunicacaoForm() {
           />
 
           <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Use esta página para detalhar como uma ação de divulgação será
-            executada na prática: quais materiais serão produzidos, em que
-            quantidade, onde circularão, em qual período e qual será a situação
-            da execução.
+            Use esta página para detalhar o plano de comunicação da proposta:
+            quais materiais serão produzidos, em que quantidade, por quais
+            estratégias, onde circularão e em qual período.
           </p>
         </div>
 
         {!visualizando && <FormLegend />}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={ClipboardList} title="Informações da execução">
+          <Section icon={ClipboardList} title="Item, formato e quantidade">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
+              <Field full>
                 <FieldLabel
-                  htmlFor="quantidade"
+                  htmlFor="nomePlano"
                   required={!visualizando}
-                  tooltip="Informe a quantidade prevista ou realizada para este formato de comunicação. Ex.: 10 cartazes, 5 publicações, 2 vídeos, 100 panfletos ou 3 chamadas de rádio."
+                  tooltip="Informe um nome para identificar este plano de comunicação. Ex.: Divulgação das oficinas, Campanha de lançamento, Comunicação do evento de encerramento."
                 >
-                  Quantidade
+                  Nome do Plano
                 </FieldLabel>
 
                 <Input
-                  id="quantidade"
-                  value={form.quantidade}
-                  onChange={(e) => set("quantidade", e.target.value)}
+                  id="nomePlano"
+                  value={form.nomePlano}
+                  onChange={(e) => set("nomePlano", e.target.value)}
                   disabled={bloqueado}
                   readOnly={visualizando}
                 />
@@ -414,21 +400,19 @@ export default function PlanoComunicacaoForm() {
                 </Select>
               </Field>
 
-              <Field full>
+              <Field>
                 <FieldLabel
-                  htmlFor="localCirculacaoComunicacao"
+                  htmlFor="quantidade"
                   required={!visualizando}
-                  tooltip="Informe onde esta comunicação será divulgada ou distribuída. Pode ser um canal digital, espaço físico, território, instituição, mídia ou local de circulação do público. Ex.: Instagram da organização, grupos de WhatsApp da comunidade, escolas parceiras, rádio local, praça central, comércio do bairro ou site institucional."
+                  tooltip="Informe a quantidade prevista ou realizada para este formato de comunicação. Ex.: 10 cartazes, 5 publicações, 2 vídeos, 100 panfletos ou 3 chamadas de rádio."
                 >
-                  Local de Circulação
+                  Quantidade
                 </FieldLabel>
 
                 <Input
-                  id="localCirculacaoComunicacao"
-                  value={form.localCirculacaoComunicacao}
-                  onChange={(e) =>
-                    set("localCirculacaoComunicacao", e.target.value)
-                  }
+                  id="quantidade"
+                  value={form.quantidade}
+                  onChange={(e) => set("quantidade", e.target.value)}
                   disabled={bloqueado}
                   readOnly={visualizando}
                 />
@@ -436,19 +420,13 @@ export default function PlanoComunicacaoForm() {
             </div>
           </Section>
 
-          <Section icon={CalendarRange} title="Período">
-            <div className="mb-4 rounded-md border border-border bg-secondary/50 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-              Informe o período em que esta ação de comunicação será
-              executada. Esse dado ajuda a relacionar a divulgação ao
-              cronograma do projeto e às evidências geradas.
-            </div>
-
+          <Section icon={CalendarRange} title="Período e circulação">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="dataInicio"
                   required={!visualizando}
-                  tooltip="Informe a data prevista ou efetiva de início da execução desta ação de comunicação."
+                  tooltip="Informe a data prevista ou efetiva de início da execução deste plano de comunicação."
                 >
                   Data de Início
                 </FieldLabel>
@@ -467,7 +445,7 @@ export default function PlanoComunicacaoForm() {
                 <FieldLabel
                   htmlFor="dataFim"
                   required={!visualizando}
-                  tooltip="Informe a data prevista ou efetiva de encerramento desta ação de comunicação."
+                  tooltip="Informe a data prevista ou efetiva de encerramento deste plano de comunicação."
                 >
                   Data de Fim
                 </FieldLabel>
@@ -481,99 +459,102 @@ export default function PlanoComunicacaoForm() {
                   readOnly={visualizando}
                 />
               </Field>
-            </div>
-          </Section>
 
-          <Section icon={Link2} title="Vínculos">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
+              <Field full>
                 <FieldLabel
-                  htmlFor="acaoDivulgacao"
+                  htmlFor="localCirculacaoComunicacao"
                   required={!visualizando}
-                  tooltip="Selecione a ação de divulgação à qual esta Execução da Divulgação está vinculada. Esse vínculo conecta a execução prática ao planejamento da divulgação."
+                  tooltip="Informe onde esta comunicação será divulgada ou distribuída. Pode ser canal digital, espaço físico, território, instituição, mídia ou local de circulação do público."
                 >
-                  Ação de Divulgação
+                  Local de Circulação
                 </FieldLabel>
 
-                <Select
-                  value={acaoSelectValue}
-                  onValueChange={(value) =>
-                    set("acaoDivulgacao", normalizeId(value))
+                <Input
+                  id="localCirculacaoComunicacao"
+                  value={form.localCirculacaoComunicacao}
+                  onChange={(e) =>
+                    set("localCirculacaoComunicacao", e.target.value)
                   }
                   disabled={bloqueado}
-                >
-                  <SelectTrigger id="acaoDivulgacao">
-                    <SelectValue placeholder="Selecione a ação vinculada" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {acoesComFallback.length === 0 ? (
-                      <SelectItem value="sem-acao" disabled>
-                        Nenhuma ação de divulgação cadastrada
-                      </SelectItem>
-                    ) : (
-                      acoesComFallback.map((acao) => (
-                        <SelectItem
-                          key={normalizeId(acao.id)}
-                          value={normalizeId(acao.id)}
-                        >
-                          {acao.nome}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="organizacao"
-                  tooltip="Selecione a organização responsável por esta execução de comunicação, quando aplicável. Quando não informado, o backend deve vincular pelo tenant da empresa logada."
-                >
-                  Organização
-                </FieldLabel>
-
-                <Select
-                  value={organizacaoSelectValue}
-                  onValueChange={(value) =>
-                    set("organizacao", normalizeId(value))
-                  }
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="organizacao">
-                    <SelectValue placeholder="Vinculada pela empresa logada" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {organizacoesComFallback.length === 0 ? (
-                      <SelectItem value="sem-organizacao" disabled>
-                        Nenhuma organização cadastrada
-                      </SelectItem>
-                    ) : (
-                      organizacoesComFallback.map((organizacao) => (
-                        <SelectItem
-                          key={normalizeId(organizacao.id)}
-                          value={normalizeId(organizacao.id)}
-                        >
-                          {organizacao.nome}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                  readOnly={visualizando}
+                />
               </Field>
             </div>
           </Section>
 
-          <Section icon={CircleDot} title="Status">
+          <Section icon={Share2} title="Estratégia de divulgação">
             <div className="grid gap-4 sm:grid-cols-2">
+              <Field full>
+                <FieldLabel
+                  htmlFor="estrategiasDivulgacao"
+                  required={!visualizando}
+                  tooltip="Selecione um ou mais meios utilizados para divulgação da comunicação. Ex.: redes sociais, cartazes, mídia local, rádio, parcerias, site ou mobilização comunitária."
+                >
+                  Estratégias de Divulgação
+                </FieldLabel>
+
+                <div
+                  className={visualizando ? "pointer-events-none opacity-80" : ""}
+                >
+                  <MultiSelect
+                    id="estrategiasDivulgacao"
+                    options={estrategiaOptions}
+                    value={estrategiasSelecionadasLabels}
+                    onChange={handleEstrategiasChange}
+                  />
+                </div>
+              </Field>
+            </div>
+          </Section>
+
+          <Section icon={Link2} title="Vínculo e status">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="propostaEdital"
+                  required={!visualizando}
+                  tooltip="Selecione a proposta de edital à qual este plano de comunicação está vinculado."
+                >
+                  Proposta de Edital
+                </FieldLabel>
+
+                <Select
+                  value={propostaSelectValue}
+                  onValueChange={(value) =>
+                    set("propostaEdital", normalizeId(value))
+                  }
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="propostaEdital">
+                    <SelectValue placeholder="Selecione a proposta vinculada" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {propostasComFallback.length === 0 ? (
+                      <SelectItem value="sem-proposta" disabled>
+                        Nenhuma proposta de edital cadastrada
+                      </SelectItem>
+                    ) : (
+                      propostasComFallback.map((proposta) => (
+                        <SelectItem
+                          key={normalizeId(proposta.id)}
+                          value={normalizeId(proposta.id)}
+                        >
+                          {proposta.nome}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </Field>
+
               <Field>
                 <FieldLabel
                   htmlFor="status"
                   required={!visualizando}
-                  tooltip="Indique a situação atual deste registro de comunicação. Use “Ativo” para ações em execução ou acompanhamento, “Pendente” para ações não iniciadas ou em conferência, “Concluído” para ações finalizadas conforme previsto e “Inativo” para registros que não devem mais ser considerados ativos."
+                  tooltip="Indique a situação atual deste plano. Use Ativo para registros em execução, Pendente para registros não iniciados ou em conferência, Concluído para finalizados e Inativo para registros que não devem mais ser considerados ativos."
                 >
-                  Status do Registro
+                  Status do Plano
                 </FieldLabel>
 
                 <Select
@@ -611,7 +592,16 @@ export default function PlanoComunicacaoForm() {
 
             {!visualizando && (
               <Button type="submit" className="sm:min-w-40" disabled={saving}>
-                {saving ? "Salvando..." : "Salvar registro"}
+                {saving ? "Salvando..." : "Salvar plano"}
+              </Button>
+            )}
+
+            {visualizando && id && (
+              <Button
+                type="button"
+                onClick={() => navigate(`/plano-comunicacao/${id}/editar`)}
+              >
+                Editar
               </Button>
             )}
           </div>
@@ -626,7 +616,7 @@ function Section({
   title,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
   children: React.ReactNode;
 }) {

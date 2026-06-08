@@ -973,7 +973,7 @@ export default function AgenteForm() {
                 }
               >
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Field full>
+                  <Field>
                     <FieldLabel htmlFor="razaoSocial" required>
                       Razão Social
                     </FieldLabel>
@@ -987,7 +987,7 @@ export default function AgenteForm() {
                     />
                   </Field>
 
-                  <Field full>
+                  <Field>
                     <FieldLabel htmlFor="nomeFantasia">
                       Nome Fantasia
                     </FieldLabel>
@@ -1062,7 +1062,7 @@ export default function AgenteForm() {
             <>
               <Section icon={Users2} title="Dados do coletivo">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Field full>
+                  <Field>
                     <FieldLabel htmlFor="nomeColetivo" required>
                       Nome do Coletivo
                     </FieldLabel>
@@ -1234,7 +1234,6 @@ function PessoaFisicaFields({
       <Field>
         <FieldLabel
           htmlFor={id("rg")}
-          tooltip="Informe o RG do agente ou representante, quando houver."
         >
           RG
         </FieldLabel>
@@ -1267,7 +1266,6 @@ function PessoaFisicaFields({
       <Field>
         <FieldLabel
           htmlFor={id("email")}
-          tooltip="Informe um e-mail válido para contato com o agente ou representante. Este campo pode ser usado em documentos, comunicações e registros institucionais."
         >
           E-mail
         </FieldLabel>

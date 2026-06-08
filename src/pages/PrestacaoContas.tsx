@@ -8,11 +8,12 @@ import {
   FileSpreadsheet,
   ClipboardCheck,
   Paperclip,
-  Wallet,
   Eye,
   FileDown,
+  Target
 } from "lucide-react";
 
+import { PageInfoCard } from "@/components/PageInfoCard";
 import { AppLayout } from "@/components/AppLayout";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
@@ -37,13 +38,19 @@ import {
   getPrestacoesContas,
   deletePrestacaoContas,
   getPropostasEditalOptions,
-  getPlanejamentosFinanceirosOptions,
-  statusPrestacaoContasLabel,
-  statusPrestacaoContasTone,
+  getAgentesOptions,
+  getPrestacaoMetasOptions,
+  getEquipeProjetoOptions,
+  getAcoesDivulgacaoOptions,
+  produtosGeradosTexto,
+  produtoGeradoLabel,
   formatDateBr,
   type PrestacaoContas,
   type PropostaEditalOption,
-  type PlanejamentoFinanceiroOption,
+  type AgenteOption,
+  type PrestacaoMetaOption,
+  type EquipeProjetoOption,
+  type AcaoDivulgacaoOption,
 } from "@/data/prestacaoContas";
 import {
   AlertDialog,
@@ -71,29 +78,6 @@ interface PrestacaoContasNextStepCardData {
   variante?: "pendente" | "atencao" | "concluido" | "prioridade";
 }
 
-const toneClass: Record<string, string> = {
-  neutral: "bg-muted text-muted-foreground border-border",
-  info: "bg-primary/10 text-primary border-primary/20",
-  warning:
-    "bg-[hsl(var(--status-pending-bg))] text-[hsl(var(--status-pending-fg))] border-[hsl(var(--status-pending-fg)/0.3)]",
-  success:
-    "bg-[hsl(var(--status-active-bg))] text-[hsl(var(--status-active-fg))] border-[hsl(var(--status-active-fg)/0.3)]",
-  danger: "bg-destructive/10 text-destructive border-destructive/20",
-};
-
-function StatusBadge({ value }: { value: string }) {
-  const tone = statusPrestacaoContasTone(value);
-
-  return (
-    <span
-      className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${toneClass[tone] ?? toneClass.neutral
-        }`}
-    >
-      {statusPrestacaoContasLabel(value)}
-    </span>
-  );
-}
-
 export default function PrestacaoContasPage() {
   const navigate = useNavigate();
   const tableRef = useRef<HTMLTableElement>(null);
@@ -101,8 +85,13 @@ export default function PrestacaoContasPage() {
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<PrestacaoContas[]>([]);
   const [propostas, setPropostas] = useState<PropostaEditalOption[]>([]);
-  const [planejamentos, setPlanejamentos] = useState<
-    PlanejamentoFinanceiroOption[]
+  const [agentes, setAgentes] = useState<AgenteOption[]>([]);
+  const [prestacaoMetas, setPrestacaoMetas] = useState<PrestacaoMetaOption[]>(
+    [],
+  );
+  const [equipeProjeto, setEquipeProjeto] = useState<EquipeProjetoOption[]>([]);
+  const [acoesDivulgacao, setAcoesDivulgacao] = useState<
+    AcaoDivulgacaoOption[]
   >([]);
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
@@ -191,16 +180,28 @@ export default function PrestacaoContasPage() {
       setLoading(true);
       setAccessDeniedMessage(null);
 
-      const [prestacoesData, propostasData, planejamentosData] =
-        await Promise.all([
-          getPrestacoesContas(),
-          getPropostasEditalOptions(),
-          getPlanejamentosFinanceirosOptions(),
-        ]);
+      const [
+        prestacoesData,
+        propostasData,
+        agentesData,
+        prestacaoMetasData,
+        equipeData,
+        acoesData,
+      ] = await Promise.all([
+        getPrestacoesContas(),
+        getPropostasEditalOptions(),
+        getAgentesOptions(),
+        getPrestacaoMetasOptions(),
+        getEquipeProjetoOptions(),
+        getAcoesDivulgacaoOptions(),
+      ]);
 
       setItems(prestacoesData);
       setPropostas(propostasData);
-      setPlanejamentos(planejamentosData);
+      setAgentes(agentesData);
+      setPrestacaoMetas(prestacaoMetasData);
+      setEquipeProjeto(equipeData);
+      setAcoesDivulgacao(acoesData);
     } catch (error) {
       const message =
         error instanceof Error
@@ -223,16 +224,51 @@ export default function PrestacaoContasPage() {
       ? propostas.find((item) => String(item.id) === String(id))?.nome ?? "—"
       : "—";
 
-  const planejamentoFinanceiroNome = (id?: string) =>
+  const agenteNome = (id?: string) =>
     id
-      ? planejamentos.find((item) => String(item.id) === String(id))?.nome ??
-      `#${id}`
+      ? agentes.find((item) => String(item.id) === String(id))?.nome ?? "—"
       : "—";
 
-  const planejamentosFinanceirosNomes = (ids?: string[]) => {
+  const prestacaoMetaNome = (id?: string) =>
+    id
+      ? prestacaoMetas.find((item) => String(item.id) === String(id))?.nome ??
+      `Prestação de meta ${id}`
+      : "—";
+
+  const equipeNome = (id?: string) => {
+    if (!id) return "—";
+
+    const item = equipeProjeto.find((entry) => String(entry.id) === String(id));
+
+    if (!item) return `Membro ${id}`;
+
+    return item.funcao ? `${item.nome} — ${item.funcao}` : item.nome;
+  };
+
+  const acaoDivulgacaoNome = (id?: string) =>
+    id
+      ? acoesDivulgacao.find((item) => String(item.id) === String(id))?.nome ??
+      `Ação ${id}`
+      : "—";
+
+  const prestacaoMetasTexto = (item: PrestacaoContas) => {
+    if (!item.prestacaoMetas || item.prestacaoMetas.length === 0) return "—";
+
+    return item.prestacaoMetas
+      .map((meta) => prestacaoMetaNome(meta.id))
+      .join(", ");
+  };
+
+  const equipeProjetoTexto = (ids?: string[]) => {
     if (!ids || ids.length === 0) return "—";
 
-    return ids.map((id) => planejamentoFinanceiroNome(id)).join(", ");
+    return ids.map((id) => equipeNome(id)).join(", ");
+  };
+
+  const acoesDivulgacaoTexto = (ids?: string[]) => {
+    if (!ids || ids.length === 0) return "—";
+
+    return ids.map((id) => acaoDivulgacaoNome(id)).join(", ");
   };
 
   const filtered = useMemo(() => {
@@ -242,26 +278,41 @@ export default function PrestacaoContasPage() {
 
     return items.filter((item) => {
       const proposta = propostaEditalNome(item.propostaEdital).toLowerCase();
-      const planejamentosTexto = planejamentosFinanceirosNomes(
-        item.planejamentosFinanceiros,
+      const agente = agenteNome(item.agente).toLowerCase();
+      const prestacoesMetasTexto = prestacaoMetasTexto(item).toLowerCase();
+      const produtosTexto = produtosGeradosTexto(item.produtosGerados)
+        .toLowerCase();
+      const equipeTexto = equipeProjetoTexto(item.equipeProjeto).toLowerCase();
+      const acoesTexto = acoesDivulgacaoTexto(
+        item.acoesDivulgacao,
       ).toLowerCase();
 
-      return (
-        proposta.includes(s) ||
-        planejamentosTexto.includes(s) ||
-        statusPrestacaoContasLabel(item.statusPrestacaoContas)
-          .toLowerCase()
-          .includes(s) ||
-        formatDateBr(item.periodoInicio).toLowerCase().includes(s) ||
-        formatDateBr(item.periodoFim).toLowerCase().includes(s) ||
-        formatDateBr(item.dataEnvio).toLowerCase().includes(s) ||
-        formatDateBr(item.dataAprovacao).toLowerCase().includes(s) ||
-        (item.observacoesGerais ?? "").toLowerCase().includes(s) ||
-        (item.parecerInterno ?? "").toLowerCase().includes(s) ||
-        (item.parecerExterno ?? "").toLowerCase().includes(s)
-      );
+      return [
+        proposta,
+        agente,
+        prestacoesMetasTexto,
+        produtosTexto,
+        equipeTexto,
+        acoesTexto,
+        formatDateBr(item.dataEntrega),
+        item.outrosProdutosGerados,
+        item.disponibilizacaoProdutosPublico,
+        item.resultadosGeradosProjeto,
+        item.resumoResultados,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(s);
     });
-  }, [search, items, propostas, planejamentos]);
+  }, [
+    search,
+    items,
+    propostas,
+    agentes,
+    prestacaoMetas,
+    equipeProjeto,
+    acoesDivulgacao,
+  ]);
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
     usePagination(filtered, 25, search);
@@ -314,29 +365,22 @@ export default function PrestacaoContasPage() {
       return;
     }
 
-    const proposta = propostaEditalNome(item.propostaEdital);
-
-    const planejamentosPdf =
-      item.planejamentosFinanceiros?.length > 0
-        ? item.planejamentosFinanceiros.map((id) =>
-          planejamentoFinanceiroNome(id),
-        )
-        : [];
-
-    const status = statusPrestacaoContasLabel(item.statusPrestacaoContas);
-
     await exportPrestacaoContasPdf({
       id: item.id,
-      propostaEdital: proposta,
-      planejamentosFinanceiros: planejamentosPdf,
-      periodoInicio: item.periodoInicio,
-      periodoFim: item.periodoFim,
-      dataEnvio: item.dataEnvio,
-      dataAprovacao: item.dataAprovacao,
-      statusPrestacaoContas: status,
-      parecerInterno: item.parecerInterno,
-      parecerExterno: item.parecerExterno,
-      observacoesGerais: item.observacoesGerais,
+      propostaEdital: propostaEditalNome(item.propostaEdital),
+      agente: agenteNome(item.agente),
+      dataEntrega: item.dataEntrega,
+      produtosGerados: item.produtosGerados.map(produtoGeradoLabel),
+      outrosProdutosGerados: item.outrosProdutosGerados,
+      prestacaoMetas: item.prestacaoMetas.map((meta) =>
+        prestacaoMetaNome(meta.id),
+      ),
+      equipeProjeto: item.equipeProjeto.map(equipeNome),
+      acoesDivulgacao: item.acoesDivulgacao.map(acaoDivulgacaoNome),
+      disponibilizacaoProdutosPublico:
+        item.disponibilizacaoProdutosPublico,
+      resultadosGeradosProjeto: item.resultadosGeradosProjeto,
+      resumoResultados: item.resumoResultados,
     });
   }
 
@@ -367,7 +411,7 @@ export default function PrestacaoContasPage() {
               </h1>
 
               <HelpTooltip
-                text="Organize o acompanhamento da prestação de contas do projeto, registrando período, datas de envio e aprovação, pareceres, observações e vínculos com proposta e planejamento financeiro. Esta página ajuda a controlar a situação da prestação e manter o histórico do processo atualizado."
+                text="Organize o relatório de entrega da execução cultural, vinculando a prestação à proposta de edital, agente responsável, prestações de metas já cadastradas, produtos gerados, equipe do projeto, ações de divulgação e resumo dos resultados."
                 label="Prestação de Contas"
                 size="md"
                 side="bottom"
@@ -390,12 +434,13 @@ export default function PrestacaoContasPage() {
           />
         )}
 
-        <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          Use esta página para acompanhar o processo de prestação de contas do
-          projeto. Registre períodos, datas importantes, pareceres, observações
-          e mantenha o status atualizado para facilitar conferências,
-          comprovações e histórico do processo.
-        </div>
+        <PageInfoCard
+          description="Use esta página para registrar o relatório de entrega da prestação de
+          contas, reunindo data de entrega, prestações de metas já cadastradas,
+          produtos gerados, equipe envolvida, ações de divulgação e resultados
+          alcançados pelo projeto."
+          icon={Target}
+        />
 
         <div className="rounded border border-border bg-card">
           <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
@@ -422,18 +467,18 @@ export default function PrestacaoContasPage() {
           </div>
 
           <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[1280px]">
+            <table ref={tableRef} className="w-full min-w-[1320px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   {[
                     "Ações",
                     "Proposta de edital",
-                    "Planejamentos financeiros",
-                    "Período inicial",
-                    "Período final",
-                    "Data de envio",
-                    "Data de aprovação",
-                    "Status da prestação",
+                    "Agente",
+                    "Data de entrega",
+                    "Produtos gerados",
+                    "Prestações de metas",
+                    "Equipe do projeto",
+                    "Ações de divulgação",
                   ].map((header) => (
                     <th
                       key={header}
@@ -458,8 +503,12 @@ export default function PrestacaoContasPage() {
               <tbody>
                 {paginated.map((item) => {
                   const proposta = propostaEditalNome(item.propostaEdital);
-                  const planejamentosTexto = planejamentosFinanceirosNomes(
-                    item.planejamentosFinanceiros,
+                  const agente = agenteNome(item.agente);
+                  const produtos = produtosGeradosTexto(item.produtosGerados);
+                  const prestacoesMetasTexto = prestacaoMetasTexto(item);
+                  const equipeTexto = equipeProjetoTexto(item.equipeProjeto);
+                  const acoesTexto = acoesDivulgacaoTexto(
+                    item.acoesDivulgacao,
                   );
 
                   return (
@@ -491,7 +540,7 @@ export default function PrestacaoContasPage() {
 
                           <TableActionIcon
                             icon={ClipboardCheck}
-                            label="Ver metas prestadas"
+                            label="Ver prestações de metas"
                             onClick={() => navigate("/prestacao-metas")}
                           />
 
@@ -499,14 +548,6 @@ export default function PrestacaoContasPage() {
                             icon={Paperclip}
                             label="Ver evidências"
                             onClick={() => navigate("/evidencias")}
-                          />
-
-                          <TableActionIcon
-                            icon={Wallet}
-                            label="Ver planejamento financeiro"
-                            onClick={() =>
-                              navigate("/planejamento-financeiro")
-                            }
                           />
 
                           {podeExcluir && (
@@ -527,49 +568,42 @@ export default function PrestacaoContasPage() {
                       </td>
 
                       <td className="px-6 py-2.5">
-                        <TableCellText text={planejamentosTexto} muted>
-                          {planejamentosTexto}
+                        <TableCellText text={agente} muted>
+                          {agente}
                         </TableCellText>
                       </td>
 
                       <td className="whitespace-nowrap px-6 py-2.5">
                         <TableCellText
-                          text={formatDateBr(item.periodoInicio)}
+                          text={formatDateBr(item.dataEntrega)}
                           muted
                         >
-                          {formatDateBr(item.periodoInicio)}
+                          {formatDateBr(item.dataEntrega)}
                         </TableCellText>
                       </td>
 
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText
-                          text={formatDateBr(item.periodoFim)}
-                          muted
-                        >
-                          {formatDateBr(item.periodoFim)}
+                      <td className="px-6 py-2.5">
+                        <TableCellText text={produtos} muted>
+                          {produtos}
                         </TableCellText>
                       </td>
 
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText
-                          text={formatDateBr(item.dataEnvio)}
-                          muted
-                        >
-                          {formatDateBr(item.dataEnvio)}
+                      <td className="px-6 py-2.5">
+                        <TableCellText text={prestacoesMetasTexto} muted>
+                          {prestacoesMetasTexto}
                         </TableCellText>
                       </td>
 
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText
-                          text={formatDateBr(item.dataAprovacao)}
-                          muted
-                        >
-                          {formatDateBr(item.dataAprovacao)}
+                      <td className="px-6 py-2.5">
+                        <TableCellText text={equipeTexto} muted>
+                          {equipeTexto}
                         </TableCellText>
                       </td>
 
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <StatusBadge value={item.statusPrestacaoContas} />
+                      <td className="px-6 py-2.5">
+                        <TableCellText text={acoesTexto} muted>
+                          {acoesTexto}
+                        </TableCellText>
                       </td>
 
                       {podeGerarPdf && (
@@ -639,7 +673,7 @@ export default function PrestacaoContasPage() {
 
                       <TableActionIcon
                         icon={ClipboardCheck}
-                        label="Ver metas"
+                        label="Ver prestações de metas"
                         onClick={() => navigate("/prestacao-metas")}
                       />
 
@@ -647,12 +681,6 @@ export default function PrestacaoContasPage() {
                         icon={Paperclip}
                         label="Ver evidências"
                         onClick={() => navigate("/evidencias")}
-                      />
-
-                      <TableActionIcon
-                        icon={Wallet}
-                        label="Ver planejamento"
-                        onClick={() => navigate("/planejamento-financeiro")}
                       />
 
                       {podeExcluir && (
@@ -683,38 +711,28 @@ export default function PrestacaoContasPage() {
                   </p>
 
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {planejamentosFinanceirosNomes(
-                      item.planejamentosFinanceiros,
-                    )}
+                    Agente: {agenteNome(item.agente)}
                   </p>
 
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <StatusBadge value={item.statusPrestacaoContas} />
-
-                    <span className="text-xs text-muted-foreground">
-                      Período:{" "}
-                      <span className="text-foreground">
-                        {formatDateBr(item.periodoInicio)} →{" "}
-                        {formatDateBr(item.periodoFim)}
-                      </span>
-                    </span>
-                  </div>
-
-                  <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span>
-                      Envio:{" "}
+                      Entrega:{" "}
                       <span className="text-foreground">
-                        {formatDateBr(item.dataEnvio)}
+                        {formatDateBr(item.dataEntrega)}
                       </span>
                     </span>
 
                     <span>
-                      Aprovação:{" "}
+                      Produtos:{" "}
                       <span className="text-foreground">
-                        {formatDateBr(item.dataAprovacao)}
+                        {produtosGeradosTexto(item.produtosGerados)}
                       </span>
                     </span>
                   </div>
+
+                  <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                    {item.resumoResultados || "Sem resumo informado."}
+                  </p>
                 </div>
               ))
             )}

@@ -17,6 +17,7 @@ import {
   FileCheck2,
   ClipboardCheck,
   LifeBuoy,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -111,7 +112,7 @@ const sections: Section[] = [
     ],
   },
   {
-    id: "institucional",
+    id: "organizacao-equipe",
     groups: [
       {
         id: "institucional",
@@ -165,6 +166,7 @@ const sections: Section[] = [
         icon: PlayCircle,
         items: [
           { title: "Atividades", url: "/atividades" },
+          { title: "Plano de Aula", url: "/planos-aula" },
           { title: "Turmas", url: "/turmas" },
           { title: "Presenças", url: "/presencas" },
         ],
@@ -173,15 +175,7 @@ const sections: Section[] = [
         id: "acoes-culturais",
         title: "Ações Culturais",
         icon: Sparkles,
-        items: [
-          { title: "Eventos Culturais", url: "/eventos-culturais" },
-          { title: "Ações de Divulgação", url: "/acoes-divulgacao" },
-          {
-            title: "Execução da Divulgação",
-            url: "/plano-comunicacao",
-            paidOnly: true,
-          },
-        ],
+        items: [{ title: "Eventos Culturais", url: "/eventos-culturais" }],
       },
       {
         id: "evidencias",
@@ -193,7 +187,7 @@ const sections: Section[] = [
     ],
   },
   {
-    id: "editais-gestao",
+    id: "editais",
     groups: [
       {
         id: "editais",
@@ -204,11 +198,18 @@ const sections: Section[] = [
           { title: "Editais", url: "/editais" },
           { title: "Propostas de Edital", url: "/propostas-edital" },
           { title: "Equipe da Proposta", url: "/equipe-edital" },
-          { title: "Orçamento da Proposta", url: "/planejamento-financeiro" },
+          { title: "Plano de Comunicação", url: "/plano-comunicacao" },
+          { title: "Ações de Divulgação", url: "/acoes-divulgacao" },
+          { title: "Aplicação de Recursos", url: "/aplicacao-de-recursos" },
           { title: "Resultado da Proposta", url: "/resultados-propostas" },
           { title: "Habilitação Documental", url: "/habilitacoes-propostas" },
         ],
       },
+    ],
+  },
+  {
+    id: "financeiro-prestacao",
+    groups: [
       {
         id: "financeiro",
         title: "Financeiro",
@@ -226,6 +227,11 @@ const sections: Section[] = [
           { title: "Cumprimento de Metas", url: "/prestacao-metas" },
         ],
       },
+    ],
+  },
+  {
+    id: "patrimonio-trajetorias",
+    groups: [
       {
         id: "patrimonio",
         title: "Patrimônio",
@@ -499,8 +505,9 @@ export function AppSidebar() {
       >
         <direct.icon
           className={`h-[16px] w-[16px] flex-shrink-0 transition-colors ${active
-            ? "text-sidebar-primary"
-            : "text-sidebar-foreground/65 group-hover/item:text-sidebar-foreground"}`}
+              ? "text-sidebar-primary"
+              : "text-sidebar-foreground/65 group-hover/item:text-sidebar-foreground"
+            }`}
           strokeWidth={1.85}
         />
 
@@ -553,8 +560,8 @@ export function AppSidebar() {
                 >
                   <group.icon
                     className={`h-[16px] w-[16px] ${activeInGroup
-                      ? "text-sidebar-primary"
-                      : "text-sidebar-foreground/60"
+                        ? "text-sidebar-primary"
+                        : "text-sidebar-foreground/60"
                       }`}
                     strokeWidth={1.85}
                   />
@@ -574,14 +581,14 @@ export function AppSidebar() {
             <button
               type="button"
               className={`group/trigger flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-[13px] transition-all duration-150 ${activeInGroup
-                ? "text-sidebar-accent-foreground"
-                : "text-sidebar-foreground/75 hover:bg-sidebar-accent/40 hover:text-sidebar-accent-foreground"
+                  ? "text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/75 hover:bg-sidebar-accent/40 hover:text-sidebar-accent-foreground"
                 }`}
             >
               <group.icon
                 className={`h-[16px] w-[16px] flex-shrink-0 transition-colors ${activeInGroup
-                  ? "text-sidebar-primary"
-                  : "text-sidebar-foreground/60 group-hover/trigger:text-sidebar-foreground/90"
+                    ? "text-sidebar-primary"
+                    : "text-sidebar-foreground/60 group-hover/trigger:text-sidebar-foreground/90"
                   }`}
                 strokeWidth={1.85}
               />

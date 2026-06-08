@@ -15,7 +15,6 @@ import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { HelpTooltip } from "@/components/HelpTooltip";
 import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { StatusPill, type Status } from "@/components/StatusPill";
@@ -33,13 +32,13 @@ import {
 } from "@/lib/permissoes";
 import {
   deletePlanoComunicacao,
-  getAcoesDivulgacaoOptions,
-  getOrganizacoesOptions,
+  estrategiasPlanoComunicacaoTexto,
+  formatDateBr,
   getPlanosComunicacao,
+  getPropostasEditalOptions,
   statusPlanoComunicacaoLabel,
-  type AcaoDivulgacaoOption,
-  type OrganizacaoOption,
   type PlanoComunicacao,
+  type PropostaEditalOption,
 } from "@/data/planoComunicacao";
 import {
   AlertDialog,
@@ -53,11 +52,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
-const EXECUCAO_DIVULGACAO_NEXT_STEP_KEY =
+const PLANO_COMUNICACAO_NEXT_STEP_KEY =
   "aurit:plano-comunicacao:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
 
-interface ExecucaoDivulgacaoNextStepCardData {
+interface PlanoComunicacaoNextStepCardData {
   titulo: string;
   descricao: string;
   acaoLabel: string;
@@ -67,24 +66,13 @@ interface ExecucaoDivulgacaoNextStepCardData {
   variante?: "pendente" | "atencao" | "concluido" | "prioridade";
 }
 
-const formatDateBR = (iso: string) => {
-  if (!iso) return "—";
-
-  const [year, month, day] = iso.split("-");
-
-  if (!year || !month || !day) return "—";
-
-  return `${day}/${month}/${year}`;
-};
-
 export default function PlanoComunicacaoPage() {
   const navigate = useNavigate();
   const tableRef = useRef<HTMLTableElement>(null);
 
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<PlanoComunicacao[]>([]);
-  const [acoes, setAcoes] = useState<AcaoDivulgacaoOption[]>([]);
-  const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
+  const [propostas, setPropostas] = useState<PropostaEditalOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -92,7 +80,7 @@ export default function PlanoComunicacaoPage() {
     null,
   );
   const [nextStepCard, setNextStepCard] =
-    useState<ExecucaoDivulgacaoNextStepCardData | null>(null);
+    useState<PlanoComunicacaoNextStepCardData | null>(null);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
 
@@ -134,18 +122,18 @@ export default function PlanoComunicacaoPage() {
   }, []);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem(EXECUCAO_DIVULGACAO_NEXT_STEP_KEY);
+    const raw = sessionStorage.getItem(PLANO_COMUNICACAO_NEXT_STEP_KEY);
 
     if (!raw) return;
 
     try {
-      const parsed = JSON.parse(raw) as ExecucaoDivulgacaoNextStepCardData;
+      const parsed = JSON.parse(raw) as PlanoComunicacaoNextStepCardData;
       setNextStepCard(parsed);
     } catch {
       setNextStepCard(null);
     }
 
-    sessionStorage.removeItem(EXECUCAO_DIVULGACAO_NEXT_STEP_KEY);
+    sessionStorage.removeItem(PLANO_COMUNICACAO_NEXT_STEP_KEY);
 
     const timer = window.setTimeout(() => {
       setNextStepCard(null);
@@ -172,20 +160,18 @@ export default function PlanoComunicacaoPage() {
       setLoading(true);
       setAccessDeniedMessage(null);
 
-      const [execucoesData, acoesData, organizacoesData] = await Promise.all([
+      const [planosData, propostasData] = await Promise.all([
         getPlanosComunicacao(),
-        getAcoesDivulgacaoOptions(),
-        getOrganizacoesOptions(),
+        getPropostasEditalOptions(),
       ]);
 
-      setItems(execucoesData);
-      setAcoes(acoesData);
-      setOrganizacoes(organizacoesData);
+      setItems(planosData);
+      setPropostas(propostasData);
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : "Erro ao carregar Execuções da Divulgação.";
+          : "Erro ao carregar planos de comunicação.";
 
       if (isPlanoAccessDenied(message)) {
         setAccessDeniedMessage(message);
@@ -198,13 +184,14 @@ export default function PlanoComunicacaoPage() {
     }
   }
 
-  const acaoNome = (id: string) =>
-    id ? acoes.find((acao) => acao.id === id)?.nome ?? "—" : "—";
+  const propostaNome = (item: PlanoComunicacao) => {
+    if (item.nomePropostaEdital) return item.nomePropostaEdital;
 
-  const organizacaoNome = (id: string) =>
-    id
-      ? organizacoes.find((organizacao) => organizacao.id === id)?.nome ?? "—"
+    return item.propostaEdital
+      ? propostas.find((proposta) => proposta.id === item.propostaEdital)
+        ?.nome ?? "—"
       : "—";
+  };
 
   const statusLabel = (status?: PlanoComunicacao["status"]) => {
     if (!status) return null;
@@ -221,20 +208,22 @@ export default function PlanoComunicacaoPage() {
 
     return items.filter((item) =>
       [
+        item.nomePlano,
         item.quantidade,
         item.formatoPlanoComunicacao,
         item.localCirculacaoComunicacao,
-        acaoNome(item.acaoDivulgacao),
-        organizacaoNome(item.organizacao),
+        estrategiasPlanoComunicacaoTexto(item.estrategiasDivulgacao),
+        propostaNome(item),
+        item.nomeEdital,
         statusPlanoComunicacaoLabel(item.status),
-        formatDateBR(item.dataInicio),
-        formatDateBR(item.dataFim),
+        formatDateBr(item.dataInicio),
+        formatDateBr(item.dataFim),
       ]
         .join(" ")
         .toLowerCase()
         .includes(term),
     );
-  }, [search, items, acoes, organizacoes]);
+  }, [search, items, propostas]);
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
     usePagination(filtered, 25, search);
@@ -254,9 +243,7 @@ export default function PlanoComunicacaoPage() {
     if (!confirmDelete) return;
 
     if (!podeExcluir) {
-      toast.error(
-        "Você não possui permissão para excluir Execução da Divulgação.",
-      );
+      toast.error("Você não possui permissão para excluir plano de comunicação.");
       setConfirmDelete(null);
       return;
     }
@@ -265,13 +252,13 @@ export default function PlanoComunicacaoPage() {
       await deletePlanoComunicacao(Number(confirmDelete));
 
       setItems((prev) => prev.filter((item) => item.id !== confirmDelete));
-      toast.success("Execução da Divulgação excluída com sucesso.");
+      toast.success("Plano de comunicação excluído com sucesso.");
       setConfirmDelete(null);
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : "Erro ao excluir Execução da Divulgação.";
+          : "Erro ao excluir plano de comunicação.";
 
       if (isPlanoAccessDenied(message)) {
         setAccessDeniedMessage(message);
@@ -291,15 +278,28 @@ export default function PlanoComunicacaoPage() {
 
     await exportPlanoComunicacaoPdf({
       id: item.id,
+      nomePlano: item.nomePlano,
       quantidade: item.quantidade,
       formatoPlanoComunicacao: item.formatoPlanoComunicacao,
       localCirculacaoComunicacao: item.localCirculacaoComunicacao,
+      estrategiasDivulgacao: estrategiasPlanoComunicacaoTexto(
+        item.estrategiasDivulgacao,
+      ),
       dataInicio: item.dataInicio,
       dataFim: item.dataFim,
-      acaoDivulgacao: acaoNome(item.acaoDivulgacao),
-      organizacao: organizacaoNome(item.organizacao),
+      propostaEdital: propostaNome(item),
       status: statusLabel(item.status) ?? "—",
     });
+  }
+
+  if (loadingPermissoes) {
+    return (
+      <AppLayout>
+        <div className="container max-w-7xl py-6 sm:py-8">
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        </div>
+      </AppLayout>
+    );
   }
 
   if (!podeVisualizar) {
@@ -322,8 +322,8 @@ export default function PlanoComunicacaoPage() {
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
         <PageTitle
-          title="Execução da Divulgação"
-          tooltip="Registre como a ação de divulgação será executada na prática, informando formato, quantidade, período, local de circulação, ação vinculada, organização responsável e situação atual do registro."
+          title="Plano de Comunicação"
+          tooltip="Registre o plano de comunicação vinculado à proposta de edital, informando formato, quantidade, estratégias de divulgação, período, local de circulação e situação atual."
         />
 
         {nextStepCard && (
@@ -339,12 +339,6 @@ export default function PlanoComunicacaoPage() {
           />
         )}
 
-        <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          Esta área organiza os registros de execução da comunicação do projeto.
-          Use para acompanhar materiais produzidos, canais utilizados, locais de
-          circulação, períodos e situação de cada ação de divulgação.
-        </div>
-
         <div className="rounded border border-border bg-card">
           <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
             <div className="relative max-w-md flex-1">
@@ -354,7 +348,7 @@ export default function PlanoComunicacaoPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-9 pl-9"
-                aria-label="Buscar Execução da Divulgação"
+                aria-label="Buscar plano de comunicação"
               />
             </div>
 
@@ -362,27 +356,28 @@ export default function PlanoComunicacaoPage() {
               <Button
                 onClick={() => navigate("/plano-comunicacao/novo")}
                 className="h-9 gap-2 self-start"
+                disabled={loading}
               >
                 <Plus className="h-4 w-4" />
-                Cadastrar execução
+                Cadastrar plano
               </Button>
             )}
           </div>
 
           <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[1320px]">
+            <table ref={tableRef} className="w-full min-w-[1420px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   {[
                     "Ações",
+                    "Nome do plano",
                     "Quantidade",
                     "Formato",
-                    "Local de circulação",
+                    "Estratégias",
                     "Data início",
                     "Data fim",
                     "Status",
-                    "Ação de divulgação",
-                    "Organização",
+                    "Proposta de edital",
                   ].map((header) => (
                     <th
                       key={header}
@@ -406,9 +401,11 @@ export default function PlanoComunicacaoPage() {
 
               <tbody>
                 {paginated.map((item) => {
-                  const acao = acaoNome(item.acaoDivulgacao);
-                  const organizacao = organizacaoNome(item.organizacao);
+                  const proposta = propostaNome(item);
                   const status = statusLabel(item.status);
+                  const estrategias = estrategiasPlanoComunicacaoTexto(
+                    item.estrategiasDivulgacao,
+                  );
 
                   return (
                     <tr
@@ -449,7 +446,13 @@ export default function PlanoComunicacaoPage() {
                       </td>
 
                       <td className="px-6 py-2.5">
-                        <TableCellText text={item.quantidade} bold>
+                        <TableCellText text={item.nomePlano} bold>
+                          {item.nomePlano}
+                        </TableCellText>
+                      </td>
+
+                      <td className="px-6 py-2.5">
+                        <TableCellText text={item.quantidade} muted>
                           {item.quantidade}
                         </TableCellText>
                       </td>
@@ -461,23 +464,20 @@ export default function PlanoComunicacaoPage() {
                       </td>
 
                       <td className="px-6 py-2.5">
-                        <TableCellText
-                          text={item.localCirculacaoComunicacao}
-                          muted
-                        >
-                          {item.localCirculacaoComunicacao}
+                        <TableCellText text={estrategias} muted>
+                          {estrategias || "—"}
                         </TableCellText>
                       </td>
 
                       <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText text={formatDateBR(item.dataInicio)}>
-                          {formatDateBR(item.dataInicio)}
+                        <TableCellText text={formatDateBr(item.dataInicio)}>
+                          {formatDateBr(item.dataInicio)}
                         </TableCellText>
                       </td>
 
                       <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText text={formatDateBR(item.dataFim)}>
-                          {formatDateBR(item.dataFim)}
+                        <TableCellText text={formatDateBr(item.dataFim)}>
+                          {formatDateBr(item.dataFim)}
                         </TableCellText>
                       </td>
 
@@ -492,14 +492,8 @@ export default function PlanoComunicacaoPage() {
                       </td>
 
                       <td className="px-6 py-2.5">
-                        <TableCellText text={acao} muted>
-                          {acao}
-                        </TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={organizacao} muted>
-                          {organizacao}
+                        <TableCellText text={proposta} muted>
+                          {proposta}
                         </TableCellText>
                       </td>
 
@@ -529,7 +523,7 @@ export default function PlanoComunicacaoPage() {
                       <Megaphone className="mx-auto h-10 w-10 text-muted-foreground/40" />
 
                       <p className="mt-3 text-sm text-muted-foreground">
-                        Nenhuma Execução da Divulgação encontrada.
+                        Nenhum plano de comunicação encontrado.
                       </p>
                     </td>
                   </tr>
@@ -544,12 +538,15 @@ export default function PlanoComunicacaoPage() {
                 <Megaphone className="mx-auto h-10 w-10 text-muted-foreground/40" />
 
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Nenhuma Execução da Divulgação encontrada.
+                  Nenhum plano de comunicação encontrado.
                 </p>
               </div>
             ) : (
               paginated.map((item) => {
                 const status = statusLabel(item.status);
+                const estrategias = estrategiasPlanoComunicacaoTexto(
+                  item.estrategiasDivulgacao,
+                );
 
                 return (
                   <div key={item.id} className="p-4">
@@ -597,19 +594,19 @@ export default function PlanoComunicacaoPage() {
                     </div>
 
                     <p className="font-medium text-foreground">
-                      {item.formatoPlanoComunicacao} · {item.quantidade}
+                      {item.nomePlano}
                     </p>
 
                     <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                      {item.localCirculacaoComunicacao}
+                      {item.formatoPlanoComunicacao} · {item.quantidade}
+                    </p>
+
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      {estrategias || "Estratégias não informadas"}
                     </p>
 
                     <p className="mt-2 text-sm text-foreground">
-                      {acaoNome(item.acaoDivulgacao)}
-                    </p>
-
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {organizacaoNome(item.organizacao)}
+                      {propostaNome(item)}
                     </p>
 
                     <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -622,8 +619,8 @@ export default function PlanoComunicacaoPage() {
                       )}
 
                       <span className="text-xs text-muted-foreground">
-                        {formatDateBR(item.dataInicio)} →{" "}
-                        {formatDateBR(item.dataFim)}
+                        {formatDateBr(item.dataInicio)} →{" "}
+                        {formatDateBr(item.dataFim)}
                       </span>
                     </div>
                   </div>
@@ -649,12 +646,12 @@ export default function PlanoComunicacaoPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Execução da Divulgação?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir plano de comunicação?</AlertDialogTitle>
 
             <AlertDialogDescription>
               Esta ação não pode ser desfeita. Caso este registro esteja
-              vinculado a evidências, prestações de contas ou outros registros,
-              o backend pode impedir a exclusão para preservar o histórico.
+              vinculado a outros módulos, o backend pode impedir a exclusão para
+              preservar o histórico.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -672,8 +669,8 @@ export default function PlanoComunicacaoPage() {
       </AlertDialog>
 
       <WikiFloatingButton
-        pageTitle="Execução da Divulgação"
-        href="https://www.aurit.com.br/wiki/acoes-culturais/execucao-da-divulgacao"
+        pageTitle="Plano de Comunicação"
+        href="https://www.aurit.com.br/wiki/editais/plano-de-comunicacao"
       />
     </AppLayout>
   );

@@ -15,16 +15,14 @@ export interface EquipeEditalDTO {
   justificativaFuncao: string;
   miniBiografia: string;
   colaboradorId?: number | null;
-  propostaEditalId: number;
-  agenteId: number;
   integranteId?: number | null;
+  propostaEditalId: number;
 }
 
 export interface EquipeEdital {
   id: string;
   ordem?: number | null;
   propostaEdital: string;
-  agente: string;
   tipoPessoa: TipoPessoaEquipe;
   colaborador?: string;
   integrante?: string;
@@ -36,11 +34,6 @@ export interface EquipeEdital {
 }
 
 export interface PropostaEditalOption {
-  id: string;
-  nome: string;
-}
-
-export interface AgenteOption {
   id: string;
   nome: string;
 }
@@ -164,7 +157,6 @@ export function mapEquipeEdital(dto: EquipeEditalDTO): EquipeEdital {
     id: normalizeId(dto.id),
     ordem: dto.ordem ?? null,
     propostaEdital: normalizeId(dto.propostaEditalId),
-    agente: normalizeId(dto.agenteId),
     tipoPessoa: hasColaborador && !hasIntegrante ? "COLABORADOR" : "INTEGRANTE",
     colaborador: hasColaborador ? colaboradorId : undefined,
     integrante: hasIntegrante ? integranteId : undefined,
@@ -186,7 +178,6 @@ export function buildEquipeEditalPayload(form: EquipeEdital): EquipeEditalDTO {
     justificativaFuncao: form.justificativaFuncao.trim(),
     miniBiografia: form.miniBiografia.trim(),
     propostaEditalId: Number(form.propostaEdital),
-    agenteId: Number(form.agente),
     colaboradorId:
       form.tipoPessoa === "COLABORADOR" && form.colaborador
         ? Number(form.colaborador)
@@ -285,15 +276,6 @@ type PropostaEditalApi = {
   nome?: string;
 };
 
-type AgenteApi = {
-  id?: number;
-  nomePrincipal?: string;
-  nomeCompleto?: string;
-  nomeFantasia?: string;
-  razaoSocial?: string;
-  nome?: string;
-};
-
 type ColaboradorApi = {
   id?: number;
   nomeCompleto?: string;
@@ -334,37 +316,6 @@ export async function getPropostasEditalOptions(): Promise<
             item.titulo,
             item.nome,
           ) || `Proposta ${item.id}`,
-      };
-    })
-    .filter((item) => item.id);
-}
-
-export async function getAgentesOptions(): Promise<AgenteOption[]> {
-  const response = await fetch(`${API_URL}/agentes`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: AgenteApi[] = await response.json();
-
-  return (data ?? [])
-    .map((item) => {
-      const id = normalizeId(item.id);
-
-      return {
-        id,
-        nome:
-          pickText(
-            item.nomePrincipal,
-            item.nomeCompleto,
-            item.razaoSocial,
-            item.nomeFantasia,
-            item.nome,
-          ) || `Agente ${item.id}`,
       };
     })
     .filter((item) => item.id);

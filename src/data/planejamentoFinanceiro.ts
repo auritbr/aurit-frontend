@@ -37,6 +37,9 @@ export const planejamentoFinanceiroValorUnitarioError =
 export const planejamentoFinanceiroValorTotalError =
   "O valor total não corresponde à multiplicação dos valores informados.";
 
+export const planejamentoFinanceiroPeriodoError =
+  "A data de fim não pode ser anterior à data de início.";
+
 export const unidadeMedidaOptions = [
   { value: "MÊS", label: "Mês" },
   { value: "UNIDADE", label: "Unidade" },
@@ -96,6 +99,16 @@ export const formatCurrencyBR = (value: number) =>
     currency: "BRL",
   });
 
+export function formatDateBr(iso?: string | null) {
+  if (!iso) return "—";
+
+  const [year, month, day] = iso.split("-");
+
+  if (!year || !month || !day) return iso;
+
+  return `${day}/${month}/${year}`;
+}
+
 export interface PlanejamentoFinanceiroDTO {
   id?: number;
   nomePlanejamento: string;
@@ -104,6 +117,8 @@ export interface PlanejamentoFinanceiroDTO {
   unidadeMedida: string;
   valorUnitario: number | null;
   valorTotal: number | null;
+  dataInicio: string | null;
+  dataFim: string | null;
   propostaEditalId: number | null;
   equipeEditalId: number | null;
 }
@@ -116,6 +131,8 @@ export interface PlanejamentoFinanceiroData {
   unidadeMedida: string;
   valorUnitario: string;
   valorTotal: string;
+  dataInicio: string;
+  dataFim: string;
   propostaEditalId: string;
   equipeEditalId: string;
 }
@@ -188,6 +205,8 @@ export function createEmptyPlanejamentoFinanceiro(): PlanejamentoFinanceiroData 
     unidadeMedida: "",
     valorUnitario: "",
     valorTotal: "",
+    dataInicio: "",
+    dataFim: "",
     propostaEditalId: "",
     equipeEditalId: "",
   };
@@ -204,7 +223,10 @@ export function mapPlanejamentoFinanceiro(
     unidadeMedida: dto.unidadeMedida ?? "",
     valorUnitario:
       dto.valorUnitario != null ? formatCurrencyValue(dto.valorUnitario) : "",
-    valorTotal: dto.valorTotal != null ? formatCurrencyValue(dto.valorTotal) : "",
+    valorTotal:
+      dto.valorTotal != null ? formatCurrencyValue(dto.valorTotal) : "",
+    dataInicio: dto.dataInicio ?? "",
+    dataFim: dto.dataFim ?? "",
     propostaEditalId:
       dto.propostaEditalId != null ? String(dto.propostaEditalId) : "",
     equipeEditalId:
@@ -225,6 +247,8 @@ export function buildPlanejamentoFinanceiroPayload(
       ? parseCurrencyInput(form.valorUnitario)
       : null,
     valorTotal: form.valorTotal ? parseCurrencyInput(form.valorTotal) : null,
+    dataInicio: form.dataInicio || null,
+    dataFim: form.dataFim || null,
     propostaEditalId: form.propostaEditalId
       ? Number(form.propostaEditalId)
       : null,

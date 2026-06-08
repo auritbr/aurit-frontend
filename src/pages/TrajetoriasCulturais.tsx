@@ -8,8 +8,10 @@ import {
   Trash2,
   Compass,
   FileDown,
+  Target
 } from "lucide-react";
 
+import { PageInfoCard } from "@/components/PageInfoCard";
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
@@ -324,13 +326,14 @@ export default function TrajetoriasCulturais() {
           />
         )}
 
-        <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          Esta área reúne as trajetórias culturais dos colaboradores,
+        <PageInfoCard
+          description="Esta área reúne as trajetórias culturais dos colaboradores,
           registrando histórias, saberes, práticas, linguagens e contribuições
           construídas ao longo do tempo. Esses textos podem apoiar currículos,
           portfólios, propostas de edital, comprovação de experiência e
-          relatórios institucionais.
-        </div>
+          relatórios institucionais."
+          icon={Target}
+        />
 
         <div className="rounded border border-border bg-card">
           <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
