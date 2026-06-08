@@ -321,6 +321,15 @@ function extractIdsFromObjects(
   return uniqueStrings(items.map((item) => toIdString(item.id)));
 }
 
+function mapPrestacaoMeta(dto: PrestacaoContasMetaDTO): PrestacaoMetaForm {
+  const metaProjetoId = dto.metaProjetoId ?? dto.metaProjeto?.id ?? null;
+
+  return {
+    id: toIdString(dto.id),
+    metaProjetoId: toIdString(metaProjetoId),
+  };
+}
+
 function extractPrestacaoMetas(dto: PrestacaoContasDTO): PrestacaoMetaForm[] {
   if (Array.isArray(dto.prestacaoMetasIds)) {
     return uniqueStrings(dto.prestacaoMetasIds.map(toIdString)).map((id) => ({
@@ -348,15 +357,6 @@ function extractAcoesIds(dto: PrestacaoContasDTO) {
   }
 
   return extractIdsFromObjects(dto.acoesDivulgacao);
-}
-
-function mapPrestacaoMeta(dto: PrestacaoContasMetaDTO): PrestacaoMetaForm {
-  const metaProjetoId = dto.metaProjetoId ?? dto.metaProjeto?.id ?? null;
-
-  return {
-    id: toIdString(dto.id),
-    metaProjetoId: toIdString(metaProjetoId),
-  };
 }
 
 export function createEmptyPrestacaoContas(): PrestacaoContas {
