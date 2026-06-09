@@ -79,18 +79,27 @@ export const statusMatriculaOptions = [
   { value: "CONCLUIDO", label: "Concluído" },
 ] as const;
 
+export const niveisTurmaOptions = [
+  { value: "INICIANTE", label: "Iniciante" },
+  { value: "INTERMEDIARIO", label: "Intermediário" },
+  { value: "AVANCADO", label: "Avançado" },
+] as const;
+
 export const statusValueToLabel = (v?: string) =>
   statusParticipante.find((s) => s.value === v)?.label ?? v ?? "—";
 
 export const statusMatriculaValueToLabel = (v?: string) =>
   statusMatriculaOptions.find((s) => s.value === v)?.label ?? v ?? "—";
 
+export const nivelTurmaValueToLabel = (v?: string | null) =>
+  v ? niveisTurmaOptions.find((nivel) => nivel.value === v)?.label ?? v : "—";
+
 export interface ParticipanteVinculo {
   id?: string;
   atividadeId: string;
   turmaId?: string;
   dataMatricula: string;
-  atividadeExercida: string;
+  nivelTurma?: string;
   statusMatricula: string;
 }
 
@@ -134,6 +143,7 @@ export interface TurmaOption {
   id: string;
   nomeTurma: string;
   atividadeId: string;
+  nivelTurma?: string;
 }
 
 export interface OrganizacaoOption {
@@ -144,7 +154,7 @@ export interface OrganizacaoOption {
 export interface ParticipanteAtividadeApiDTO {
   id?: number;
   dataMatricula?: string | null;
-  atividadeExercida?: string | null;
+  nivelTurma?: string | null;
   atividadeId?: number | string | null;
   turmaId?: number | string | null;
   statusMatricula?: string | null;
@@ -238,7 +248,7 @@ export interface ParticipantePayloadDTO {
   vinculos: {
     id?: number;
     dataMatricula: string;
-    atividadeExercida: string;
+    nivelTurma?: string | null;
     atividadeId: number;
     turmaId?: number | null;
     statusMatricula: string;
@@ -255,6 +265,7 @@ interface TurmaApiDTO {
   id?: number | string | null;
   nomeTurma?: string | null;
   nome?: string | null;
+  nivelTurma?: string | null;
   atividadeId?: number | string | null;
   atividade?: {
     id?: number | string | null;
@@ -426,7 +437,7 @@ export function mapParticipante(dto: ParticipanteApiDTO): Participante {
       atividadeId: normalizeId(v.atividadeId ?? v.atividade),
       turmaId: normalizeId(v.turmaId ?? v.turma) || undefined,
       dataMatricula: formatIsoToBR(v.dataMatricula),
-      atividadeExercida: v.atividadeExercida ?? "",
+      nivelTurma: v.nivelTurma ?? "",
       statusMatricula: v.statusMatricula ?? "",
     })),
   };
@@ -470,7 +481,7 @@ export function buildParticipantePayload(
     vinculos: participante.vinculos.map((v) => ({
       id: v.id ? Number(v.id) : undefined,
       dataMatricula: brToIso(v.dataMatricula),
-      atividadeExercida: v.atividadeExercida.trim(),
+      nivelTurma: v.nivelTurma || null,
       atividadeId: Number(v.atividadeId),
       turmaId: v.turmaId ? Number(v.turmaId) : null,
       statusMatricula: v.statusMatricula,
@@ -594,6 +605,7 @@ export async function getTurmasOptions(): Promise<TurmaOption[]> {
       id: normalizeId(item.id),
       nomeTurma: pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
       atividadeId: normalizeId(item.atividadeId ?? item.atividade),
+      nivelTurma: item.nivelTurma ?? "",
     }))
     .filter((item) => item.id);
 }

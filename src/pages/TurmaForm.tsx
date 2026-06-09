@@ -69,6 +69,8 @@ interface TurmaCarregada {
   colaboradoresIds?: Array<string | number>;
 }
 
+const SEM_NIVEL_TURMA = "__SEM_NIVEL_TURMA__";
+
 const initial: FormState = {
   nomeTurma: "",
   descricaoTurma: "",
@@ -294,11 +296,6 @@ export default function TurmaForm() {
 
     if (!formComAtividade.status) {
       toast.error("Selecione o status da turma.");
-      return;
-    }
-
-    if (!formComAtividade.nivelTurma) {
-      toast.error("Selecione o nível da turma.");
       return;
     }
 
@@ -543,17 +540,16 @@ export default function TurmaForm() {
               <Field>
                 <FieldLabel
                   htmlFor="nivelTurma"
-                  required={!visualizando}
-                  tooltip="Selecione o nível da turma conforme o perfil dos participantes. Ex.: iniciante, intermediário ou avançado."
+                  tooltip="Selecione o nível da turma somente quando a organização trabalhar com turmas por nível. Ex.: iniciante, intermediário ou avançado."
                 >
                   Nível da Turma
                 </FieldLabel>
 
                 <Select
-                  value={form.nivelTurma}
+                  value={form.nivelTurma || SEM_NIVEL_TURMA}
                   onValueChange={(value) => {
                     if (visualizando) return;
-                    set("nivelTurma", value);
+                    set("nivelTurma", value === SEM_NIVEL_TURMA ? "" : value);
                   }}
                   disabled={bloqueado}
                 >
@@ -562,6 +558,10 @@ export default function TurmaForm() {
                   </SelectTrigger>
 
                   <SelectContent>
+                    <SelectItem value={SEM_NIVEL_TURMA}>
+                      Não se aplica
+                    </SelectItem>
+
                     {niveisTurma.map((nivel) => (
                       <SelectItem key={nivel.value} value={nivel.value}>
                         {nivel.label}

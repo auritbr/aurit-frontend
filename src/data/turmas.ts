@@ -113,8 +113,8 @@ export const statusTurmaLabel = (value?: string) =>
 export const diaLabel = (value?: string) =>
   diasSemana.find((dia) => dia.value === value)?.label ?? value ?? "—";
 
-export const nivelTurmaLabel = (value?: string) =>
-  niveisTurma.find((nivel) => nivel.value === value)?.label ?? value ?? "—";
+export const nivelTurmaLabel = (value?: string | null) =>
+  value ? niveisTurma.find((nivel) => nivel.value === value)?.label ?? value : "—";
 
 export interface TurmaDTO {
   id?: number | string;
@@ -166,7 +166,7 @@ export interface TurmaPayload {
   quantidadeVagas?: number | null;
   diaAtividade: string;
   status: string;
-  nivelTurma: string;
+  nivelTurma?: string | null;
   atividadeId: number;
   colaboradoresIds: number[];
 }
@@ -264,7 +264,7 @@ export function buildTurmaPayload(
       : null,
     diaAtividade: data.diaAtividade,
     status: data.status,
-    nivelTurma: data.nivelTurma,
+    nivelTurma: data.nivelTurma || null,
     atividadeId: Number(data.atividadeId),
     colaboradoresIds: data.colaboradores
       .map(Number)

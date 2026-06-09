@@ -40,6 +40,7 @@ import {
   getTurmasOptions,
   statusValueToLabel,
   statusMatriculaValueToLabel,
+  nivelTurmaValueToLabel,
   generoOptions,
   racaCorOptions,
   type AtividadeOption,
@@ -227,10 +228,12 @@ export default function Participantes() {
         const statusMatricula = v.statusMatricula
           ? statusMatriculaValueToLabel(v.statusMatricula)
           : "";
+        const nivel = v.nivelTurma ? nivelTurmaValueToLabel(v.nivelTurma) : "";
 
         const base = turma ? `${atividade} (${turma})` : atividade;
+        const detalhes = [nivel, statusMatricula].filter(Boolean).join(" - ");
 
-        return statusMatricula ? `${base} - ${statusMatricula}` : base;
+        return detalhes ? `${base} - ${detalhes}` : base;
       })
       .join(", ");
 
