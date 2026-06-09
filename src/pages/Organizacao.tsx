@@ -146,6 +146,7 @@ interface OrganizacaoDTO {
   tipoAgente?: TipoAgenteApi | string | null;
   tipoIniciativaCultural?: TipoIniciativaCulturalApi | string | null;
   areaAtuacao?: AreaAtuacaoApi | string | null;
+  areasAtuacao?: Array<AreaAtuacaoApi | string> | null;
 }
 
 interface OrganizacaoData {
@@ -170,7 +171,7 @@ interface OrganizacaoData {
 
   tipoAgente: string;
   tipoIniciativaCultural: string;
-  areaAtuacao: string;
+  areasAtuacao: string[];
 
   cep: string;
   logradouro: string;
@@ -255,7 +256,7 @@ function getRequiredFields(tipoAgente?: string): Array<[keyof OrganizacaoForm, s
     ["emailInstitucional", getLabelEmailPrincipal(tipoAgente)],
     ["telefoneInstitucional", getLabelTelefonePrincipal(tipoAgente)],
     ["tipoIniciativaCultural", "Tipo de Iniciativa Cultural"],
-    ["areaAtuacao", "Área de Atuação"],
+    ["areasAtuacao", "Área(s) de Atuação"],
     ["cep", "CEP"],
     ["logradouro", "Logradouro"],
     ["numero", "Número"],
@@ -301,7 +302,7 @@ const createEmptyForm = (): OrganizacaoForm => ({
 
   tipoAgente: "",
   tipoIniciativaCultural: "",
-  areaAtuacao: "",
+  areasAtuacao: [],
 
   cep: "",
   logradouro: "",
@@ -519,6 +520,18 @@ function resolverEstadoParaSelect(value?: string | null): string {
 function labelFromMap(map: Record<string, string>, value?: string) {
   if (!value) return "";
   return map[value] ?? value;
+}
+
+function labelsFromMap(map: Record<string, string>, values?: string[]) {
+  if (!values || values.length === 0) return [];
+
+  return values
+    .map((value) => labelFromMap(map, value))
+    .filter(Boolean);
+}
+
+function formatAreasAtuacao(values?: string[]) {
+  return labelsFromMap(optionLabels.areaAtuacao, values).join(", ");
 }
 
 
@@ -754,7 +767,11 @@ function mapOrganizacao(dto: OrganizacaoDTO): OrganizacaoData {
 
     tipoAgente: dto.tipoAgente ?? "",
     tipoIniciativaCultural: dto.tipoIniciativaCultural ?? "",
-    areaAtuacao: dto.areaAtuacao ?? "",
+    areasAtuacao: dto.areasAtuacao?.length
+      ? dto.areasAtuacao.map(String)
+      : dto.areaAtuacao
+        ? [String(dto.areaAtuacao)]
+        : [],
 
     cep: dto.cep ? maskCEP(dto.cep) : "",
     logradouro: dto.logradouro ?? "",
@@ -803,7 +820,7 @@ function buildPayload(form: OrganizacaoForm): OrganizacaoDTO {
 
     tipoAgente: form.tipoAgente,
     tipoIniciativaCultural: form.tipoIniciativaCultural,
-    areaAtuacao: form.areaAtuacao,
+    areasAtuacao: form.areasAtuacao,
 
     cep: onlyDigits(form.cep),
     logradouro: form.logradouro.trim(),
@@ -981,7 +998,7 @@ export default function Organizacao() {
         optionLabels.tipoIniciativaCultural,
         item.tipoIniciativaCultural,
       );
-      const area = labelFromMap(optionLabels.areaAtuacao, item.areaAtuacao);
+      const area = formatAreasAtuacao(item.areasAtuacao);
 
       return [
         item.razaoSocial,
@@ -1020,6 +1037,21 @@ export default function Organizacao() {
     value: OrganizacaoForm[K],
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const toggleAreaAtuacao = (value: string) => {
+    if (visualizando) return;
+
+    setForm((prev) => {
+      const selecionada = prev.areasAtuacao.includes(value);
+
+      return {
+        ...prev,
+        areasAtuacao: selecionada
+          ? prev.areasAtuacao.filter((area) => area !== value)
+          : [...prev.areasAtuacao, value],
+      };
+    });
   };
 
   const openRecord = (record: OrganizacaoData, nextMode: FormMode) => {
@@ -1133,7 +1165,7 @@ export default function Organizacao() {
         optionLabels.tipoIniciativaCultural,
         item.tipoIniciativaCultural,
       ),
-      areaAtuacao: labelFromMap(optionLabels.areaAtuacao, item.areaAtuacao),
+      areaAtuacao: formatAreasAtuacao(item.areasAtuacao),
 
       cep: item.cep,
       logradouro: item.logradouro,
@@ -1183,9 +1215,15 @@ export default function Organizacao() {
   }
 
   const validarFormulario = () => {
-    const missing = getRequiredFields(form.tipoAgente).find(
-      ([key]) => !String(form[key] ?? "").trim(),
-    );
+    const missing = getRequiredFields(form.tipoAgente).find(([key]) => {
+      const value = form[key];
+
+      if (Array.isArray(value)) {
+        return value.length === 0;
+      }
+
+      return !String(value ?? "").trim();
+    });
 
     if (missing) {
       toast.error(`Preencha o campo: ${missing[1]}.`);
@@ -1480,35 +1518,53 @@ export default function Organizacao() {
                   </Select>
                 </Field>
 
-                <Field>
+                <Field className="sm:col-span-3">
                   <FieldLabel
-                    htmlFor="areaAtuacao"
+                    htmlFor="areasAtuacao"
                     required={!visualizando}
-                    tooltip="Selecione a principal área de atuação. Caso atue em mais de uma área, escolha aquela que melhor representa sua atuação central. Ex.: Cultura e Arte, Educação, Assistência Social ou Direitos Humanos."
+                    tooltip="Selecione uma ou mais áreas de atuação da organização. Ex.: Cultura e Arte, Educação, Assistência Social ou Direitos Humanos."
                   >
-                    Área de Atuação
+                    Áreas de Atuação
                   </FieldLabel>
 
-                  <Select
-                    value={form.areaAtuacao}
-                    onValueChange={(value) => {
-                      if (visualizando) return;
-                      setField("areaAtuacao", value);
-                    }}
-                    disabled={readOnly || saving}
+                  <div
+                    id="areasAtuacao"
+                    className="rounded-md border border-border bg-background p-3"
                   >
-                    <SelectTrigger id="areaAtuacao">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
+                    <div className="flex flex-wrap gap-2">
+                      {areaAtuacaoOptions.map((option) => {
+                        const selected = form.areasAtuacao.includes(option.value);
 
-                    <SelectContent>
-                      {areaAtuacaoOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        return (
+                          <Button
+                            key={option.value}
+                            type="button"
+                            variant={selected ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => toggleAreaAtuacao(option.value)}
+                            disabled={readOnly || saving}
+                            className="h-8"
+                          >
+                            {option.label}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    {form.areasAtuacao.length > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {form.areasAtuacao.map((area) => (
+                          <EnumBadge key={area}>
+                            {labelFromMap(optionLabels.areaAtuacao, area)}
+                          </EnumBadge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        Nenhuma área selecionada.
+                      </p>
+                    )}
+                  </div>
                 </Field>
               </div>
             </Section>
@@ -2070,10 +2126,7 @@ export default function Organizacao() {
                       item.tipoIniciativaCultural,
                     );
 
-                    const area = labelFromMap(
-                      optionLabels.areaAtuacao,
-                      item.areaAtuacao,
-                    );
+                    const area = formatAreasAtuacao(item.areasAtuacao);
 
                     return (
                       <tr
@@ -2191,10 +2244,7 @@ export default function Organizacao() {
                     item.tipoIniciativaCultural,
                   );
 
-                  const area = labelFromMap(
-                    optionLabels.areaAtuacao,
-                    item.areaAtuacao,
-                  );
+                  const area = formatAreasAtuacao(item.areasAtuacao);
 
                   return (
                     <div key={item.id} className="p-4">

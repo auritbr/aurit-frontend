@@ -33,6 +33,7 @@ import {
   type AtividadeOption,
   type ParticipanteApiDTO,
   type ParticipanteRow,
+  type PlanoAulaOption,
   type PresencaPayload,
   type StatusPresencaValue,
   type TurmaOption,
@@ -40,6 +41,7 @@ import {
 import { toast } from "sonner";
 
 const SEM_TURMA = "__SEM_TURMA__";
+const SEM_PLANO_AULA = "__SEM_PLANO_AULA__";
 const NEXT_STEP_DURATION_MS = 60_000;
 
 interface PresencaNextStepCardData {
@@ -74,6 +76,7 @@ const anosOptions = (() => {
 export default function Presencas() {
   const [atividadeId, setAtividadeId] = useState<string>("");
   const [turmaId, setTurmaId] = useState<string>("");
+  const [planoAulaId, setPlanoAulaId] = useState<string>("");
   const [searched, setSearched] = useState(false);
 
   const [ano, setAno] = useState<string>(String(new Date().getFullYear()));
@@ -85,6 +88,7 @@ export default function Presencas() {
 
   const [atividades, setAtividades] = useState<AtividadeOption[]>([]);
   const [turmas, setTurmas] = useState<TurmaOption[]>([]);
+  const [planosAula, setPlanosAula] = useState<PlanoAulaOption[]>([]);
   const [participantes, setParticipantes] = useState<ParticipanteApiDTO[]>([]);
   const [loadingBase, setLoadingBase] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
@@ -100,9 +104,37 @@ export default function Presencas() {
 
   const turmasDaAtividade = useMemo(
     () =>
-      atividadeId ? turmas.filter((turma) => turma.atividadeId === atividadeId) : [],
+      atividadeId
+        ? turmas.filter((turma) => turma.atividadeId === atividadeId)
+        : [],
     [atividadeId, turmas],
   );
+
+  const planosAulaDisponiveis = useMemo(() => {
+    if (!atividadeId) return [];
+
+    return planosAula.filter((plano) => {
+      if (plano.atividadeId !== atividadeId) return false;
+
+      if (turmaId) {
+        if (plano.turmaId !== turmaId) return false;
+      } else if (plano.turmaId) {
+        return false;
+      }
+
+      if (dataAula) {
+        if (plano.dataInicio && dataAula < plano.dataInicio) {
+          return false;
+        }
+
+        if (plano.dataFim && dataAula > plano.dataFim) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [atividadeId, turmaId, dataAula, planosAula]);
 
   const atividadeSelecionada = useMemo(
     () => atividades.find((atividade) => atividade.id === atividadeId),
@@ -176,6 +208,7 @@ export default function Presencas() {
 
       setAtividades(data.atividades);
       setTurmas(data.turmas);
+      setPlanosAula(data.planosAula);
       setParticipantes(data.participantes);
     } catch (error) {
       const message =
@@ -198,6 +231,7 @@ export default function Presencas() {
   const handleAtividadeChange = (value: string) => {
     setAtividadeId(value);
     setTurmaId("");
+    setPlanoAulaId("");
     setSearched(false);
     setRows([]);
     setNextStepCard(null);
@@ -205,13 +239,19 @@ export default function Presencas() {
 
   const handleTurmaChange = (value: string) => {
     setTurmaId(value === SEM_TURMA ? "" : value);
+    setPlanoAulaId("");
     setSearched(false);
     setRows([]);
     setNextStepCard(null);
   };
 
+  const handlePlanoAulaChange = (value: string) => {
+    setPlanoAulaId(value === SEM_PLANO_AULA ? "" : value);
+  };
+
   const handleDataAulaChange = (value: string) => {
     setDataAula(value);
+    setPlanoAulaId("");
 
     const year = value ? value.split("-")[0] : "";
 
@@ -294,6 +334,7 @@ export default function Presencas() {
       observacaoAula: observacao.trim(),
       atividadeId: Number(atividadeId),
       turmaId: turmaId ? Number(turmaId) : null,
+      planoAulaId: planoAulaId ? Number(planoAulaId) : null,
       participantes: rows.map((row) => ({
         participanteId: Number(row.id),
         statusPresenca: row.status,
@@ -310,6 +351,7 @@ export default function Presencas() {
       setNextStepCard(presencaNextStepCard);
       setObservacao("");
       setDataAula("");
+      setPlanoAulaId("");
       setRows([]);
       setSearched(false);
     } catch (error) {
@@ -486,7 +528,7 @@ export default function Presencas() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-12">
-                <div className="md:col-span-3">
+                <div className="md:col-span-2">
                   <FieldLabel required>Ano</FieldLabel>
 
                   <Select value={ano} onValueChange={setAno}>
@@ -514,7 +556,48 @@ export default function Presencas() {
                   />
                 </div>
 
-                <div className="md:col-span-6">
+                <div className="md:col-span-7">
+                  <FieldLabel tooltip="Vincule o plano de aula planejado para este encontro. A lista é filtrada pela atividade, turma e data informadas. O vínculo é opcional, mas ajuda a comprovar o que foi planejado e executado.">
+                    Plano de Aula
+                  </FieldLabel>
+
+                  <Select
+                    value={planoAulaId || SEM_PLANO_AULA}
+                    onValueChange={handlePlanoAulaChange}
+                    disabled={loadingBase || !atividadeId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          planosAulaDisponiveis.length === 0
+                            ? "Nenhum plano compatível encontrado"
+                            : "Selecione"
+                        }
+                      />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value={SEM_PLANO_AULA}>
+                        Sem plano de aula vinculado
+                      </SelectItem>
+
+                      {planosAulaDisponiveis.map((plano) => (
+                        <SelectItem key={plano.id} value={plano.id}>
+                          {plano.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {atividadeId && planosAulaDisponiveis.length === 0 && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Nenhum plano de aula compatível com a atividade, turma e
+                      data informadas.
+                    </p>
+                  )}
+                </div>
+
+                <div className="md:col-span-12">
                   <FieldLabel tooltip="Registre informações importantes sobre este encontro, como conteúdo trabalhado, justificativas de ausência, alterações de horário, ocorrências, reposições ou observações relevantes para relatórios.">
                     Observação
                   </FieldLabel>

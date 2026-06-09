@@ -68,6 +68,32 @@ export interface TurmaApiDTO {
   } | null;
 }
 
+export interface PlanoAulaApiDTO {
+  id?: number | string;
+
+  conteudo?: string | null;
+  observacao?: string | null;
+  dataInicio?: string | null;
+  dataFim?: string | null;
+  aulaReposicao?: boolean | null;
+  statusPlanoAula?: string | null;
+
+  atividadeId?: number | string | null;
+  turmaId?: number | string | null;
+
+  atividade?: {
+    id?: number | string | null;
+    nomeAtividade?: string | null;
+    nome?: string | null;
+  } | null;
+
+  turma?: {
+    id?: number | string | null;
+    nomeTurma?: string | null;
+    nome?: string | null;
+  } | null;
+}
+
 export interface ParticipanteAtividadeApiDTO {
   id?: number | string;
   dataMatricula?: string | null;
@@ -111,6 +137,19 @@ export interface TurmaOption {
   atividadeId: string;
 }
 
+export interface PlanoAulaOption {
+  id: string;
+  conteudo: string;
+  observacao: string;
+  dataInicio: string;
+  dataFim: string;
+  aulaReposicao: boolean;
+  statusPlanoAula: string;
+  atividadeId: string;
+  turmaId: string;
+  label: string;
+}
+
 export interface ParticipanteRow {
   id: string;
   nome: string;
@@ -128,6 +167,7 @@ export interface PresencaPayload {
   observacaoAula: string;
   atividadeId: number;
   turmaId: number | null;
+  planoAulaId: number | null;
   participantes: PresencaParticipantePayload[];
 }
 
@@ -157,6 +197,16 @@ function pickText(...values: Array<unknown>) {
   return "";
 }
 
+function formatDateBR(value?: string | null) {
+  if (!value) return "";
+
+  const [year, month, day] = value.split("-");
+
+  if (!year || !month || !day) return value;
+
+  return `${day}/${month}/${year}`;
+}
+
 function compareByName<T extends { nomeAtividade?: string; nomeTurma?: string }>(
   a: T,
   b: T,
@@ -165,6 +215,14 @@ function compareByName<T extends { nomeAtividade?: string; nomeTurma?: string }>
   const nomeB = b.nomeAtividade ?? b.nomeTurma ?? "";
 
   return nomeA.localeCompare(nomeB, "pt-BR");
+}
+
+function comparePlanosAula(a: PlanoAulaOption, b: PlanoAulaOption) {
+  const dataCompare = a.dataInicio.localeCompare(b.dataInicio);
+
+  if (dataCompare !== 0) return dataCompare;
+
+  return a.conteudo.localeCompare(b.conteudo, "pt-BR");
 }
 
 export function matriculaPermitePresenca(statusMatricula?: string | null) {
@@ -203,6 +261,37 @@ export function mapTurmaOption(dto: TurmaApiDTO): TurmaOption {
     id,
     atividadeId,
     nomeTurma: pickText(dto.nomeTurma, dto.nome) || `Turma ${id || ""}`.trim(),
+  };
+}
+
+export function mapPlanoAulaOption(dto: PlanoAulaApiDTO): PlanoAulaOption {
+  const id = normalizeId(dto.id);
+  const atividadeId = normalizeId(dto.atividadeId ?? dto.atividade);
+  const turmaId = normalizeId(dto.turmaId ?? dto.turma);
+
+  const conteudo =
+    pickText(dto.conteudo) || `Plano de aula ${id || ""}`.trim();
+
+  const dataInicio = pickText(dto.dataInicio);
+  const dataFim = pickText(dto.dataFim);
+
+  const periodo = dataFim
+    ? `${formatDateBR(dataInicio)} a ${formatDateBR(dataFim)}`
+    : formatDateBR(dataInicio);
+
+  const label = periodo ? `${conteudo} · ${periodo}` : conteudo;
+
+  return {
+    id,
+    conteudo,
+    observacao: pickText(dto.observacao),
+    dataInicio,
+    dataFim,
+    aulaReposicao: Boolean(dto.aulaReposicao),
+    statusPlanoAula: pickText(dto.statusPlanoAula),
+    atividadeId,
+    turmaId,
+    label,
   };
 }
 
@@ -294,6 +383,24 @@ export async function getTurmasPresenca(): Promise<TurmaOption[]> {
     .sort(compareByName);
 }
 
+export async function getPlanosAulaPresenca(): Promise<PlanoAulaOption[]> {
+  const response = await fetch(`${API_URL}/planos-aula`, {
+    method: "GET",
+    headers: getJsonHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data: PlanoAulaApiDTO[] = await response.json();
+
+  return (Array.isArray(data) ? data : [])
+    .map(mapPlanoAulaOption)
+    .filter((item) => item.id)
+    .sort(comparePlanosAula);
+}
+
 export async function getParticipantesPresenca(): Promise<ParticipanteApiDTO[]> {
   const response = await fetch(`${API_URL}/participantes`, {
     method: "GET",
@@ -324,17 +431,20 @@ export async function createPresenca(payload: PresencaPayload): Promise<void> {
 export async function getPresencasBaseData(): Promise<{
   atividades: AtividadeOption[];
   turmas: TurmaOption[];
+  planosAula: PlanoAulaOption[];
   participantes: ParticipanteApiDTO[];
 }> {
-  const [atividades, turmas, participantes] = await Promise.all([
+  const [atividades, turmas, planosAula, participantes] = await Promise.all([
     getAtividadesPresenca(),
     getTurmasPresenca(),
+    getPlanosAulaPresenca(),
     getParticipantesPresenca(),
   ]);
 
   return {
     atividades,
     turmas,
+    planosAula,
     participantes,
   };
 }
