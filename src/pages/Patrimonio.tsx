@@ -22,8 +22,10 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
@@ -55,6 +57,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "numero" | "nome" | "tipo" | "marcaModelo" | "numeroSerie" | "organizacao" | "conservacao" | "status" | "aquisicao" | "valor";
 
 const PATRIMONIO_NEXT_STEP_KEY = "aurit:patrimonio:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -267,8 +271,39 @@ export default function Patrimonio() {
     });
   }, [search, items, organizacoes, projetos]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "numero":
+          return item.numeroPatrimonio ?? "";
+        case "nome":
+          return item.nomePatrimonio ?? "";
+        case "tipo":
+          return tipoPatrimonioLabel(item.tipoPatrimonio);
+        case "marcaModelo":
+          return `${item.marca ?? ""} ${item.modelo ?? ""}`.trim();
+        case "numeroSerie":
+          return item.numeroSerie ?? "";
+        case "organizacao":
+          return nomeOrganizacao(item.organizacaoId);
+        case "conservacao":
+          return estadoConservacaoLabel(item.estadoConservacao);
+        case "status":
+          return statusPatrimonioLabel(item.statusPatrimonio);
+        case "aquisicao":
+          return item.dataAquisicao ?? "";
+        case "valor":
+          return item.valorPatrimonio ?? 0;
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -435,45 +470,86 @@ export default function Patrimonio() {
                     Ações
                   </th>
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Número
-                  </th>
+                  <SortableHeader
+                    label="Número"
+                    sortKey="numero"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Nome
-                  </th>
+                  <SortableHeader
+                    label="Nome"
+                    sortKey="nome"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Tipo
-                  </th>
+                  <SortableHeader
+                    label="Tipo"
+                    sortKey="tipo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Marca / Modelo
-                  </th>
+                  <SortableHeader
+                    label="Marca / Modelo"
+                    sortKey="marcaModelo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Nº de série
-                  </th>
+                  <SortableHeader
+                    label="Nº de série"
+                    sortKey="numeroSerie"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Organização
-                  </th>
+                  <SortableHeader
+                    label="Organização"
+                    sortKey="organizacao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Conservação
-                  </th>
+                  <SortableHeader
+                    label="Conservação"
+                    sortKey="conservacao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Status
-                  </th>
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Aquisição
-                  </th>
+                  <SortableHeader
+                    label="Aquisição"
+                    sortKey="aquisicao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Valor
-                  </th>
+                  <SortableHeader
+                    label="Valor"
+                    sortKey="valor"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    align="right"
+                  />
 
                   {podeBaixar && (
                     <th
@@ -758,7 +834,7 @@ export default function Patrimonio() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

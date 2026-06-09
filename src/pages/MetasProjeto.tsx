@@ -21,7 +21,9 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportMetaProjetoPdf } from "@/lib/pdfExporters";
@@ -53,6 +55,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "titulo" | "quantidade" | "projeto" | "proposta" | "comprovacao";
 
 const META_PROJETO_NEXT_STEP_KEY = "aurit:metas-projeto:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -213,8 +217,29 @@ export default function MetasProjetoPage() {
     });
   }, [search, items, projetos, propostas]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "titulo":
+          return item.tituloMeta;
+        case "quantidade":
+          return Number(item.quantidadePrevista || 0);
+        case "projeto":
+          return projetoNomeMeta(item.projeto, projetos);
+        case "proposta":
+          return propostaNomeMeta(item.propostaEdital, propostas);
+        case "comprovacao":
+          return item.formaComprovacao ?? "";
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -349,25 +374,45 @@ export default function MetasProjetoPage() {
                     Ações
                   </th>
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Título da meta
-                  </th>
+                  <SortableHeader
+                    label="Título da meta"
+                    sortKey="titulo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Quantidade prevista
-                  </th>
+                  <SortableHeader
+                    label="Quantidade prevista"
+                    sortKey="quantidade"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Projeto
-                  </th>
+                  <SortableHeader
+                    label="Projeto"
+                    sortKey="projeto"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Proposta de edital
-                  </th>
+                  <SortableHeader
+                    label="Proposta de edital"
+                    sortKey="proposta"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Forma de comprovação
-                  </th>
+                  <SortableHeader
+                    label="Forma de comprovação"
+                    sortKey="comprovacao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -476,7 +521,7 @@ export default function MetasProjetoPage() {
                 })}
 
                 {paginated.length === 0 && (
-                  <EmptyRow colspan={podeGerarPdf ? 8 : 7} />
+                  <EmptyRow colspan={podeGerarPdf ? 7 : 6} />
                 )}
               </tbody>
             </table>
@@ -565,7 +610,7 @@ export default function MetasProjetoPage() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

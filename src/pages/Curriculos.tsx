@@ -20,8 +20,10 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
@@ -46,6 +48,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "colaborador" | "formacao" | "atuacao" | "experiencias";
 
 const CURRICULO_NEXT_STEP_KEY = "aurit:curriculos:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -209,8 +213,27 @@ export default function Curriculos() {
     });
   }, [search, items]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "colaborador":
+          return item.nomeCompleto;
+        case "formacao":
+          return summarize(item.formacaoAcademica);
+        case "atuacao":
+          return summarize(item.atuacaoProfissional);
+        case "experiencias":
+          return summarize(item.experienciasRelevantes);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -335,21 +358,37 @@ export default function Curriculos() {
                     Ações
                   </th>
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Colaborador
-                  </th>
+                  <SortableHeader
+                    label="Colaborador"
+                    sortKey="colaborador"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Formação acadêmica
-                  </th>
+                  <SortableHeader
+                    label="Formação acadêmica"
+                    sortKey="formacao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Atuação profissional
-                  </th>
+                  <SortableHeader
+                    label="Atuação profissional"
+                    sortKey="atuacao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Experiências
-                  </th>
+                  <SortableHeader
+                    label="Experiências"
+                    sortKey="experiencias"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -523,7 +562,7 @@ export default function Curriculos() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

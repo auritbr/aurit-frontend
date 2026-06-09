@@ -21,7 +21,9 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { getUsuarioLogadoStorage } from "@/lib/auth";
@@ -52,6 +54,8 @@ import {
   userRoleLabel,
   statusUsuarioLabel,
 } from "@/data/usuarios";
+
+type SortKey = "nome" | "login" | "empresa" | "perfil" | "status";
 
 const statusTone: Record<string, string> = {
   ATIVO:
@@ -219,8 +223,29 @@ export default function Usuarios() {
     );
   }, [search, items, empresas, isUsuarioComum]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (usuario, key: SortKey) => {
+      switch (key) {
+        case "nome":
+          return usuario.name;
+        case "login":
+          return usuario.login;
+        case "empresa":
+          return empresaNome(usuario.configuracaoEmpresaId);
+        case "perfil":
+          return userRoleLabel[usuario.userRole];
+        case "status":
+          return statusUsuarioLabel[usuario.statusUsuario];
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -393,25 +418,45 @@ export default function Usuarios() {
                     Ações
                   </th>
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Nome
-                  </th>
+                  <SortableHeader
+                    label="Nome"
+                    sortKey="nome"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Login
-                  </th>
+                  <SortableHeader
+                    label="Login"
+                    sortKey="login"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Empresa
-                  </th>
+                  <SortableHeader
+                    label="Empresa"
+                    sortKey="empresa"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Perfil
-                  </th>
+                  <SortableHeader
+                    label="Perfil"
+                    sortKey="perfil"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Status
-                  </th>
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
                 </tr>
               </thead>
 
@@ -665,7 +710,7 @@ export default function Usuarios() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

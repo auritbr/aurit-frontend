@@ -33,6 +33,7 @@ import {
   getAtividadesOptions,
   getColaboradoresOptions,
   getTurmaById,
+  niveisTurma,
   statusTurma,
   updateTurma,
   type AtividadeOption,
@@ -48,6 +49,7 @@ interface FormState {
   quantidadeVagas: string;
   diaAtividade: string;
   status: string;
+  nivelTurma: string;
   atividadeId: string;
   colaboradores: string[];
 }
@@ -60,6 +62,7 @@ interface TurmaCarregada {
   quantidadeVagas?: number | string | null;
   diaAtividade?: string | null;
   status?: string | null;
+  nivelTurma?: string | null;
   atividadeId?: string | number | null;
   atividadeNome?: string | null;
   nomeAtividade?: string | null;
@@ -74,6 +77,7 @@ const initial: FormState = {
   quantidadeVagas: "",
   diaAtividade: "",
   status: "",
+  nivelTurma: "",
   atividadeId: "",
   colaboradores: [],
 };
@@ -205,11 +209,12 @@ export default function TurmaForm() {
             horarioFim: turma.horarioFim ?? "",
             quantidadeVagas:
               turma.quantidadeVagas !== null &&
-              turma.quantidadeVagas !== undefined
+                turma.quantidadeVagas !== undefined
                 ? String(turma.quantidadeVagas)
                 : "",
             diaAtividade: turma.diaAtividade ?? "",
             status: turma.status ?? "",
+            nivelTurma: turma.nivelTurma ?? "",
             atividadeId,
             colaboradores: (turma.colaboradoresIds ?? []).map(String),
           });
@@ -289,6 +294,11 @@ export default function TurmaForm() {
 
     if (!formComAtividade.status) {
       toast.error("Selecione o status da turma.");
+      return;
+    }
+
+    if (!formComAtividade.nivelTurma) {
+      toast.error("Selecione o nível da turma.");
       return;
     }
 
@@ -524,6 +534,37 @@ export default function TurmaForm() {
                     {statusTurma.map((status) => (
                       <SelectItem key={status.value} value={status.value}>
                         {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="nivelTurma"
+                  required={!visualizando}
+                  tooltip="Selecione o nível da turma conforme o perfil dos participantes. Ex.: iniciante, intermediário ou avançado."
+                >
+                  Nível da Turma
+                </FieldLabel>
+
+                <Select
+                  value={form.nivelTurma}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
+                    set("nivelTurma", value);
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="nivelTurma">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {niveisTurma.map((nivel) => (
+                      <SelectItem key={nivel.value} value={nivel.value}>
+                        {nivel.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

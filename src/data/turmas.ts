@@ -97,14 +97,24 @@ export const diasSemana = [
   { value: "DOMINGO", label: "Domingo" },
 ] as const;
 
+export const niveisTurma = [
+  { value: "INICIANTE", label: "Iniciante" },
+  { value: "INTERMEDIARIO", label: "Intermediário" },
+  { value: "AVANCADO", label: "Avançado" },
+] as const;
+
 export type StatusTurma = (typeof statusTurma)[number]["value"];
 export type DiaSemana = (typeof diasSemana)[number]["value"];
+export type NivelTurma = (typeof niveisTurma)[number]["value"];
 
 export const statusTurmaLabel = (value?: string) =>
   statusTurma.find((status) => status.value === value)?.label ?? value ?? "—";
 
 export const diaLabel = (value?: string) =>
   diasSemana.find((dia) => dia.value === value)?.label ?? value ?? "—";
+
+export const nivelTurmaLabel = (value?: string) =>
+  niveisTurma.find((nivel) => nivel.value === value)?.label ?? value ?? "—";
 
 export interface TurmaDTO {
   id?: number | string;
@@ -115,6 +125,7 @@ export interface TurmaDTO {
   quantidadeVagas?: number | string | null;
   diaAtividade: string;
   status: string;
+  nivelTurma?: string | null;
 
   atividadeId?: number | string | null;
   atividade?: {
@@ -140,6 +151,7 @@ export interface Turma {
   quantidadeVagas: number | null;
   diaAtividade: string;
   status: string;
+  nivelTurma: string;
   atividadeId: string;
   atividadeNome?: string;
   colaboradoresIds: string[];
@@ -154,6 +166,7 @@ export interface TurmaPayload {
   quantidadeVagas?: number | null;
   diaAtividade: string;
   status: string;
+  nivelTurma: string;
   atividadeId: number;
   colaboradoresIds: number[];
 }
@@ -166,6 +179,7 @@ export interface TurmaFormPayloadSource {
   quantidadeVagas?: string;
   diaAtividade: string;
   status: string;
+  nivelTurma: string;
   atividadeId: string;
   colaboradores: string[];
 }
@@ -229,6 +243,7 @@ export function mapTurma(dto: TurmaDTO): Turma {
     quantidadeVagas: normalizeNumber(dto.quantidadeVagas),
     diaAtividade: dto.diaAtividade ?? "",
     status: dto.status ?? "",
+    nivelTurma: dto.nivelTurma ?? "",
     atividadeId,
     atividadeNome: pickText(dto.atividade?.nomeAtividade, dto.atividade?.nome),
     colaboradoresIds: extractColaboradoresIds(dto),
@@ -249,6 +264,7 @@ export function buildTurmaPayload(
       : null,
     diaAtividade: data.diaAtividade,
     status: data.status,
+    nivelTurma: data.nivelTurma,
     atividadeId: Number(data.atividadeId),
     colaboradoresIds: data.colaboradores
       .map(Number)

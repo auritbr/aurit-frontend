@@ -38,9 +38,11 @@ import { FormLegend } from "@/components/FormLegend";
 import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportCronogramaPdf } from "@/lib/pdfExporters";
@@ -83,6 +85,8 @@ import {
   type ProjetoOption,
 } from "@/data/cronograma";
 import { toast } from "sonner";
+
+type SortKey = "etapa" | "periodo" | "status" | "projeto" | "vinculo";
 
 type FormMode = "create" | "edit" | "view";
 type LinkType = "NONE" | "ATIVIDADE" | "EVENTO" | "ACAO";
@@ -442,8 +446,29 @@ export default function Cronograma() {
     });
   }, [items, projetos, atividades, eventos, acoes, search]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "etapa":
+          return item.nomeEtapa;
+        case "periodo":
+          return item.dataInicioEtapa ?? "";
+        case "status":
+          return statusCronogramaLabel(item.statusCronograma);
+        case "projeto":
+          return projetoNome(item.projetoId);
+        case "vinculo":
+          return vinculoTexto(item);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const setField = <K extends keyof CronogramaData>(
     key: K,
@@ -1118,25 +1143,45 @@ export default function Cronograma() {
                         Ações
                       </th>
 
-                      <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Etapa
-                      </th>
+                      <SortableHeader
+                        label="Etapa"
+                        sortKey="etapa"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
 
-                      <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Período
-                      </th>
+                      <SortableHeader
+                        label="Período"
+                        sortKey="periodo"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
 
-                      <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Status
-                      </th>
+                      <SortableHeader
+                        label="Status"
+                        sortKey="status"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
 
-                      <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Projeto
-                      </th>
+                      <SortableHeader
+                        label="Projeto"
+                        sortKey="projeto"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
 
-                      <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Vínculo
-                      </th>
+                      <SortableHeader
+                        label="Vínculo"
+                        sortKey="vinculo"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
 
                       {podeGerarPdf && (
                         <th
@@ -1310,7 +1355,7 @@ export default function Cronograma() {
               </div>
 
               <TablePagination
-                totalItems={filtered.length}
+                totalItems={sortedItems.length}
                 currentPage={currentPage}
                 pageSize={pageSize}
                 onPageChange={setCurrentPage}

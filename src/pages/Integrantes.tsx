@@ -20,8 +20,10 @@ import { TableCellText } from "@/components/TableCellText";
 import { StatusPill, type Status } from "@/components/StatusPill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { exportIntegrantePdf } from "@/lib/pdfExporters";
 import {
@@ -51,6 +53,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "nome" | "funcao" | "organizacao" | "status";
 
 const INTEGRANTE_NEXT_STEP_KEY = "aurit:integrantes:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -211,8 +215,27 @@ export default function Integrantes() {
     );
   }, [search, items, organizacoes]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "nome":
+          return item.nomeCompleto ?? "";
+        case "funcao":
+          return item.funcaoIntegrante ?? "";
+        case "organizacao":
+          return organizacaoNome(item);
+        case "status":
+          return statusValueToLabel(item.status);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -352,21 +375,37 @@ export default function Integrantes() {
                     Ações
                   </th>
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Nome
-                  </th>
+                  <SortableHeader
+                    label="Nome"
+                    sortKey="nome"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Função / atuação
-                  </th>
+                  <SortableHeader
+                    label="Função / atuação"
+                    sortKey="funcao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Organização
-                  </th>
+                  <SortableHeader
+                    label="Organização"
+                    sortKey="organizacao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Status
-                  </th>
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -532,7 +571,7 @@ export default function Integrantes() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

@@ -34,8 +34,10 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { exportEditalPdf } from "@/lib/pdfExporters";
 import {
@@ -76,6 +78,8 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const EDITAIS_NEXT_STEP_KEY = "aurit:editais:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
+
+type SortKey = "nome" | "numero" | "inscricao" | "orgao" | "ano" | "esfera" | "status" | "organizacao" | "agente" | "abertura" | "encerramento" | "resultado" | "valor";
 
 type FormMode = "create" | "edit" | "view";
 type EditalForm = EditalData;
@@ -407,8 +411,45 @@ export default function Editais() {
     });
   }, [items, organizacoes, agentes, search]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "nome":
+          return item.nomeEdital;
+        case "numero":
+          return item.numeroEdital ?? "";
+        case "inscricao":
+          return item.numeroInscricao ?? "";
+        case "orgao":
+          return item.orgaoResponsavel;
+        case "ano":
+          return Number(item.anoEdital || 0);
+        case "esfera":
+          return esferaEditalLabel(item.esferaEdital);
+        case "status":
+          return statusEditalLabel(item.statusEdital);
+        case "organizacao":
+          return nomeOrganizacao(item.organizacaoId);
+        case "agente":
+          return nomeAgente(item.agenteId);
+        case "abertura":
+          return item.dataAbertura ?? "";
+        case "encerramento":
+          return item.dataEncerramento ?? "";
+        case "resultado":
+          return item.dataResultado ?? "";
+        case "valor":
+          return Number(item.valorTotalDisponivel || 0);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -1088,57 +1129,109 @@ export default function Editais() {
                       Ações
                     </th>
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Nome do Edital
-                    </th>
+                    <SortableHeader
+                      label="Nome do Edital"
+                      sortKey="nome"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Número do Edital
-                    </th>
+                    <SortableHeader
+                      label="Número do Edital"
+                      sortKey="numero"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Número de Inscrição
-                    </th>
+                    <SortableHeader
+                      label="Número de Inscrição"
+                      sortKey="inscricao"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Órgão Responsável
-                    </th>
+                    <SortableHeader
+                      label="Órgão Responsável"
+                      sortKey="orgao"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Ano
-                    </th>
+                    <SortableHeader
+                      label="Ano"
+                      sortKey="ano"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Esfera
-                    </th>
+                    <SortableHeader
+                      label="Esfera"
+                      sortKey="esfera"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Status do Edital
-                    </th>
+                    <SortableHeader
+                      label="Status do Edital"
+                      sortKey="status"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Organização
-                    </th>
+                    <SortableHeader
+                      label="Organização"
+                      sortKey="organizacao"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Agente Responsável
-                    </th>
+                    <SortableHeader
+                      label="Agente Responsável"
+                      sortKey="agente"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Data de Abertura
-                    </th>
+                    <SortableHeader
+                      label="Data de Abertura"
+                      sortKey="abertura"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Data de Encerramento
-                    </th>
+                    <SortableHeader
+                      label="Data de Encerramento"
+                      sortKey="encerramento"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Data do Resultado
-                    </th>
+                    <SortableHeader
+                      label="Data do Resultado"
+                      sortKey="resultado"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Valor Total Disponível
-                    </th>
+                    <SortableHeader
+                      label="Valor Total Disponível"
+                      sortKey="valor"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
                     {podeGerarPdf && (
                       <th
@@ -1359,7 +1452,7 @@ export default function Editais() {
             </div>
 
             <TablePagination
-              totalItems={filtered.length}
+              totalItems={sortedItems.length}
               currentPage={currentPage}
               pageSize={pageSize}
               onPageChange={setCurrentPage}

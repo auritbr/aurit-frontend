@@ -23,7 +23,9 @@ import { TableCellText } from "@/components/TableCellText";
 import { StatusPill } from "@/components/StatusPill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
@@ -55,6 +57,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "nome" | "tipo" | "periodo" | "status" | "projeto" | "colaboradores";
 
 const EVENTO_CULTURAL_NEXT_STEP_KEY = "aurit:eventos-culturais:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -219,8 +223,31 @@ export default function EventosCulturais() {
     });
   }, [search, items]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "nome":
+          return item.nomeEvento;
+        case "tipo":
+          return tipoEventoLabel(item.tipoEvento);
+        case "periodo":
+          return item.dataEvento ?? "";
+        case "status":
+          return statusValueToLabel(item.status);
+        case "projeto":
+          return item.projetoNome ?? "";
+        case "colaboradores":
+          return item.colaboradoresNomes.join(", ");
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -357,29 +384,53 @@ export default function EventosCulturais() {
                     Ações
                   </th>
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Nome do evento
-                  </th>
+                  <SortableHeader
+                    label="Nome do evento"
+                    sortKey="nome"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Tipo de evento
-                  </th>
+                  <SortableHeader
+                    label="Tipo de evento"
+                    sortKey="tipo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Período
-                  </th>
+                  <SortableHeader
+                    label="Período"
+                    sortKey="periodo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Status
-                  </th>
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Projetos
-                  </th>
+                  <SortableHeader
+                    label="Projetos"
+                    sortKey="projeto"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Colaboradores
-                  </th>
+                  <SortableHeader
+                    label="Colaboradores"
+                    sortKey="colaboradores"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -587,7 +638,7 @@ export default function EventosCulturais() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

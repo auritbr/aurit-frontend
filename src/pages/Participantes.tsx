@@ -21,8 +21,10 @@ import { TableCellText } from "@/components/TableCellText";
 import { StatusPill } from "@/components/StatusPill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
@@ -57,6 +59,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { exportTermoImagemPdf } from "@/lib/pdfExporters";
 import { toast } from "sonner";
+
+type SortKey = "nome" | "status" | "genero" | "racaCor" | "telefone" | "responsavel" | "matriculas";
 
 const PARTICIPANTE_NEXT_STEP_KEY = "aurit:participantes:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -257,8 +261,33 @@ export default function Participantes() {
     });
   }, [search, items, atividades, turmas, organizacoes]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "nome":
+          return item.nomeCompleto;
+        case "status":
+          return statusValueToLabel(item.status);
+        case "genero":
+          return generoLabel(item.genero);
+        case "racaCor":
+          return racaCorLabel(item.racaCor);
+        case "telefone":
+          return item.telefone ?? "";
+        case "responsavel":
+          return item.nomeResponsavel ?? "";
+        case "matriculas":
+          return formatVinculos(item.vinculos);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -398,33 +427,61 @@ export default function Participantes() {
                     Ações
                   </th>
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Nome do Participante
-                  </th>
+                  <SortableHeader
+                    label="Nome do Participante"
+                    sortKey="nome"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Status
-                  </th>
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Gênero
-                  </th>
+                  <SortableHeader
+                    label="Gênero"
+                    sortKey="genero"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Raça/Cor
-                  </th>
+                  <SortableHeader
+                    label="Raça/Cor"
+                    sortKey="racaCor"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Telefone
-                  </th>
+                  <SortableHeader
+                    label="Telefone"
+                    sortKey="telefone"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Responsável
-                  </th>
+                  <SortableHeader
+                    label="Responsável"
+                    sortKey="responsavel"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Matrículas
-                  </th>
+                  <SortableHeader
+                    label="Matrículas"
+                    sortKey="matriculas"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -538,7 +595,7 @@ export default function Participantes() {
                 })}
 
                 {paginated.length === 0 && (
-                  <EmptyRow colspan={podeGerarPdf ? 10 : 9} />
+                  <EmptyRow colspan={podeGerarPdf ? 9 : 8} />
                 )}
               </tbody>
             </table>
@@ -626,7 +683,7 @@ export default function Participantes() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

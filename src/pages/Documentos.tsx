@@ -23,8 +23,10 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
@@ -56,6 +58,8 @@ import {
   type OrganizacaoOption,
 } from "@/data/documentos";
 import { toast } from "sonner";
+
+type SortKey = "tipo" | "organizacao" | "orgaoEmissor" | "dataEmissao" | "dataValidade" | "status";
 
 const DOCUMENTO_NEXT_STEP_KEY = "aurit:documentos:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -263,8 +267,31 @@ export default function DocumentosPage() {
     });
   }, [search, items, organizacoes]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "tipo":
+          return tipoDocumentoLabels[item.tipoDocumento] ?? item.tipoDocumento;
+        case "organizacao":
+          return getOrganizacaoNome(item.organizacaoId);
+        case "orgaoEmissor":
+          return item.orgaoEmissor ?? "";
+        case "dataEmissao":
+          return item.dataEmissao ?? "";
+        case "dataValidade":
+          return item.dataValidade ?? "";
+        case "status":
+          return statusDocumentoLabels[item.statusDocumento] ?? item.statusDocumento;
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -448,29 +475,53 @@ export default function DocumentosPage() {
                     Ações
                   </th>
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Tipo de Documento
-                  </th>
+                  <SortableHeader
+                    label="Tipo de Documento"
+                    sortKey="tipo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Organização
-                  </th>
+                  <SortableHeader
+                    label="Organização"
+                    sortKey="organizacao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Órgão Emissor
-                  </th>
+                  <SortableHeader
+                    label="Órgão Emissor"
+                    sortKey="orgaoEmissor"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Data de Emissão
-                  </th>
+                  <SortableHeader
+                    label="Data de Emissão"
+                    sortKey="dataEmissao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Data de Validade
-                  </th>
+                  <SortableHeader
+                    label="Data de Validade"
+                    sortKey="dataValidade"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Status
-                  </th>
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeBaixar && (
                     <th
@@ -724,7 +775,7 @@ export default function DocumentosPage() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

@@ -22,8 +22,10 @@ import { TableCellText } from "@/components/TableCellText";
 import { StatusPill, type Status } from "@/components/StatusPill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
@@ -33,7 +35,7 @@ import {
 } from "@/lib/permissoes";
 import { getColaboradores, type Colaborador } from "@/data/colaboradores";
 import {
-  areaAtuacaoLabel,
+  areasAtuacaoLabel,
   deleteProjeto,
   getOrganizacoes,
   getProjetos,
@@ -53,6 +55,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "nome" | "area" | "origem" | "status" | "organizacao" | "dataInicio" | "dataFim";
 
 const PROJETO_NEXT_STEP_KEY = "aurit:projetos:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -210,7 +214,7 @@ export default function Projetos() {
 
     return items.filter((p) => {
       const organizacao = nomeOrganizacao(p.organizacaoId).toLowerCase();
-      const area = areaAtuacaoLabel(p.areaAtuacao).toLowerCase();
+      const area = areasAtuacaoLabel(p.areasAtuacao).toLowerCase();
       const status = statusProjetoLabel(p.status).toLowerCase();
       const origem = origemProjetoLabel(p.origemProjeto).toLowerCase();
       const equipe = nomesColaboradores(p.colaboradoresIds)
@@ -233,8 +237,33 @@ export default function Projetos() {
     });
   }, [search, items, organizacoes, colaboradores]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (p, key: SortKey) => {
+      switch (key) {
+        case "nome":
+          return p.nomeProjeto;
+        case "area":
+          return areasAtuacaoLabel(p.areasAtuacao);
+        case "origem":
+          return origemProjetoLabel(p.origemProjeto);
+        case "status":
+          return statusProjetoLabel(p.status);
+        case "organizacao":
+          return nomeOrganizacao(p.organizacaoId);
+        case "dataInicio":
+          return p.dataInicio ?? "";
+        case "dataFim":
+          return p.dataFim ?? "";
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -288,7 +317,7 @@ export default function Projetos() {
     dataInicio: p.dataInicio,
     dataFim: p.dataFim,
     status: statusProjetoLabel(p.status),
-    areaAtuacao: areaAtuacaoLabel(p.areaAtuacao),
+    areaAtuacao: areasAtuacaoLabel(p.areasAtuacao),
     origemProjeto: origemProjetoLabel(p.origemProjeto),
     organizacao: nomeOrganizacao(p.organizacaoId),
     colaboradores: nomesColaboradores(p.colaboradoresIds),
@@ -376,33 +405,61 @@ export default function Projetos() {
                     Ações
                   </th>
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Nome do projeto
-                  </th>
+                  <SortableHeader
+                    label="Nome do projeto"
+                    sortKey="nome"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Área de atuação
-                  </th>
+                  <SortableHeader
+                    label="Área de atuação"
+                    sortKey="area"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Origem
-                  </th>
+                  <SortableHeader
+                    label="Origem"
+                    sortKey="origem"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Status
-                  </th>
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Organização
-                  </th>
+                  <SortableHeader
+                    label="Organização"
+                    sortKey="organizacao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Data de início
-                  </th>
+                  <SortableHeader
+                    label="Data de início"
+                    sortKey="dataInicio"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Data de término
-                  </th>
+                  <SortableHeader
+                    label="Data de término"
+                    sortKey="dataFim"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -457,7 +514,7 @@ export default function Projetos() {
                     </td>
 
                     <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                      {areaAtuacaoLabel(p.areaAtuacao)}
+                      {areasAtuacaoLabel(p.areasAtuacao)}
                     </td>
 
                     <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
@@ -561,7 +618,7 @@ export default function Projetos() {
                   <p className="font-medium text-foreground">{p.nomeProjeto}</p>
 
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {areaAtuacaoLabel(p.areaAtuacao)} ·{" "}
+                    {areasAtuacaoLabel(p.areasAtuacao)} ·{" "}
                     {origemProjetoLabel(p.origemProjeto)} ·{" "}
                     {nomeOrganizacao(p.organizacaoId)}
                   </p>
@@ -581,7 +638,7 @@ export default function Projetos() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

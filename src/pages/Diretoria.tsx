@@ -35,8 +35,10 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { maskCEP, maskCPF, maskPhone } from "@/lib/masks";
 import { estadosBrasil } from "@/data/colaboradores";
@@ -82,6 +84,8 @@ import {
   type TipoDeficienciaApi,
 } from "@/lib/diretoriaStore";
 import { toast } from "sonner";
+
+type SortKey = "nome" | "cargo" | "inicioMandato" | "fimMandato" | "afastamento" | "status" | "organizacao";
 
 type FormMode = "create" | "edit" | "view";
 
@@ -451,8 +455,33 @@ export default function Diretoria() {
     });
   }, [organizacoes, registros, search]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filteredRegistros,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "nome":
+          return item.nomeCompleto;
+        case "cargo":
+          return cargoDiretoriaLabel(item.cargoDiretoria);
+        case "inicioMandato":
+          return item.dataInicioMandato ?? "";
+        case "fimMandato":
+          return item.dataFimMandato ?? "";
+        case "afastamento":
+          return item.dataAfastamento ?? "";
+        case "status":
+          return statusDiretoriaLabel(item.statusDiretoria);
+        case "organizacao":
+          return organizacaoNome(item.organizacaoId);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filteredRegistros, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const setField = <K extends keyof DiretoriaData>(
     key: K,
@@ -1382,33 +1411,61 @@ export default function Diretoria() {
                       Ações
                     </th>
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Nome
-                    </th>
+                    <SortableHeader
+                      label="Nome"
+                      sortKey="nome"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Cargo na Diretoria
-                    </th>
+                    <SortableHeader
+                      label="Cargo na Diretoria"
+                      sortKey="cargo"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Início do Mandato
-                    </th>
+                    <SortableHeader
+                      label="Início do Mandato"
+                      sortKey="inicioMandato"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Fim do Mandato
-                    </th>
+                    <SortableHeader
+                      label="Fim do Mandato"
+                      sortKey="fimMandato"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Afastamento
-                    </th>
+                    <SortableHeader
+                      label="Afastamento"
+                      sortKey="afastamento"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Status
-                    </th>
+                    <SortableHeader
+                      label="Status"
+                      sortKey="status"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Organização
-                    </th>
+                    <SortableHeader
+                      label="Organização"
+                      sortKey="organizacao"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
                     {podeGerarPdf && (
                       <th
@@ -1607,7 +1664,7 @@ export default function Diretoria() {
             </div>
 
             <TablePagination
-              totalItems={filteredRegistros.length}
+              totalItems={sortedItems.length}
               currentPage={currentPage}
               pageSize={pageSize}
               onPageChange={setCurrentPage}

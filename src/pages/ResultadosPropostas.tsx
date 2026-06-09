@@ -21,7 +21,9 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportResultadoPropostaPdf } from "@/lib/pdfExporters";
@@ -54,6 +56,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "proposta" | "edital" | "status" | "pontuacao" | "dataResultado" | "recurso" | "relatorio";
 
 const toneClass: Record<string, string> = {
   neutral: "bg-muted text-muted-foreground border-border",
@@ -222,8 +226,33 @@ export default function ResultadosPropostas() {
     );
   }, [search, items, propostas]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "proposta":
+          return propostaNome(item);
+        case "edital":
+          return editalNome(item);
+        case "status":
+          return statusResultadoPropostaLabel(item.statusResultadoProposta);
+        case "pontuacao":
+          return Number(item.pontuacao || 0);
+        case "dataResultado":
+          return item.dataResultado ?? "";
+        case "recurso":
+          return item.recursoInterposto;
+        case "relatorio":
+          return item.urlRelatorioAvaliacao ? "Anexado" : "Sem relatório";
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -350,24 +379,68 @@ export default function ResultadosPropostas() {
             <table ref={tableRef} className="w-full min-w-[1180px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  {[
-                    "Ações",
-                    "Proposta",
-                    "Edital",
-                    "Status",
-                    "Pontuação",
-                    "Data do resultado",
-                    "Recurso",
-                    "Relatório de avaliação",
-                  ].map((header) => (
-                    <th
-                      key={header}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy={header === "Ações" ? true : undefined}
-                    >
-                      {header}
-                    </th>
-                  ))}
+                  <th
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    data-no-copy
+                  >
+                    Ações
+                  </th>
+
+                  <SortableHeader
+                    label="Proposta"
+                    sortKey="proposta"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Edital"
+                    sortKey="edital"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Pontuação"
+                    sortKey="pontuacao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Data do resultado"
+                    sortKey="dataResultado"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Recurso"
+                    sortKey="recurso"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Relatório de avaliação"
+                    sortKey="relatorio"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -463,8 +536,8 @@ export default function ResultadosPropostas() {
                       <td className="whitespace-nowrap px-6 py-2.5">
                         <span
                           className={`text-sm ${item.urlRelatorioAvaliacao
-                              ? "text-foreground"
-                              : "text-muted-foreground"
+                            ? "text-foreground"
+                            : "text-muted-foreground"
                             }`}
                         >
                           {item.urlRelatorioAvaliacao
@@ -622,7 +695,7 @@ export default function ResultadosPropostas() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

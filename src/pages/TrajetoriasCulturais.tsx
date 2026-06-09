@@ -22,8 +22,10 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
@@ -49,6 +51,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "colaborador" | "situacao";
 
 const TRAJETORIA_NEXT_STEP_KEY = "aurit:trajetorias-culturais:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -222,8 +226,23 @@ export default function TrajetoriasCulturais() {
     });
   }, [search, items]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "colaborador":
+          return getColaboradorNome(item);
+        case "situacao":
+          return situacaoTexto(item.textoTrajetoria).label;
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -370,13 +389,21 @@ export default function TrajetoriasCulturais() {
                     Ações
                   </th>
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Colaborador
-                  </th>
+                  <SortableHeader
+                    label="Colaborador"
+                    sortKey="colaborador"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Situação do texto
-                  </th>
+                  <SortableHeader
+                    label="Situação do texto"
+                    sortKey="situacao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -549,7 +576,7 @@ export default function TrajetoriasCulturais() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

@@ -73,7 +73,7 @@ interface FormState {
   dataInicio: string;
   dataFim: string;
   status: StatusProjeto | "";
-  areaAtuacao: AreaAtuacao | "";
+  areasAtuacao: AreaAtuacao[];
   origemProjeto: OrigemProjeto | "";
   organizacaoId: string;
   colaboradoresIds: string[];
@@ -90,7 +90,7 @@ const initial: FormState = {
   dataInicio: "",
   dataFim: "",
   status: "",
-  areaAtuacao: "",
+  areasAtuacao: [],
   origemProjeto: "",
   organizacaoId: "",
   colaboradoresIds: [],
@@ -131,8 +131,8 @@ function resolverOrganizacaoId(
 
   const idPorObjeto = toStringId(
     projetoRaw?.organizacao?.id ??
-      projetoRaw?.organizacao?.organizacaoId ??
-      projetoRaw?.organizacao?.codigo,
+    projetoRaw?.organizacao?.organizacaoId ??
+    projetoRaw?.organizacao?.codigo,
   );
 
   if (idPorObjeto) {
@@ -141,8 +141,8 @@ function resolverOrganizacaoId(
 
   const idPorObjetoFallback = toStringId(
     fallbackRaw?.organizacao?.id ??
-      fallbackRaw?.organizacao?.organizacaoId ??
-      fallbackRaw?.organizacao?.codigo,
+    fallbackRaw?.organizacao?.organizacaoId ??
+    fallbackRaw?.organizacao?.codigo,
   );
 
   if (idPorObjetoFallback) {
@@ -151,10 +151,10 @@ function resolverOrganizacaoId(
 
   const idAlternativo = toStringId(
     projetoRaw?.idOrganizacao ??
-      projetoRaw?.organizacao_id ??
-      projetoRaw?.organizacaoID ??
-      projetoRaw?.empresaId ??
-      projetoRaw?.configuracaoEmpresaId,
+    projetoRaw?.organizacao_id ??
+    projetoRaw?.organizacaoID ??
+    projetoRaw?.empresaId ??
+    projetoRaw?.configuracaoEmpresaId,
   );
 
   if (idAlternativo) {
@@ -163,10 +163,10 @@ function resolverOrganizacaoId(
 
   const idAlternativoFallback = toStringId(
     fallbackRaw?.idOrganizacao ??
-      fallbackRaw?.organizacao_id ??
-      fallbackRaw?.organizacaoID ??
-      fallbackRaw?.empresaId ??
-      fallbackRaw?.configuracaoEmpresaId,
+    fallbackRaw?.organizacao_id ??
+    fallbackRaw?.organizacaoID ??
+    fallbackRaw?.empresaId ??
+    fallbackRaw?.configuracaoEmpresaId,
   );
 
   if (idAlternativoFallback) {
@@ -195,7 +195,12 @@ function projetoToForm(
     dataInicio: projeto.dataInicio ?? "",
     dataFim: projeto.dataFim ?? "",
     status: projeto.status ?? "",
-    areaAtuacao: projeto.areaAtuacao ?? "",
+    areasAtuacao:
+      projeto.areasAtuacao && projeto.areasAtuacao.length > 0
+        ? projeto.areasAtuacao
+        : projeto.areaAtuacao
+          ? [projeto.areaAtuacao]
+          : [],
     origemProjeto: projeto.origemProjeto ?? "",
     organizacaoId: resolverOrganizacaoId(
       projeto,
@@ -206,9 +211,9 @@ function projetoToForm(
     objetivos:
       projeto.objetivos && projeto.objetivos.length > 0
         ? projeto.objetivos.map((objetivo) => ({
-            id: objetivo.id,
-            objetivoEspecifico: objetivo.objetivoEspecifico ?? "",
-          }))
+          id: objetivo.id,
+          objetivoEspecifico: objetivo.objetivoEspecifico ?? "",
+        }))
         : [{ objetivoEspecifico: "" }],
   };
 }
@@ -255,6 +260,12 @@ function isDataFimAnterior(dataInicio: string, dataFim: string) {
 
   return fim.getTime() < inicio.getTime();
 }
+
+const areasAtuacaoOptionsValues = areaAtuacaoOptions.map((area) => area.value);
+
+const getAreaAtuacaoLabel = (areaValue: string) =>
+  areaAtuacaoOptions.find((area) => area.value === areaValue)?.label ??
+  areaValue;
 
 export default function ProjetoForm() {
   const navigate = useNavigate();
@@ -408,9 +419,9 @@ export default function ProjetoForm() {
       objetivos: prev.objetivos.map((objetivo, index) =>
         index === idx
           ? {
-              ...objetivo,
-              objetivoEspecifico: value,
-            }
+            ...objetivo,
+            objetivoEspecifico: value,
+          }
           : objetivo,
       ),
     }));
@@ -502,8 +513,8 @@ export default function ProjetoForm() {
       return false;
     }
 
-    if (!formValidacao.areaAtuacao) {
-      toast.error("Selecione a área de atuação.");
+    if (!formValidacao.areasAtuacao || formValidacao.areasAtuacao.length === 0) {
+      toast.error("Selecione ao menos uma área de atuação.");
       return false;
     }
 
@@ -560,7 +571,7 @@ export default function ProjetoForm() {
         dataInicio: formComOrganizacao.dataInicio,
         dataFim: formComOrganizacao.dataFim,
         status: formComOrganizacao.status as StatusProjeto,
-        areaAtuacao: formComOrganizacao.areaAtuacao as AreaAtuacao,
+        areasAtuacao: formComOrganizacao.areasAtuacao as AreaAtuacao[],
         origemProjeto: formComOrganizacao.origemProjeto as OrigemProjeto,
         organizacaoId: Number(formComOrganizacao.organizacaoId),
         colaboradoresIds: formComOrganizacao.colaboradoresIds
@@ -804,33 +815,26 @@ export default function ProjetoForm() {
 
               <Field>
                 <FieldLabel
-                  htmlFor="areaAtuacao"
+                  htmlFor="areasAtuacao"
                   required
-                  tooltip="Selecione a principal área de atuação do projeto. Caso o projeto dialogue com mais de uma área, escolha aquela que melhor representa seu foco central."
+                  tooltip="Selecione uma ou mais áreas de atuação relacionadas ao projeto. Use este campo para registrar projetos que dialogam com diferentes linguagens, políticas públicas ou frentes de trabalho."
                 >
-                  Área de Atuação
+                  Áreas de Atuação
                 </FieldLabel>
 
-                <Select
-                  value={form.areaAtuacao}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("areaAtuacao", value as AreaAtuacao);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="areaAtuacao">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent className="max-h-72">
-                    {areaAtuacaoOptions.map((area) => (
-                      <SelectItem key={area.value} value={area.value}>
-                        {area.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className={bloqueado ? "pointer-events-none opacity-80" : ""}>
+                  <MultiSelect
+                    id="areasAtuacao"
+                    options={areasAtuacaoOptionsValues}
+                    value={form.areasAtuacao}
+                    onChange={(value) => {
+                      if (visualizando) return;
+                      set("areasAtuacao", value as AreaAtuacao[]);
+                    }}
+                    getOptionLabel={getAreaAtuacaoLabel}
+                    placeholder="Selecione as áreas de atuação"
+                  />
+                </div>
               </Field>
 
               <Field>

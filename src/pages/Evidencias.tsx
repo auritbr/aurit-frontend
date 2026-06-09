@@ -26,8 +26,10 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportEvidenciaExecucaoPdf } from "@/lib/pdfExporters";
@@ -65,6 +67,8 @@ import {
   type OptionItem,
 } from "@/data/evidencias";
 import { toast } from "sonner";
+
+type SortKey = "titulo" | "tipoEvidencia" | "tipoVinculo" | "projeto" | "vinculo";
 
 const EVIDENCIA_NEXT_STEP_KEY = "aurit:evidencias:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -267,8 +271,36 @@ export default function EvidenciasPage() {
     presencas,
   ]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "titulo":
+          return item.tituloEvidencia?.trim() || "(Sem título)";
+        case "tipoEvidencia":
+          return tipoEvidenciaLabel(item.tipoEvidencia);
+        case "tipoVinculo":
+          return tipoVinculoLabel(item.tipoVinculoEvidencia);
+        case "projeto":
+          return optionName(projetos, item.projeto);
+        case "vinculo":
+          return vinculoRelacionadoTexto(item, {
+            propostasEdital,
+            atividades,
+            turmas,
+            eventos,
+            acoes,
+            presencas,
+          });
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -455,25 +487,45 @@ export default function EvidenciasPage() {
                     Ações
                   </th>
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Título
-                  </th>
+                  <SortableHeader
+                    label="Título"
+                    sortKey="titulo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Tipo de evidência
-                  </th>
+                  <SortableHeader
+                    label="Tipo de evidência"
+                    sortKey="tipoEvidencia"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Tipo de vínculo
-                  </th>
+                  <SortableHeader
+                    label="Tipo de vínculo"
+                    sortKey="tipoVinculo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Projeto
-                  </th>
+                  <SortableHeader
+                    label="Projeto"
+                    sortKey="projeto"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Vínculo relacionado
-                  </th>
+                  <SortableHeader
+                    label="Vínculo relacionado"
+                    sortKey="vinculo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   <th
                     className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
@@ -752,7 +804,7 @@ export default function EvidenciasPage() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

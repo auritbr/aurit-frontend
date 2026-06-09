@@ -22,8 +22,10 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportPropostaEditalPdf } from "@/lib/pdfExporters";
@@ -65,6 +67,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "titulo" | "edital" | "projeto" | "agente" | "valor" | "submissao" | "status";
 
 const PROPOSTA_EDITAL_NEXT_STEP_KEY =
   "aurit:propostas-edital:next-step-card";
@@ -334,8 +338,33 @@ export default function PropostasEdital() {
     );
   }, [search, items, agentes, projetos, editais, organizacoes]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (proposta, key: SortKey) => {
+      switch (key) {
+        case "titulo":
+          return proposta.tituloProjeto;
+        case "edital":
+          return editalNome(proposta.edital);
+        case "projeto":
+          return projetoNomeById(proposta.projeto);
+        case "agente":
+          return agenteNomeById(proposta.agente);
+        case "valor":
+          return Number(proposta.valorSolicitado || 0);
+        case "submissao":
+          return proposta.dataSubmissao ?? "";
+        case "status":
+          return statusPropostaEditalLabel(proposta.statusPropostaEdital);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -481,24 +510,68 @@ export default function PropostasEdital() {
             <table ref={tableRef} className="w-full min-w-[1280px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  {[
-                    "Ações",
-                    "Título do projeto",
-                    "Edital",
-                    "Projeto base",
-                    "Agente responsável",
-                    "Valor solicitado",
-                    "Data de submissão",
-                    "Status da proposta",
-                  ].map((heading) => (
-                    <th
-                      key={heading}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy={heading === "Ações" ? true : undefined}
-                    >
-                      {heading}
-                    </th>
-                  ))}
+                  <th
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    data-no-copy
+                  >
+                    Ações
+                  </th>
+
+                  <SortableHeader
+                    label="Título do projeto"
+                    sortKey="titulo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Edital"
+                    sortKey="edital"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Projeto base"
+                    sortKey="projeto"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Agente responsável"
+                    sortKey="agente"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Valor solicitado"
+                    sortKey="valor"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Data de submissão"
+                    sortKey="submissao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Status da proposta"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -773,7 +846,7 @@ export default function PropostasEdital() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

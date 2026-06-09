@@ -22,8 +22,10 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportEquipeEditalPdf } from "@/lib/pdfExporters";
@@ -55,6 +57,8 @@ import {
   type PropostaEditalOption,
 } from "@/data/equipeEdital";
 import { toast } from "sonner";
+
+type SortKey = "pessoa" | "tipo" | "funcao" | "cargaHoraria" | "valor" | "proposta";
 
 const EQUIPE_EDITAL_NEXT_STEP_KEY = "aurit:equipe-edital:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -235,8 +239,31 @@ export default function EquipeEditalPage() {
     });
   }, [search, items, propostas, colaboradores, integrantes]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "pessoa":
+          return pessoaNome(item);
+        case "tipo":
+          return tipoPessoaLabel(item.tipoPessoa);
+        case "funcao":
+          return item.funcaoProjeto ?? "";
+        case "cargaHoraria":
+          return Number(item.cargaHorariaPrevista || 0);
+        case "valor":
+          return Number(item.valorPrevisto || 0);
+        case "proposta":
+          return propostaNome(item.propostaEdital);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -378,23 +405,60 @@ export default function EquipeEditalPage() {
             <table ref={tableRef} className="w-full min-w-[1280px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  {[
-                    "Ações",
-                    "Pessoa",
-                    "Tipo",
-                    "Função no projeto",
-                    "Carga horária",
-                    "Valor previsto",
-                    "Proposta de edital",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy={h === "Ações" ? true : undefined}
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  <th
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    data-no-copy
+                  >
+                    Ações
+                  </th>
+
+                  <SortableHeader
+                    label="Pessoa"
+                    sortKey="pessoa"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Tipo"
+                    sortKey="tipo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Função no projeto"
+                    sortKey="funcao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Carga horária"
+                    sortKey="cargaHoraria"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Valor previsto"
+                    sortKey="valor"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Proposta de edital"
+                    sortKey="proposta"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -600,7 +664,7 @@ export default function EquipeEditalPage() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

@@ -22,7 +22,9 @@ import { TableCellText } from "@/components/TableCellText";
 import { StatusPill } from "@/components/StatusPill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { exportAtividadePdf } from "@/lib/pdfExporters";
 import {
@@ -53,6 +55,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "nomeAtividade" | "tipoAtividade" | "dataInicio" | "dataFim" | "status" | "projeto" | "colaboradores";
 
 const ATIVIDADE_NEXT_STEP_KEY = "aurit:atividades:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -235,8 +239,33 @@ export default function Atividades() {
     );
   }, [search, items]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "nomeAtividade":
+          return item.nomeAtividade;
+        case "tipoAtividade":
+          return tipoLabel(item.tipoAtividade);
+        case "dataInicio":
+          return item.dataInicio ?? "";
+        case "dataFim":
+          return item.dataFim ?? "";
+        case "status":
+          return statusValueToLabel(item.status);
+        case "projeto":
+          return item.projetoNome ?? "";
+        case "colaboradores":
+          return item.colaboradoresNomes.join(", ");
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -360,33 +389,61 @@ export default function Atividades() {
                     Ações
                   </th>
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap">
-                    Nome da atividade
-                  </th>
+                  <SortableHeader
+                    label="Nome da atividade"
+                    sortKey="nomeAtividade"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap"
+                  />
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap">
-                    Tipo de atividade
-                  </th>
+                  <SortableHeader
+                    label="Tipo de atividade"
+                    sortKey="tipoAtividade"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap"
+                  />
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap">
-                    Data de início
-                  </th>
+                  <SortableHeader
+                    label="Data de início"
+                    sortKey="dataInicio"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap"
+                  />
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap">
-                    Data de término
-                  </th>
+                  <SortableHeader
+                    label="Data de término"
+                    sortKey="dataFim"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap"
+                  />
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap">
-                    Status
-                  </th>
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap"
+                  />
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap">
-                    Projeto
-                  </th>
+                  <SortableHeader
+                    label="Projeto"
+                    sortKey="projeto"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap"
+                  />
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap">
-                    Colaboradores
-                  </th>
+                  <SortableHeader
+                    label="Colaboradores"
+                    sortKey="colaboradores"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5 whitespace-nowrap"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -576,7 +633,7 @@ export default function Atividades() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

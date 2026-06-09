@@ -8,6 +8,9 @@ import {
   Trash2,
   Megaphone,
   FileDown,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { exportAcaoDivulgacaoPdf } from "@/lib/pdfExporters";
 import { AppLayout } from "@/components/AppLayout";
@@ -57,6 +60,14 @@ const ACAO_DIVULGACAO_NEXT_STEP_KEY =
   "aurit:acoes-divulgacao:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
 
+type SortKey = "nomeAcao" | "propostaEdital" | "status";
+type SortDirection = "asc" | "desc";
+
+interface SortConfig {
+  key: SortKey;
+  direction: SortDirection;
+}
+
 interface AcaoDivulgacaoNextStepCardData {
   titulo: string;
   descricao: string;
@@ -84,6 +95,7 @@ export default function AcoesDivulgacao() {
     useState<AcaoDivulgacaoNextStepCardData | null>(null);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
   const podeVisualizar = permissoes.VISUALIZAR;
   const podeCriar = permissoes.CRIAR;
@@ -226,8 +238,60 @@ export default function AcoesDivulgacao() {
     });
   }, [search, items, propostas]);
 
+  const sorted = useMemo(() => {
+    if (!sortConfig) return filtered;
+
+    const getSortableValue = (item: AcaoDivulgacao, key: SortKey) => {
+      switch (key) {
+        case "nomeAcao":
+          return item.nomeAcao ?? "";
+
+        case "propostaEdital":
+          return propostaNomeAcao(item.propostaEditalId, propostas, item);
+
+        case "status":
+          return statusValueToLabel(item.status);
+
+        default:
+          return "";
+      }
+    };
+
+    const direction = sortConfig.direction === "asc" ? 1 : -1;
+
+    return [...filtered].sort((a, b) => {
+      const valueA = getSortableValue(a, sortConfig.key);
+      const valueB = getSortableValue(b, sortConfig.key);
+
+      return (
+        valueA.localeCompare(valueB, "pt-BR", {
+          sensitivity: "base",
+          numeric: true,
+        }) * direction
+      );
+    });
+  }, [filtered, propostas, sortConfig]);
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sorted, 25, search);
+
+  function handleSort(key: SortKey) {
+    setSortConfig((prev) => {
+      if (prev?.key === key) {
+        return {
+          key,
+          direction: prev.direction === "asc" ? "desc" : "asc",
+        };
+      }
+
+      return {
+        key,
+        direction: "asc",
+      };
+    });
+
+    setCurrentPage(1);
+  }
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -285,6 +349,18 @@ export default function AcoesDivulgacao() {
       projeto: projetoNome(item),
       registroDocumentacao: [],
     } as any);
+  }
+
+  if (loadingPermissoes) {
+    return (
+      <AppLayout>
+        <div className="container max-w-7xl py-6 sm:py-8">
+          <p className="text-sm text-muted-foreground">
+            Carregando permissões...
+          </p>
+        </div>
+      </AppLayout>
+    );
   }
 
   if (!podeVisualizar) {
@@ -359,17 +435,26 @@ export default function AcoesDivulgacao() {
                     Ações
                   </th>
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Nome da ação
-                  </th>
+                  <SortableHeader
+                    label="Nome da ação"
+                    sortKey="nomeAcao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Proposta de edital
-                  </th>
+                  <SortableHeader
+                    label="Proposta de edital"
+                    sortKey="propostaEdital"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Status
-                  </th>
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -383,90 +468,100 @@ export default function AcoesDivulgacao() {
               </thead>
 
               <tbody>
-                {paginated.map((item) => {
-                  const proposta = propostaNome(item);
-                  const edital = editalNome(item);
-                  const projeto = projetoNome(item);
-                  const status = statusValueToLabel(item.status) as Status;
+                {loading ? (
+                  <LoadingRow colSpan={podeGerarPdf ? 5 : 4} />
+                ) : (
+                  paginated.map((item) => {
+                    const proposta = propostaNome(item);
+                    const status = statusValueToLabel(item.status) as Status;
 
-                  return (
-                    <tr
-                      key={item.id}
-                      className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                    >
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <div className="flex items-center gap-1">
-                          <TableActionIcon
-                            icon={Eye}
-                            label="Visualizar"
-                            onClick={() =>
-                              navigate(`/acoes-divulgacao/${item.id}`)
-                            }
-                          />
-
-                          {podeEditar && (
+                    return (
+                      <tr
+                        key={item.id}
+                        className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
+                      >
+                        <td className="whitespace-nowrap px-6 py-2.5">
+                          <div className="flex items-center gap-1">
                             <TableActionIcon
-                              icon={Pencil}
-                              label="Editar"
+                              icon={Eye}
+                              label="Visualizar"
                               onClick={() =>
-                                navigate(`/acoes-divulgacao/${item.id}/editar`)
+                                navigate(`/acoes-divulgacao/${item.id}`)
                               }
                             />
-                          )}
 
-                          {podeExcluir && (
-                            <TableActionIcon
-                              icon={Trash2}
-                              label="Excluir"
-                              variant="danger"
-                              onClick={() => setConfirmDelete(item.id)}
-                            />
-                          )}
-                        </div>
-                      </td>
+                            {podeEditar && (
+                              <TableActionIcon
+                                icon={Pencil}
+                                label="Editar"
+                                onClick={() =>
+                                  navigate(
+                                    `/acoes-divulgacao/${item.id}/editar`,
+                                  )
+                                }
+                              />
+                            )}
 
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={item.nomeAcao} bold>
-                          {item.nomeAcao}
-                        </TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={proposta}>
-                          {proposta}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <StatusPill status={status} />
-                      </td>
-
-                      {podeGerarPdf && (
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleExportPdf(item)}
-                            className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                          >
-                            <FileDown className="h-3.5 w-3.5" />
-                            Gerar ficha
-                          </Button>
+                            {podeExcluir && (
+                              <TableActionIcon
+                                icon={Trash2}
+                                label="Excluir"
+                                variant="danger"
+                                onClick={() => setConfirmDelete(item.id)}
+                              />
+                            )}
+                          </div>
                         </td>
-                      )}
-                    </tr>
-                  );
-                })}
 
-                {paginated.length === 0 && (
-                  <EmptyRow colSpan={podeGerarPdf ? 7 : 6} />
+                        <td className="px-6 py-2.5">
+                          <TableCellText text={item.nomeAcao} bold>
+                            {item.nomeAcao}
+                          </TableCellText>
+                        </td>
+
+                        <td className="px-6 py-2.5">
+                          <TableCellText text={proposta}>
+                            {proposta}
+                          </TableCellText>
+                        </td>
+
+                        <td className="whitespace-nowrap px-6 py-2.5">
+                          <StatusPill status={status} />
+                        </td>
+
+                        {podeGerarPdf && (
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleExportPdf(item)}
+                              className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
+                            >
+                              <FileDown className="h-3.5 w-3.5" />
+                              Gerar ficha
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })
+                )}
+
+                {!loading && paginated.length === 0 && (
+                  <EmptyRow colSpan={podeGerarPdf ? 5 : 4} />
                 )}
               </tbody>
             </table>
           </div>
 
           <div className="divide-y divide-border md:hidden">
-            {paginated.length === 0 ? (
+            {loading ? (
+              <div className="p-10 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Carregando ações de divulgação...
+                </p>
+              </div>
+            ) : paginated.length === 0 ? (
               <div className="p-10 text-center">
                 <Megaphone className="mx-auto h-10 w-10 text-muted-foreground/40" />
 
@@ -530,9 +625,7 @@ export default function AcoesDivulgacao() {
                       {item.nomeAcao}
                     </p>
 
-                    <p className="mt-1 text-sm text-foreground">
-                      {proposta}
-                    </p>
+                    <p className="mt-1 text-sm text-foreground">{proposta}</p>
 
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {edital}
@@ -552,7 +645,7 @@ export default function AcoesDivulgacao() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sorted.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}
@@ -593,6 +686,63 @@ export default function AcoesDivulgacao() {
         href="https://www.aurit.com.br/wiki/acoes-culturais/acoes-de-divulgacao"
       />
     </AppLayout>
+  );
+}
+
+interface SortableHeaderProps {
+  label: string;
+  sortKey: SortKey;
+  sortConfig: SortConfig | null;
+  onSort: (key: SortKey) => void;
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  sortConfig,
+  onSort,
+}: SortableHeaderProps) {
+  const active = sortConfig?.key === sortKey;
+  const direction = sortConfig?.direction;
+
+  const Icon = !active ? ArrowUpDown : direction === "asc" ? ArrowUp : ArrowDown;
+
+  return (
+    <th
+      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+      aria-sort={
+        active ? (direction === "asc" ? "ascending" : "descending") : "none"
+      }
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="-ml-2 inline-flex items-center gap-1.5 rounded px-2 py-1 text-left uppercase tracking-wider transition-colors hover:bg-muted hover:text-foreground"
+        aria-label={`Ordenar por ${label}`}
+      >
+        <span>{label}</span>
+
+        <Icon
+          className={
+            active
+              ? "h-3.5 w-3.5 text-foreground"
+              : "h-3.5 w-3.5 text-muted-foreground/70"
+          }
+        />
+      </button>
+    </th>
+  );
+}
+
+function LoadingRow({ colSpan }: { colSpan: number }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-5 py-16 text-center">
+        <p className="text-sm text-muted-foreground">
+          Carregando ações de divulgação...
+        </p>
+      </td>
+    </tr>
   );
 }
 

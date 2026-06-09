@@ -63,6 +63,16 @@ export const statusProjetoLabel = (v?: StatusProjeto | string) =>
 export const areaAtuacaoLabel = (v?: AreaAtuacao | string) =>
   areaAtuacaoOptions.find((a) => a.value === v)?.label ?? v ?? "—";
 
+export const areasAtuacaoLabel = (values?: Array<AreaAtuacao | string>) => {
+  const areas = Array.from(new Set(values ?? [])).filter(Boolean);
+
+  if (areas.length === 0) {
+    return "—";
+  }
+
+  return areas.map((area) => areaAtuacaoLabel(area)).join(", ");
+};
+
 export const origemProjetoLabel = (v?: OrigemProjeto | string) =>
   origemProjetoOptions.find((o) => o.value === v)?.label ?? v ?? "—";
 
@@ -160,12 +170,12 @@ function pickText(...values: Array<unknown>) {
 function resolveOrganizacaoId(dto: ProjetoApiResponse): number | null {
   return normalizeId(
     dto.organizacaoId ??
-      dto.idOrganizacao ??
-      dto.organizacao_id ??
-      dto.organizacaoID ??
-      dto.organizacao ??
-      dto.empresaId ??
-      dto.configuracaoEmpresaId,
+    dto.idOrganizacao ??
+    dto.organizacao_id ??
+    dto.organizacaoID ??
+    dto.organizacao ??
+    dto.empresaId ??
+    dto.configuracaoEmpresaId,
   );
 }
 
@@ -217,6 +227,33 @@ function resolveObjetivos(dto: ProjetoApiResponse): ObjetivoDTO[] {
     .filter((objetivo) => objetivo.objetivoEspecifico.trim());
 }
 
+function normalizeAreaAtuacao(value: unknown): AreaAtuacao | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const clean = value.trim();
+
+  if (!clean) {
+    return null;
+  }
+
+  return clean as AreaAtuacao;
+}
+
+function resolveAreasAtuacao(dto: ProjetoApiResponse): AreaAtuacao[] {
+  const raw = dto.areasAtuacao ?? dto.areas_atuacao ?? dto.areaAtuacao ?? [];
+  const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
+
+  return Array.from(
+    new Set(
+      values
+        .map((item) => normalizeAreaAtuacao(item))
+        .filter((item): item is AreaAtuacao => item !== null),
+    ),
+  );
+}
+
 export interface ObjetivoDTO {
   id?: number;
   objetivoEspecifico: string;
@@ -233,7 +270,7 @@ export interface ProjetoDTO {
   localExecucao: string;
   dataInicio: string;
   dataFim: string;
-  areaAtuacao: AreaAtuacao;
+  areasAtuacao: AreaAtuacao[];
   status: StatusProjeto;
   origemProjeto: OrigemProjeto;
   organizacaoId: number;
@@ -254,6 +291,8 @@ interface ProjetoApiResponse {
   dataInicio?: string | null;
   dataFim?: string | null;
 
+  areasAtuacao?: unknown;
+  areas_atuacao?: unknown;
   areaAtuacao?: AreaAtuacao | string | null;
   status?: StatusProjeto | string | null;
   origemProjeto?: OrigemProjeto | string | null;
@@ -286,7 +325,9 @@ export interface Projeto {
   dataInicio: string;
   dataFim: string;
   status: StatusProjeto;
-  areaAtuacao: AreaAtuacao;
+  areasAtuacao: AreaAtuacao[];
+  /** Compatibilidade com registros antigos que ainda possam chegar com uma única área. */
+  areaAtuacao?: AreaAtuacao;
   origemProjeto: OrigemProjeto;
   organizacaoId: number | null;
   colaboradoresIds: number[];
@@ -320,7 +361,8 @@ export function mapProjeto(dto: ProjetoApiResponse): Projeto {
     dataInicio: isoToBr(dto.dataInicio),
     dataFim: isoToBr(dto.dataFim),
     status: (dto.status ?? "ATIVO") as StatusProjeto,
-    areaAtuacao: (dto.areaAtuacao ?? "OUTRO") as AreaAtuacao,
+    areasAtuacao: resolveAreasAtuacao(dto),
+    areaAtuacao: resolveAreasAtuacao(dto)[0],
     origemProjeto: (dto.origemProjeto ?? "OUTRO") as OrigemProjeto,
     organizacaoId,
     colaboradoresIds: resolveColaboradoresIds(dto),
@@ -344,7 +386,7 @@ export function buildProjetoPayload(projeto: Projeto): ProjetoDTO {
     dataInicio: brToIso(projeto.dataInicio),
     dataFim: brToIso(projeto.dataFim),
     status: projeto.status,
-    areaAtuacao: projeto.areaAtuacao,
+    areasAtuacao: Array.from(new Set(projeto.areasAtuacao ?? [])).filter(Boolean),
     origemProjeto: projeto.origemProjeto,
     organizacaoId: Number(projeto.organizacaoId),
     objetivos: (projeto.objetivos ?? [])

@@ -22,7 +22,9 @@ import { TableCellText } from "@/components/TableCellText";
 import { StatusPill } from "@/components/StatusPill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
@@ -36,6 +38,7 @@ import {
   getAtividadesOptions,
   getColaboradoresOptions,
   getTurmas,
+  nivelTurmaLabel,
   statusTurmaLabel,
   type Turma,
 } from "@/data/turmas";
@@ -51,6 +54,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "nome" | "atividade" | "dia" | "nivel" | "inicio" | "fim" | "vagas" | "status" | "colaboradores";
 
 const NEXT_STEP_DURATION_MS = 60_000;
 
@@ -241,6 +246,7 @@ export default function Turmas() {
         turma.descricaoTurma,
         turma.atividadeNome,
         diaLabel(turma.diaAtividade),
+        nivelTurmaLabel(turma.nivelTurma),
         statusTurmaLabel(turma.status),
         String(turma.quantidadeVagas ?? ""),
         turma.horarioInicio,
@@ -253,8 +259,37 @@ export default function Turmas() {
     );
   }, [search, items]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (turma, key: SortKey) => {
+      switch (key) {
+        case "nome":
+          return turma.nomeTurma;
+        case "atividade":
+          return turma.atividadeNome ?? "";
+        case "dia":
+          return diaLabel(turma.diaAtividade);
+        case "nivel":
+          return nivelTurmaLabel(turma.nivelTurma);
+        case "inicio":
+          return turma.horarioInicio ?? "";
+        case "fim":
+          return turma.horarioFim ?? "";
+        case "vagas":
+          return turma.quantidadeVagas ?? 0;
+        case "status":
+          return statusTurmaLabel(turma.status);
+        case "colaboradores":
+          return turma.colaboradoresNomes.join(", ");
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -309,6 +344,7 @@ export default function Turmas() {
       horarioInicio: normalizeTime(turma.horarioInicio),
       horarioFim: normalizeTime(turma.horarioFim),
       diaAtividade: diaLabel(turma.diaAtividade),
+      nivelTurma: nivelTurmaLabel(turma.nivelTurma),
       status: statusTurmaLabel(turma.status),
     } as any);
   };
@@ -375,7 +411,7 @@ export default function Turmas() {
           </div>
 
           <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[1180px]">
+            <table ref={tableRef} className="w-full min-w-[1280px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th
@@ -385,37 +421,77 @@ export default function Turmas() {
                     Ações
                   </th>
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Nome da turma
-                  </th>
+                  <SortableHeader
+                    label="Nome da turma"
+                    sortKey="nome"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Atividade
-                  </th>
+                  <SortableHeader
+                    label="Atividade"
+                    sortKey="atividade"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Dia da atividade
-                  </th>
+                  <SortableHeader
+                    label="Dia da atividade"
+                    sortKey="dia"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Horário de início
-                  </th>
+                  <SortableHeader
+                    label="Nível"
+                    sortKey="nivel"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Horário de término
-                  </th>
+                  <SortableHeader
+                    label="Horário de início"
+                    sortKey="inicio"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Vagas
-                  </th>
+                  <SortableHeader
+                    label="Horário de término"
+                    sortKey="fim"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Status
-                  </th>
+                  <SortableHeader
+                    label="Vagas"
+                    sortKey="vagas"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                  <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Colaboradores
-                  </th>
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Colaboradores"
+                    sortKey="colaboradores"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -485,6 +561,12 @@ export default function Turmas() {
                       </td>
 
                       <td className="whitespace-nowrap px-6 py-2.5">
+                        <TableCellText text={nivelTurmaLabel(turma.nivelTurma)}>
+                          {nivelTurmaLabel(turma.nivelTurma)}
+                        </TableCellText>
+                      </td>
+
+                      <td className="whitespace-nowrap px-6 py-2.5">
                         <TableCellText text={turma.horarioInicio}>
                           {turma.horarioInicio}
                         </TableCellText>
@@ -538,7 +620,7 @@ export default function Turmas() {
                 {paginated.length === 0 && (
                   <tr>
                     <td
-                      colSpan={podeGerarPdf ? 10 : 9}
+                      colSpan={podeGerarPdf ? 11 : 10}
                       className="px-5 py-16 text-center"
                     >
                       <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/40" />
@@ -619,6 +701,10 @@ export default function Turmas() {
                     {turma.horarioFim}
                   </p>
 
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Nível: {nivelTurmaLabel(turma.nivelTurma)}
+                  </p>
+
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <StatusPill
                       status={statusTurmaLabel(turma.status) as any}
@@ -640,7 +726,7 @@ export default function Turmas() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

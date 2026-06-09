@@ -40,8 +40,10 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportFinanceiroPdf } from "@/lib/pdfExporters";
@@ -72,6 +74,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "data" | "tipo" | "valor" | "status" | "projeto" | "pessoa" | "forma";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -549,8 +553,33 @@ export default function FinanceiroPage() {
     acoes,
   ]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "data":
+          return item.dataPagamento ?? "";
+        case "tipo":
+          return tipoOperacaoLabel(item.tipoOperacaoFinanceira);
+        case "valor":
+          return item.valor ?? 0;
+        case "status":
+          return statusFinanceiroLabel(item.statusFinanceiro);
+        case "projeto":
+          return projetoNome(item.projetoId);
+        case "pessoa":
+          return pessoaLabel(item);
+        case "forma":
+          return labelFromList(formasPagamento, item.formaPagamento);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, `${search}-${projeto}`);
+    usePagination(sortedItems, 25, `${search}-${projeto}`);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -811,33 +840,62 @@ export default function FinanceiroPage() {
                     Ações
                   </th>
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5">
-                    Data
-                  </th>
+                  <SortableHeader
+                    label="Data"
+                    sortKey="data"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5"
+                  />
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5">
-                    Tipo
-                  </th>
+                  <SortableHeader
+                    label="Tipo"
+                    sortKey="tipo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5"
+                  />
 
-                  <th className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5">
-                    Valor
-                  </th>
+                  <SortableHeader
+                    label="Valor"
+                    sortKey="valor"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5"
+                    align="right"
+                  />
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5">
-                    Status
-                  </th>
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5"
+                  />
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5">
-                    Projeto
-                  </th>
+                  <SortableHeader
+                    label="Projeto"
+                    sortKey="projeto"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5"
+                  />
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5">
-                    Pessoa
-                  </th>
+                  <SortableHeader
+                    label="Pessoa"
+                    sortKey="pessoa"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5"
+                  />
 
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5">
-                    Forma
-                  </th>
+                  <SortableHeader
+                    label="Forma"
+                    sortKey="forma"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-6 py-2.5"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -1109,7 +1167,7 @@ export default function FinanceiroPage() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

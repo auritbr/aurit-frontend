@@ -21,8 +21,10 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportPrestacaoMetasPdf } from "@/lib/pdfExporters";
@@ -54,6 +56,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "meta" | "quantidade" | "status" | "evidencias" | "observacao";
 
 const PRESTACAO_META_NEXT_STEP_KEY = "aurit:prestacao-metas:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -254,8 +258,29 @@ export default function PrestacaoMetasPage() {
     });
   }, [search, items, metas, evidencias]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (m, key: SortKey) => {
+      switch (key) {
+        case "meta":
+          return metaProjetoNome(m.metaProjeto);
+        case "quantidade":
+          return Number(String(m.quantidadeExecutada ?? "0").replace(",", ".")) || 0;
+        case "status":
+          return statusCumprimentoLabel(m.statusCumprimentoMeta);
+        case "evidencias":
+          return m.evidencias?.length ?? 0;
+        case "observacao":
+          return m.observacaoCumprimento ?? "";
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -401,22 +426,52 @@ export default function PrestacaoMetasPage() {
             <table ref={tableRef} className="w-full min-w-[1120px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  {[
-                    "Ações",
-                    "Meta do projeto",
-                    "Quantidade executada",
-                    "Status de cumprimento",
-                    "Evidências",
-                    "Observação",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy={h === "Ações" ? true : undefined}
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  <th
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    data-no-copy
+                  >
+                    Ações
+                  </th>
+
+                  <SortableHeader
+                    label="Meta do projeto"
+                    sortKey="meta"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Quantidade executada"
+                    sortKey="quantidade"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Status de cumprimento"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Evidências"
+                    sortKey="evidencias"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Observação"
+                    sortKey="observacao"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -625,7 +680,7 @@ export default function PrestacaoMetasPage() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

@@ -45,8 +45,10 @@ import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { HelpTooltip } from "@/components/HelpTooltip";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportPlanejamentoFinanceiroPdf } from "@/lib/pdfExporters";
@@ -89,6 +91,8 @@ import {
   type PropostaEditalOption,
 } from "@/data/planejamentoFinanceiro";
 import { toast } from "sonner";
+
+type SortKey = "item" | "inicio" | "fim" | "quantidade" | "unidade" | "valorUnitario" | "valorTotal" | "proposta" | "equipe";
 
 type FormMode = "create" | "edit" | "view";
 
@@ -388,8 +392,37 @@ export default function PlanejamentoFinanceiro() {
     });
   }, [items, propostasEditais, equipesEdital, search]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "item":
+          return item.nomePlanejamento;
+        case "inicio":
+          return item.dataInicio ?? "";
+        case "fim":
+          return item.dataFim ?? "";
+        case "quantidade":
+          return Number(item.quantidade || 0);
+        case "unidade":
+          return unidadeMedidaLabel(item.unidadeMedida);
+        case "valorUnitario":
+          return parseCurrencyInput(item.valorUnitario);
+        case "valorTotal":
+          return parseCurrencyInput(item.valorTotal);
+        case "proposta":
+          return propostaEditalNome(item.propostaEditalId);
+        case "equipe":
+          return equipeNome(item.equipeEditalId);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const totalPlanejado = useMemo(
     () =>
@@ -642,9 +675,8 @@ export default function PlanejamentoFinanceiro() {
   return (
     <AppLayout>
       <div
-        className={`container ${
-          showForm ? "max-w-4xl" : "max-w-7xl"
-        } py-6 sm:py-8`}
+        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"
+          } py-6 sm:py-8`}
       >
         {showForm && (
           <button
@@ -1121,41 +1153,77 @@ export default function PlanejamentoFinanceiro() {
                       Ações
                     </th>
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Item
-                    </th>
+                    <SortableHeader
+                      label="Item"
+                      sortKey="item"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Início
-                    </th>
+                    <SortableHeader
+                      label="Início"
+                      sortKey="inicio"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Fim
-                    </th>
+                    <SortableHeader
+                      label="Fim"
+                      sortKey="fim"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Quantidade
-                    </th>
+                    <SortableHeader
+                      label="Quantidade"
+                      sortKey="quantidade"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Unidade
-                    </th>
+                    <SortableHeader
+                      label="Unidade"
+                      sortKey="unidade"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Valor unitário
-                    </th>
+                    <SortableHeader
+                      label="Valor unitário"
+                      sortKey="valorUnitario"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Valor total
-                    </th>
+                    <SortableHeader
+                      label="Valor total"
+                      sortKey="valorTotal"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Proposta de Edital
-                    </th>
+                    <SortableHeader
+                      label="Proposta de Edital"
+                      sortKey="proposta"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Equipe
-                    </th>
+                    <SortableHeader
+                      label="Equipe"
+                      sortKey="equipe"
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    />
 
                     {podeGerarPdf && (
                       <th
@@ -1376,7 +1444,7 @@ export default function PlanejamentoFinanceiro() {
             </div>
 
             <TablePagination
-              totalItems={filtered.length}
+              totalItems={sortedItems.length}
               currentPage={currentPage}
               pageSize={pageSize}
               onPageChange={setCurrentPage}

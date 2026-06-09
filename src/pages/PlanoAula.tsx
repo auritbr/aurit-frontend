@@ -22,7 +22,9 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { StatusPill } from "@/components/StatusPill";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -46,6 +48,8 @@ import {
     type PlanoAula,
     type TurmaOption,
 } from "@/data/planosAula";
+
+type SortKey = "atividade" | "turma" | "colaborador" | "inicio" | "fim" | "status" | "conteudo";
 
 function formatDateBR(value?: string | null) {
     if (!value) return "—";
@@ -162,8 +166,33 @@ export default function PlanosAula() {
         });
     }, [search, items, atividades, turmas, colaboradores]);
 
+
+    const { sortConfig, sortedItems, handleSort } = useSortableData(
+        filtered,
+        (plano, key: SortKey) => {
+            switch (key) {
+                case "atividade":
+                    return atividadeNome(plano.atividadeId);
+                case "turma":
+                    return turmaNome(plano.turmaId);
+                case "colaborador":
+                    return colaboradorNome(plano.colaboradorId);
+                case "inicio":
+                    return plano.dataInicio ?? "";
+                case "fim":
+                    return plano.dataFim ?? "";
+                case "status":
+                    return statusPlanoAulaValueToLabel(plano.statusPlanoAula);
+                case "conteudo":
+                    return plano.conteudo ?? "";
+                default:
+                    return "";
+            }
+        },
+    );
+
     const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-        usePagination(filtered, 25, search);
+        usePagination(sortedItems, 25, search);
 
     const handleDelete = async () => {
         if (!confirmDelete) return;
@@ -300,33 +329,61 @@ export default function PlanosAula() {
                                         Ações
                                     </th>
 
-                                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                        Atividade
-                                    </th>
+                                    <SortableHeader
+                                        label="Atividade"
+                                        sortKey="atividade"
+                                        sortConfig={sortConfig}
+                                        onSort={handleSort}
+                                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                                    />
 
-                                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                        Turma
-                                    </th>
+                                    <SortableHeader
+                                        label="Turma"
+                                        sortKey="turma"
+                                        sortConfig={sortConfig}
+                                        onSort={handleSort}
+                                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                                    />
 
-                                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                        Colaborador
-                                    </th>
+                                    <SortableHeader
+                                        label="Colaborador"
+                                        sortKey="colaborador"
+                                        sortConfig={sortConfig}
+                                        onSort={handleSort}
+                                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                                    />
 
-                                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                        Início
-                                    </th>
+                                    <SortableHeader
+                                        label="Início"
+                                        sortKey="inicio"
+                                        sortConfig={sortConfig}
+                                        onSort={handleSort}
+                                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                                    />
 
-                                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                        Fim
-                                    </th>
+                                    <SortableHeader
+                                        label="Fim"
+                                        sortKey="fim"
+                                        sortConfig={sortConfig}
+                                        onSort={handleSort}
+                                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                                    />
 
-                                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                        Status
-                                    </th>
+                                    <SortableHeader
+                                        label="Status"
+                                        sortKey="status"
+                                        sortConfig={sortConfig}
+                                        onSort={handleSort}
+                                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                                    />
 
-                                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                        Conteúdo
-                                    </th>
+                                    <SortableHeader
+                                        label="Conteúdo"
+                                        sortKey="conteudo"
+                                        sortConfig={sortConfig}
+                                        onSort={handleSort}
+                                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                                    />
 
                                     <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                                         Documento
@@ -453,7 +510,7 @@ export default function PlanosAula() {
                     </div>
 
                     <TablePagination
-                        totalItems={filtered.length}
+                        totalItems={sortedItems.length}
                         currentPage={currentPage}
                         pageSize={pageSize}
                         onPageChange={setCurrentPage}

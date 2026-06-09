@@ -24,8 +24,10 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportPrestacaoContasPdf } from "@/lib/pdfExporters";
@@ -63,6 +65,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "proposta" | "agente" | "dataEntrega" | "produtos" | "metas" | "equipe" | "acoes";
 
 const PRESTACAO_CONTAS_NEXT_STEP_KEY =
   "aurit:prestacao-contas:next-step-card";
@@ -314,8 +318,33 @@ export default function PrestacaoContasPage() {
     acoesDivulgacao,
   ]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "proposta":
+          return propostaEditalNome(item.propostaEdital);
+        case "agente":
+          return agenteNome(item.agente);
+        case "dataEntrega":
+          return item.dataEntrega ?? "";
+        case "produtos":
+          return produtosGeradosTexto(item.produtosGerados);
+        case "metas":
+          return prestacaoMetasTexto(item);
+        case "equipe":
+          return equipeProjetoTexto(item.equipeProjeto);
+        case "acoes":
+          return acoesDivulgacaoTexto(item.acoesDivulgacao);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -470,24 +499,68 @@ export default function PrestacaoContasPage() {
             <table ref={tableRef} className="w-full min-w-[1320px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  {[
-                    "Ações",
-                    "Proposta de edital",
-                    "Agente",
-                    "Data de entrega",
-                    "Produtos gerados",
-                    "Prestações de metas",
-                    "Equipe do projeto",
-                    "Ações de divulgação",
-                  ].map((header) => (
-                    <th
-                      key={header}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy={header === "Ações" ? true : undefined}
-                    >
-                      {header}
-                    </th>
-                  ))}
+                  <th
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    data-no-copy
+                  >
+                    Ações
+                  </th>
+
+                  <SortableHeader
+                    label="Proposta de edital"
+                    sortKey="proposta"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Agente"
+                    sortKey="agente"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Data de entrega"
+                    sortKey="dataEntrega"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Produtos gerados"
+                    sortKey="produtos"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Prestações de metas"
+                    sortKey="metas"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Equipe do projeto"
+                    sortKey="equipe"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Ações de divulgação"
+                    sortKey="acoes"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -739,7 +812,7 @@ export default function PrestacaoContasPage() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

@@ -20,8 +20,10 @@ import { TableCellText } from "@/components/TableCellText";
 import { StatusPill, type Status } from "@/components/StatusPill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportPlanoComunicacaoPdf } from "@/lib/pdfExporters";
@@ -51,6 +53,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type SortKey = "nome" | "quantidade" | "formato" | "estrategias" | "dataInicio" | "dataFim" | "status" | "proposta";
 
 const PLANO_COMUNICACAO_NEXT_STEP_KEY =
   "aurit:plano-comunicacao:next-step-card";
@@ -225,8 +229,35 @@ export default function PlanoComunicacaoPage() {
     );
   }, [search, items, propostas]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filtered,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "nome":
+          return item.nomePlano ?? "";
+        case "quantidade":
+          return item.quantidade ?? "";
+        case "formato":
+          return item.formatoPlanoComunicacao ?? "";
+        case "estrategias":
+          return estrategiasPlanoComunicacaoTexto(item.estrategiasDivulgacao);
+        case "dataInicio":
+          return item.dataInicio ?? "";
+        case "dataFim":
+          return item.dataFim ?? "";
+        case "status":
+          return statusPlanoComunicacaoLabel(item.status);
+        case "proposta":
+          return propostaNome(item);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -368,25 +399,76 @@ export default function PlanoComunicacaoPage() {
             <table ref={tableRef} className="w-full min-w-[1420px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  {[
-                    "Ações",
-                    "Nome do plano",
-                    "Quantidade",
-                    "Formato",
-                    "Estratégias",
-                    "Data início",
-                    "Data fim",
-                    "Status",
-                    "Proposta de edital",
-                  ].map((header) => (
-                    <th
-                      key={header}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy={header === "Ações" ? true : undefined}
-                    >
-                      {header}
-                    </th>
-                  ))}
+                  <th
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    data-no-copy
+                  >
+                    Ações
+                  </th>
+
+                  <SortableHeader
+                    label="Nome do plano"
+                    sortKey="nome"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Quantidade"
+                    sortKey="quantidade"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Formato"
+                    sortKey="formato"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Estratégias"
+                    sortKey="estrategias"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Data início"
+                    sortKey="dataInicio"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Data fim"
+                    sortKey="dataFim"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Status"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
+                    label="Proposta de edital"
+                    sortKey="proposta"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                   {podeGerarPdf && (
                     <th
@@ -630,7 +712,7 @@ export default function PlanoComunicacaoPage() {
           </div>
 
           <TablePagination
-            totalItems={filtered.length}
+            totalItems={sortedItems.length}
             currentPage={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}

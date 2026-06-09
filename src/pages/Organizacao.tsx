@@ -33,12 +33,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
+import { MultiSelect } from "@/components/MultiSelect";
 import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
+import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportOrganizacaoPdf } from "@/lib/pdfExporters";
@@ -65,6 +68,8 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const ORGANIZACAO_NEXT_STEP_KEY = "aurit:organizacao:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
+
+type SortKey = "nomePrincipal" | "nomeComplementar" | "documento" | "responsavel" | "tipoAgente" | "iniciativa" | "area";
 
 type FormMode = "create" | "edit" | "view";
 
@@ -246,6 +251,8 @@ const optionLabels = {
     areaAtuacaoOptions.map((item) => [item.value, item.label]),
   ) as Record<string, string>,
 };
+
+const areasAtuacaoOptions = areaAtuacaoOptions.map((option) => option.value);
 
 function getRequiredFields(tipoAgente?: string): Array<[keyof OrganizacaoForm, string]> {
   const fields: Array<[keyof OrganizacaoForm, string]> = [
@@ -1018,8 +1025,36 @@ export default function Organizacao() {
     });
   }, [organizacoes, search]);
 
+
+  const { sortConfig, sortedItems, handleSort } = useSortableData(
+    filteredOrganizacoes,
+    (item, key: SortKey) => {
+      switch (key) {
+        case "nomePrincipal":
+          return item.razaoSocial;
+        case "nomeComplementar":
+          return item.nomeFantasia ?? "";
+        case "documento":
+          return item.cnpj;
+        case "responsavel":
+          return item.nomeRepresentanteLegal ?? "";
+        case "tipoAgente":
+          return labelFromMap(optionLabels.tipoAgente, item.tipoAgente);
+        case "iniciativa":
+          return labelFromMap(
+            optionLabels.tipoIniciativaCultural,
+            item.tipoIniciativaCultural,
+          );
+        case "area":
+          return formatAreasAtuacao(item.areasAtuacao);
+        default:
+          return "";
+      }
+    },
+  );
+
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filteredOrganizacoes, 25, search);
+    usePagination(sortedItems, 25, search);
 
   const handleCopy = async () => {
     const { ok, rows } = await copyTableFromRef(tableRef.current);
@@ -1037,21 +1072,6 @@ export default function Organizacao() {
     value: OrganizacaoForm[K],
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const toggleAreaAtuacao = (value: string) => {
-    if (visualizando) return;
-
-    setForm((prev) => {
-      const selecionada = prev.areasAtuacao.includes(value);
-
-      return {
-        ...prev,
-        areasAtuacao: selecionada
-          ? prev.areasAtuacao.filter((area) => area !== value)
-          : [...prev.areasAtuacao, value],
-      };
-    });
   };
 
   const openRecord = (record: OrganizacaoData, nextMode: FormMode) => {
@@ -1518,7 +1538,7 @@ export default function Organizacao() {
                   </Select>
                 </Field>
 
-                <Field className="sm:col-span-3">
+                <Field full>
                   <FieldLabel
                     htmlFor="areasAtuacao"
                     required={!visualizando}
@@ -1528,42 +1548,23 @@ export default function Organizacao() {
                   </FieldLabel>
 
                   <div
-                    id="areasAtuacao"
-                    className="rounded-md border border-border bg-background p-3"
+                    className={visualizando ? "pointer-events-none opacity-80" : ""}
                   >
-                    <div className="flex flex-wrap gap-2">
-                      {areaAtuacaoOptions.map((option) => {
-                        const selected = form.areasAtuacao.includes(option.value);
-
-                        return (
-                          <Button
-                            key={option.value}
-                            type="button"
-                            variant={selected ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => toggleAreaAtuacao(option.value)}
-                            disabled={readOnly || saving}
-                            className="h-8"
-                          >
-                            {option.label}
-                          </Button>
+                    <MultiSelect
+                      id="areasAtuacao"
+                      options={areasAtuacaoOptions}
+                      value={form.areasAtuacao}
+                      onChange={(value) => {
+                        if (visualizando) return;
+                        setField(
+                          "areasAtuacao",
+                          value.filter(Boolean).map(String),
                         );
-                      })}
-                    </div>
-
-                    {form.areasAtuacao.length > 0 ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {form.areasAtuacao.map((area) => (
-                          <EnumBadge key={area}>
-                            {labelFromMap(optionLabels.areaAtuacao, area)}
-                          </EnumBadge>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        Nenhuma área selecionada.
-                      </p>
-                    )}
+                      }}
+                      getOptionLabel={(option) =>
+                        labelFromMap(optionLabels.areaAtuacao, option) || option
+                      }
+                    />
                   </div>
                 </Field>
               </div>
@@ -2075,33 +2076,61 @@ export default function Organizacao() {
                       Ações
                     </th>
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Nome principal
-                    </th>
+                    <SortableHeader
+                    label="Nome principal"
+                    sortKey="nomePrincipal"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Nome complementar
-                    </th>
+                    <SortableHeader
+                    label="Nome complementar"
+                    sortKey="nomeComplementar"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Documento
-                    </th>
+                    <SortableHeader
+                    label="Documento"
+                    sortKey="documento"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Responsável
-                    </th>
+                    <SortableHeader
+                    label="Responsável"
+                    sortKey="responsavel"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                    <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Tipo de Agente
-                    </th>
+                    <SortableHeader
+                    label="Tipo de Agente"
+                    sortKey="tipoAgente"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                    <th className="w-[200px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Iniciativa Cultural
-                    </th>
+                    <SortableHeader
+                    label="Iniciativa Cultural"
+                    sortKey="iniciativa"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="w-[200px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
-                    <th className="w-[200px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Área de Atuação
-                    </th>
+                    <SortableHeader
+                    label="Área de Atuação"
+                    sortKey="area"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="w-[200px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
 
                     {podeGerarPdf && (
                       <th
@@ -2313,7 +2342,7 @@ export default function Organizacao() {
             </div>
 
             <TablePagination
-              totalItems={filteredOrganizacoes.length}
+              totalItems={sortedItems.length}
               currentPage={currentPage}
               pageSize={pageSize}
               onPageChange={setCurrentPage}
@@ -2395,7 +2424,7 @@ function Field({
   className?: string;
 }) {
   return (
-    <div className={`${full ? "sm:col-span-2" : ""} ${className}`}>
+    <div className={`${full ? "sm:col-span-full" : ""} ${className}`}>
       {children}
     </div>
   );
