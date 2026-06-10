@@ -537,6 +537,7 @@ export default function RelatorioPresencas() {
                             dataGeracao={new Date().toLocaleDateString("pt-BR")}
                             indicadoresPdf={indicadoresPdf}
                             disabled={loading}
+                            showPdf
                         />
                     </div>
 
