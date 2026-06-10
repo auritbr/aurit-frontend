@@ -127,6 +127,21 @@ export default function DocumentoForm() {
 
   const bloqueado = visualizando || loading || saving;
   const mostrarObservacao = form.tipoDocumento === TIPO_DOCUMENTO_OUTROS;
+  const validadeNaoSeAplica = form.statusDocumento === "NAO_SE_APLICA";
+  const dataValidadeBloqueada = bloqueado || validadeNaoSeAplica;
+
+  const handleStatusDocumentoChange = (value: string) => {
+    if (visualizando) return;
+
+    const statusDocumento = value as StatusDocumento;
+
+    update({
+      statusDocumento,
+      dataValidade: statusDocumento === "NAO_SE_APLICA" ? "" : form.dataValidade,
+      mensagemVencimento:
+        statusDocumento === "NAO_SE_APLICA" ? "" : form.mensagemVencimento,
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -354,6 +369,10 @@ export default function DocumentoForm() {
         tipoDocumento: form.tipoDocumento,
         statusDocumento: form.statusDocumento,
         organizacaoId: form.organizacaoId,
+        dataValidade:
+          form.statusDocumento === "NAO_SE_APLICA" ? "" : form.dataValidade,
+        mensagemVencimento:
+          form.statusDocumento === "NAO_SE_APLICA" ? "" : form.mensagemVencimento,
         observacao:
           form.tipoDocumento === TIPO_DOCUMENTO_OUTROS
             ? form.observacao?.trim() ?? ""
@@ -465,10 +484,7 @@ export default function DocumentoForm() {
 
               <Select
                 value={form.statusDocumento || undefined}
-                onValueChange={(value) =>
-                  !visualizando &&
-                  update({ statusDocumento: value as StatusDocumento })
-                }
+                onValueChange={handleStatusDocumentoChange}
                 disabled={bloqueado}
               >
                 <SelectTrigger id="status" className="h-9">
@@ -546,15 +562,22 @@ export default function DocumentoForm() {
                 <Input
                   id="dataValidade"
                   type="date"
-                  value={form.dataValidade}
+                  value={validadeNaoSeAplica ? "" : form.dataValidade}
                   onChange={(event) =>
                     !visualizando &&
+                    !validadeNaoSeAplica &&
                     update({ dataValidade: event.target.value })
                   }
                   className="h-9"
-                  disabled={bloqueado}
+                  disabled={dataValidadeBloqueada}
                   readOnly={visualizando}
                 />
+
+                {validadeNaoSeAplica && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    A data de validade não é necessária quando o status for Não se aplica.
+                  </p>
+                )}
               </div>
             </div>
 
