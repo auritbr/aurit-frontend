@@ -256,17 +256,6 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
           "Use este relatório para organizar os grupos de atendimento, acompanhar horários e verificar a distribuição das turmas dentro das atividades.",
         searchPlaceholder: "Buscar por turma, atividade, projeto...",
       },
-      {
-        slug: "presencas",
-        title: "Presenças",
-        description:
-          "Reúne os registros de presença por data, atividade, turma, participante e situação de frequência.",
-        icon: ClipboardCheck,
-        plano: "gratis",
-        tooltip:
-          "Use este relatório para acompanhar a frequência dos participantes, comprovar realização de encontros, apoiar relatórios de execução e fortalecer prestações de contas.",
-        searchPlaceholder: "Buscar por participante, turma, data...",
-      },
     ],
   },
   {

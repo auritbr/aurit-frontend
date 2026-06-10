@@ -306,8 +306,10 @@ export async function exportPdf<T>(
   const isPresencas =
     reportSlug.includes("presenca") ||
     reportSlug.includes("frequencia") ||
+    cols.some((c) => c.key === "status") ||
     cols.some((c) => c.key === "status_presenca") ||
     cols.some((c) => c.key === "statusPresenca") ||
+    cols.some((c) => c.key === "data") ||
     cols.some((c) => c.key === "data_presenca") ||
     cols.some((c) => c.key === "dataPresenca");
 
@@ -1548,11 +1550,10 @@ async function exportPresencasPdf(
     documentNumber: "PRES-001",
   };
 
-  drawHeader(doc, headerOptions, ctx);
-
-  const mapa = montarMapaPresencas(rows);
-  const mesAno = obterMesAno(mapa.datas);
   const info = obterInfoCabecalho(rows, options);
+  const grupos = agruparPresencasPorMes(rows);
+
+  drawHeader(doc, headerOptions, ctx);
 
   let cursor = BODY_START_Y;
 
@@ -1584,8 +1585,8 @@ async function exportPresencasPdf(
         value: info.colaboradorResponsavel || "—",
       },
       {
-        label: "Total de participantes",
-        value: mapa.alunos.length,
+        label: "Total de registros",
+        value: rows.length,
       },
     ],
     cursor,
@@ -1593,20 +1594,30 @@ async function exportPresencasPdf(
     ctx,
   );
 
-  cursor += 3;
+  grupos.forEach((grupo, index) => {
+    if (index > 0) {
+      doc.addPage();
+      drawHeader(doc, headerOptions, ctx);
+      cursor = BODY_START_Y;
+    } else {
+      cursor += 3;
+    }
 
-  cursor = drawMesAnoDestaque(doc, mesAno, cursor, headerOptions, ctx);
+    const mapa = montarMapaPresencas(grupo.rows);
+    const mesAno = obterMesAno(mapa.datas);
 
-  cursor = drawLegendaPresencas(doc, cursor, headerOptions, ctx);
+    cursor = drawMesAnoDestaque(doc, mesAno, cursor, headerOptions, ctx);
+    cursor = drawLegendaPresencas(doc, cursor, headerOptions, ctx);
 
-  drawTabelaPresencas(
-    doc,
-    mapa.alunos,
-    mapa.datas,
-    cursor,
-    headerOptions,
-    ctx,
-  );
+    drawTabelaPresencas(
+      doc,
+      mapa.alunos,
+      mapa.datas,
+      cursor,
+      headerOptions,
+      ctx,
+    );
+  });
 
   const total = doc.getNumberOfPages();
 
@@ -1616,6 +1627,35 @@ async function exportPresencasPdf(
   }
 
   doc.save(buildFileName(options.reportName || "Presenças", "pdf"));
+}
+
+function agruparPresencasPorMes(rows: Record<string, unknown>[]) {
+  const grupos = new Map<string, Record<string, unknown>[]>();
+
+  rows.forEach((row) => {
+    const data = normalizarDataPresenca(
+      row.data ??
+      row.dataPresenca ??
+      row.data_presenca ??
+      row.dataChamada ??
+      row.data_chamada,
+    );
+
+    const chave = data && data.length >= 7 ? data.slice(0, 7) : "sem-data";
+
+    if (!grupos.has(chave)) {
+      grupos.set(chave, []);
+    }
+
+    grupos.get(chave)?.push(row);
+  });
+
+  return Array.from(grupos.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([chave, linhas]) => ({
+      chave,
+      rows: linhas,
+    }));
 }
 
 function drawMesAnoDestaque(
@@ -1946,7 +1986,15 @@ function montarMapaPresencas(rows: Record<string, unknown>[]) {
   const datasRegistradas = Array.from(
     new Set(
       rows
-        .map((row) => normalizarDataPresenca(row.data_presenca ?? row.dataPresenca))
+        .map((row) =>
+          normalizarDataPresenca(
+            row.data ??
+            row.dataPresenca ??
+            row.data_presenca ??
+            row.dataChamada ??
+            row.data_chamada,
+          ),
+        )
         .filter(Boolean),
     ),
   ).sort();
@@ -1957,13 +2005,29 @@ function montarMapaPresencas(rows: Record<string, unknown>[]) {
   const alunosMap = new Map<string, AlunoPresencaPdf>();
 
   rows.forEach((row) => {
-    const nome = texto(row.participante) || "Participante não informado";
-    const data = normalizarDataPresenca(row.data_presenca ?? row.dataPresenca);
+    const participanteId = texto(row.participanteId ?? row.participante_id);
+    const nome =
+      texto(row.participanteNome) ||
+      texto(row.participante_nome) ||
+      texto(row.participante) ||
+      (participanteId ? `Participante ${participanteId}` : "Participante não informado");
+
+    const data = normalizarDataPresenca(
+      row.data ??
+      row.dataPresenca ??
+      row.data_presenca ??
+      row.dataChamada ??
+      row.data_chamada,
+    );
 
     if (!data) return;
 
     const status = normalizarStatusPresenca(
-      row.status_presenca ?? row.statusPresenca,
+      row.status ??
+      row.statusPresenca ??
+      row.status_presenca ??
+      row.statusDaPresenca ??
+      row.status_da_presenca,
     );
 
     if (!alunosMap.has(nome)) {
@@ -2040,7 +2104,11 @@ function normalizarStatusPresenca(value: unknown): StatusPresencaPdf {
     status === "AUSENTE" ||
     status === "FALTA" ||
     status === "FALTOU" ||
-    status === "F"
+    status === "F" ||
+    status === "JUSTIFICADO" ||
+    status === "JUSTIFICADA" ||
+    status === "JUSTIFICATIVA" ||
+    status === "J"
   ) {
     return "F";
   }
@@ -2069,8 +2137,19 @@ function obterInfoCabecalho(rows: Record<string, unknown>[], options: PdfOptions
   const first = rows[0] ?? {};
 
   return {
-    atividade: texto(first.atividade) || options.reportName || "Presenças",
-    turma: texto(first.turma) || "",
+    atividade:
+      texto(first.atividadeNome) ||
+      texto(first.nomeAtividade) ||
+      texto(first.atividade) ||
+      options.reportName ||
+      "Presenças",
+
+    turma:
+      texto(first.turmaNome) ||
+      texto(first.nomeTurma) ||
+      texto(first.turma) ||
+      "",
+
     colaboradorResponsavel:
       texto(first.colaborador_responsavel) ||
       texto(first.colaboradorResponsavel) ||

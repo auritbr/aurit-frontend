@@ -376,14 +376,14 @@ export default function Inicio() {
 
     const prestacaoModules: ModuleLink[] = [
       {
-        label: "Prestação de Contas",
-        route: "/prestacao-contas",
-        done: dados.totalPrestacoesContas > 0,
-      },
-      {
         label: "Cumprimento de Metas",
         route: "/prestacao-metas",
         done: dados.totalPrestacoesMetas > 0,
+      },
+            {
+        label: "Prestação de Contas",
+        route: "/prestacao-contas",
+        done: dados.totalPrestacoesContas > 0,
       },
     ];
 

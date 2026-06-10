@@ -257,6 +257,7 @@ const sections: Section[] = [
             title: "Relatório Sociodemográfico",
             url: "/relatorios/indicadores-sociodemograficos",
           },
+          { title: "Relatório de Presenças", url: "/relatorios/presencas" },
         ],
       },
     ],
