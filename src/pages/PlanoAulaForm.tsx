@@ -4,6 +4,7 @@ import { ArrowLeft, ClipboardList, FileText } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { AccessDenied } from "@/components/AccessDenied";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +19,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
+import { isPlanoAccessDenied } from "@/lib/access";
 import { toast } from "sonner";
 import {
   buildPlanoAulaPayload,
@@ -34,8 +36,6 @@ import {
   type StatusPlanoAula,
   type TurmaOption,
 } from "@/data/planosAula";
-
-const SEM_TURMA = "__SEM_TURMA__";
 
 const PLANO_AULA_NEXT_STEP_KEY = "aurit:planos-aula:next-step-card";
 
@@ -70,8 +70,8 @@ interface FormState {
   atividadeId: string;
   atividadeNome: string;
 
-  turmaId: string;
-  turmaNome: string;
+  turmaIds: string[];
+  turmaNomes: string[];
 
   colaboradorId: string;
   colaboradorNome: string;
@@ -91,8 +91,8 @@ const initial: FormState = {
   atividadeId: "",
   atividadeNome: "",
 
-  turmaId: "",
-  turmaNome: "",
+  turmaIds: [],
+  turmaNomes: [],
 
   colaboradorId: "",
   colaboradorNome: "",
@@ -122,6 +122,16 @@ function normalizeId(value: unknown): string {
   return String(value);
 }
 
+function normalizeIds(values: unknown): string[] {
+  if (!Array.isArray(values)) return [];
+
+  return uniqueStringArray(values.map((value) => normalizeId(value)).filter(Boolean));
+}
+
+function uniqueStringArray(values: string[]): string[] {
+  return Array.from(new Set(values.map(String).filter(Boolean)));
+}
+
 function pickText(...values: Array<unknown>): string {
   for (const value of values) {
     if (typeof value === "string" && value.trim()) {
@@ -132,11 +142,40 @@ function pickText(...values: Array<unknown>): string {
   return "";
 }
 
+function getTurmaIdsFromRaw(raw: any): string[] {
+  const ids = [
+    ...normalizeIds(raw.turmaIds),
+    ...(Array.isArray(raw.turmas)
+      ? raw.turmas.map((turma: any) => normalizeId(turma?.id))
+      : []),
+    normalizeId(raw.turmaId ?? raw.turma),
+  ];
+
+  return uniqueStringArray(ids);
+}
+
+function getTurmaNomesFromRaw(raw: any): string[] {
+  const nomesFromArray = Array.isArray(raw.turmas)
+    ? raw.turmas
+      .map((turma: any) => pickText(turma?.nomeTurma, turma?.nome))
+      .filter(Boolean)
+    : [];
+
+  const nomes = [
+    ...(Array.isArray(raw.turmaNomes) ? raw.turmaNomes.filter(Boolean) : []),
+    ...nomesFromArray,
+    pickText(raw.turmaNome, raw.turma?.nomeTurma, raw.turma?.nome),
+  ];
+
+  return nomes.filter(Boolean);
+}
+
 function mapPlanoAulaToForm(planoAula: PlanoAula): FormState {
   const raw = planoAula as any;
 
   const atividadeId = normalizeId(raw.atividadeId ?? raw.atividade);
-  const turmaId = normalizeId(raw.turmaId ?? raw.turma);
+  const turmaIds = getTurmaIdsFromRaw(raw);
+  const turmaNomes = getTurmaNomesFromRaw(raw);
   const colaboradorId = normalizeId(raw.colaboradorId ?? raw.colaborador);
 
   const atividadeNome = pickText(
@@ -144,12 +183,6 @@ function mapPlanoAulaToForm(planoAula: PlanoAula): FormState {
     raw.atividade?.nomeAtividade,
     raw.atividade?.titulo,
     raw.atividade?.nome,
-  );
-
-  const turmaNome = pickText(
-    raw.turmaNome,
-    raw.turma?.nomeTurma,
-    raw.turma?.nome,
   );
 
   const colaboradorNome = pickText(
@@ -166,8 +199,8 @@ function mapPlanoAulaToForm(planoAula: PlanoAula): FormState {
     atividadeId,
     atividadeNome,
 
-    turmaId,
-    turmaNome,
+    turmaIds,
+    turmaNomes,
 
     colaboradorId,
     colaboradorNome,
@@ -234,8 +267,10 @@ function formToPlanoAula(form: FormState): PlanoAula {
     atividadeId: form.atividadeId,
     atividadeNome: form.atividadeNome,
 
-    turmaId: form.turmaId || undefined,
-    turmaNome: form.turmaNome || undefined,
+    turmaId: form.turmaIds[0] || undefined,
+    turmaNome: form.turmaNomes[0] || undefined,
+    turmaIds: form.turmaIds,
+    turmaNomes: form.turmaNomes,
 
     colaboradorId: form.colaboradorId,
     colaboradorNome: form.colaboradorNome,
@@ -267,6 +302,7 @@ export default function PlanoAulaForm() {
   const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
 
   const bloqueado = loading || saving || visualizando;
 
@@ -279,9 +315,6 @@ export default function PlanoAulaForm() {
 
   const atividadeSelectValue =
     form.atividadeId || String(existingPlanoAula?.atividadeId ?? "");
-
-  const turmaSelectValue =
-    form.turmaId || String(existingPlanoAula?.turmaId ?? "");
 
   const colaboradorSelectValue =
     form.colaboradorId || String(existingPlanoAula?.colaboradorId ?? "");
@@ -328,31 +361,36 @@ export default function PlanoAulaForm() {
     const atividadeId =
       form.atividadeId || String(existingPlanoAula?.atividadeId ?? "");
 
-    const turmaId = form.turmaId || String(existingPlanoAula?.turmaId ?? "");
+    const selectedIds = form.turmaIds.length
+      ? form.turmaIds
+      : existingPlanoAula?.turmaIds?.length
+        ? existingPlanoAula.turmaIds
+        : existingPlanoAula?.turmaId
+          ? [existingPlanoAula.turmaId]
+          : [];
 
-    const turmaNome = getTurmaNome(
-      turmas,
-      turmaId,
-      form.turmaNome || existingPlanoAula?.turmaNome,
-    );
+    selectedIds.forEach((turmaId, index) => {
+      if (!turmaId) return;
 
-    if (
-      turmaId &&
-      !options.some((turma) => String(turma.id) === String(turmaId))
-    ) {
-      options.unshift({
-        id: turmaId,
-        nomeTurma: turmaNome,
-        atividadeId,
-      });
-    }
+      if (!options.some((turma) => String(turma.id) === String(turmaId))) {
+        options.unshift({
+          id: turmaId,
+          nomeTurma: getTurmaNome(
+            turmas,
+            turmaId,
+            form.turmaNomes[index] || existingPlanoAula?.turmaNomes?.[index],
+          ),
+          atividadeId,
+        });
+      }
+    });
 
     return options;
   }, [
     turmas,
     turmasDaAtividade,
-    form.turmaId,
-    form.turmaNome,
+    form.turmaIds,
+    form.turmaNomes,
     form.atividadeId,
     existingPlanoAula,
   ]);
@@ -389,12 +427,31 @@ export default function PlanoAulaForm() {
     existingPlanoAula,
   ]);
 
+  const getNomeTurmaPorId = (turmaId: string) => {
+    const index = form.turmaIds.findIndex((idTurma) => String(idTurma) === String(turmaId));
+
+    return getTurmaNome(
+      turmasOptions,
+      turmaId,
+      form.turmaNomes[index] ||
+      existingPlanoAula?.turmas?.find((turma) => String(turma.id) === String(turmaId))
+        ?.nomeTurma ||
+      existingPlanoAula?.turmaNomes?.[index],
+    );
+  };
+
+  const turmasSelecionadasTexto = form.turmaIds
+    .map((turmaId) => getNomeTurmaPorId(turmaId))
+    .filter(Boolean)
+    .join(", ");
+
   useEffect(() => {
     let active = true;
 
     async function carregar() {
       try {
         setLoading(true);
+        setAccessDeniedMessage(null);
 
         const [atividadesData, turmasData, colaboradoresData, planoAulaData] =
           await Promise.all([
@@ -416,8 +473,11 @@ export default function PlanoAulaForm() {
           const atividadeId =
             mapped.atividadeId || String(planoAulaData.atividadeId ?? "");
 
-          const turmaId =
-            mapped.turmaId || String(planoAulaData.turmaId ?? "");
+          const turmaIds = mapped.turmaIds.length
+            ? mapped.turmaIds
+            : planoAulaData.turmaId
+              ? [planoAulaData.turmaId]
+              : [];
 
           const colaboradorId =
             mapped.colaboradorId || String(planoAulaData.colaboradorId ?? "");
@@ -428,10 +488,12 @@ export default function PlanoAulaForm() {
             mapped.atividadeNome || planoAulaData.atividadeNome,
           );
 
-          const turmaNome = getTurmaNome(
-            turmasData,
-            turmaId,
-            mapped.turmaNome || planoAulaData.turmaNome,
+          const turmaNomes = turmaIds.map((turmaId, index) =>
+            getTurmaNome(
+              turmasData,
+              turmaId,
+              mapped.turmaNomes[index] || planoAulaData.turmaNomes?.[index],
+            ),
           );
 
           const colaboradorNome = getColaboradorNome(
@@ -445,8 +507,10 @@ export default function PlanoAulaForm() {
             id: mapped.id,
             atividadeId,
             atividadeNome,
-            turmaId: turmaId || undefined,
-            turmaNome,
+            turmaId: turmaIds[0] || undefined,
+            turmaNome: turmaNomes[0] || undefined,
+            turmaIds,
+            turmaNomes,
             colaboradorId,
             colaboradorNome,
           };
@@ -457,8 +521,8 @@ export default function PlanoAulaForm() {
             ...mapped,
             atividadeId,
             atividadeNome,
-            turmaId,
-            turmaNome,
+            turmaIds,
+            turmaNomes,
             colaboradorId,
             colaboradorNome,
           });
@@ -467,13 +531,18 @@ export default function PlanoAulaForm() {
           setForm(initial);
         }
       } catch (error) {
-        console.error(error);
-
-        toast.error(
+        const message =
           error instanceof Error
             ? error.message
-            : "Erro ao carregar plano de aula.",
-        );
+            : "Erro ao carregar plano de aula.";
+
+        if (isPlanoAccessDenied(message)) {
+          setAccessDeniedMessage(message);
+          return;
+        }
+
+        console.error(error);
+        toast.error(message);
 
         if (id) {
           navigate("/planos-aula");
@@ -494,17 +563,21 @@ export default function PlanoAulaForm() {
     const atividadeId =
       form.atividadeId || String(existingPlanoAula?.atividadeId ?? "");
 
-    const turmaId = form.turmaId || String(existingPlanoAula?.turmaId ?? "");
+    const turmaIds = uniqueStringArray(
+      form.turmaIds.length
+        ? form.turmaIds
+        : existingPlanoAula?.turmaIds?.length
+          ? existingPlanoAula.turmaIds
+          : existingPlanoAula?.turmaId
+            ? [existingPlanoAula.turmaId]
+            : [],
+    );
 
     const colaboradorId =
       form.colaboradorId || String(existingPlanoAula?.colaboradorId ?? "");
 
     const atividadeSelecionada = atividadesOptions.find(
       (atividade) => String(atividade.id) === String(atividadeId),
-    );
-
-    const turmaSelecionada = turmasOptions.find(
-      (turma) => String(turma.id) === String(turmaId),
     );
 
     const colaboradorSelecionado = colaboradoresOptions.find(
@@ -521,12 +594,8 @@ export default function PlanoAulaForm() {
         existingPlanoAula?.atividadeNome ||
         "",
 
-      turmaId,
-      turmaNome:
-        form.turmaNome ||
-        turmaSelecionada?.nomeTurma ||
-        existingPlanoAula?.turmaNome ||
-        "",
+      turmaIds,
+      turmaNomes: turmaIds.map((turmaId) => getNomeTurmaPorId(turmaId)),
 
       colaboradorId,
       colaboradorNome:
@@ -537,6 +606,40 @@ export default function PlanoAulaForm() {
     };
   }
 
+  const toggleTurma = (turma: TurmaOption) => {
+    if (visualizando) return;
+
+    setForm((prev) => {
+      const turmaId = String(turma.id);
+      const selecionada = prev.turmaIds.some((idTurma) => String(idTurma) === turmaId);
+
+      const turmaIds = selecionada
+        ? prev.turmaIds.filter((idTurma) => String(idTurma) !== turmaId)
+        : [...prev.turmaIds, turmaId];
+
+      return {
+        ...prev,
+        turmaIds,
+        turmaNomes: turmaIds.map((idTurma) => {
+          if (String(idTurma) === turmaId && !selecionada) {
+            return turma.nomeTurma;
+          }
+
+          const indexAnterior = prev.turmaIds.findIndex(
+            (idAnterior) => String(idAnterior) === String(idTurma),
+          );
+
+          return (
+            prev.turmaNomes[indexAnterior] ||
+            turmasOptions.find((item) => String(item.id) === String(idTurma))
+              ?.nomeTurma ||
+            `Turma ${idTurma}`
+          );
+        }),
+      };
+    });
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -546,6 +649,11 @@ export default function PlanoAulaForm() {
 
     if (!formComVinculos.atividadeId) {
       toast.error("Selecione a atividade.");
+      return;
+    }
+
+    if (!formComVinculos.turmaIds.length) {
+      toast.error("Selecione pelo menos uma turma.");
       return;
     }
 
@@ -607,21 +715,33 @@ export default function PlanoAulaForm() {
         salvarProximaAcaoPlanoAula();
         toast.success("Plano de aula criado com sucesso.");
       }
-      navigate("/planos-aula");
 
       navigate("/planos-aula");
     } catch (error) {
-      console.error(error);
-
-      toast.error(
+      const message =
         error instanceof Error
           ? error.message
-          : "Não foi possível salvar o plano de aula.",
-      );
+          : "Não foi possível salvar o plano de aula.";
+
+      if (isPlanoAccessDenied(message)) {
+        setAccessDeniedMessage(message);
+        return;
+      }
+
+      console.error(error);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
   };
+
+  if (accessDeniedMessage) {
+    return (
+      <AppLayout>
+        <AccessDenied />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -676,8 +796,8 @@ export default function PlanoAulaForm() {
                       atividadeId: value,
                       atividadeNome:
                         atividadeSelecionada?.nomeAtividade ?? "",
-                      turmaId: "",
-                      turmaNome: "",
+                      turmaIds: [],
+                      turmaNomes: [],
                     }));
                   }}
                   disabled={bloqueado}
@@ -697,55 +817,54 @@ export default function PlanoAulaForm() {
               </div>
 
               <div className="sm:col-span-2">
-                <FieldLabel>Turma</FieldLabel>
+                <FieldLabel required={!visualizando}>Turmas</FieldLabel>
 
-                <Select
-                  value={turmaSelectValue || SEM_TURMA}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
+                <div className="rounded-md border border-input bg-background">
+                  {!atividadeSelectValue && (
+                    <p className="px-3 py-3 text-sm text-muted-foreground">
+                      Selecione uma atividade primeiro para listar as turmas.
+                    </p>
+                  )}
 
-                    if (value === SEM_TURMA) {
-                      setForm((prev) => ({
-                        ...prev,
-                        turmaId: "",
-                        turmaNome: "",
-                      }));
+                  {atividadeSelectValue && turmasOptions.length === 0 && (
+                    <p className="px-3 py-3 text-sm text-muted-foreground">
+                      Nenhuma turma encontrada para a atividade selecionada.
+                    </p>
+                  )}
 
-                      return;
-                    }
+                  {atividadeSelectValue && turmasOptions.length > 0 && (
+                    <div className="max-h-56 divide-y overflow-y-auto">
+                      {turmasOptions.map((turma) => {
+                        const checked = form.turmaIds.some(
+                          (turmaId) => String(turmaId) === String(turma.id),
+                        );
 
-                    const turmaSelecionada = turmasOptions.find(
-                      (turma) => String(turma.id) === String(value),
-                    );
+                        return (
+                          <label
+                            key={turma.id}
+                            className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-muted/40"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleTurma(turma)}
+                              disabled={bloqueado || !atividadeSelectValue}
+                              className="h-4 w-4 rounded border-border"
+                            />
 
-                    setForm((prev) => ({
-                      ...prev,
-                      turmaId: value,
-                      turmaNome: turmaSelecionada?.nomeTurma ?? "",
-                    }));
-                  }}
-                  disabled={bloqueado || !atividadeSelectValue}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        atividadeSelectValue
-                          ? "Selecione a turma"
-                          : "Selecione uma atividade primeiro"
-                      }
-                    />
-                  </SelectTrigger>
+                            <span>{turma.nomeTurma}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
-                  <SelectContent>
-                    <SelectItem value={SEM_TURMA}>Nenhuma</SelectItem>
-
-                    {turmasOptions.map((turma) => (
-                      <SelectItem key={turma.id} value={turma.id}>
-                        {turma.nomeTurma}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {!!form.turmaIds.length && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Turmas selecionadas: {turmasSelecionadasTexto}
+                  </p>
+                )}
               </div>
 
               <div className="sm:col-span-2">

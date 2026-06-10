@@ -16,6 +16,7 @@ import { exportPlanoAulaPdf } from "@/lib/pdfExporters";
 import { Card as UICard } from "@/components/ui/card";
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { AccessDenied } from "@/components/AccessDenied";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TableActionIcon } from "@/components/TableActionIcon";
@@ -26,6 +27,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { SortableHeader } from "@/components/SortableHeader";
 import { usePagination } from "@/hooks/usePagination";
 import { useSortableData } from "@/hooks/useSortableData";
+import { isPlanoAccessDenied } from "@/lib/access";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -50,7 +52,7 @@ import {
     type TurmaOption,
 } from "@/data/planosAula";
 
-type SortKey = "atividade" | "turma" | "colaborador" | "inicio" | "fim" | "status" | "conteudo";
+type SortKey = "atividade" | "turmas" | "colaborador" | "inicio" | "fim" | "status" | "conteudo";
 
 function formatDateBR(value?: string | null) {
     if (!value) return "—";
@@ -72,6 +74,7 @@ export default function PlanosAula() {
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState(false);
+    const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
 
     useEffect(() => {
         void loadAll();
@@ -80,6 +83,7 @@ export default function PlanosAula() {
     async function loadAll() {
         try {
             setLoading(true);
+            setAccessDeniedMessage(null);
 
             const [
                 planosData,
@@ -98,13 +102,18 @@ export default function PlanosAula() {
             setTurmas(turmasData);
             setColaboradores(colaboradoresData);
         } catch (error) {
-            console.error(error);
-
-            toast.error(
+            const message =
                 error instanceof Error
                     ? error.message
-                    : "Não foi possível carregar os planos de aula.",
-            );
+                    : "Não foi possível carregar os planos de aula.";
+
+            if (isPlanoAccessDenied(message)) {
+                setAccessDeniedMessage(message);
+                return;
+            }
+
+            console.error(error);
+            toast.error(message);
         } finally {
             setLoading(false);
         }
@@ -119,13 +128,41 @@ export default function PlanosAula() {
         );
     };
 
-    const turmaNome = (id?: string | null) => {
-        if (!id) return "—";
+    const turmaNome = (id?: string | null, fallback?: string | null) => {
+        if (!id) return fallback || "—";
 
         return (
-            turmas.find((turma) => String(turma.id) === String(id))?.nomeTurma ??
+            fallback ||
+            turmas.find((turma) => String(turma.id) === String(id))?.nomeTurma ||
             `Turma ${id}`
         );
+    };
+
+    const planoTurmasNome = (plano: PlanoAula) => {
+        const ids = plano.turmaIds?.length
+            ? plano.turmaIds
+            : plano.turmaId
+                ? [plano.turmaId]
+                : [];
+
+        if (ids.length) {
+            const nomes = ids.map((id, index) =>
+                turmaNome(
+                    id,
+                    plano.turmaNomes?.[index] ||
+                    plano.turmas?.find((turma) => String(turma.id) === String(id))
+                        ?.nomeTurma,
+                ),
+            );
+
+            return nomes.join(", ");
+        }
+
+        if (plano.turmaNomes?.length) {
+            return plano.turmaNomes.join(", ");
+        }
+
+        return plano.turmaNome || "—";
     };
 
     const colaboradorNome = (id?: string | null) => {
@@ -145,7 +182,7 @@ export default function PlanosAula() {
 
         return items.filter((plano) => {
             const atividade = atividadeNome(plano.atividadeId).toLowerCase();
-            const turma = turmaNome(plano.turmaId).toLowerCase();
+            const turmasPlano = planoTurmasNome(plano).toLowerCase();
             const colaborador = colaboradorNome(plano.colaboradorId).toLowerCase();
             const status = statusPlanoAulaValueToLabel(
                 plano.statusPlanoAula,
@@ -155,7 +192,7 @@ export default function PlanosAula() {
                 plano.conteudo,
                 plano.observacao ?? "",
                 atividade,
-                turma,
+                turmasPlano,
                 colaborador,
                 status,
                 formatDateBR(plano.dataInicio),
@@ -174,8 +211,8 @@ export default function PlanosAula() {
             switch (key) {
                 case "atividade":
                     return atividadeNome(plano.atividadeId);
-                case "turma":
-                    return turmaNome(plano.turmaId);
+                case "turmas":
+                    return planoTurmasNome(plano);
                 case "colaborador":
                     return colaboradorNome(plano.colaboradorId);
                 case "inicio":
@@ -210,13 +247,19 @@ export default function PlanosAula() {
             toast.success("Plano de aula excluído com sucesso.");
             setConfirmDelete(null);
         } catch (error) {
-            console.error(error);
-
-            toast.error(
+            const message =
                 error instanceof Error
                     ? error.message
-                    : "Não foi possível excluir o plano de aula.",
-            );
+                    : "Não foi possível excluir o plano de aula.";
+
+            if (isPlanoAccessDenied(message)) {
+                setAccessDeniedMessage(message);
+                setConfirmDelete(null);
+                return;
+            }
+
+            console.error(error);
+            toast.error(message);
         } finally {
             setDeleting(false);
         }
@@ -235,7 +278,7 @@ export default function PlanosAula() {
                 id: plano.id,
 
                 atividade: atividadeNome(plano.atividadeId),
-                turma: turmaNome(plano.turmaId),
+                turma: planoTurmasNome(plano),
                 colaborador: colaboradorNome(plano.colaboradorId),
 
                 dataInicio: plano.dataInicio,
@@ -254,6 +297,14 @@ export default function PlanosAula() {
             toast.error("Não foi possível gerar a ficha do plano de aula.");
         }
     };
+
+    if (accessDeniedMessage) {
+        return (
+            <AppLayout>
+                <AccessDenied />
+            </AppLayout>
+        );
+    }
 
     return (
         <AppLayout>
@@ -338,8 +389,8 @@ export default function PlanosAula() {
                                     />
 
                                     <SortableHeader
-                                        label="Turma"
-                                        sortKey="turma"
+                                        label="Turmas"
+                                        sortKey="turmas"
                                         sortConfig={sortConfig}
                                         onSort={handleSort}
                                         className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
@@ -387,7 +438,7 @@ export default function PlanosAula() {
                                 {loading && (
                                     <tr>
                                         <td
-                                            colSpan={9}
+                                            colSpan={8}
                                             className="py-10 text-center text-sm text-muted-foreground"
                                         >
                                             Carregando...
@@ -398,7 +449,7 @@ export default function PlanosAula() {
                                 {!loading &&
                                     paginated.map((plano) => {
                                         const atividade = atividadeNome(plano.atividadeId);
-                                        const turma = turmaNome(plano.turmaId);
+                                        const turmasPlano = planoTurmasNome(plano);
                                         const colaborador = colaboradorNome(plano.colaboradorId);
                                         const statusLabel = statusPlanoAulaValueToLabel(
                                             plano.statusPlanoAula,
@@ -439,7 +490,7 @@ export default function PlanosAula() {
                                                 </td>
 
                                                 <td className="px-6 py-2.5">
-                                                    <TableCellText text={turma}>{turma}</TableCellText>
+                                                    <TableCellText text={turmasPlano}>{turmasPlano}</TableCellText>
                                                 </td>
 
                                                 <td className="px-6 py-2.5">
@@ -478,7 +529,7 @@ export default function PlanosAula() {
                                 {!loading && paginated.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={9}
+                                            colSpan={8}
                                             className="py-10 text-center text-sm text-muted-foreground"
                                         >
                                             Nenhum plano de aula encontrado.
@@ -530,10 +581,10 @@ export default function PlanosAula() {
                 </AlertDialogContent>
             </AlertDialog>
 
-                  <WikiFloatingButton
-                    pageTitle="Plano de Aula"
-                    href="https://www.aurit.com.br/wiki/execucao/plano-aula"
-                  />
+            <WikiFloatingButton
+                pageTitle="Plano de Aula"
+                href="https://www.aurit.com.br/wiki/execucao/plano-aula"
+            />
         </AppLayout>
     );
 }

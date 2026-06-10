@@ -26,6 +26,7 @@ export interface TurmaResumo {
   id: string;
   nomeTurma?: string;
   nome?: string;
+  atividadeId?: string;
 }
 
 export interface ColaboradorResumo {
@@ -41,9 +42,16 @@ export interface PlanoAula {
   atividadeNome?: string;
   atividade?: AtividadeResumo;
 
+  /**
+   * Compatibilidade com dados antigos. Para novos cadastros/edições, use turmaIds.
+   */
   turmaId?: string;
   turmaNome?: string;
   turma?: TurmaResumo | null;
+
+  turmaIds: string[];
+  turmaNomes?: string[];
+  turmas?: TurmaResumo[];
 
   colaboradorId: string;
   colaboradorNome?: string;
@@ -64,7 +72,14 @@ export interface PlanoAulaPayloadDTO {
   id?: number;
 
   atividadeId: number;
+
+  /**
+   * Mantido para compatibilidade com o backend antigo.
+   * O campo principal para múltiplas turmas é turmaIds.
+   */
   turmaId?: number | null;
+  turmaIds: number[];
+
   colaboradorId: number;
   organizacaoId?: number | null;
 
@@ -81,7 +96,11 @@ export interface PlanoAulaApiDTO {
   id?: number | string | null;
 
   atividadeId?: number | string | null;
+
+  /** Campos antigos e novos suportados durante a transição. */
   turmaId?: number | string | null;
+  turmaIds?: Array<number | string | null> | null;
+
   colaboradorId?: number | string | null;
   organizacaoId?: number | string | null;
 
@@ -109,6 +128,18 @@ export interface PlanoAulaApiDTO {
       id?: number | string | null;
     } | null;
   } | null;
+
+  turmas?:
+  | Array<{
+    id?: number | string | null;
+    nomeTurma?: string | null;
+    nome?: string | null;
+    atividadeId?: number | string | null;
+    atividade?: {
+      id?: number | string | null;
+    } | null;
+  } | null>
+  | null;
 
   colaborador?: {
     id?: number | string | null;
@@ -218,6 +249,24 @@ function normalizeId(value: unknown): string {
   return String(value);
 }
 
+function normalizeIds(values: unknown): string[] {
+  if (!Array.isArray(values)) return [];
+
+  return Array.from(
+    new Set(values.map((value) => normalizeId(value)).filter(Boolean)),
+  );
+}
+
+function toNumberIds(values: string[]): number[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value > 0),
+    ),
+  );
+}
+
 function pickText(...values: Array<unknown>) {
   for (const value of values) {
     if (typeof value === "string" && value.trim()) {
@@ -244,18 +293,60 @@ function normalizeStatusPlanoAula(value?: string | null): StatusPlanoAula {
   return "PLANEJADO";
 }
 
+function mapTurmaResumo(turma?: PlanoAulaApiDTO["turma"]): TurmaResumo | null {
+  if (!turma) return null;
+
+  const id = normalizeId(turma.id);
+
+  if (!id) return null;
+
+  const nomeTurma = pickText(turma.nomeTurma, turma.nome);
+  const atividadeId = normalizeId(turma.atividadeId ?? turma.atividade);
+
+  return {
+    id,
+    nomeTurma,
+    nome: nomeTurma,
+    atividadeId: atividadeId || undefined,
+  };
+}
+
 export function mapPlanoAula(dto: PlanoAulaApiDTO): PlanoAula {
   const atividadeId = normalizeId(dto.atividadeId ?? dto.atividade);
-  const turmaId = normalizeId(dto.turmaId ?? dto.turma);
   const colaboradorId = normalizeId(dto.colaboradorId ?? dto.colaborador);
+
+  const turmasFromArray = (Array.isArray(dto.turmas) ? dto.turmas : [])
+    .map((turma) => mapTurmaResumo(turma))
+    .filter((turma): turma is TurmaResumo => Boolean(turma));
+
+  const turmaUnica = mapTurmaResumo(dto.turma);
+
+  const turmas = turmasFromArray.length
+    ? turmasFromArray
+    : turmaUnica
+      ? [turmaUnica]
+      : [];
+
+  const turmaIds = Array.from(
+    new Set([
+      ...normalizeIds(dto.turmaIds),
+      ...turmas.map((turma) => turma.id).filter(Boolean),
+      normalizeId(dto.turmaId),
+    ].filter(Boolean)),
+  );
+
+  const turmaNomes = turmas
+    .map((turma) => pickText(turma.nomeTurma, turma.nome))
+    .filter(Boolean);
+
+  const turmaId = turmaIds[0] || undefined;
+  const turmaNome = turmaNomes[0] || pickText(dto.turma?.nomeTurma, dto.turma?.nome);
 
   const atividadeNome = pickText(
     dto.atividade?.nomeAtividade,
     dto.atividade?.titulo,
     dto.atividade?.nome,
   );
-
-  const turmaNome = pickText(dto.turma?.nomeTurma, dto.turma?.nome);
 
   const colaboradorNome = pickText(
     dto.colaborador?.nome,
@@ -271,31 +362,35 @@ export function mapPlanoAula(dto: PlanoAulaApiDTO): PlanoAula {
     atividadeNome,
     atividade: atividadeId
       ? {
-          id: atividadeId,
-          nomeAtividade: atividadeNome,
-          nome: atividadeNome,
-          titulo: atividadeNome,
-        }
+        id: atividadeId,
+        nomeAtividade: atividadeNome,
+        nome: atividadeNome,
+        titulo: atividadeNome,
+      }
       : undefined,
 
-    turmaId: turmaId || undefined,
+    turmaId,
     turmaNome,
     turma: turmaId
       ? {
-          id: turmaId,
-          nomeTurma: turmaNome,
-          nome: turmaNome,
-        }
+        id: turmaId,
+        nomeTurma: turmaNome,
+        nome: turmaNome,
+      }
       : null,
+
+    turmaIds,
+    turmaNomes,
+    turmas,
 
     colaboradorId,
     colaboradorNome,
     colaborador: colaboradorId
       ? {
-          id: colaboradorId,
-          nome: colaboradorNome,
-          nomeCompleto: colaboradorNome,
-        }
+        id: colaboradorId,
+        nome: colaboradorNome,
+        nomeCompleto: colaboradorNome,
+      }
       : undefined,
 
     organizacaoId: normalizeId(dto.organizacaoId ?? dto.organizacao) || undefined,
@@ -313,11 +408,20 @@ export function mapPlanoAula(dto: PlanoAulaApiDTO): PlanoAula {
 export function buildPlanoAulaPayload(
   planoAula: PlanoAula,
 ): PlanoAulaPayloadDTO {
+  const turmaIds = toNumberIds(
+    planoAula.turmaIds?.length
+      ? planoAula.turmaIds
+      : planoAula.turmaId
+        ? [planoAula.turmaId]
+        : [],
+  );
+
   return {
     id: planoAula.id ? Number(planoAula.id) : undefined,
 
     atividadeId: Number(planoAula.atividadeId),
-    turmaId: planoAula.turmaId ? Number(planoAula.turmaId) : null,
+    turmaId: turmaIds[0] ?? null,
+    turmaIds,
     colaboradorId: Number(planoAula.colaboradorId),
     organizacaoId: planoAula.organizacaoId
       ? Number(planoAula.organizacaoId)

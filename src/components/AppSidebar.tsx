@@ -157,7 +157,7 @@ const sections: Section[] = [
         items: [
           { title: "Projetos", url: "/projetos" },
           { title: "Metas do Projeto", url: "/metas-projeto", paidOnly: true },
-          { title: "Cronograma do Projeto", url: "/cronograma" },
+          { title: "Cronograma do Projeto", url: "/cronograma", paidOnly: true },
         ],
       },
       {
@@ -166,7 +166,7 @@ const sections: Section[] = [
         icon: PlayCircle,
         items: [
           { title: "Atividades", url: "/atividades" },
-          { title: "Plano de Aula", url: "/planos-aula" },
+          { title: "Plano de Aula", url: "/planos-aula", paidOnly: true },
           { title: "Turmas", url: "/turmas" },
           { title: "Presenças", url: "/presencas" },
         ],

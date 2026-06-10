@@ -686,6 +686,16 @@ export default function Cronograma() {
     }
   };
 
+  if (loadingPermissoes) {
+    return (
+      <AppLayout>
+        <div className="container max-w-7xl py-6 sm:py-8">
+          <p className="text-sm text-muted-foreground">Carregando permissões...</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
   if (!podeVisualizar) {
     return (
       <AppLayout>

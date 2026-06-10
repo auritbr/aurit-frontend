@@ -7,6 +7,14 @@ async function parseError(response: Response): Promise<string> {
     const text = await response.text();
 
     if (!text) {
+      if (response.status === 401) {
+        return "Sessão expirada ou token inválido. Faça login novamente.";
+      }
+
+      if (response.status === 403) {
+        return "Acesso negado. Este recurso está disponível apenas para o plano pago.";
+      }
+
       return `Erro ${response.status} ao processar requisição.`;
     }
 
@@ -17,15 +25,13 @@ async function parseError(response: Response): Promise<string> {
         return json;
       }
 
-      if (json.message) {
-        return json.message;
-      }
-
-      if (json.error) {
-        return json.error;
-      }
-
-      return text;
+      return (
+        json?.message ||
+        json?.error ||
+        json?.detail ||
+        json?.mensagem ||
+        text
+      );
     } catch {
       return text;
     }

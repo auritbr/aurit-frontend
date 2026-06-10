@@ -80,6 +80,7 @@ export interface PlanoAulaApiDTO {
 
   atividadeId?: number | string | null;
   turmaId?: number | string | null;
+  turmaIds?: Array<number | string | null> | null;
 
   atividade?: {
     id?: number | string | null;
@@ -92,6 +93,12 @@ export interface PlanoAulaApiDTO {
     nomeTurma?: string | null;
     nome?: string | null;
   } | null;
+
+  turmas?: Array<{
+    id?: number | string | null;
+    nomeTurma?: string | null;
+    nome?: string | null;
+  }> | null;
 }
 
 export interface ParticipanteAtividadeApiDTO {
@@ -147,6 +154,8 @@ export interface PlanoAulaOption {
   statusPlanoAula: string;
   atividadeId: string;
   turmaId: string;
+  turmaIds: string[];
+  turmaNomes: string[];
   label: string;
 }
 
@@ -264,10 +273,60 @@ export function mapTurmaOption(dto: TurmaApiDTO): TurmaOption {
   };
 }
 
+function getPlanoAulaTurmas(dto: PlanoAulaApiDTO): {
+  ids: string[];
+  nomes: string[];
+} {
+  const ids = new Set<string>();
+  const nomes: string[] = [];
+
+  if (Array.isArray(dto.turmaIds)) {
+    for (const turmaId of dto.turmaIds) {
+      const id = normalizeId(turmaId);
+
+      if (id) {
+        ids.add(id);
+      }
+    }
+  }
+
+  if (Array.isArray(dto.turmas)) {
+    for (const turma of dto.turmas) {
+      const id = normalizeId(turma);
+      const nome = pickText(turma?.nomeTurma, turma?.nome);
+
+      if (id) {
+        ids.add(id);
+      }
+
+      if (nome) {
+        nomes.push(nome);
+      }
+    }
+  }
+
+  const turmaIdUnica = normalizeId(dto.turmaId ?? dto.turma);
+  const turmaNomeUnica = pickText(dto.turma?.nomeTurma, dto.turma?.nome);
+
+  if (turmaIdUnica) {
+    ids.add(turmaIdUnica);
+  }
+
+  if (turmaNomeUnica) {
+    nomes.push(turmaNomeUnica);
+  }
+
+  return {
+    ids: Array.from(ids),
+    nomes: Array.from(new Set(nomes)),
+  };
+}
+
 export function mapPlanoAulaOption(dto: PlanoAulaApiDTO): PlanoAulaOption {
   const id = normalizeId(dto.id);
   const atividadeId = normalizeId(dto.atividadeId ?? dto.atividade);
-  const turmaId = normalizeId(dto.turmaId ?? dto.turma);
+  const { ids: turmaIds, nomes: turmaNomes } = getPlanoAulaTurmas(dto);
+  const turmaId = turmaIds[0] ?? "";
 
   const conteudo =
     pickText(dto.conteudo) || `Plano de aula ${id || ""}`.trim();
@@ -279,7 +338,9 @@ export function mapPlanoAulaOption(dto: PlanoAulaApiDTO): PlanoAulaOption {
     ? `${formatDateBR(dataInicio)} a ${formatDateBR(dataFim)}`
     : formatDateBR(dataInicio);
 
-  const label = periodo ? `${conteudo} · ${periodo}` : conteudo;
+  const turmasLabel = turmaNomes.length > 0 ? ` · ${turmaNomes.join(", ")}` : "";
+  const labelBase = periodo ? `${conteudo} · ${periodo}` : conteudo;
+  const label = `${labelBase}${turmasLabel}`;
 
   return {
     id,
@@ -291,6 +352,8 @@ export function mapPlanoAulaOption(dto: PlanoAulaApiDTO): PlanoAulaOption {
     statusPlanoAula: pickText(dto.statusPlanoAula),
     atividadeId,
     turmaId,
+    turmaIds,
+    turmaNomes,
     label,
   };
 }

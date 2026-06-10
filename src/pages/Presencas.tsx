@@ -117,8 +117,8 @@ export default function Presencas() {
       if (plano.atividadeId !== atividadeId) return false;
 
       if (turmaId) {
-        if (plano.turmaId !== turmaId) return false;
-      } else if (plano.turmaId) {
+        if (!plano.turmaIds.includes(turmaId)) return false;
+      } else if (plano.turmaIds.length > 0) {
         return false;
       }
 
