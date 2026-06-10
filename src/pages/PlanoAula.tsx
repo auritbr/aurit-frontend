@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { StatusPill } from "@/components/StatusPill";
 import { TablePagination } from "@/components/TablePagination";
 import { SortableHeader } from "@/components/SortableHeader";
@@ -309,7 +310,6 @@ export default function PlanosAula() {
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                                 className="h-9 pl-9"
-                                placeholder="Buscar por conteúdo, atividade ou colaborador..."
                             />
                         </div>
 
@@ -372,14 +372,6 @@ export default function PlanosAula() {
                                     <SortableHeader
                                         label="Status"
                                         sortKey="status"
-                                        sortConfig={sortConfig}
-                                        onSort={handleSort}
-                                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                                    />
-
-                                    <SortableHeader
-                                        label="Conteúdo"
-                                        sortKey="conteudo"
                                         sortConfig={sortConfig}
                                         onSort={handleSort}
                                         className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
@@ -468,18 +460,6 @@ export default function PlanosAula() {
                                                     <StatusPill status={statusLabel as any} />
                                                 </td>
 
-                                                <td className="max-w-[260px] px-6 py-2.5">
-                                                    {plano.conteudo ? (
-                                                        <TableCellText text={plano.conteudo} muted>
-                                                            {plano.conteudo}
-                                                        </TableCellText>
-                                                    ) : (
-                                                        <span className="text-[13px] text-muted-foreground/60">
-                                                            —
-                                                        </span>
-                                                    )}
-                                                </td>
-
                                                 <td className="whitespace-nowrap px-6 py-2.5">
                                                     <Button
                                                         variant="outline"
@@ -549,6 +529,11 @@ export default function PlanosAula() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+                  <WikiFloatingButton
+                    pageTitle="Plano de Aula"
+                    href="https://www.aurit.com.br/wiki/execucao/plano-aula"
+                  />
         </AppLayout>
     );
 }

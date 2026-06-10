@@ -182,6 +182,44 @@ export class RelatorioIndisponivelError extends Error {
   }
 }
 
+const RELATORIO_SLUGS_OPERACIONAIS = [
+  "organizacao",
+  "agentes",
+  "participantes",
+  "colaboradores",
+  "integrantes",
+  "diretoria",
+  "projetos",
+  "metas-projeto",
+  "cronogramas",
+  "atividades",
+  "turmas",
+  "planos-aula",
+  "presencas",
+  "eventos-culturais",
+  "acoes-divulgacao",
+  "planos-comunicacao",
+  "evidencias",
+  "editais",
+  "propostas-editais",
+  "resultados-propostas",
+  "equipe-edital",
+  "habilitacoes-propostas",
+  "financeiro",
+  "planejamento-financeiro",
+  "prestacoes-contas",
+  "prestacoes-metas",
+  "patrimonios",
+  "emprestimos",
+  "documentos",
+  "curriculos",
+  "trajetorias-culturais",
+] as const;
+
+const RELATORIO_SLUGS_OPERACIONAIS_SET = new Set<string>(
+  RELATORIO_SLUGS_OPERACIONAIS,
+);
+
 export const RELATORIO_SLUG_ALIASES: Record<string, string> = {
   organizacoes: "organizacao",
 
@@ -189,11 +227,15 @@ export const RELATORIO_SLUG_ALIASES: Record<string, string> = {
 
   metas: "metas-projeto",
 
-  patrimonios: "patrimonio",
+  cronograma: "cronogramas",
 
-  cronogramas: "cronograma",
+  "planos-de-aula": "planos-aula",
 
-  "propostas-editais": "propostas-edital",
+  "plano-comunicacao": "planos-comunicacao",
+
+  financeiros: "financeiro",
+
+  "propostas-edital": "propostas-editais",
 
   "resultados-proposta": "resultados-propostas",
   "resultado-proposta": "resultados-propostas",
@@ -201,61 +243,44 @@ export const RELATORIO_SLUG_ALIASES: Record<string, string> = {
 
   "planejamentos-financeiros": "planejamento-financeiro",
 
-  "prestacoes-contas": "prestacao-contas",
-  "prestacoes-metas": "prestacao-metas",
+  "prestacao-contas": "prestacoes-contas",
+  "prestacao-metas": "prestacoes-metas",
 
-  habilitacoes: "habilitacao",
-  "habilitacoes-propostas": "habilitacao",
+  habilitacao: "habilitacoes-propostas",
+  habilitacoes: "habilitacoes-propostas",
+
+  "equipes-editais": "equipe-edital",
 
   "evidencias-execucao": "evidencias",
+
+  patrimonio: "patrimonios",
 };
 
 export function resolveRelatorioSlug(slug: string): string {
   return RELATORIO_SLUG_ALIASES[slug] ?? slug;
 }
 
-const RELATORIO_DETALHADO_ENDPOINTS: Record<string, string> = {
-  organizacao: "/relatorios/organizacao/detalhado",
-  agentes: "/relatorios/agentes/detalhado",
-  diretoria: "/relatorios/diretoria/detalhado",
-  documentos: "/relatorios/documentos/detalhado",
+function getRelatorioEndpointCandidates(slugInput: string): string[] {
+  const slug = resolveRelatorioSlug(slugInput);
 
-  colaboradores: "/relatorios/colaboradores/detalhado",
-  integrantes: "/relatorios/integrantes/detalhado",
-  participantes: "/relatorios/participantes/detalhado",
+  if (!RELATORIO_SLUGS_OPERACIONAIS_SET.has(slug)) {
+    return [];
+  }
 
-  curriculos: "/relatorios/curriculos/detalhado",
-  "trajetorias-culturais": "/relatorios/trajetorias-culturais/detalhado",
+  const candidates = new Set<string>([slug]);
 
-  projetos: "/relatorios/projetos/detalhado",
-  "metas-projeto": "/relatorios/metas-projeto/detalhado",
-  cronograma: "/relatorios/cronogramas/detalhado",
+  Object.entries(RELATORIO_SLUG_ALIASES).forEach(([alias, canonical]) => {
+    if (canonical === slug) {
+      candidates.add(alias);
+    }
+  });
 
-  atividades: "/relatorios/atividades/detalhado",
-  turmas: "/relatorios/turmas/detalhado",
-  presencas: "/relatorios/presencas/detalhado",
+  if (slugInput !== slug) {
+    candidates.add(slugInput);
+  }
 
-  "eventos-culturais": "/relatorios/eventos-culturais/detalhado",
-  "acoes-divulgacao": "/relatorios/acoes-divulgacao/detalhado",
-  "plano-comunicacao": "/relatorios/plano-comunicacao/detalhado",
-
-  financeiro: "/relatorios/financeiro/detalhado",
-
-  editais: "/relatorios/editais/detalhado",
-  "propostas-edital": "/relatorios/propostas-editais/detalhado",
-  "resultados-propostas": "/relatorios/resultados-propostas/detalhado",
-  habilitacao: "/relatorios/habilitacoes-propostas/detalhado",
-  "equipe-edital": "/relatorios/equipe-edital/detalhado",
-  "planejamento-financeiro": "/relatorios/planejamentos-financeiros/detalhado",
-
-  evidencias: "/relatorios/evidencias/detalhado",
-
-  "prestacao-contas": "/relatorios/prestacoes-contas/detalhado",
-  "prestacao-metas": "/relatorios/prestacao-metas/detalhado",
-
-  patrimonio: "/relatorios/patrimonios/detalhado",
-  emprestimos: "/relatorios/emprestimos/detalhado",
-};
+  return Array.from(candidates);
+}
 
 const RELATORIO_TITULOS: Record<string, string> = {
   organizacao: "Organização",
@@ -272,31 +297,32 @@ const RELATORIO_TITULOS: Record<string, string> = {
 
   projetos: "Projetos",
   "metas-projeto": "Metas do Projeto",
-  cronograma: "Cronograma",
+  cronogramas: "Cronograma",
 
   atividades: "Atividades",
   turmas: "Turmas",
+  "planos-aula": "Planos de Aula",
   presencas: "Presenças",
 
   "eventos-culturais": "Eventos Culturais",
   "acoes-divulgacao": "Ações de Divulgação",
-  "plano-comunicacao": "Plano de Comunicação",
+  "planos-comunicacao": "Planos de Comunicação",
 
   financeiro: "Financeiro",
 
   editais: "Editais",
-  "propostas-edital": "Propostas de Edital",
+  "propostas-editais": "Propostas de Edital",
   "resultados-propostas": "Resultados da Proposta",
-  habilitacao: "Habilitação Documental",
+  "habilitacoes-propostas": "Habilitação Documental",
   "equipe-edital": "Equipe da Proposta",
   "planejamento-financeiro": "Orçamento da Proposta",
 
   evidencias: "Evidências de Execução",
 
-  "prestacao-contas": "Prestação de Contas",
-  "prestacao-metas": "Cumprimento de Metas",
+  "prestacoes-contas": "Prestação de Contas",
+  "prestacoes-metas": "Cumprimento de Metas",
 
-  patrimonio: "Patrimônio",
+  patrimonios: "Patrimônio",
   emprestimos: "Empréstimos",
 };
 
@@ -334,7 +360,7 @@ const RELATORIO_DESCRICOES: Record<string, string> = {
   "metas-projeto":
     "Consulte as metas planejadas para projetos ou propostas, com descrição, quantidade prevista, forma de comprovação e vínculo correspondente.",
 
-  cronograma:
+  cronogramas:
     "Acompanhe as etapas do cronograma dos projetos, com datas, descrição, status e vínculos com atividades, eventos ou ações de divulgação.",
 
   atividades:
@@ -342,6 +368,9 @@ const RELATORIO_DESCRICOES: Record<string, string> = {
 
   turmas:
     "Acompanhe as turmas cadastradas nas atividades, com horários, dias de realização, descrição, status e vínculo com projeto.",
+
+  "planos-aula":
+    "Consulte os planos de aula cadastrados para atividades e turmas, incluindo conteúdo, objetivos, metodologia, recursos, período e responsável.",
 
   presencas:
     "Consulte os registros de presença por atividade, turma e participante, apoiando o controle de frequência e a comprovação das ações realizadas.",
@@ -352,7 +381,7 @@ const RELATORIO_DESCRICOES: Record<string, string> = {
   "acoes-divulgacao":
     "Acompanhe as ações de divulgação vinculadas aos projetos, incluindo objetivos, estratégias, período, acessibilidade, produtos gerados e status.",
 
-  "plano-comunicacao":
+  "planos-comunicacao":
     "Consulte os planos de comunicação vinculados às ações de divulgação, com formato, quantidade, período, local de circulação e status.",
 
   financeiro:
@@ -361,13 +390,13 @@ const RELATORIO_DESCRICOES: Record<string, string> = {
   editais:
     "Acompanhe os editais cadastrados pela organização, incluindo órgão responsável, número, ano, datas, valores, esfera, status e observações.",
 
-  "propostas-edital":
+  "propostas-editais":
     "Consulte as propostas de edital cadastradas, com textos principais, valores, data de submissão, status, edital e projeto vinculado.",
 
   "resultados-propostas":
     "Consulte os resultados das propostas inscritas em editais, incluindo status, pontuação, data do resultado, relatório de avaliação e informações de recurso quando houver.",
 
-  habilitacao:
+  "habilitacoes-propostas":
     "Acompanhe a fase de habilitação das propostas, incluindo agente responsável, prazos, envio de documentação, pendências, regularizações e status.",
 
   "equipe-edital":
@@ -379,13 +408,13 @@ const RELATORIO_DESCRICOES: Record<string, string> = {
   evidencias:
     "Consulte as evidências de execução cadastradas para comprovar atividades, turmas, eventos culturais, ações de divulgação, presenças ou propostas.",
 
-  "prestacao-contas":
+  "prestacoes-contas":
     "Acompanhe as prestações de contas, com período, datas de envio e aprovação, status, pareceres, observações e proposta vinculada.",
 
-  "prestacao-metas":
+  "prestacoes-metas":
     "Consulte o cumprimento das metas prestadas, comparando quantidade executada, status, justificativas, observações e vínculo com a prestação de contas.",
 
-  patrimonio:
+  patrimonios:
     "Consulte os bens patrimoniais cadastrados, incluindo identificação, tipo, estado de conservação, valor, nota fiscal, marca, modelo e status.",
 
   emprestimos:
@@ -403,18 +432,27 @@ export async function getRelatorioDetalhado<T = Record<string, unknown>>(
   slugInput: string,
 ): Promise<RelatorioDetalhadoResponse<T>> {
   const slug = resolveRelatorioSlug(slugInput);
-  const endpoint = RELATORIO_DETALHADO_ENDPOINTS[slug];
+  const endpointCandidates = getRelatorioEndpointCandidates(slugInput)
+    .map((candidate) => `/relatorios/${candidate}/detalhado`);
 
-  if (!endpoint) {
+  if (!endpointCandidates.length) {
     throw new RelatorioIndisponivelError(slug);
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
+  let response: Response | null = null;
 
-  if (response.status === 404) {
+  for (const endpoint of endpointCandidates) {
+    response = await fetch(`${API_URL}${endpoint}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+
+    if (response.status !== 404) {
+      break;
+    }
+  }
+
+  if (!response || response.status === 404) {
     throw new RelatorioIndisponivelError(slug);
   }
 
@@ -483,9 +521,9 @@ function normalizarRegistroRelatorio(
 
   const slugsComAgente = new Set([
     "editais",
-    "propostas-edital",
+    "propostas-editais",
     "resultados-propostas",
-    "habilitacao",
+    "habilitacoes-propostas",
     "equipe-edital",
     "planejamento-financeiro",
   ]);
@@ -522,7 +560,232 @@ function normalizarRegistroRelatorio(
     }
   }
 
+  if (slug === "participantes") {
+    normalizarVinculosParticipante(row, normalized);
+  }
+
   return normalized;
+}
+
+function normalizarVinculosParticipante(
+  row: Record<string, unknown>,
+  normalized: Record<string, unknown>,
+) {
+  [
+    "vinculos",
+    "participanteAtividades",
+    "vinculosAtividades",
+    "participante_atividades",
+    "vinculos_atividades",
+    "matriculas",
+  ].forEach((key) => {
+    delete normalized[key];
+  });
+
+  const vinculos = getArrayValue(
+    row.vinculos,
+    row.atividades,
+    row.participanteAtividades,
+    row.vinculosAtividades,
+    row.participante_atividades,
+    row.vinculos_atividades,
+    row.matriculas,
+  );
+
+  const vinculosNormalizados = vinculos
+    .map((vinculo) => normalizeVinculoParticipante(vinculo))
+    .filter(
+      (vinculo) =>
+        vinculo.atividade ||
+        vinculo.turma ||
+        vinculo.nivelTurma ||
+        vinculo.statusMatricula ||
+        vinculo.dataMatricula,
+    );
+
+  const atividades = joinUnique(
+    firstTextValue(row.atividades, row.atividade, row.nome_atividade) ||
+      joinUnique(vinculosNormalizados.map((vinculo) => vinculo.atividade)),
+  );
+
+  const turmas = joinUnique(
+    firstTextValue(row.turmas, row.turma, row.nome_turma) ||
+      joinUnique(vinculosNormalizados.map((vinculo) => vinculo.turma)),
+  );
+
+  const niveis = joinUnique(
+    firstTextValue(row.niveis_turma, row.nivel_turma, row.nivelTurma) ||
+      joinUnique(vinculosNormalizados.map((vinculo) => vinculo.nivelTurma)),
+  );
+
+  const statusMatriculas = joinUnique(
+    firstTextValue(
+      row.status_matriculas,
+      row.status_matricula,
+      row.statusMatricula,
+    ) ||
+      joinUnique(vinculosNormalizados.map((vinculo) => vinculo.statusMatricula)),
+  );
+
+  const datasMatricula = joinUnique(
+    firstTextValue(
+      row.datas_matricula,
+      row.data_matricula,
+      row.dataMatricula,
+    ) ||
+      joinUnique(
+        vinculosNormalizados.map((vinculo) =>
+          vinculo.dataMatricula ? formatDateBR(vinculo.dataMatricula) : "",
+        ),
+      ),
+  );
+
+  const resumoVinculos = joinUnique(
+    firstTextValue(row.vinculos_participante, row.vinculos_texto) ||
+      vinculosNormalizados.map(formatVinculoParticipante).filter(Boolean),
+  );
+
+  if (resumoVinculos) normalized.vinculos_participante = resumoVinculos;
+  if (atividades) normalized.atividades = atividades;
+  if (turmas) normalized.turmas = turmas;
+  if (niveis) normalized.nivel_turma = niveis;
+  if (statusMatriculas) normalized.status_matricula = statusMatriculas;
+  if (datasMatricula) normalized.data_matricula = datasMatricula;
+}
+
+function normalizeVinculoParticipante(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return {
+      atividade: "",
+      turma: "",
+      nivelTurma: "",
+      statusMatricula: "",
+      dataMatricula: "",
+    };
+  }
+
+  const record = value as Record<string, unknown>;
+  const atividade = asRecord(record.atividade);
+  const turma = asRecord(record.turma);
+
+  return {
+    atividade: firstTextValue(
+      record.atividadeNome,
+      record.nomeAtividade,
+      record.atividade_exercida,
+      record.atividadeExercida,
+      atividade?.nomeAtividade,
+      atividade?.nome,
+      atividade?.titulo,
+      record.atividade,
+    ),
+    turma: firstTextValue(
+      record.turmaNome,
+      record.nomeTurma,
+      turma?.nomeTurma,
+      turma?.nome,
+      turma?.titulo,
+      record.turma,
+    ),
+    nivelTurma: firstTextValue(
+      record.nivelTurma,
+      record.nivel_turma,
+      turma?.nivelTurma,
+      turma?.nivel_turma,
+    ),
+    statusMatricula: firstTextValue(
+      record.statusMatricula,
+      record.status_matricula,
+      record.status,
+    ),
+    dataMatricula: firstTextValue(
+      record.dataMatricula,
+      record.data_matricula,
+      record.data,
+    ),
+  };
+}
+
+function formatVinculoParticipante(vinculo: {
+  atividade: string;
+  turma: string;
+  nivelTurma: string;
+  statusMatricula: string;
+  dataMatricula: string;
+}) {
+  const base = [vinculo.atividade, vinculo.turma].filter(Boolean).join(" / ");
+  const detalhes = [
+    vinculo.nivelTurma,
+    vinculo.statusMatricula,
+    vinculo.dataMatricula ? formatDateBR(vinculo.dataMatricula) : "",
+  ].filter(Boolean);
+
+  if (!base) return detalhes.join(" - ");
+  if (!detalhes.length) return base;
+
+  return `${base} (${detalhes.join(" - ")})`;
+}
+
+function getArrayValue(...values: unknown[]): unknown[] {
+  for (const value of values) {
+    if (Array.isArray(value)) return value;
+  }
+
+  return [];
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  return value as Record<string, unknown>;
+}
+
+function firstTextValue(...values: unknown[]): string {
+  for (const value of values) {
+    const text = textValue(value);
+
+    if (text) return text;
+  }
+
+  return "";
+}
+
+function textValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "";
+
+  if (Array.isArray(value)) {
+    return joinUnique(value.map((item) => textValue(item)));
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+
+    return firstTextValue(
+      record.nome,
+      record.nomeCompleto,
+      record.nomeAtividade,
+      record.nomeTurma,
+      record.titulo,
+      record.descricao,
+      record.label,
+    );
+  }
+
+  return String(value).trim();
+}
+
+function joinUnique(values: unknown[] | string): string {
+  if (typeof values === "string") return values.trim();
+
+  const unique = new Set<string>();
+
+  values.forEach((value) => {
+    const text = textValue(value);
+
+    if (text) unique.add(text);
+  });
+
+  return Array.from(unique).join(", ");
 }
 
 function buildResumoFromRows(total: number): GrupoRelatorio[] {
@@ -587,6 +850,18 @@ export function getColunasRelatorio(
       { chave: "estado", label: "Estado" },
 
       { chave: "organizacao", label: "Organização", visivelPorPadrao: false },
+      { chave: "atividades", label: "Atividades" },
+      { chave: "turmas", label: "Turmas" },
+      { chave: "nivel_turma", label: "Nível" },
+      {
+        chave: "status_matricula",
+        label: "Status da Matrícula",
+      },
+      {
+        chave: "data_matricula",
+        label: "Data da Matrícula",
+        tipo: "data",
+      },
     ],
 
     colaboradores: [
@@ -725,7 +1000,7 @@ export function getColunasRelatorio(
       { chave: "observacao", label: "Observação", visivelPorPadrao: false },
     ],
 
-    patrimonio: [
+    patrimonios: [
       { chave: "numero_patrimonio", label: "Nº Patrimônio" },
       { chave: "nome_patrimonio", label: "Bem" },
       { chave: "tipo_patrimonio", label: "Tipo" },
@@ -787,7 +1062,7 @@ export function getColunasRelatorio(
       { chave: "organizacao", label: "Organização", visivelPorPadrao: false },
     ],
 
-    "propostas-edital": [
+    "propostas-editais": [
       { chave: "titulo_projeto", label: "Título do Projeto" },
       { chave: "edital", label: "Edital" },
       { chave: "projeto", label: "Projeto Base" },
@@ -880,7 +1155,7 @@ export function getColunasRelatorio(
       },
     ],
 
-    habilitacao: [
+    "habilitacoes-propostas": [
       { chave: "proposta_edital", label: "Proposta de Edital" },
       { chave: "agente", label: "Agente Responsável" },
       {
@@ -1165,7 +1440,7 @@ export function formatValorRelatorio(valor: unknown, chave?: string): string {
   if (Array.isArray(valor)) {
     if (valor.length === 0) return "—";
 
-    return `${valor.length} registro(s)`;
+    return formatArrayValue(valor);
   }
 
   if (typeof valor === "object") {
@@ -1175,12 +1450,64 @@ export function formatValorRelatorio(valor: unknown, chave?: string): string {
   return String(valor);
 }
 
+function formatArrayValue(values: unknown[]): string {
+  const formattedValues = values
+    .map((item) => {
+      if (item === null || item === undefined || item === "") return "";
+
+      if (typeof item === "string") return formatEnumList(item);
+      if (typeof item === "number") return numberFormatter.format(item);
+      if (typeof item === "boolean") return item ? "Sim" : "Não";
+
+      if (typeof item === "object") {
+        const record = item as Record<string, unknown>;
+        const label =
+          record.nome ??
+          record.nomeCompleto ??
+          record.titulo ??
+          record.descricao ??
+          record.label;
+
+        if (label !== null && label !== undefined) {
+          return formatValorRelatorio(label);
+        }
+      }
+
+      return String(item);
+    })
+    .filter(Boolean);
+
+  return formattedValues.length > 0 ? formattedValues.join(", ") : "—";
+}
+
+function formatEnumList(value: string): string {
+  if (!value.includes(",")) return formatEnum(value);
+
+  return value
+    .split(",")
+    .map((part) => formatEnum(part.trim()))
+    .join(", ");
+}
+
+const ENUM_LABEL_OVERRIDES: Record<string, string> = {
+  CPF: "CPF",
+  CNPJ: "CNPJ",
+  RG: "RG",
+  MEI: "MEI",
+};
+
 function formatEnum(value: string): string {
-  if (!/^[A-Z0-9_]+$/.test(value)) {
+  const normalized = value.trim();
+
+  if (ENUM_LABEL_OVERRIDES[normalized]) {
+    return ENUM_LABEL_OVERRIDES[normalized];
+  }
+
+  if (!/^[A-ZÀ-Ú0-9_]+$/.test(normalized)) {
     return value;
   }
 
-  return value
+  return normalized
     .toLowerCase()
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))

@@ -41,9 +41,9 @@ const SLUGS_COM_ENDERECO = new Set([
 
 const SLUGS_COM_AGENTE = new Set([
   "editais",
-  "propostas-edital",
+  "propostas-editais",
   "resultados-propostas",
-  "habilitacao",
+  "habilitacoes-propostas",
   "equipe-edital",
   "planejamento-financeiro",
 ]);
@@ -190,6 +190,7 @@ export default function RelatorioDetalhePage() {
     if (sample) {
       return Object.keys(sample)
         .filter((key) => !isCampoTecnico(key))
+        .filter((key) => !isCampoRelacionalOculto(slug, key))
         .map((key) =>
           buildColumnFromMeta({
             chave: key,
@@ -325,7 +326,8 @@ function buildColumnFromMeta(meta: RelatorioColunaMeta): RelatorioColumn<Row> {
     key: meta.chave,
     label: meta.label || prettyLabel(meta.chave),
     hiddenByDefault: meta.visivelPorPadrao === false,
-    accessor: (row) => normalizeCell(getValorColuna(row, meta.chave)),
+    accessor: (row) =>
+      formatValorRelatorio(getValorColuna(row, meta.chave), meta.chave),
     render: (row) =>
       formatValorRelatorio(getValorColuna(row, meta.chave), meta.chave),
   };
@@ -397,6 +399,7 @@ function normalizarColunasParaExibicao(
 
   origem.forEach((coluna) => {
     if (isCampoTecnico(coluna.chave)) return;
+    if (isCampoRelacionalOculto(slug, coluna.chave)) return;
 
     map.set(coluna.chave, {
       ...coluna,
@@ -406,6 +409,7 @@ function normalizarColunasParaExibicao(
 
   manuais.forEach((coluna) => {
     if (isCampoTecnico(coluna.chave)) return;
+    if (isCampoRelacionalOculto(slug, coluna.chave)) return;
 
     const existente = map.get(coluna.chave);
 
@@ -420,6 +424,19 @@ function normalizarColunasParaExibicao(
   });
 
   return Array.from(map.values());
+}
+
+function isCampoRelacionalOculto(slug: string, key: string): boolean {
+  if (slug !== "participantes") return false;
+
+  return [
+    "vinculos",
+    "participanteAtividades",
+    "vinculosAtividades",
+    "participante_atividades",
+    "vinculos_atividades",
+    "matriculas",
+  ].includes(key);
 }
 
 function getValorColuna(row: Row, chave: string): unknown {
@@ -498,49 +515,4 @@ function prettyLabel(key: string): string {
     .toLowerCase();
 
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
-function normalizeCell(value: unknown): string | number {
-  if (value === null || value === undefined) return "";
-
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : "";
-  }
-
-  if (typeof value === "boolean") {
-    return value ? "Sim" : "Não";
-  }
-
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    return value
-      .map((item) =>
-        item === null || item === undefined ? "" : String(item).trim(),
-      )
-      .filter(Boolean)
-      .join(", ");
-  }
-
-  if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-
-    const label =
-      record.nome ??
-      record.nomeCompleto ??
-      record.titulo ??
-      record.descricao ??
-      record.label ??
-      record.id;
-
-    if (label !== null && label !== undefined) {
-      return String(label);
-    }
-
-    return JSON.stringify(value);
-  }
-
-  return String(value);
 }

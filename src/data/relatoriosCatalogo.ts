@@ -69,7 +69,7 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
     itens: [
       {
         slug: "organizacao",
-        title: "Organização",
+        title: "Dados Institucionais",
         description:
           "Apresenta os dados institucionais cadastrados, como razão social, CNPJ, contatos, território de atuação, histórico, endereço e classificações culturais.",
         icon: Building2,
@@ -207,8 +207,8 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         searchPlaceholder: "Buscar por meta, projeto, proposta...",
       },
       {
-        slug: "cronograma",
-        title: "Cronograma",
+        slug: "cronogramas",
+        title: "Cronograma do Projeto",
         description:
           "Organiza as etapas de cronograma vinculadas a projetos, atividades, eventos culturais e ações de divulgação.",
         icon: CalendarRange,
@@ -233,6 +233,17 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         tooltip:
           "Use este relatório para acompanhar as ações executadas ou planejadas nos projetos, conferindo local, período, público, vagas e situação de cada atividade.",
         searchPlaceholder: "Buscar por atividade, projeto, status...",
+      },
+      {
+        slug: "planos-aula",
+        title: "Plano de Aula",
+        description:
+          "Lista os planos de aula vinculados a atividades e turmas, com conteúdo previsto, observações, período, responsável, aula de reposição e status.",
+        icon: ClipboardCheck,
+        plano: "gratis",
+        tooltip:
+          "Use este relatório para consultar o planejamento pedagógico das atividades, revisar conteúdos previstos e apoiar registros de execução.",
+        searchPlaceholder: "Buscar por atividade, turma, conteúdo...",
       },
       {
         slug: "turmas",
@@ -273,117 +284,6 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
           "Use este relatório para acompanhar a programação cultural da organização, consultar eventos realizados ou planejados e organizar dados de execução e resultado.",
         searchPlaceholder: "Buscar por evento, projeto, local, status...",
       },
-      {
-        slug: "acoes-divulgacao",
-        title: "Ações de Divulgação",
-        description:
-          "Apresenta ações de divulgação vinculadas aos projetos, com objetivo, estratégias, período, acessibilidade, produtos gerados e status.",
-        icon: Megaphone,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para acompanhar como os projetos estão sendo comunicados, quais estratégias foram planejadas e quais materiais ou produtos foram gerados.",
-        searchPlaceholder: "Buscar por ação, estratégia, projeto...",
-      },
-      {
-        slug: "plano-comunicacao",
-        title: "Plano de Comunicação",
-        description:
-          "Organiza os registros do plano de comunicação, incluindo formato, quantidade, local de circulação, período, status e ação de divulgação vinculada.",
-        icon: MessageSquare,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para detalhar a execução da comunicação dos projetos, acompanhando formatos, entregas previstas, locais de circulação e situação dos registros.",
-        searchPlaceholder: "Buscar por formato, local, status...",
-      },
-    ],
-  },
-  {
-    id: "financeiro",
-    titulo: "Financeiro",
-    itens: [
-      {
-        slug: "financeiro",
-        title: "Financeiro",
-        description:
-          "Apresenta movimentações financeiras com tipo de operação, valor, status, forma de pagamento, pessoa ou fornecedor, comprovante e vínculos com projetos, atividades, eventos ou ações.",
-        icon: Wallet,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para acompanhar receitas e despesas, verificar comprovantes, consultar vínculos financeiros e apoiar a organização de prestações de contas.",
-        searchPlaceholder: "Buscar por descrição, pessoa, documento, status...",
-      },
-    ],
-  },
-  {
-    id: "editais",
-    titulo: "Editais",
-    itens: [
-      {
-        slug: "editais",
-        title: "Editais",
-        description:
-          "Lista editais acompanhados pela organização, com nome, número, órgão responsável, datas, valores, esfera, status e observações.",
-        icon: FileSignature,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para acompanhar oportunidades e processos seletivos cadastrados, verificando status, prazos, resultados e dados essenciais de cada edital.",
-        searchPlaceholder: "Buscar por nome, órgão, status...",
-      },
-      {
-        slug: "propostas-edital",
-        title: "Propostas de Edital",
-        description:
-          "Apresenta propostas vinculadas a editais, com título, resumo, justificativa, metodologia, acessibilidade, impacto esperado, valores e status.",
-        icon: FileText,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para acompanhar propostas submetidas ou planejadas, consultar informações centrais do projeto e verificar vínculos com edital e projeto base.",
-        searchPlaceholder: "Buscar por título, edital, status...",
-      },
-      {
-        slug: "resultados-propostas",
-        title: "Resultados da Proposta",
-        description:
-          "Apresenta os resultados das propostas inscritas em editais, com status, pontuação, relatório de avaliação e informações de recurso quando houver.",
-        icon: Award,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para acompanhar a situação final das propostas, conferir pontuação, consultar relatório de avaliação e organizar recursos interpostos.",
-        searchPlaceholder: "Buscar por proposta, edital, status, pontuação...",
-      },
-      {
-        slug: "habilitacao",
-        title: "Habilitação Documental",
-        description:
-          "Organiza a etapa de habilitação documental das propostas, com agente responsável, prazos, envio de documentação, status e observações.",
-        icon: ShieldCheck,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para controlar a fase documental após a proposta, acompanhar prazos de habilitação e reduzir riscos de pendências em editais.",
-        searchPlaceholder: "Buscar por proposta, agente, status...",
-      },
-      {
-        slug: "equipe-edital",
-        title: "Equipe da Proposta",
-        description:
-          "Lista a equipe vinculada às propostas de edital, com função no projeto, carga horária, valor previsto, justificativa e mini biografia.",
-        icon: UsersIcon,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para revisar a composição da equipe das propostas, conferir funções, dedicação prevista, valores e informações úteis para editais.",
-        searchPlaceholder: "Buscar por nome, função, proposta...",
-      },
-      {
-        slug: "planejamento-financeiro",
-        title: "Orçamento da Proposta",
-        description:
-          "Apresenta itens previstos no orçamento da proposta, com justificativa, quantidade, unidade de medida, valor unitário, valor total e vínculos com equipe ou edital.",
-        icon: PiggyBank,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para acompanhar o orçamento planejado das propostas, revisar valores previstos e apoiar a coerência entre equipe, itens e execução financeira.",
-        searchPlaceholder: "Buscar por item, proposta, equipe...",
-      },
     ],
   },
   {
@@ -404,11 +304,122 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
     ],
   },
   {
+    id: "editais",
+    titulo: "Editais",
+    itens: [
+      {
+        slug: "editais",
+        title: "Editais",
+        description:
+          "Lista editais acompanhados pela organização, com nome, número, órgão responsável, datas, valores, esfera, status e observações.",
+        icon: FileSignature,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar oportunidades e processos seletivos cadastrados, verificando status, prazos, resultados e dados essenciais de cada edital.",
+        searchPlaceholder: "Buscar por nome, órgão, status...",
+      },
+      {
+        slug: "propostas-editais",
+        title: "Propostas de Edital",
+        description:
+          "Apresenta propostas vinculadas a editais, com título, resumo, justificativa, metodologia, acessibilidade, impacto esperado, valores e status.",
+        icon: FileText,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar propostas submetidas ou planejadas, consultar informações centrais do projeto e verificar vínculos com edital e projeto base.",
+        searchPlaceholder: "Buscar por título, edital, status...",
+      },
+      {
+        slug: "equipe-edital",
+        title: "Equipe da Proposta",
+        description:
+          "Lista a equipe vinculada às propostas de edital, com função no projeto, carga horária, valor previsto, justificativa e mini biografia.",
+        icon: UsersIcon,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para revisar a composição da equipe das propostas, conferir funções, dedicação prevista, valores e informações úteis para editais.",
+        searchPlaceholder: "Buscar por nome, função, proposta...",
+      },
+      {
+        slug: "planos-comunicacao",
+        title: "Plano de Comunicação",
+        description:
+          "Organiza os registros do plano de comunicação, incluindo formato, quantidade, local de circulação, período, status e ação de divulgação vinculada.",
+        icon: MessageSquare,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para detalhar a comunicação prevista ou executada nas propostas, acompanhando formatos, entregas, locais de circulação e situação dos registros.",
+        searchPlaceholder: "Buscar por formato, local, status...",
+      },
+      {
+        slug: "acoes-divulgacao",
+        title: "Ações de Divulgação",
+        description:
+          "Apresenta ações de divulgação vinculadas aos projetos ou propostas, com objetivo, estratégias, período, acessibilidade, produtos gerados e status.",
+        icon: Megaphone,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar como os projetos e propostas estão sendo comunicados, quais estratégias foram planejadas e quais materiais ou produtos foram gerados.",
+        searchPlaceholder: "Buscar por ação, estratégia, projeto...",
+      },
+      {
+        slug: "aplicacao-recursos",
+        title: "Aplicação de Recursos",
+        description:
+          "Apresenta os itens previstos para aplicação de recursos da proposta, com justificativa, quantidade, unidade de medida, valor unitário, valor total e vínculos com equipe ou edital.",
+        icon: PiggyBank,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar a aplicação prevista dos recursos, revisar valores, justificar despesas e apoiar a coerência entre orçamento, equipe e execução.",
+        searchPlaceholder: "Buscar por item, proposta, equipe...",
+      },
+      {
+        slug: "resultados-propostas",
+        title: "Resultado da Proposta",
+        description:
+          "Apresenta os resultados das propostas inscritas em editais, com status, pontuação, relatório de avaliação e informações de recurso quando houver.",
+        icon: Award,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar a situação final das propostas, conferir pontuação, consultar relatório de avaliação e organizar recursos interpostos.",
+        searchPlaceholder: "Buscar por proposta, edital, status, pontuação...",
+      },
+      {
+        slug: "habilitacoes-propostas",
+        title: "Habilitação Documental",
+        description:
+          "Organiza a etapa de habilitação documental das propostas, com agente responsável, prazos, envio de documentação, status e observações.",
+        icon: ShieldCheck,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para controlar a fase documental após a proposta, acompanhar prazos de habilitação e reduzir riscos de pendências em editais.",
+        searchPlaceholder: "Buscar por proposta, agente, status...",
+      },
+    ],
+  },
+  {
+    id: "financeiro",
+    titulo: "Financeiro",
+    itens: [
+      {
+        slug: "financeiro",
+        title: "Controle Financeiro",
+        description:
+          "Apresenta movimentações financeiras com tipo de operação, valor, status, forma de pagamento, pessoa ou fornecedor, comprovante e vínculos com projetos, atividades, eventos ou ações.",
+        icon: Wallet,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar receitas e despesas, verificar comprovantes, consultar vínculos financeiros e apoiar a organização de prestações de contas.",
+        searchPlaceholder: "Buscar por descrição, pessoa, documento, status...",
+      },
+    ],
+  },
+  {
     id: "prestacao-contas",
     titulo: "Prestação de Contas",
     itens: [
       {
-        slug: "prestacao-contas",
+        slug: "prestacoes-contas",
         title: "Prestação de Contas",
         description:
           "Apresenta prestações de contas vinculadas a propostas, com período, datas de envio e aprovação, status, pareceres e observações gerais.",
@@ -419,7 +430,7 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         searchPlaceholder: "Buscar por proposta, status, período...",
       },
       {
-        slug: "prestacao-metas",
+        slug: "prestacoes-metas",
         title: "Cumprimento de Metas",
         description:
           "Organiza o cumprimento das metas, comparando quantidade prevista e executada, status, justificativas e informações de comprovação.",
@@ -436,7 +447,7 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
     titulo: "Patrimônio",
     itens: [
       {
-        slug: "patrimonio",
+        slug: "patrimonios",
         title: "Patrimônio",
         description:
           "Lista bens patrimoniais cadastrados, com número de patrimônio, descrição, aquisição, valor, marca, modelo, série, nota fiscal, conservação e status.",

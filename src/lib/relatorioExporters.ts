@@ -1114,10 +1114,8 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
       { label: "Status do Participante", aliases: ["status do participante", "statusParticipante", "status_participante", "status"] },
       { label: "Organização", aliases: ["organizacao", "organização", "organizacao.nome", "organizacao.razaoSocial", "organizacao.nomeFantasia"] },
       { label: "Atividade", aliases: ["atividade", "atividade.nome", "atividade.nomeAtividade", "nomeAtividade"] },
-      { label: "Turma", aliases: ["turma", "turma.nome", "turma.nomeTurma", "nomeTurma"] },
       { label: "Data da Matrícula", aliases: ["data da matricula", "data da matrícula", "dataMatricula", "data_matricula", "matricula", "matrícula"] },
       { label: "Status da Matrícula", aliases: ["status da matricula", "status da matrícula", "statusMatricula", "status_matricula"] },
-      { label: "Forma de Participação", aliases: ["forma de participacao", "forma de participação", "formaParticipacao", "forma_participacao"] },
     ];
   }
 
