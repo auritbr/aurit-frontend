@@ -37,7 +37,7 @@ function salvarProximaAcaoCurriculo() {
   const card = {
     titulo: "Após organizar o currículo, escreva a trajetória cultural do colaborador",
     descricao:
-      "A trajetória cultural valoriza a história, os saberes e a prática da pessoa no campo cultural, mostrando como sua atuação foi construída ao longo do tempo e quais contribuições ela gera para a cultura, a comunidade e o território.",
+      "A trajetória cultural valoriza a história, os saberes e a prática do colaborador no campo cultural, mostrando como sua atuação foi construída ao longo do tempo e quais contribuições ela gera para a cultura, a comunidade e o território.",
     acaoLabel: "Cadastrar trajetórias",
     acaoUrl: "/trajetorias-culturais/novo",
     acaoSecundariaLabel: "Ver currículos",

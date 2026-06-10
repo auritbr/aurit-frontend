@@ -61,11 +61,12 @@ interface FinanceiroNextStepCardData {
 
 function salvarProximaAcaoFinanceiro() {
   const card: FinanceiroNextStepCardData = {
-    titulo: "Após registrar as movimentações no controle financeiro, acompanhe os editais",
-    descricao:
-      "O módulo de editais ajuda a organizar oportunidades, inscrições, órgãos responsáveis, valores, status e observações importantes para manter o histórico institucional e apoiar futuras propostas.",
-    acaoLabel: "Cadastrar editais",
-    acaoUrl: "/editais",
+    titulo:
+    "Após registrar o controle financeiro, acompanhe o cumprimento das metas", 
+    descricao: 
+    "O cumprimento de metas ajuda a comparar o que foi planejado com o que foi executado, registrando a meta prevista, o resultado alcançado e as evidências que comprovam a realização das ações.", 
+    acaoLabel: "Cadastrar cumprimento de metas", 
+    acaoUrl: "/cumprimento-metas/novo", 
     acaoSecundariaLabel: "Ver controle financeiro",
     acaoSecundariaUrl: "/financeiro",
     variante: "pendente",

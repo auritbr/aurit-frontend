@@ -110,9 +110,9 @@ const requiredFields: Array<[keyof EditalForm, string]> = [
 
 function criarProximaAcaoEdital(): EditaisNextStepCardData {
   return {
-    titulo: "Após cadastrar o edital, estruture a proposta de participação",
+    titulo: "Após cadastrar o edital, escreva a proposta do projeto",
     descricao:
-      "A proposta de edital reúne o projeto inscrito, agente responsável, justificativa, metodologia, acessibilidade, impacto esperado, valores e vínculos institucionais.",
+      "A proposta é o espaço onde a organização descreve o projeto que deseja inscrever no edital, explicando o que será realizado, por que a ação é importante, quem será beneficiado, como as atividades serão executadas e quais resultados espera alcançar.",
     acaoLabel: "Cadastrar proposta",
     acaoUrl: "/propostas-edital/novo",
     acaoSecundariaLabel: "Ver editais",

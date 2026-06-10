@@ -103,7 +103,7 @@ function salvarProximaAcaoPropostaEdital() {
   const card: PropostaEditalNextStepCardData = {
     titulo: "Após estruturar a proposta, organize a equipe do projeto",
     descricao:
-      "Com a proposta cadastrada, o próximo passo é vincular os colaboradores que participarão da execução do projeto, definindo funções, responsabilidades e a composição da equipe envolvida na proposta.",
+      "Com a proposta cadastrada, o próximo passo é vincular os colaboradores que participarão da execução do projeto, definindo funções, responsabilidades e a composição da equipe envolvida.",
     acaoLabel: "Cadastrar equipe da proposta",
     acaoUrl: "/equipe-edital/novo",
     acaoSecundariaLabel: "Ver propostas",

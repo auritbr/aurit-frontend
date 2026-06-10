@@ -56,11 +56,11 @@ interface PrestacaoMetaNextStepCardData {
 function salvarProximaAcaoPrestacaoMeta() {
   const card: PrestacaoMetaNextStepCardData = {
     titulo:
-      "Após validar o cumprimento das metas, organize o patrimônio da organização",
+      "Após registrar o cumprimento das metas, organize a prestação de contas",
     descricao:
-      "O patrimônio ajuda a registrar bens, equipamentos, instrumentos e materiais permanentes, acompanhando origem, valor, documentação, estado de conservação e situação de uso.",
-    acaoLabel: "Cadastrar patrimônio",
-    acaoUrl: "/patrimonio/novo",
+      "A prestação de contas ajuda a reunir as informações finais do projeto, como data de entrega, metas executadas, produtos gerados, equipe envolvida, ações de divulgação e resultados alcançados.",
+    acaoLabel: "Cadastrar prestação de contas",
+    acaoUrl: "/prestacao-contas/novo",
     acaoSecundariaLabel: "Ver cumprimento de metas",
     acaoSecundariaUrl: "/prestacao-metas",
     variante: "pendente",

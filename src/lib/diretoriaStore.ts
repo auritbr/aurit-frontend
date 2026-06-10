@@ -38,15 +38,90 @@ async function parseError(response: Response): Promise<string> {
 
 export const cargosDiretoria = [
   { value: "PRESIDENTE", label: "Presidente" },
-  { value: "VICE_PRESIDENTE", label: "Vice-Presidente" },
+  { value: "VICE_PRESIDENTE", label: "Vice-presidente" },
+
   { value: "SECRETARIO", label: "Secretário" },
-  { value: "VICE_SECRETARIO", label: "Vice-Secretário" },
+  { value: "VICE_SECRETARIO", label: "Vice-secretário" },
+  { value: "PRIMEIRO_SECRETARIO", label: "Primeiro secretário" },
+  { value: "SEGUNDO_SECRETARIO", label: "Segundo secretário" },
+
   { value: "TESOUREIRO", label: "Tesoureiro" },
-  { value: "VICE_TESOUREIRO", label: "Vice-Tesoureiro" },
+  { value: "VICE_TESOUREIRO", label: "Vice-tesoureiro" },
+  { value: "PRIMEIRO_TESOUREIRO", label: "Primeiro tesoureiro" },
+  { value: "SEGUNDO_TESOUREIRO", label: "Segundo tesoureiro" },
+
   { value: "CONSELHEIRO", label: "Conselheiro" },
-  { value: "DIRETOR_GERAL", label: "Diretor Geral" },
-  { value: "DIRETOR_ADMINISTRATIVO", label: "Diretor Administrativo" },
-  { value: "DIRETOR_FINANCEIRO", label: "Diretor Financeiro" },
+  { value: "CONSELHEIRO_FISCAL", label: "Conselheiro fiscal" },
+  {
+    value: "CONSELHEIRO_FISCAL_TITULAR",
+    label: "Conselheiro fiscal titular",
+  },
+  {
+    value: "CONSELHEIRO_FISCAL_SUPLENTE",
+    label: "Conselheiro fiscal suplente",
+  },
+  {
+    value: "PRESIDENTE_CONSELHO_FISCAL",
+    label: "Presidente do conselho fiscal",
+  },
+  { value: "MEMBRO_CONSELHO_FISCAL", label: "Membro do conselho fiscal" },
+
+  { value: "CONSELHEIRO_CONSULTIVO", label: "Conselheiro consultivo" },
+  {
+    value: "PRESIDENTE_CONSELHO_CONSULTIVO",
+    label: "Presidente do conselho consultivo",
+  },
+  {
+    value: "MEMBRO_CONSELHO_CONSULTIVO",
+    label: "Membro do conselho consultivo",
+  },
+
+  { value: "DIRETOR_GERAL", label: "Diretor geral" },
+  { value: "DIRETOR_EXECUTIVO", label: "Diretor executivo" },
+  { value: "DIRETOR_ADMINISTRATIVO", label: "Diretor administrativo" },
+  { value: "DIRETOR_FINANCEIRO", label: "Diretor financeiro" },
+  { value: "DIRETOR_JURIDICO", label: "Diretor jurídico" },
+  { value: "DIRETOR_CULTURAL", label: "Diretor cultural" },
+  { value: "DIRETOR_ARTISTICO", label: "Diretor artístico" },
+  { value: "DIRETOR_SOCIAL", label: "Diretor social" },
+  { value: "DIRETOR_DE_PROJETOS", label: "Diretor de projetos" },
+  { value: "DIRETOR_DE_COMUNICACAO", label: "Diretor de comunicação" },
+  { value: "DIRETOR_DE_MARKETING", label: "Diretor de marketing" },
+  { value: "DIRETOR_DE_EVENTOS", label: "Diretor de eventos" },
+  { value: "DIRETOR_DE_PATRIMONIO", label: "Diretor de patrimônio" },
+  {
+    value: "DIRETOR_DE_RELACOES_INSTITUCIONAIS",
+    label: "Diretor de relações institucionais",
+  },
+  {
+    value: "DIRETOR_DE_CAPTACAO_DE_RECURSOS",
+    label: "Diretor de captação de recursos",
+  },
+  { value: "DIRETOR_DE_FORMACAO", label: "Diretor de formação" },
+  { value: "DIRETOR_PEDAGOGICO", label: "Diretor pedagógico" },
+  { value: "DIRETOR_TECNICO", label: "Diretor técnico" },
+
+  { value: "COORDENADOR_GERAL", label: "Coordenador geral" },
+  { value: "COORDENADOR_EXECUTIVO", label: "Coordenador executivo" },
+  { value: "COORDENADOR_ADMINISTRATIVO", label: "Coordenador administrativo" },
+  { value: "COORDENADOR_FINANCEIRO", label: "Coordenador financeiro" },
+  { value: "COORDENADOR_CULTURAL", label: "Coordenador cultural" },
+  { value: "COORDENADOR_ARTISTICO", label: "Coordenador artístico" },
+  { value: "COORDENADOR_DE_PROJETOS", label: "Coordenador de projetos" },
+  { value: "COORDENADOR_DE_COMUNICACAO", label: "Coordenador de comunicação" },
+  { value: "COORDENADOR_DE_EVENTOS", label: "Coordenador de eventos" },
+  { value: "COORDENADOR_PEDAGOGICO", label: "Coordenador pedagógico" },
+  { value: "COORDENADOR_TECNICO", label: "Coordenador técnico" },
+
+  { value: "REPRESENTANTE_LEGAL", label: "Representante legal" },
+  { value: "PROCURADOR", label: "Procurador" },
+  { value: "FUNDADOR", label: "Fundador" },
+  { value: "ASSOCIADO_FUNDADOR", label: "Associado fundador" },
+
+  { value: "MEMBRO_DA_DIRETORIA", label: "Membro da diretoria" },
+  { value: "MEMBRO_SUPLENTE", label: "Membro suplente" },
+  { value: "SUPLENTE", label: "Suplente" },
+
   { value: "OUTRO", label: "Outro" },
 ] as const;
 

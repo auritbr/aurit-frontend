@@ -57,11 +57,11 @@ interface HabilitacaoNextStepCardData {
 function salvarProximaAcaoHabilitacao() {
   const card: HabilitacaoNextStepCardData = {
     titulo:
-      "Após acompanhar a habilitação documental, organize as evidências de execução",
+      "Após acompanhar a habilitação documental, registre o controle financeiro",
     descricao:
-      "As evidências de execução ajudam a comprovar as ações realizadas no projeto, reunindo fotos, vídeos, documentos, listas de presença, relatórios, registros de atividades e links de publicação importantes para relatórios e prestação de contas.",
-    acaoLabel: "Cadastrar evidências",
-    acaoUrl: "/evidencias/novo",
+      "O controle financeiro ajuda a acompanhar as entradas e saídas de recursos, registrando despesas, valores recebidos ou pagos, destinatários, comprovantes e observações importantes para manter o histórico financeiro organizado.",
+    acaoLabel: "Cadastrar controle financeiro",
+    acaoUrl: "/financeiro/novo",
     acaoSecundariaLabel: "Ver habilitação documental",
     acaoSecundariaUrl: "/habilitacoes-propostas",
     variante: "pendente",

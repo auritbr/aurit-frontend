@@ -1169,7 +1169,7 @@ export default function Diretoria() {
                     <FieldLabel
                       htmlFor="cargoDiretoria"
                       required={!readOnly}
-                      tooltip="Selecione o cargo exercido pela pessoa na diretoria da organização. Ex.: Presidente, Vice-Presidente, Tesoureiro ou Secretário."
+                      tooltip="Selecione o cargo exercido pela pessoa na diretoria da organização. Ex.: Presidente, Conselheiro fiscal, Diretor cultural, Coordenador de projetos ou Secretário."
                     >
                       Cargo na Diretoria
                     </FieldLabel>
@@ -1186,7 +1186,7 @@ export default function Diretoria() {
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
 
-                      <SelectContent>
+                      <SelectContent className="max-h-72">
                         {cargosDiretoria.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}

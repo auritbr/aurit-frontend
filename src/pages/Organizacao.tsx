@@ -841,12 +841,12 @@ function buildPayload(form: OrganizacaoForm): OrganizacaoDTO {
 
 function salvarProximaAcaoOrganizacao() {
   const card: OrganizacaoNextStepCardData = {
-    titulo: "Agora complete os cadastros principais",
+    titulo: "Próximo passo: cadastre a diretoria",
     descricao:
-      "Após salvar os dados institucionais, mantenha atualizados os demais cadastros conforme a realidade da atuação.",
-    acaoLabel: "Ir para diretoria",
+      "Agora informe quem compõe a diretoria da organização. Esse cadastro ajuda a manter a estrutura institucional organizada e facilita o uso dessas informações em projetos, editais e documentos.",
+    acaoLabel: "Cadastrar diretoria",
     acaoUrl: "/diretoria",
-    acaoSecundariaLabel: "Ver cadastros",
+    acaoSecundariaLabel: "Ver organizações cadastradas",
     acaoSecundariaUrl: "/organizacoes",
     variante: "pendente",
   };

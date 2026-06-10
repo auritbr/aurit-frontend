@@ -66,11 +66,11 @@ interface EvidenciaNextStepCardData {
 
 function salvarProximaAcaoEvidencia() {
   const card: EvidenciaNextStepCardData = {
-    titulo: "Após organizar as evidências, acompanhe a prestação de contas",
+    titulo: "Após organizar as evidências, registre os editais",
     descricao:
-      "A prestação de contas reúne informações do projeto, planejamento financeiro, evidências, metas, pareceres e observações para acompanhar o processo de comprovação da execução e manter o histórico atualizado.",
-    acaoLabel: "Ir para prestação de contas",
-    acaoUrl: "/prestacao-contas/novo",
+      "O cadastro de editais ajuda a acompanhar as oportunidades em que a organização participou ou pretende participar, registrando informações como nome do edital, status, data de abertura, data de encerramento, órgão responsável e situação do processo.",
+    acaoLabel: "Cadastrar edital",
+    acaoUrl: "/editais/novo",
     acaoSecundariaLabel: "Ver evidências",
     acaoSecundariaUrl: "/evidencias",
     variante: "pendente",

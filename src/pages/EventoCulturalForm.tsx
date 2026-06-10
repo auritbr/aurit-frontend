@@ -55,11 +55,11 @@ interface EventoNextStepCardData {
 
 function salvarProximaAcaoEventoCultural() {
   const card: EventoNextStepCardData = {
-    titulo: "Após cadastrar os eventos culturais, organize as ações de divulgação",
+    titulo: "Após cadastrar o evento cultural, registre as evidências",
     descricao:
-      "As ações de divulgação ajudam a planejar como o projeto será comunicado ao público, quais estratégias serão utilizadas, quais produtos de comunicação serão gerados e como a organização poderá comprovar a visibilidade das ações.",
-    acaoLabel: "Cadastrar ações",
-    acaoUrl: "/acoes-divulgacao/novo",
+      "As evidências ajudam a comprovar as ações que foram realizadas, reunindo registros como fotos, vídeos, listas de presença, materiais de divulgação, relatos, documentos e outros comprovantes importantes para relatórios, editais e prestação de contas.",
+    acaoLabel: "Cadastrar evidências",
+    acaoUrl: "/evidencias/novo",
     acaoSecundariaLabel: "Ver eventos",
     acaoSecundariaUrl: "/eventos-culturais",
     variante: "pendente",

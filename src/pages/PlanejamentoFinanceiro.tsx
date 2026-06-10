@@ -115,7 +115,7 @@ function criarProximaAcaoPlanejamentoFinanceiro(): PlanejamentoFinanceiroNextSte
     titulo:
       "Após estruturar a aplicação de recursos, registre o resultado da proposta",
     descricao:
-      "O resultado da proposta permite acompanhar a situação da candidatura após a análise do edital, registrando se foi aprovada, não classificada ou suplente, além de guardar datas, observações e informações importantes para o histórico institucional.",
+      "O resultado da proposta permite acompanhar a situação da candidatura após a análise do edital, registrando se foi aprovada, não classificada ou suplente, além de registrar datas, observações e informações importantes para o histórico institucional.",
     acaoLabel: "Cadastrar resultado",
     acaoUrl: "/resultados-propostas/novo",
     acaoSecundariaLabel: "Ver aplicação de recursos",

@@ -66,12 +66,13 @@ interface PrestacaoContasNextStepCardData {
 
 function salvarProximaAcaoPrestacaoContas() {
   const card: PrestacaoContasNextStepCardData = {
-    titulo: "Após registrar a prestação, organize as evidências",
+    titulo:
+      "Após registrar a prestação de contas, organize o patrimônio",
     descricao:
-      "As evidências ajudam a comprovar os produtos, resultados, ações de divulgação e cumprimento das metas informadas na prestação de contas.",
-    acaoLabel: "Cadastrar evidências",
-    acaoUrl: "/evidencias/novo",
-    acaoSecundariaLabel: "Ver prestações",
+      "O patrimônio ajuda a registrar bens que precisam ser identificados, acompanhados e preservados pela organização, especialmente quando foram adquiridos com recursos de projetos, editais ou parcerias.",
+    acaoLabel: "Cadastrar patrimônio",
+    acaoUrl: "/patrimonio/novo",
+    acaoSecundariaLabel: "Ver prestações de contas",
     acaoSecundariaUrl: "/prestacao-contas",
     variante: "pendente",
   };

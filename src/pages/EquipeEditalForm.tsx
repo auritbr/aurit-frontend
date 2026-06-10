@@ -58,11 +58,11 @@ interface EquipeEditalNextStepCardData {
 function salvarProximaAcaoEquipeEdital() {
   const card: EquipeEditalNextStepCardData = {
     titulo:
-      "Após organizar a equipe da proposta, detalhe o orçamento da proposta",
+      "Após organizar a equipe da proposta, detalhe o plano de comunicação",
     descricao:
-      "O orçamento da proposta ajuda a estruturar os itens previstos, justificativas, quantidades, unidades de medida, valores e vínculos com o projeto ou equipe.",
-    acaoLabel: "Cadastrar orçamento",
-    acaoUrl: "/planejamento-financeiro",
+      "O plano de comunicação ajuda a registrar quais materiais serão produzidos, em que quantidade, quais estratégias serão utilizadas, onde esses materiais circularão e em qual período serão divulgados.",
+    acaoLabel: "Cadastrar plano de comunicação",
+    acaoUrl: "/planos-comunicacao/novo",
     acaoSecundariaLabel: "Ver equipe da proposta",
     acaoSecundariaUrl: "/equipe-edital",
     variante: "pendente",

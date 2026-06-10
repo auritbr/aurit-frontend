@@ -37,6 +37,33 @@ import {
 
 const SEM_TURMA = "__SEM_TURMA__";
 
+const PLANO_AULA_NEXT_STEP_KEY = "aurit:planos-aula:next-step-card";
+
+interface PlanoAulaNextStepCardData {
+  titulo: string;
+  descricao: string;
+  acaoLabel: string;
+  acaoUrl: string;
+  acaoSecundariaLabel?: string;
+  acaoSecundariaUrl?: string;
+  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+}
+
+function salvarProximaAcaoPlanoAula() {
+  const card: PlanoAulaNextStepCardData = {
+    titulo: "Após cadastrar o plano de aula, organize as turmas",
+    descricao:
+      "As turmas ajudam a dividir uma atividade em grupos por horário, dia, faixa etária, nível, território ou responsável, facilitando matrículas, acompanhamento dos participantes e registro de presenças.",
+    acaoLabel: "Cadastrar turmas",
+    acaoUrl: "/turmas/novo",
+    acaoSecundariaLabel: "Ver planos de aula",
+    acaoSecundariaUrl: "/planos-aula",
+    variante: "pendente",
+  };
+
+  sessionStorage.setItem(PLANO_AULA_NEXT_STEP_KEY, JSON.stringify(card));
+}
+
 interface FormState {
   id: string;
 
@@ -577,8 +604,10 @@ export default function PlanoAulaForm() {
         toast.success("Plano de aula atualizado com sucesso.");
       } else {
         await createPlanoAula(payload);
+        salvarProximaAcaoPlanoAula();
         toast.success("Plano de aula criado com sucesso.");
       }
+      navigate("/planos-aula");
 
       navigate("/planos-aula");
     } catch (error) {

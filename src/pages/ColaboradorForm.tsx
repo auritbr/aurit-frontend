@@ -59,7 +59,7 @@ function salvarProximaAcaoColaborador() {
     titulo:
       "Após cadastrar os colaboradores, registre os integrantes vinculados à organização",
     descricao:
-      "Os integrantes ajudam a representar pessoas, grupos, coletivos ou parceiros culturais que atuam junto à organização, mesmo quando não fazem parte da equipe fixa ou do cadastro de participantes.",
+      "Os integrantes ajudam a representar pessoas, grupos, coletivos ou parceiros culturais que atuam junto à organização.",
     acaoLabel: "Cadastrar integrantes",
     acaoUrl: "/integrantes/novo",
     acaoSecundariaLabel: "Ver colaboradores",

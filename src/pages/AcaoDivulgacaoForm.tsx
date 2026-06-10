@@ -59,11 +59,12 @@ interface AcaoDivulgacaoNextStepCardData {
 
 function salvarProximaAcaoDivulgacao() {
   const card: AcaoDivulgacaoNextStepCardData = {
-    titulo: "Após cadastrar a ação de divulgação, registre o plano de comunicação",
+    titulo:
+      "Após cadastrar a ação de divulgação, detalhe a aplicação dos recursos",
     descricao:
-      "O plano de comunicação detalha os meios, formatos, quantidades, estratégias e período de divulgação vinculados à proposta de edital.",
-    acaoLabel: "Cadastrar plano de comunicação",
-    acaoUrl: "/plano-comunicacao",
+      "A aplicação de recursos ajuda a registrar como os valores da proposta serão utilizados, indicando o que será contratado, comprado ou executado, por que é necessário, em qual período será realizado, como será medido e qual valor está previsto.",
+    acaoLabel: "Cadastrar aplicação de recursos",
+    acaoUrl: "/aplicacao-de-recursos",
     acaoSecundariaLabel: "Ver ações de divulgação",
     acaoSecundariaUrl: "/acoes-divulgacao",
     variante: "pendente",

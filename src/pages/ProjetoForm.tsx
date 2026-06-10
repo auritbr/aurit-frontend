@@ -224,7 +224,7 @@ function salvarProximaAcaoProjeto() {
     descricao:
       "As metas ajudam a demonstrar o que será entregue, em qual quantidade e como a organização poderá comprovar os resultados em editais, relatórios e prestações de contas.",
     acaoLabel: "Cadastrar metas",
-    acaoUrl: "/metas-projeto",
+    acaoUrl: "/metas-projeto/novo",
     acaoSecundariaLabel: "Ver projetos",
     acaoSecundariaUrl: "/projetos",
     variante: "pendente",

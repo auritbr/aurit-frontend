@@ -46,11 +46,11 @@ interface AtividadeNextStepCardData {
 
 function salvarProximaAcaoAtividade() {
   const card: AtividadeNextStepCardData = {
-    titulo: "Após cadastrar as atividades, organize as turmas",
+    titulo: "Após cadastrar a atividade, organize o plano de aula",
     descricao:
-      "As turmas ajudam a dividir uma atividade em grupos por horário, dia, faixa etária, nível, território ou responsável, facilitando matrículas, acompanhamento dos participantes e registro de presenças.",
-    acaoLabel: "Cadastrar turmas",
-    acaoUrl: "/turmas/novo",
+      "O plano de aula ajuda a detalhar como a atividade será realizada, registrando conteúdos e formas de acompanhamento, facilitando a preparação da equipe e a execução das oficinas, encontros ou ações.",
+    acaoLabel: "Cadastrar plano de aula",
+    acaoUrl: "/planos-aula/novo",
     acaoSecundariaLabel: "Ver atividades",
     acaoSecundariaUrl: "/atividades",
     variante: "pendente",
