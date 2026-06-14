@@ -10,10 +10,33 @@ export type AreaAtuacao =
   | "ASSISTENCIA_SOCIAL"
   | "ESPORTE"
   | "MEIO_AMBIENTE"
-  | "ECONOMIA"
-  | "DIREITOS_HUMANOS"
   | "SAUDE"
   | "TECNOLOGIA"
+  | "ECONOMIA"
+  | "EMPREENDEDORISMO"
+  | "GERACAO_DE_RENDA"
+  | "RELIGIOSIDADE_E_ESPIRITUALIDADE"
+  | "POVOS_E_COMUNIDADES_TRADICIONAIS"
+  | "PATRIMONIO_CULTURAL"
+  | "CULTURA_POPULAR"
+  | "TRADICOES_DE_MATRIZ_AFRICANA"
+  | "DIREITOS_HUMANOS"
+  | "IGUALDADE_RACIAL"
+  | "MULHERES"
+  | "JUVENTUDE"
+  | "CRIANCA_E_ADOLESCENTE"
+  | "IDOSOS"
+  | "PESSOAS_COM_DEFICIENCIA"
+  | "LGBTQIAPN"
+  | "SEGURANCA_ALIMENTAR"
+  | "HABITACAO"
+  | "PROTECAO_ANIMAL"
+  | "COMUNICACAO"
+  | "TURISMO"
+  | "PESQUISA"
+  | "DESENVOLVIMENTO_COMUNITARIO"
+  | "CIDADANIA"
+  | "POLITICAS_PUBLICAS"
   | "OUTRO";
 
 export type OrigemProjeto =
@@ -39,10 +62,49 @@ export const areaAtuacaoOptions: { value: AreaAtuacao; label: string }[] = [
   { value: "ASSISTENCIA_SOCIAL", label: "Assistência Social" },
   { value: "ESPORTE", label: "Esporte" },
   { value: "MEIO_AMBIENTE", label: "Meio Ambiente" },
-  { value: "ECONOMIA", label: "Economia" },
-  { value: "DIREITOS_HUMANOS", label: "Direitos Humanos" },
   { value: "SAUDE", label: "Saúde" },
   { value: "TECNOLOGIA", label: "Tecnologia" },
+  { value: "ECONOMIA", label: "Economia" },
+  { value: "EMPREENDEDORISMO", label: "Empreendedorismo" },
+  { value: "GERACAO_DE_RENDA", label: "Geração de Renda" },
+
+  {
+    value: "RELIGIOSIDADE_E_ESPIRITUALIDADE",
+    label: "Religiosidade e Espiritualidade",
+  },
+  {
+    value: "POVOS_E_COMUNIDADES_TRADICIONAIS",
+    label: "Povos e Comunidades Tradicionais",
+  },
+  { value: "PATRIMONIO_CULTURAL", label: "Patrimônio Cultural" },
+  { value: "CULTURA_POPULAR", label: "Cultura Popular" },
+  {
+    value: "TRADICOES_DE_MATRIZ_AFRICANA",
+    label: "Tradições de Matriz Africana",
+  },
+
+  { value: "DIREITOS_HUMANOS", label: "Direitos Humanos" },
+  { value: "IGUALDADE_RACIAL", label: "Igualdade Racial" },
+  { value: "MULHERES", label: "Mulheres" },
+  { value: "JUVENTUDE", label: "Juventude" },
+  { value: "CRIANCA_E_ADOLESCENTE", label: "Criança e Adolescente" },
+  { value: "IDOSOS", label: "Idosos" },
+  { value: "PESSOAS_COM_DEFICIENCIA", label: "Pessoas com Deficiência" },
+  { value: "LGBTQIAPN", label: "LGBTQIAPN+" },
+
+  { value: "SEGURANCA_ALIMENTAR", label: "Segurança Alimentar" },
+  { value: "HABITACAO", label: "Habitação" },
+  { value: "PROTECAO_ANIMAL", label: "Proteção Animal" },
+  { value: "COMUNICACAO", label: "Comunicação" },
+  { value: "TURISMO", label: "Turismo" },
+  { value: "PESQUISA", label: "Pesquisa" },
+  {
+    value: "DESENVOLVIMENTO_COMUNITARIO",
+    label: "Desenvolvimento Comunitário",
+  },
+  { value: "CIDADANIA", label: "Cidadania" },
+  { value: "POLITICAS_PUBLICAS", label: "Políticas Públicas" },
+
   { value: "OUTRO", label: "Outro" },
 ];
 
