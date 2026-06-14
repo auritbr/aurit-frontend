@@ -85,11 +85,47 @@ type TipoIniciativaCulturalApi =
   | "PONTAO_DE_CULTURA"
   | "ONG_CULTURAL"
   | "ASSOCIACAO_CULTURAL"
+  | "INSTITUTO"
+  | "FUNDACAO"
+  | "OSC"
+  | "OSCIP"
   | "COLETIVO_CULTURAL"
   | "GRUPO_ARTISTICO"
+  | "GRUPO_DE_CULTURA_POPULAR"
+  | "GRUPO_DE_CAPOEIRA"
+  | "GRUPO_DE_DANCA"
+  | "GRUPO_DE_TEATRO"
+  | "GRUPO_MUSICAL"
+  | "CORAL"
+  | "FANFARRA"
+  | "ORQUESTRA"
   | "PRODUTORA_CULTURAL"
+  | "EMPRESA_CULTURAL"
+  | "AGENCIA_CULTURAL"
+  | "MICROEMPREENDEDOR_CULTURAL"
   | "ESPACO_CULTURAL"
-  | "INSTITUTO"
+  | "CENTRO_CULTURAL"
+  | "CASA_DE_CULTURA"
+  | "EQUIPAMENTO_CULTURAL"
+  | "MUSEU"
+  | "BIBLIOTECA_COMUNITARIA"
+  | "PONTO_DE_LEITURA"
+  | "CINECLUBE"
+  | "TEATRO"
+  | "CIRCO"
+  | "GALERIA_DE_ARTE"
+  | "ESCOLA_DE_SAMBA"
+  | "BLOCO_CARNAVALESCO"
+  | "FOLIA_DE_REIS"
+  | "CONGADO"
+  | "MARACATU"
+  | "TERREIRO_DE_MATRIZ_AFRICANA"
+  | "ORGANIZACAO_RELIGIOSA"
+  | "COMUNIDADE_TRADICIONAL"
+  | "PROJETO_CULTURAL_INDEPENDENTE"
+  | "REDE_CULTURAL"
+  | "FORUM_CULTURAL"
+  | "MOVIMENTO_CULTURAL"
   | "OUTRO";
 
 type AreaAtuacaoApi =
@@ -240,13 +276,66 @@ const tipoAgenteOptions = [
 const tipoIniciativaOptions = [
   { value: "PONTO_DE_CULTURA", label: "Ponto de Cultura" },
   { value: "PONTAO_DE_CULTURA", label: "Pontão de Cultura" },
+
   { value: "ONG_CULTURAL", label: "ONG Cultural" },
   { value: "ASSOCIACAO_CULTURAL", label: "Associação Cultural" },
+  { value: "INSTITUTO", label: "Instituto" },
+  { value: "FUNDACAO", label: "Fundação" },
+  { value: "OSC", label: "OSC" },
+  { value: "OSCIP", label: "OSCIP" },
+
   { value: "COLETIVO_CULTURAL", label: "Coletivo Cultural" },
   { value: "GRUPO_ARTISTICO", label: "Grupo Artístico" },
+  { value: "GRUPO_DE_CULTURA_POPULAR", label: "Grupo de Cultura Popular" },
+  { value: "GRUPO_DE_CAPOEIRA", label: "Grupo de Capoeira" },
+  { value: "GRUPO_DE_DANCA", label: "Grupo de Dança" },
+  { value: "GRUPO_DE_TEATRO", label: "Grupo de Teatro" },
+  { value: "GRUPO_MUSICAL", label: "Grupo Musical" },
+  { value: "CORAL", label: "Coral" },
+  { value: "FANFARRA", label: "Fanfarra" },
+  { value: "ORQUESTRA", label: "Orquestra" },
+
   { value: "PRODUTORA_CULTURAL", label: "Produtora Cultural" },
+  { value: "EMPRESA_CULTURAL", label: "Empresa Cultural" },
+  { value: "AGENCIA_CULTURAL", label: "Agência Cultural" },
+  {
+    value: "MICROEMPREENDEDOR_CULTURAL",
+    label: "Microempreendedor Cultural",
+  },
+
   { value: "ESPACO_CULTURAL", label: "Espaço Cultural" },
-  { value: "INSTITUTO", label: "Instituto" },
+  { value: "CENTRO_CULTURAL", label: "Centro Cultural" },
+  { value: "CASA_DE_CULTURA", label: "Casa de Cultura" },
+  { value: "EQUIPAMENTO_CULTURAL", label: "Equipamento Cultural" },
+  { value: "MUSEU", label: "Museu" },
+  { value: "BIBLIOTECA_COMUNITARIA", label: "Biblioteca Comunitária" },
+  { value: "PONTO_DE_LEITURA", label: "Ponto de Leitura" },
+  { value: "CINECLUBE", label: "Cineclube" },
+  { value: "TEATRO", label: "Teatro" },
+  { value: "CIRCO", label: "Circo" },
+  { value: "GALERIA_DE_ARTE", label: "Galeria de Arte" },
+
+  { value: "ESCOLA_DE_SAMBA", label: "Escola de Samba" },
+  { value: "BLOCO_CARNAVALESCO", label: "Bloco Carnavalesco" },
+  { value: "FOLIA_DE_REIS", label: "Folia de Reis" },
+  { value: "CONGADO", label: "Congado" },
+  { value: "MARACATU", label: "Maracatu" },
+
+  {
+    value: "TERREIRO_DE_MATRIZ_AFRICANA",
+    label: "Terreiro de Matriz Africana",
+  },
+  { value: "ORGANIZACAO_RELIGIOSA", label: "Organização Religiosa" },
+  { value: "COMUNIDADE_TRADICIONAL", label: "Comunidade Tradicional" },
+
+  {
+    value: "PROJETO_CULTURAL_INDEPENDENTE",
+    label: "Projeto Cultural Independente",
+  },
+  { value: "REDE_CULTURAL", label: "Rede Cultural" },
+  { value: "FORUM_CULTURAL", label: "Fórum Cultural" },
+  { value: "MOVIMENTO_CULTURAL", label: "Movimento Cultural" },
+
   { value: "OUTRO", label: "Outro" },
 ] as const;
 
