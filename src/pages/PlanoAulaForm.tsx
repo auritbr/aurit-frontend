@@ -795,14 +795,22 @@ export default function PlanoAulaForm() {
                       (atividade) => String(atividade.id) === String(value),
                     );
 
-                    setForm((prev) => ({
-                      ...prev,
-                      atividadeId: value,
-                      atividadeNome:
-                        atividadeSelecionada?.nomeAtividade ?? "",
-                      turmaIds: [],
-                      turmaNomes: [],
-                    }));
+                    setForm((prev) => {
+                      const atividadeAtual =
+                        prev.atividadeId ||
+                        String(existingPlanoAula?.atividadeId ?? "");
+
+                      const alterouAtividade =
+                        String(atividadeAtual) !== String(value);
+
+                      return {
+                        ...prev,
+                        atividadeId: value,
+                        atividadeNome: atividadeSelecionada?.nomeAtividade ?? "",
+                        turmaIds: alterouAtividade ? [] : prev.turmaIds,
+                        turmaNomes: alterouAtividade ? [] : prev.turmaNomes,
+                      };
+                    });
                   }}
                   disabled={bloqueado}
                 >
