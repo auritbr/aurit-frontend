@@ -361,14 +361,15 @@ export default function PlanoAulaForm() {
     const atividadeId =
       form.atividadeId || String(existingPlanoAula?.atividadeId ?? "");
 
-    const selectedIds = form.turmaIds.length
-      ? form.turmaIds
-      : existingPlanoAula?.turmaIds?.length
-        ? existingPlanoAula.turmaIds
-        : existingPlanoAula?.turmaId
-          ? [existingPlanoAula.turmaId]
-          : [];
-
+    const selectedIds = normalizeIds(
+      form.turmaIds.length
+        ? form.turmaIds
+        : existingPlanoAula?.turmaIds?.length
+          ? existingPlanoAula.turmaIds
+          : existingPlanoAula?.turmaId
+            ? [existingPlanoAula.turmaId]
+            : [],
+    );
     selectedIds.forEach((turmaId, index) => {
       if (!turmaId) return;
 
@@ -473,12 +474,15 @@ export default function PlanoAulaForm() {
           const atividadeId =
             mapped.atividadeId || String(planoAulaData.atividadeId ?? "");
 
-          const turmaIds = mapped.turmaIds.length
-            ? mapped.turmaIds
-            : planoAulaData.turmaId
-              ? [planoAulaData.turmaId]
-              : [];
-
+          const turmaIds = normalizeIds(
+            mapped.turmaIds.length
+              ? mapped.turmaIds
+              : (planoAulaData as any).turmaIds?.length
+                ? (planoAulaData as any).turmaIds
+                : planoAulaData.turmaId
+                  ? [planoAulaData.turmaId]
+                  : [],
+          );
           const colaboradorId =
             mapped.colaboradorId || String(planoAulaData.colaboradorId ?? "");
 
@@ -563,7 +567,7 @@ export default function PlanoAulaForm() {
     const atividadeId =
       form.atividadeId || String(existingPlanoAula?.atividadeId ?? "");
 
-    const turmaIds = uniqueStringArray(
+    const turmaIds = normalizeIds(
       form.turmaIds.length
         ? form.turmaIds
         : existingPlanoAula?.turmaIds?.length
