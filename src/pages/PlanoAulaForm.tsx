@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ClipboardList, FileText } from "lucide-react";
 
@@ -304,6 +304,9 @@ export default function PlanoAulaForm() {
   const [saving, setSaving] = useState(false);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
 
+  const atividadeCarregadaRef = useRef("");
+  const turmasTocadasRef = useRef(false);
+
   const bloqueado = loading || saving || visualizando;
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -370,6 +373,7 @@ export default function PlanoAulaForm() {
             ? [existingPlanoAula.turmaId]
             : [],
     );
+
     selectedIds.forEach((turmaId, index) => {
       if (!turmaId) return;
 
@@ -453,6 +457,8 @@ export default function PlanoAulaForm() {
       try {
         setLoading(true);
         setAccessDeniedMessage(null);
+        atividadeCarregadaRef.current = "";
+        turmasTocadasRef.current = false;
 
         const [atividadesData, turmasData, colaboradoresData, planoAulaData] =
           await Promise.all([
@@ -477,12 +483,11 @@ export default function PlanoAulaForm() {
           const turmaIds = normalizeIds(
             mapped.turmaIds.length
               ? mapped.turmaIds
-              : (planoAulaData as any).turmaIds?.length
-                ? (planoAulaData as any).turmaIds
-                : planoAulaData.turmaId
-                  ? [planoAulaData.turmaId]
-                  : [],
+              : planoAulaData.turmaId
+                ? [planoAulaData.turmaId]
+                : [],
           );
+
           const colaboradorId =
             mapped.colaboradorId || String(planoAulaData.colaboradorId ?? "");
 
@@ -519,6 +524,9 @@ export default function PlanoAulaForm() {
             colaboradorNome,
           };
 
+          atividadeCarregadaRef.current = atividadeId;
+          turmasTocadasRef.current = false;
+
           setExistingPlanoAula(planoAulaNormalizado);
 
           setForm({
@@ -531,6 +539,8 @@ export default function PlanoAulaForm() {
             colaboradorNome,
           });
         } else {
+          atividadeCarregadaRef.current = "";
+          turmasTocadasRef.current = false;
           setExistingPlanoAula(null);
           setForm(initial);
         }
@@ -562,6 +572,42 @@ export default function PlanoAulaForm() {
       active = false;
     };
   }, [id, navigate]);
+
+  useEffect(() => {
+    if (!isEdit || visualizando || loading || turmasTocadasRef.current) return;
+    if (form.turmaIds.length) return;
+
+    const turmaIds = normalizeIds(
+      existingPlanoAula?.turmaIds?.length
+        ? existingPlanoAula.turmaIds
+        : existingPlanoAula?.turmaId
+          ? [existingPlanoAula.turmaId]
+          : [],
+    );
+
+    if (!turmaIds.length) return;
+
+    const turmaNomes = turmaIds.map((turmaId, index) =>
+      getTurmaNome(
+        turmasOptions,
+        turmaId,
+        existingPlanoAula?.turmaNomes?.[index],
+      ),
+    );
+
+    setForm((prev) => ({
+      ...prev,
+      turmaIds,
+      turmaNomes,
+    }));
+  }, [
+    isEdit,
+    visualizando,
+    loading,
+    form.turmaIds.length,
+    existingPlanoAula,
+    turmasOptions,
+  ]);
 
   function getFormComVinculos(): FormState {
     const atividadeId =
@@ -612,6 +658,8 @@ export default function PlanoAulaForm() {
 
   const toggleTurma = (turma: TurmaOption) => {
     if (visualizando) return;
+
+    turmasTocadasRef.current = true;
 
     setForm((prev) => {
       const turmaId = String(turma.id);
@@ -796,17 +844,23 @@ export default function PlanoAulaForm() {
                     );
 
                     setForm((prev) => {
-                      const atividadeAtual =
+                      const atividadeAnterior =
                         prev.atividadeId ||
+                        atividadeCarregadaRef.current ||
                         String(existingPlanoAula?.atividadeId ?? "");
 
                       const alterouAtividade =
-                        String(atividadeAtual) !== String(value);
+                        String(atividadeAnterior || "") !== String(value);
+
+                      if (alterouAtividade) {
+                        turmasTocadasRef.current = true;
+                      }
 
                       return {
                         ...prev,
                         atividadeId: value,
-                        atividadeNome: atividadeSelecionada?.nomeAtividade ?? "",
+                        atividadeNome:
+                          atividadeSelecionada?.nomeAtividade ?? "",
                         turmaIds: alterouAtividade ? [] : prev.turmaIds,
                         turmaNomes: alterouAtividade ? [] : prev.turmaNomes,
                       };
