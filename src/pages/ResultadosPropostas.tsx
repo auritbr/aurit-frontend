@@ -27,6 +27,7 @@ import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { exportResultadoPropostaPdf } from "@/lib/pdfExporters";
+import { getTipoPlanoAtual } from "@/lib/plano";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -110,6 +111,7 @@ export default function ResultadosPropostas() {
     async function carregarPermissoes() {
       try {
         setLoadingPermissoes(true);
+        setAccessDeniedMessage(null);
 
         const data =
           await getPermissoesUsuarioLogadoPorModulo("RESULTADO_PROPOSTA");
@@ -117,10 +119,35 @@ export default function ResultadosPropostas() {
         if (!active) return;
 
         setPermissoes(data);
+
+        const tipoPlano = await getTipoPlanoAtual();
+
+        if (!active) return;
+
+        if (tipoPlano === "PLANO_GRATUITO") {
+          setAccessDeniedMessage(
+            "Este módulo está disponível apenas no plano pago.",
+          );
+          return;
+        }
+
+        if (!data.VISUALIZAR) {
+          return;
+        }
       } catch (error) {
         console.error(error);
 
         if (!active) return;
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Erro ao verificar acesso aos resultados da proposta.";
+
+        if (isPlanoAccessDenied(message)) {
+          setAccessDeniedMessage(message);
+          return;
+        }
 
         setPermissoes(permissoesVazias);
       } finally {
@@ -138,13 +165,18 @@ export default function ResultadosPropostas() {
   useEffect(() => {
     if (loadingPermissoes) return;
 
+    if (accessDeniedMessage) {
+      setLoading(false);
+      return;
+    }
+
     if (!podeVisualizar) {
       setLoading(false);
       return;
     }
 
     void carregarDados();
-  }, [loadingPermissoes, podeVisualizar]);
+  }, [accessDeniedMessage, loadingPermissoes, podeVisualizar]);
 
   async function carregarDados() {
     try {
@@ -327,18 +359,18 @@ export default function ResultadosPropostas() {
     }
   }
 
-  if (!podeVisualizar) {
-    return (
-      <AppLayout>
-        <AccessNotPermitted />
-      </AppLayout>
-    );
-  }
-
   if (accessDeniedMessage) {
     return (
       <AppLayout>
         <AccessDenied />
+      </AppLayout>
+    );
+  }
+
+  if (!podeVisualizar) {
+    return (
+      <AppLayout>
+        <AccessNotPermitted />
       </AppLayout>
     );
   }

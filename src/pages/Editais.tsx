@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
@@ -38,8 +39,10 @@ import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
 import { useSortableData } from "@/hooks/useSortableData";
+import { isPlanoAccessDenied } from "@/lib/access";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { exportEditalPdf } from "@/lib/pdfExporters";
+import { getTipoPlanoAtual } from "@/lib/plano";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -254,6 +257,9 @@ export default function Editais() {
   const [saving, setSaving] = useState(false);
   const [nextStepCard, setNextStepCard] =
     useState<EditaisNextStepCardData | null>(null);
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
+    null,
+  );
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
 
@@ -278,16 +284,42 @@ export default function Editais() {
     async function carregarPermissoes() {
       try {
         setLoadingPermissoes(true);
+        setAccessDeniedMessage(null);
 
         const data = await getPermissoesUsuarioLogadoPorModulo("EDITAIS");
 
         if (!active) return;
 
         setPermissoes(data);
+
+        const tipoPlano = await getTipoPlanoAtual();
+
+        if (!active) return;
+
+        if (tipoPlano === "PLANO_GRATUITO") {
+          setAccessDeniedMessage(
+            "Este módulo está disponível apenas no plano pago.",
+          );
+          return;
+        }
+
+        if (!data.VISUALIZAR) {
+          return;
+        }
       } catch (error) {
         console.error(error);
 
         if (!active) return;
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Erro ao verificar acesso aos editais.";
+
+        if (isPlanoAccessDenied(message)) {
+          setAccessDeniedMessage(message);
+          return;
+        }
 
         setPermissoes(permissoesVazias);
       } finally {
@@ -332,17 +364,23 @@ export default function Editais() {
   useEffect(() => {
     if (loadingPermissoes) return;
 
+    if (accessDeniedMessage) {
+      setLoading(false);
+      return;
+    }
+
     if (!podeVisualizar) {
       setLoading(false);
       return;
     }
 
     void carregarDados();
-  }, [loadingPermissoes, podeVisualizar]);
+  }, [accessDeniedMessage, loadingPermissoes, podeVisualizar]);
 
   async function carregarDados() {
     try {
       setLoading(true);
+      setAccessDeniedMessage(null);
 
       const [editaisData, organizacoesData, agentesData] = await Promise.all([
         getEditais(),
@@ -363,9 +401,16 @@ export default function Editais() {
       );
     } catch (error) {
       console.error(error);
-      toast.error(
-        error instanceof Error ? error.message : "Erro ao carregar editais.",
-      );
+
+      const message =
+        error instanceof Error ? error.message : "Erro ao carregar editais.";
+
+      if (isPlanoAccessDenied(message)) {
+        setAccessDeniedMessage(message);
+        return;
+      }
+
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -638,6 +683,14 @@ export default function Editais() {
       organizacao: nomeOrganizacao(item.organizacaoId),
       agente: nomeAgente(item.agenteId),
     });
+  }
+
+  if (accessDeniedMessage) {
+    return (
+      <AppLayout>
+        <AccessDenied />
+      </AppLayout>
+    );
   }
 
   if (!podeVisualizar) {

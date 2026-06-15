@@ -6,7 +6,6 @@ import { PageTitle } from "@/components/PageTitle";
 import { FormLegend } from "@/components/FormLegend";
 import { FieldLabel } from "@/components/FieldLabel";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { NextStepCard } from "@/components/NextStepCard";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { isPlanoAccessDenied } from "@/lib/access";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -93,9 +91,6 @@ export default function Presencas() {
   const [loadingBase, setLoadingBase] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
-    null,
-  );
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
 
@@ -202,7 +197,6 @@ export default function Presencas() {
   async function carregarDadosBase() {
     try {
       setLoadingBase(true);
-      setAccessDeniedMessage(null);
 
       const data = await getPresencasBaseData();
 
@@ -215,11 +209,6 @@ export default function Presencas() {
         error instanceof Error
           ? error.message
           : "Não foi possível carregar a página.";
-
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        return;
-      }
 
       console.error(error);
       toast.error(message);
@@ -360,11 +349,6 @@ export default function Presencas() {
           ? error.message
           : "Não foi possível salvar a presença.";
 
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        return;
-      }
-
       console.error(error);
       toast.error(message);
     } finally {
@@ -376,14 +360,6 @@ export default function Presencas() {
     return (
       <AppLayout>
         <AccessNotPermitted />
-      </AppLayout>
-    );
-  }
-
-  if (accessDeniedMessage) {
-    return (
-      <AppLayout>
-        <AccessDenied />
       </AppLayout>
     );
   }
