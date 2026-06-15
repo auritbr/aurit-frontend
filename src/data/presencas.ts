@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { isPlanoAccessDenied } from "@/lib/access";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -500,7 +501,15 @@ export async function getPresencasBaseData(): Promise<{
   const [atividades, turmas, planosAula, participantes] = await Promise.all([
     getAtividadesPresenca(),
     getTurmasPresenca(),
-    getPlanosAulaPresenca(),
+    getPlanosAulaPresenca().catch((error) => {
+      const message = error instanceof Error ? error.message : "";
+
+      if (isPlanoAccessDenied(message)) {
+        return [];
+      }
+
+      throw error;
+    }),
     getParticipantesPresenca(),
   ]);
 
