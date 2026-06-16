@@ -1031,6 +1031,9 @@ function penalizeWrongMatchByRule(
     "nome do edital": ["numero", "ano", "orgao", "status"],
     "numero do edital": ["inscricao"],
     "numero de inscricao": ["edital"],
+    "titulo do projeto": ["resumo", "justificativa", "metodologia", "impacto"],
+    "proposta de edital": ["status", "data", "valor"],
+    "item do planejamento": ["justificativa"],
     "nome do projeto": ["status", "origem", "area", "data"],
     "nome completo": ["responsavel", "mae", "pai"],
     "cpf": ["responsavel"],
@@ -1194,6 +1197,63 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
     ];
   }
 
+  if (
+    normalizedReport.includes("propostas de edital") ||
+    normalizedReport.includes("proposta de edital")
+  ) {
+    return [
+      { label: "Título do Projeto", aliases: ["titulo do projeto", "título do projeto", "tituloProjeto", "titulo_projeto", "nomeProposta", "nome_proposta"] },
+      { label: "Edital", aliases: ["edital", "nomeEdital", "nome_edital"] },
+      { label: "Projeto Base", aliases: ["projeto base", "projetoBase", "projeto_base", "projeto"] },
+      { label: "Agente Responsável", aliases: ["agente responsavel", "agente responsável", "agente", "agenteResponsavel", "agente_responsavel"] },
+      { label: "Valor Solicitado", aliases: ["valor solicitado", "valorSolicitado", "valor_solicitado", "valor"] },
+      { label: "Valor de Contrapartida", aliases: ["valor de contrapartida", "valorContrapartida", "valor_contrapartida", "contrapartida"] },
+      { label: "Data de Submissão", aliases: ["data de submissao", "data de submissão", "dataSubmissao", "data_submissao", "submissao", "submissão"] },
+      { label: "Status da Proposta", aliases: ["status da proposta", "statusPropostaEdital", "status_proposta_edital", "status"] },
+      { label: "Resumo", aliases: ["resumo", "resumoProjeto", "resumo_projeto"] },
+      { label: "Impacto Esperado", aliases: ["impacto esperado", "impactoEsperado", "impacto_esperado"] },
+    ];
+  }
+
+  if (
+    normalizedReport.includes("equipe da proposta") ||
+    normalizedReport.includes("equipe do edital") ||
+    normalizedReport.includes("equipe edital")
+  ) {
+    return [
+      { label: "Proposta de Edital", aliases: ["proposta de edital", "propostaEdital", "proposta_edital", "proposta"] },
+      { label: "Pessoa", aliases: ["pessoa", "nome", "nomeCompleto", "nome_completo", "colaborador", "integrante"] },
+      { label: "Tipo de Pessoa", aliases: ["tipo de pessoa", "tipoPessoa", "tipo_pessoa"] },
+      { label: "Função no Projeto", aliases: ["funcao no projeto", "função no projeto", "funcaoProjeto", "funcao_projeto", "funcao", "função"] },
+      { label: "Carga Horária", aliases: ["carga horaria", "carga horária", "cargaHorariaPrevista", "carga_horaria_prevista", "carga"] },
+      { label: "Valor Previsto", aliases: ["valor previsto", "valorPrevisto", "valor_previsto", "valor"] },
+      { label: "Coordenador", aliases: ["coordenador", "coordenadorProjeto", "coordenador_projeto"] },
+      { label: "Responsável Técnico", aliases: ["responsavel tecnico", "responsável técnico", "responsavelTecnico", "responsavel_tecnico"] },
+      { label: "Justificativa da Função", aliases: ["justificativa da funcao", "justificativa da função", "justificativaFuncao", "justificativa_funcao"] },
+      { label: "Mini Biografia", aliases: ["mini biografia", "miniBiografia", "mini_biografia", "biografia"] },
+    ];
+  }
+
+  if (
+    normalizedReport.includes("plano de comunicacao") ||
+    normalizedReport.includes("plano de comunicação") ||
+    normalizedReport.includes("planos de comunicacao") ||
+    normalizedReport.includes("planos de comunicação")
+  ) {
+    return [
+      { label: "Plano", aliases: ["plano", "nomePlano", "nome_plano", "nome"] },
+      { label: "Proposta de Edital", aliases: ["proposta de edital", "propostaEdital", "proposta_edital", "proposta", "nomePropostaEdital", "nome_proposta_edital"] },
+      { label: "Edital", aliases: ["edital", "nomeEdital", "nome_edital"] },
+      { label: "Formato", aliases: ["formato", "formatoPlanoComunicacao", "formato_plano_comunicacao", "formatoComunicacao", "formato_comunicacao"] },
+      { label: "Quantidade", aliases: ["quantidade"] },
+      { label: "Local de Circulação", aliases: ["local de circulacao", "local de circulação", "localCirculacaoComunicacao", "local_circulacao_comunicacao", "localCirculacao", "local_circulacao"] },
+      { label: "Estratégias de Divulgação", aliases: ["estrategias de divulgacao", "estratégias de divulgação", "estrategiasDivulgacao", "estrategias_divulgacao"] },
+      { label: "Data de Início", aliases: ["data de inicio", "data de início", "dataInicio", "data_inicio"] },
+      { label: "Data de Fim", aliases: ["data de fim", "dataFim", "data_fim"] },
+      { label: "Status", aliases: ["status"] },
+    ];
+  }
+
   if (normalizedReport.includes("execucao de divulgacao") || normalizedReport.includes("execução de divulgação") || normalizedReport.includes("execucoes de divulgacao") || normalizedReport.includes("execuções de divulgação")) {
     return [
       { label: "Quantidade", aliases: ["quantidade"] },
@@ -1210,12 +1270,36 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
   if (normalizedReport.includes("acao de divulgacao") || normalizedReport.includes("ação de divulgação") || normalizedReport.includes("acoes de divulgacao") || normalizedReport.includes("ações de divulgação")) {
     return [
       { label: "Nome da Ação", aliases: ["nome da acao", "nome da ação", "nomeAcao", "nome_acao", "acao", "ação"] },
-      { label: "Data de Início da Ação", aliases: ["data de inicio da acao", "data de início da ação", "dataInicioAcao", "data_inicio_acao", "dataInicio", "data_inicio"] },
-      { label: "Data de Término da Ação", aliases: ["data de termino da acao", "data de término da ação", "dataTerminoAcao", "data_termino_acao", "dataFimAcao", "data_fim_acao"] },
-      { label: "Estratégias de Divulgação", aliases: ["estrategias de divulgacao", "estratégias de divulgação", "estrategiasDivulgacao", "estrategias_divulgacao", "estrategia", "estratégia"] },
-      { label: "Status", aliases: ["status"] },
+      { label: "Proposta de Edital", aliases: ["proposta de edital", "propostaEdital", "proposta_edital", "nomePropostaEdital", "nome_proposta_edital", "proposta"] },
+      { label: "Edital", aliases: ["edital", "nomeEdital", "nome_edital"] },
       { label: "Projeto", aliases: ["projeto", "projeto.nome", "nomeProjeto", "nome_projeto"] },
-      { label: "Colaboradores Responsáveis", aliases: ["colaboradores responsaveis", "colaboradores responsáveis", "colaboradoresResponsaveis", "colaboradores_responsaveis", "responsaveis", "responsáveis", "colaboradores"] },
+      { label: "Realização", aliases: ["realizacao", "realização", "realizacaoAcao", "realizacao_acao"] },
+      { label: "Objetivo", aliases: ["objetivo", "objetivoAcao", "objetivo_acao"] },
+      { label: "Acessibilidade", aliases: ["acessibilidade", "acoesAcessibilidade", "acoes_acessibilidade", "ações de acessibilidade"] },
+      { label: "Resultado Esperado", aliases: ["resultado esperado", "resultadoEsperado", "resultado_esperado"] },
+      { label: "Produtos Gerados", aliases: ["produtos gerados", "produtosGerados", "produtos_gerados"] },
+      { label: "Status", aliases: ["status"] },
+    ];
+  }
+
+  if (
+    normalizedReport.includes("aplicacao de recursos") ||
+    normalizedReport.includes("aplicação de recursos") ||
+    normalizedReport.includes("orcamento da proposta") ||
+    normalizedReport.includes("orçamento da proposta") ||
+    normalizedReport.includes("planejamento financeiro")
+  ) {
+    return [
+      { label: "Item do Planejamento", aliases: ["item do planejamento", "nomePlanejamento", "nome_planejamento", "planejamento", "item"] },
+      { label: "Proposta de Edital", aliases: ["proposta de edital", "propostaEdital", "proposta_edital", "proposta"] },
+      { label: "Função da Equipe", aliases: ["funcao da equipe", "função da equipe", "funcaoEquipe", "funcao_equipe"] },
+      { label: "Quantidade", aliases: ["quantidade"] },
+      { label: "Unidade de Medida", aliases: ["unidade de medida", "unidadeMedida", "unidade_medida", "unidade"] },
+      { label: "Valor Unitário", aliases: ["valor unitario", "valor unitário", "valorUnitario", "valor_unitario"] },
+      { label: "Valor Total", aliases: ["valor total", "valorTotal", "valor_total"] },
+      { label: "Data de Início", aliases: ["data de inicio", "data de início", "dataInicio", "data_inicio"] },
+      { label: "Data de Fim", aliases: ["data de fim", "dataFim", "data_fim"] },
+      { label: "Justificativa", aliases: ["justificativa", "justificativaPlanejamento", "justificativa_planejamento"] },
     ];
   }
 
@@ -1233,7 +1317,7 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
       { label: "Forma de Pagamento", aliases: ["forma de pagamento", "formaPagamento", "forma_pagamento"] },
       { label: "Aplicação Financeira", aliases: ["aplicacao financeira", "aplicação financeira", "aplicacaoFinanceira", "aplicacao_financeira"] },
       { label: "Status Financeiro", aliases: ["status financeiro", "statusFinanceiro", "status_financeiro", "status"] },
-      { label: "Orçamento da Proposta", aliases: ["orcamento da proposta", "orçamento da proposta", "orcamentoProposta", "orcamento_proposta"] },
+      { label: "Aplicação de Recursos", aliases: ["orcamento da proposta", "orçamento da proposta", "orcamentoProposta", "orcamento_proposta"] },
       { label: "Projeto", aliases: ["projeto", "projeto.nome", "nomeProjeto", "nome_projeto"] },
       { label: "Atividade", aliases: ["atividade", "atividade.nome", "atividade.nomeAtividade", "nomeAtividade"] },
       { label: "Evento Cultural", aliases: ["evento cultural", "eventoCultural", "evento_cultural", "evento", "evento.nome", "nomeEvento"] },
@@ -1325,14 +1409,16 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
 
   if (normalizedReport.includes("prestacao")) {
     return [
-      { label: "Projeto", aliases: ["projeto"] },
-      { label: "Descrição", aliases: ["descricao", "descrição", "item", "etapa"] },
-      { label: "Categoria", aliases: ["categoria", "tipo"] },
-      { label: "Data", aliases: ["data"] },
-      { label: "Valor", aliases: ["valor"] },
-      { label: "Documento / Comprovante", aliases: ["documento", "comprovante", "nota"] },
-      { label: "Status", aliases: ["status", "situacao", "situação"] },
-      { label: "Observação", aliases: ["observacao", "observação"] },
+      { label: "Proposta de Edital", aliases: ["proposta de edital", "propostaEdital", "proposta_edital", "proposta"] },
+      { label: "Agente Responsável", aliases: ["agente responsavel", "agente responsável", "agente", "agenteResponsavel", "agente_responsavel"] },
+      { label: "Data de Entrega", aliases: ["data de entrega", "dataEntrega", "data_entrega", "entrega", "data"] },
+      { label: "Produtos Gerados", aliases: ["produtos gerados", "produtosGerados", "produtos_gerados"] },
+      { label: "Metas Prestadas", aliases: ["metas prestadas", "prestacaoMetas", "prestacao_metas", "metas"] },
+      { label: "Equipe do Projeto", aliases: ["equipe do projeto", "equipeProjeto", "equipe_projeto", "equipe"] },
+      { label: "Ações de Divulgação", aliases: ["acoes de divulgacao", "ações de divulgação", "acoesDivulgacao", "acoes_divulgacao"] },
+      { label: "Resultados Gerados", aliases: ["resultados gerados", "resultadosGeradosProjeto", "resultados_gerados_projeto"] },
+      { label: "Resumo dos Resultados", aliases: ["resumo dos resultados", "resumoResultados", "resumo_resultados", "resumo"] },
+      { label: "Disponibilização ao Público", aliases: ["disponibilizacao ao publico", "disponibilização ao público", "disponibilizacaoProdutosPublico", "disponibilizacao_produtos_publico"] },
     ];
   }
 

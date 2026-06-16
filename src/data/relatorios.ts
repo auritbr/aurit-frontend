@@ -1,3 +1,9 @@
+import {
+  getPlanosAula,
+  statusPlanoAulaValueToLabel,
+  type PlanoAula,
+} from "@/data/planosAula";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 function getAuthHeaders() {
@@ -206,6 +212,7 @@ const RELATORIO_SLUGS_OPERACIONAIS = [
   "equipe-edital",
   "habilitacoes-propostas",
   "financeiro",
+  "aplicacao-recursos",
   "planejamento-financeiro",
   "prestacoes-contas",
   "prestacoes-metas",
@@ -269,6 +276,10 @@ function getRelatorioEndpointCandidates(slugInput: string): string[] {
 
   const candidates = new Set<string>([slug]);
 
+  if (slug === "aplicacao-recursos") {
+    candidates.add("planejamento-financeiro");
+  }
+
   Object.entries(RELATORIO_SLUG_ALIASES).forEach(([alias, canonical]) => {
     if (canonical === slug) {
       candidates.add(alias);
@@ -316,6 +327,7 @@ const RELATORIO_TITULOS: Record<string, string> = {
   "habilitacoes-propostas": "Habilitação Documental",
   "equipe-edital": "Equipe da Proposta",
   "planejamento-financeiro": "Orçamento da Proposta",
+  "aplicacao-recursos": "Aplicação de Recursos",
 
   evidencias: "Evidências de Execução",
 
@@ -404,6 +416,8 @@ const RELATORIO_DESCRICOES: Record<string, string> = {
 
   "planejamento-financeiro":
     "Consulte os itens do planejamento financeiro das propostas, com justificativa, quantidade, unidade, valores e vínculo com equipe ou agente.",
+  "aplicacao-recursos":
+    "Consulte os itens previstos para aplicação de recursos da proposta, com justificativa, quantidade, unidade de medida, valores e vínculos com equipe ou edital.",
 
   evidencias:
     "Consulte as evidências de execução cadastradas para comprovar atividades, turmas, eventos culturais, ações de divulgação, presenças ou propostas.",
@@ -458,6 +472,11 @@ export async function getRelatorioDetalhado<T = Record<string, unknown>>(
 
   if (!response.ok) {
     const message = await parseError(response);
+
+    if (slug === "planos-aula") {
+      return getRelatorioPlanosAulaFallback<T>(message);
+    }
+
     throw new Error(message);
   }
 
@@ -486,6 +505,50 @@ export async function getRelatorioDetalhado<T = Record<string, unknown>>(
     colunas: obj.colunas,
     registros,
     linhas: registros,
+  };
+}
+
+async function getRelatorioPlanosAulaFallback<T>(
+  originalMessage: string,
+): Promise<RelatorioDetalhadoResponse<T>> {
+  try {
+    const planos = await getPlanosAula();
+    const registros = planos.map(mapPlanoAulaToRelatorioRow) as T[];
+
+    return {
+      tipoRelatorio: "RELATORIO_PLANOS_AULA",
+      titulo: RELATORIO_TITULOS["planos-aula"] ?? "Planos de Aula",
+      descricao: getDescricaoRelatorio("planos-aula"),
+      dataGeracao: hojeLocalISO(),
+      total: registros.length,
+      resumo: buildResumoFromRows(registros.length),
+      colunas: getColunasRelatorio("planos-aula", registros),
+      registros,
+      linhas: registros,
+    };
+  } catch (fallbackError) {
+    console.error("Erro no fallback do relatório de planos de aula:", fallbackError);
+    throw new Error(originalMessage);
+  }
+}
+
+function mapPlanoAulaToRelatorioRow(plano: PlanoAula): Record<string, unknown> {
+  const turmas = plano.turmaNomes?.length
+    ? plano.turmaNomes
+    : plano.turmas
+        ?.map((turma) => turma.nomeTurma || turma.nome)
+        .filter(Boolean);
+
+  return {
+    atividade: plano.atividadeNome || plano.atividade?.nomeAtividade || "—",
+    turmas: turmas?.length ? turmas.join(", ") : plano.turmaNome || "—",
+    colaborador: plano.colaboradorNome || plano.colaborador?.nome || "—",
+    data_inicio: plano.dataInicio,
+    data_fim: plano.dataFim || null,
+    aula_reposicao: plano.aulaReposicao,
+    status: statusPlanoAulaValueToLabel(plano.statusPlanoAula),
+    conteudo: plano.conteudo,
+    observacao: plano.observacao || null,
   };
 }
 
@@ -526,6 +589,7 @@ function normalizarRegistroRelatorio(
     "habilitacoes-propostas",
     "equipe-edital",
     "planejamento-financeiro",
+    "aplicacao-recursos",
   ]);
 
   if (slugsComAgente.has(slug)) {
@@ -1270,6 +1334,45 @@ export function getColunasRelatorio(
       {
         chave: "justificativa_planejamento",
         label: "Justificativa",
+        visivelPorPadrao: false,
+      },
+    ],
+
+    "aplicacao-recursos": [
+      { chave: "nome_planejamento", label: "Item" },
+      { chave: "proposta_edital", label: "Proposta de Edital" },
+      { chave: "edital", label: "Edital", visivelPorPadrao: false },
+      {
+        chave: "funcao_equipe",
+        label: "Função da Equipe",
+        visivelPorPadrao: false,
+      },
+      { chave: "colaborador", label: "Colaborador", visivelPorPadrao: false },
+      { chave: "integrante", label: "Integrante", visivelPorPadrao: false },
+      { chave: "agente", label: "Agente Responsável", visivelPorPadrao: false },
+      { chave: "quantidade", label: "Quantidade", tipo: "numero" },
+      { chave: "unidade_medida", label: "Unidade de Medida" },
+      { chave: "valor_unitario", label: "Valor Unitário", tipo: "moeda" },
+      { chave: "valor_total", label: "Valor Total", tipo: "moeda" },
+      {
+        chave: "justificativa_planejamento",
+        label: "Justificativa",
+        visivelPorPadrao: false,
+      },
+    ],
+
+    "planos-aula": [
+      { chave: "atividade", label: "Atividade" },
+      { chave: "turmas", label: "Turmas" },
+      { chave: "colaborador", label: "Colaborador" },
+      { chave: "data_inicio", label: "Data de Início", tipo: "data" },
+      { chave: "data_fim", label: "Data de Fim", tipo: "data" },
+      { chave: "aula_reposicao", label: "Aula de Reposição" },
+      { chave: "status", label: "Status" },
+      { chave: "conteudo", label: "Conteúdo" },
+      {
+        chave: "observacao",
+        label: "Observação",
         visivelPorPadrao: false,
       },
     ],
