@@ -31,7 +31,6 @@ import { estadosBrasil } from "@/data/colaboradores";
 import {
   getPlanoVisualEmpresa,
   getTipoPlanoBackend,
-  setPlanoCortesiaLocal,
   type TipoPlanoVisual,
 } from "@/data/controleProprietario";
 
@@ -80,6 +79,7 @@ interface ConfigEmpresaForm {
   emailContato: string;
   telefoneContato: string;
   tipoPlano: TipoPlanoApi | "";
+  planoCortesia?: boolean;
   limiteUsuarios: string;
   cep: string;
   logradouro: string;
@@ -101,6 +101,7 @@ const empty: ConfigEmpresaForm = {
   emailContato: "",
   telefoneContato: "",
   tipoPlano: "",
+  planoCortesia: false,
   limiteUsuarios: "",
   cep: "",
   logradouro: "",
@@ -189,6 +190,7 @@ function mapDataToForm(data: ConfiguracaoEmpresaData): ConfigEmpresaForm {
     emailContato: data.emailContato ?? "",
     telefoneContato: data.telefoneContato ?? "",
     tipoPlano: data.tipoPlano ?? "",
+    planoCortesia: data.planoCortesia ?? false,
     limiteUsuarios: data.limiteUsuarios ?? "",
     cep: data.cep ?? "",
     logradouro: data.logradouro ?? "",
@@ -212,6 +214,7 @@ function buildPayload(form: ConfigEmpresaForm): ConfiguracaoEmpresaRequestDTO {
     telefoneContato: form.telefoneContato.trim(),
     documentoIdentificacao: form.documentoIdentificacao.trim(),
     tipoPlano: form.tipoPlano as TipoPlanoApi,
+    planoCortesia: Boolean(form.planoCortesia),
     limiteUsuarios:
       form.tipoPlano === "PLANO_GRATUITO"
         ? 2
@@ -279,8 +282,8 @@ export default function ConfiguracaoEmpresaProprietario() {
         setPlanoVisual(
           mapped.tipoPlano
             ? getPlanoVisualEmpresa({
-                id: Number(empresaId),
                 tipoPlano: mapped.tipoPlano as TipoPlanoApi,
+                planoCortesia: mapped.planoCortesia,
               })
             : "",
         );
@@ -332,6 +335,7 @@ export default function ConfiguracaoEmpresaProprietario() {
     setForm((prev) => ({
       ...prev,
       tipoPlano: getTipoPlanoBackend(value),
+      planoCortesia: value === "PLANO_CORTESIA",
       limiteUsuarios:
         value === "PLANO_GRATUITO"
           ? "2"
@@ -467,13 +471,12 @@ export default function ConfiguracaoEmpresaProprietario() {
 
       const mapped = mapDataToForm(saved);
 
-      setPlanoCortesiaLocal(Number(empresaId), planoVisual === "PLANO_CORTESIA");
       setForm(mapped);
       setPlanoVisual(
         mapped.tipoPlano
           ? getPlanoVisualEmpresa({
-              id: Number(empresaId),
               tipoPlano: mapped.tipoPlano as TipoPlanoApi,
+              planoCortesia: mapped.planoCortesia,
             })
           : "",
       );

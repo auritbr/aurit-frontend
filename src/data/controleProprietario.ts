@@ -37,6 +37,7 @@ export interface EmpresaControle {
   emailContato: string;
   telefoneContato: string;
   tipoPlano: TipoPlano;
+  planoCortesia?: boolean;
   statusControleProprietario: StatusControleProprietario;
   totalUsuarios: number;
   limiteUsuarios: number;
@@ -51,6 +52,7 @@ export interface CriarEmpresaProprietarioPayload {
   emailContato: string;
   telefoneContato: string;
   tipoPlano: TipoPlano;
+  planoCortesia?: boolean;
   limiteUsuarios?: number;
   nomeAdministrador: string;
   loginAdministrador: string;
@@ -115,52 +117,10 @@ export const PLANO_LABELS: Record<TipoPlanoVisual, string> = {
   PLANO_CORTESIA: "Cortesia",
 };
 
-const CORTESIA_STORAGE_KEY = "aurit:controle-proprietario:planos-cortesia";
-
-function readCortesiaIds() {
-  if (typeof window === "undefined") return new Set<number>();
-
-  try {
-    const raw = window.localStorage.getItem(CORTESIA_STORAGE_KEY);
-    const ids = raw ? JSON.parse(raw) : [];
-
-    return new Set(
-      Array.isArray(ids)
-        ? ids.map((id) => Number(id)).filter((id) => Number.isFinite(id))
-        : [],
-    );
-  } catch {
-    return new Set<number>();
-  }
-}
-
-function writeCortesiaIds(ids: Set<number>) {
-  if (typeof window === "undefined") return;
-
-  window.localStorage.setItem(
-    CORTESIA_STORAGE_KEY,
-    JSON.stringify(Array.from(ids)),
-  );
-}
-
-export function setPlanoCortesiaLocal(empresaId: number, isCortesia: boolean) {
-  if (!empresaId || Number.isNaN(empresaId)) return;
-
-  const ids = readCortesiaIds();
-
-  if (isCortesia) {
-    ids.add(empresaId);
-  } else {
-    ids.delete(empresaId);
-  }
-
-  writeCortesiaIds(ids);
-}
-
 export function getPlanoVisualEmpresa(
-  empresa: Pick<EmpresaControle, "id" | "tipoPlano">,
+  empresa: Pick<EmpresaControle, "tipoPlano" | "planoCortesia">,
 ): TipoPlanoVisual {
-  if (empresa.tipoPlano === "PLANO_PAGO" && readCortesiaIds().has(empresa.id)) {
+  if (empresa.tipoPlano === "PLANO_PAGO" && empresa.planoCortesia) {
     return "PLANO_CORTESIA";
   }
 
@@ -267,6 +227,7 @@ export async function alterarPlanoEmpresa(
   id: number,
   tipoPlano: TipoPlano,
   limiteUsuarios?: number,
+  planoCortesia?: boolean,
 ) {
   return apiFetch<EmpresaControle>(
     `/controle-proprietario/empresas/${id}/plano`,
@@ -275,6 +236,7 @@ export async function alterarPlanoEmpresa(
       body: JSON.stringify({
         tipoPlano,
         limiteUsuarios,
+        planoCortesia,
       }),
     },
   );

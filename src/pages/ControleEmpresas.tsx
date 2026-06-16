@@ -59,7 +59,6 @@ import {
   listarEmpresasControle,
   listarLogsGerais,
   PLANO_LABELS,
-  setPlanoCortesiaLocal,
   type CriarEmpresaProprietarioPayload,
   type EmpresaControle,
   type LogAcessoEmpresa,
@@ -406,6 +405,7 @@ export default function ControleEmpresas() {
         nomeAdministrador: novaEmpresa.nomeAdministrador.trim(),
         loginAdministrador: novaEmpresa.loginAdministrador.trim(),
         tipoPlano: getTipoPlanoBackend(novaEmpresa.tipoPlano),
+        planoCortesia: novaEmpresa.tipoPlano === "PLANO_CORTESIA",
         limiteUsuarios:
           novaEmpresa.tipoPlano === "PLANO_GRATUITO"
             ? 2
@@ -414,10 +414,6 @@ export default function ControleEmpresas() {
 
       const criada = await criarEmpresaComAdmin(payload);
 
-      setPlanoCortesiaLocal(
-        criada.id,
-        novaEmpresa.tipoPlano === "PLANO_CORTESIA",
-      );
       setEmpresas((prev) => [criada, ...prev]);
       empresasPagination.setCurrentPage(1);
       resetarModal();

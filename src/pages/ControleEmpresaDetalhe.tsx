@@ -75,7 +75,6 @@ import {
   PLANO_LABELS,
   registrarPagamentoEmpresa,
   ROLE_LABELS,
-  setPlanoCortesiaLocal,
   type EmpresaControle,
   type FormaPagamento,
   type LogAcessoEmpresa,
@@ -234,9 +233,9 @@ export default function ControleEmpresaDetalhe() {
         empresa.id,
         planoBackend,
         novoPlano === "PLANO_GRATUITO" ? 2 : novoLimiteUsuarios,
+        novoPlano === "PLANO_CORTESIA",
       );
 
-      setPlanoCortesiaLocal(empresa.id, novoPlano === "PLANO_CORTESIA");
       setEmpresa(atualizada);
       setPlanoOpen(false);
       setNovoPlano("");

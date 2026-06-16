@@ -21,6 +21,7 @@ export interface ConfiguracaoEmpresaResponseDTO {
   telefoneContato?: string | null;
   documentoIdentificacao: string;
   tipoPlano: TipoPlanoApi;
+  planoCortesia?: boolean;
   limiteUsuarios: number;
   endereco?: EnderecoDTO | null;
   dataCriacao?: string;
@@ -35,6 +36,7 @@ export interface ConfiguracaoEmpresaRequestDTO {
   telefoneContato: string;
   documentoIdentificacao: string;
   tipoPlano: TipoPlanoApi;
+  planoCortesia?: boolean;
   limiteUsuarios: number;
   endereco: {
     cep: string;
@@ -55,6 +57,7 @@ export interface ConfiguracaoEmpresaData {
   emailContato: string;
   telefoneContato: string;
   tipoPlano: TipoPlanoApi | "";
+  planoCortesia?: boolean;
   limiteUsuarios: string;
   cep: string;
   logradouro: string;
@@ -84,6 +87,7 @@ const DEFAULT_DATA: ConfiguracaoEmpresaData = {
   emailContato: "",
   telefoneContato: "",
   tipoPlano: "",
+  planoCortesia: false,
   limiteUsuarios: "",
   cep: "",
   logradouro: "",
@@ -108,6 +112,7 @@ function mapResponseToData(
     emailContato: dto.emailContato ?? "",
     telefoneContato: dto.telefoneContato ?? "",
     tipoPlano: dto.tipoPlano ?? "",
+    planoCortesia: Boolean(dto.planoCortesia),
     limiteUsuarios:
       dto.limiteUsuarios != null ? String(dto.limiteUsuarios) : "",
     cep: dto.endereco?.cep ?? "",

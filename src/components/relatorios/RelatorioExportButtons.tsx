@@ -77,11 +77,11 @@ export function RelatorioExportButtons<T>({
     }
   };
 
-  const handlePdf = () => {
+  const handlePdf = async () => {
     if (!guard()) return;
 
     try {
-      exportPdf(rows, columns, {
+      await exportPdf(rows, columns, {
         reportName,
         organizacaoNome,
         dataGeracao,

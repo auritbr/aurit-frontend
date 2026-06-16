@@ -303,15 +303,7 @@ export async function exportPdf<T>(
     return;
   }
 
-  const isPresencas =
-    reportSlug.includes("presenca") ||
-    reportSlug.includes("frequencia") ||
-    cols.some((c) => c.key === "status") ||
-    cols.some((c) => c.key === "status_presenca") ||
-    cols.some((c) => c.key === "statusPresenca") ||
-    cols.some((c) => c.key === "data") ||
-    cols.some((c) => c.key === "data_presenca") ||
-    cols.some((c) => c.key === "dataPresenca");
+  const isPresencas = isRelatorioPresencas(reportSlug, cols);
 
   if (isPresencas) {
     await exportPresencasPdf(rows as Record<string, unknown>[], options);
@@ -319,6 +311,37 @@ export async function exportPdf<T>(
   }
 
   await exportRelatorioTabelaPdf(rows, cols, options);
+}
+
+function isRelatorioPresencas<T>(
+  reportSlug: string,
+  cols: RelatorioColumn<T>[],
+) {
+  if (reportSlug.includes("presenca") || reportSlug.includes("frequencia")) {
+    return true;
+  }
+
+  const normalizedColumnKeys = new Set(
+    cols.map((col) => sanitizeFileBase(`${col.key} ${col.label}`)),
+  );
+
+  const hasStatusPresenca = Array.from(normalizedColumnKeys).some(
+    (key) =>
+      key.includes("status-presenca") ||
+      key.includes("status-frequencia") ||
+      key.includes("presenca-status") ||
+      key.includes("frequencia-status"),
+  );
+
+  const hasDataPresenca = Array.from(normalizedColumnKeys).some(
+    (key) =>
+      key.includes("data-presenca") ||
+      key.includes("data-frequencia") ||
+      key.includes("presenca-data") ||
+      key.includes("frequencia-data"),
+  );
+
+  return hasStatusPresenca && hasDataPresenca;
 }
 
 async function exportRelatorioTabelaPdf<T>(
