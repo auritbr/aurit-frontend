@@ -28,6 +28,12 @@ import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { maskCEP, maskPhone } from "@/lib/masks";
 import { estadosBrasil } from "@/data/colaboradores";
+import {
+  getPlanoVisualEmpresa,
+  getTipoPlanoBackend,
+  setPlanoCortesiaLocal,
+  type TipoPlanoVisual,
+} from "@/data/controleProprietario";
 
 import {
   fetchConfiguracaoEmpresaById,
@@ -108,8 +114,9 @@ const empty: ConfigEmpresaForm = {
   caminhoLogo: null,
 };
 
-const planos: { value: TipoPlanoApi; label: string }[] = [
+const planos: { value: TipoPlanoVisual; label: string }[] = [
   { value: "PLANO_GRATUITO", label: "Plano Gratuito" },
+  { value: "PLANO_CORTESIA", label: "Plano Cortesia" },
   { value: "PLANO_PAGO", label: "Plano Pago" },
 ];
 
@@ -228,6 +235,7 @@ export default function ConfiguracaoEmpresaProprietario() {
   const configId = Number(configuracaoEmpresaId);
 
   const [form, setForm] = useState<ConfigEmpresaForm>(empty);
+  const [planoVisual, setPlanoVisual] = useState<TipoPlanoVisual | "">("");
 
   const [logoPreview, setLogoPreview] = useState<{
     dataUrl: string;
@@ -240,8 +248,8 @@ export default function ConfiguracaoEmpresaProprietario() {
   const [cepLoading, setCepLoading] = useState(false);
 
   const limiteUsuariosReadOnly = useMemo(
-    () => form.tipoPlano === "PLANO_GRATUITO",
-    [form.tipoPlano],
+    () => planoVisual === "PLANO_GRATUITO",
+    [planoVisual],
   );
 
   const set = <K extends keyof ConfigEmpresaForm>(
@@ -268,6 +276,14 @@ export default function ConfiguracaoEmpresaProprietario() {
         if (!active) return;
 
         setForm(mapped);
+        setPlanoVisual(
+          mapped.tipoPlano
+            ? getPlanoVisualEmpresa({
+                id: Number(empresaId),
+                tipoPlano: mapped.tipoPlano as TipoPlanoApi,
+              })
+            : "",
+        );
 
         if (mapped.id && mapped.caminhoLogo) {
           const logoUrl = await fetchConfiguracaoEmpresaLogoUrl(mapped.id);
@@ -306,10 +322,24 @@ export default function ConfiguracaoEmpresaProprietario() {
   }, [configId]);
 
   useEffect(() => {
-    if (form.tipoPlano === "PLANO_GRATUITO" && form.limiteUsuarios !== "2") {
+    if (planoVisual === "PLANO_GRATUITO" && form.limiteUsuarios !== "2") {
       set("limiteUsuarios", "2");
     }
-  }, [form.tipoPlano]);
+  }, [planoVisual]);
+
+  function handlePlanoVisualChange(value: TipoPlanoVisual) {
+    setPlanoVisual(value);
+    setForm((prev) => ({
+      ...prev,
+      tipoPlano: getTipoPlanoBackend(value),
+      limiteUsuarios:
+        value === "PLANO_GRATUITO"
+          ? "2"
+          : prev.limiteUsuarios && Number(prev.limiteUsuarios) > 0
+            ? prev.limiteUsuarios
+            : "10",
+    }));
+  }
 
   async function buscarEnderecoPorCep(cepFormatado: string) {
     const cepLimpo = cepFormatado.replace(/\D/g, "");
@@ -437,7 +467,16 @@ export default function ConfiguracaoEmpresaProprietario() {
 
       const mapped = mapDataToForm(saved);
 
+      setPlanoCortesiaLocal(Number(empresaId), planoVisual === "PLANO_CORTESIA");
       setForm(mapped);
+      setPlanoVisual(
+        mapped.tipoPlano
+          ? getPlanoVisualEmpresa({
+              id: Number(empresaId),
+              tipoPlano: mapped.tipoPlano as TipoPlanoApi,
+            })
+          : "",
+      );
 
       if (mapped.id && mapped.caminhoLogo) {
         const logoUrl = await fetchConfiguracaoEmpresaLogoUrl(mapped.id);
@@ -723,8 +762,10 @@ export default function ConfiguracaoEmpresaProprietario() {
                 </FieldLabel>
 
                 <Select
-                  value={form.tipoPlano}
-                  onValueChange={(v) => set("tipoPlano", v as TipoPlanoApi)}
+                  value={planoVisual}
+                  onValueChange={(v) =>
+                    handlePlanoVisualChange(v as TipoPlanoVisual)
+                  }
                   disabled={loading || saving}
                 >
                   <SelectTrigger id="tipoPlano">

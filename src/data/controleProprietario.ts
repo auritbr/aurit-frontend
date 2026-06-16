@@ -2,6 +2,8 @@ import { apiFetch } from "@/lib/api";
 
 export type TipoPlano = "PLANO_GRATUITO" | "PLANO_PAGO";
 
+export type TipoPlanoVisual = TipoPlano | "PLANO_CORTESIA";
+
 export type StatusControleProprietario = "ATIVO" | "INATIVO";
 
 export type StatusUsuarioPlataforma = "ATIVO" | "INATIVO";
@@ -107,10 +109,67 @@ export interface LogAcessoEmpresa {
   dataEvento: string;
 }
 
-export const PLANO_LABELS: Record<TipoPlano, string> = {
+export const PLANO_LABELS: Record<TipoPlanoVisual, string> = {
   PLANO_GRATUITO: "Gratuito",
   PLANO_PAGO: "Pago",
+  PLANO_CORTESIA: "Cortesia",
 };
+
+const CORTESIA_STORAGE_KEY = "aurit:controle-proprietario:planos-cortesia";
+
+function readCortesiaIds() {
+  if (typeof window === "undefined") return new Set<number>();
+
+  try {
+    const raw = window.localStorage.getItem(CORTESIA_STORAGE_KEY);
+    const ids = raw ? JSON.parse(raw) : [];
+
+    return new Set(
+      Array.isArray(ids)
+        ? ids.map((id) => Number(id)).filter((id) => Number.isFinite(id))
+        : [],
+    );
+  } catch {
+    return new Set<number>();
+  }
+}
+
+function writeCortesiaIds(ids: Set<number>) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(
+    CORTESIA_STORAGE_KEY,
+    JSON.stringify(Array.from(ids)),
+  );
+}
+
+export function setPlanoCortesiaLocal(empresaId: number, isCortesia: boolean) {
+  if (!empresaId || Number.isNaN(empresaId)) return;
+
+  const ids = readCortesiaIds();
+
+  if (isCortesia) {
+    ids.add(empresaId);
+  } else {
+    ids.delete(empresaId);
+  }
+
+  writeCortesiaIds(ids);
+}
+
+export function getPlanoVisualEmpresa(
+  empresa: Pick<EmpresaControle, "id" | "tipoPlano">,
+): TipoPlanoVisual {
+  if (empresa.tipoPlano === "PLANO_PAGO" && readCortesiaIds().has(empresa.id)) {
+    return "PLANO_CORTESIA";
+  }
+
+  return empresa.tipoPlano;
+}
+
+export function getTipoPlanoBackend(plano: TipoPlanoVisual): TipoPlano {
+  return plano === "PLANO_CORTESIA" ? "PLANO_PAGO" : plano;
+}
 
 export const ROLE_LABELS: Record<UserRoleEmpresa, string> = {
   ADMIN: "Administrador",

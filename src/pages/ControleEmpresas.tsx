@@ -11,6 +11,9 @@ import {
   ArrowRight,
   Building2,
   CheckCircle2,
+  Download,
+  FileSpreadsheet,
+  Gift,
   Plus,
   Search,
   Sparkles,
@@ -18,6 +21,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 import { ProprietarioLayout } from "@/components/ProprietarioLayout";
 import { PageTitle } from "@/components/PageTitle";
@@ -50,14 +54,17 @@ import {
 
 import {
   criarEmpresaComAdmin,
+  getPlanoVisualEmpresa,
+  getTipoPlanoBackend,
   listarEmpresasControle,
   listarLogsGerais,
   PLANO_LABELS,
+  setPlanoCortesiaLocal,
   type CriarEmpresaProprietarioPayload,
   type EmpresaControle,
   type LogAcessoEmpresa,
   type StatusControleProprietario,
-  type TipoPlano,
+  type TipoPlanoVisual,
 } from "@/data/controleProprietario";
 
 function formatDateTime(iso: string | null | undefined) {
@@ -118,7 +125,7 @@ function SummaryCard({
   label: string;
   value: number | string;
   icon: ComponentType<{ className?: string }>;
-  tone?: "default" | "success" | "danger" | "info";
+  tone?: "default" | "success" | "danger" | "info" | "purple";
 }) {
   const toneClasses = {
     default: "text-muted-foreground bg-muted",
@@ -127,6 +134,9 @@ function SummaryCard({
     danger:
       "text-rose-600 bg-rose-50 dark:text-rose-400 dark:bg-rose-950/30",
     info: "text-sky-600 bg-sky-50 dark:text-sky-400 dark:bg-sky-950/30",
+    purple:
+      "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-900",
+
   };
 
   return (
@@ -149,7 +159,14 @@ function SummaryCard({
   );
 }
 
-const initialNovaEmpresa: CriarEmpresaProprietarioPayload = {
+type NovaEmpresaProprietarioForm = Omit<
+  CriarEmpresaProprietarioPayload,
+  "tipoPlano"
+> & {
+  tipoPlano: TipoPlanoVisual;
+};
+
+const initialNovaEmpresa: NovaEmpresaProprietarioForm = {
   nomeEmpresa: "",
   slug: "",
   documentoIdentificacao: "",
@@ -162,6 +179,20 @@ const initialNovaEmpresa: CriarEmpresaProprietarioPayload = {
   senhaInicial: "",
 };
 
+function downloadArquivo(conteudo: BlobPart, nome: string, tipo: string) {
+  const blob = new Blob([conteudo], { type: tipo });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = nome;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}
+
 export default function ControleEmpresas() {
   const navigate = useNavigate();
 
@@ -169,7 +200,7 @@ export default function ControleEmpresas() {
   const [statusFilter, setStatusFilter] =
     useState<"TODOS" | StatusControleProprietario>("TODOS");
   const [planoFilter, setPlanoFilter] =
-    useState<"TODOS" | TipoPlano>("TODOS");
+    useState<"TODOS" | TipoPlanoVisual>("TODOS");
 
   const [empresas, setEmpresas] = useState<EmpresaControle[]>([]);
   const [logs, setLogs] = useState<LogAcessoEmpresa[]>([]);
@@ -179,7 +210,7 @@ export default function ControleEmpresas() {
   const [criarOpen, setCriarOpen] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
   const [novaEmpresa, setNovaEmpresa] =
-    useState<CriarEmpresaProprietarioPayload>(initialNovaEmpresa);
+    useState<NovaEmpresaProprietarioForm>(initialNovaEmpresa);
 
   async function carregarDados() {
     try {
@@ -221,10 +252,16 @@ export default function ControleEmpresas() {
     );
 
     const gratuito = empresas.filter(
-      (e) => e.tipoPlano === "PLANO_GRATUITO",
+      (e) => getPlanoVisualEmpresa(e) === "PLANO_GRATUITO",
     ).length;
 
-    const pago = empresas.filter((e) => e.tipoPlano === "PLANO_PAGO").length;
+    const pago = empresas.filter(
+      (e) => getPlanoVisualEmpresa(e) === "PLANO_PAGO",
+    ).length;
+
+    const cortesia = empresas.filter(
+      (e) => getPlanoVisualEmpresa(e) === "PLANO_CORTESIA",
+    ).length;
 
     return {
       total,
@@ -233,6 +270,7 @@ export default function ControleEmpresas() {
       usuariosTotais,
       gratuito,
       pago,
+      cortesia,
     };
   }, [empresas]);
 
@@ -247,7 +285,7 @@ export default function ControleEmpresas() {
         return false;
       }
 
-      if (planoFilter !== "TODOS" && e.tipoPlano !== planoFilter) {
+      if (planoFilter !== "TODOS" && getPlanoVisualEmpresa(e) !== planoFilter) {
         return false;
       }
 
@@ -287,7 +325,7 @@ export default function ControleEmpresas() {
     }));
   }
 
-  function handlePlanoChange(value: TipoPlano) {
+  function handlePlanoChange(value: TipoPlanoVisual) {
     setNovaEmpresa((prev) => ({
       ...prev,
       tipoPlano: value,
@@ -367,6 +405,7 @@ export default function ControleEmpresas() {
         telefoneContato: novaEmpresa.telefoneContato.trim(),
         nomeAdministrador: novaEmpresa.nomeAdministrador.trim(),
         loginAdministrador: novaEmpresa.loginAdministrador.trim(),
+        tipoPlano: getTipoPlanoBackend(novaEmpresa.tipoPlano),
         limiteUsuarios:
           novaEmpresa.tipoPlano === "PLANO_GRATUITO"
             ? 2
@@ -375,6 +414,10 @@ export default function ControleEmpresas() {
 
       const criada = await criarEmpresaComAdmin(payload);
 
+      setPlanoCortesiaLocal(
+        criada.id,
+        novaEmpresa.tipoPlano === "PLANO_CORTESIA",
+      );
       setEmpresas((prev) => [criada, ...prev]);
       empresasPagination.setCurrentPage(1);
       resetarModal();
@@ -386,6 +429,65 @@ export default function ControleEmpresas() {
     } finally {
       setCreating(false);
     }
+  }
+
+  function buildExportRows() {
+    return filtered.map((e) => ({
+      Empresa: e.nomeEmpresa,
+      Subdominio: `${e.slug}.aurit.com.br`,
+      Documento: e.documentoIdentificacao,
+      Email: e.emailContato,
+      Telefone: e.telefoneContato,
+      Plano: PLANO_LABELS[getPlanoVisualEmpresa(e)],
+      Status: e.statusControleProprietario === "ATIVO" ? "Ativo" : "Inativo",
+      Usuarios: `${e.totalUsuarios}/${e.limiteUsuarios}`,
+      "Data de Criacao": formatDateTime(e.dataCriacao),
+      "Ultima Atualizacao": formatDateTime(e.dataAtualizacao),
+    }));
+  }
+
+  function exportarCsv() {
+    const rows = buildExportRows();
+
+    if (rows.length === 0) {
+      toast.error("Não há empresas para exportar.");
+      return;
+    }
+
+    const headers = Object.keys(rows[0]) as Array<keyof (typeof rows)[number]>;
+    const csv = [
+      headers,
+      ...rows.map((row) => headers.map((header) => row[header] ?? "")),
+    ]
+      .map((linha) =>
+        linha
+          .map((valor) => `"${String(valor ?? "").replace(/"/g, '""')}"`)
+          .join(";"),
+      )
+      .join("\n");
+
+    downloadArquivo(
+      "\uFEFF" + csv,
+      "controle-empresas.csv",
+      "text/csv;charset=utf-8;",
+    );
+    toast.success("CSV gerado com sucesso.");
+  }
+
+  function exportarExcel() {
+    const rows = buildExportRows();
+
+    if (rows.length === 0) {
+      toast.error("Não há empresas para exportar.");
+      return;
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Empresas");
+    XLSX.writeFile(workbook, "controle-empresas.xlsx");
+    toast.success("Excel gerado com sucesso.");
   }
 
   return (
@@ -407,7 +509,7 @@ export default function ControleEmpresas() {
           }
         />
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mb-5">
           <SummaryCard label="Total" value={resumo.total} icon={Building2} />
           <SummaryCard
             label="Ativas"
@@ -431,6 +533,12 @@ export default function ControleEmpresas() {
             label="Gratuito"
             value={resumo.gratuito}
             icon={Sparkles}
+          />
+          <SummaryCard
+            label="Cortesia"
+            value={resumo.cortesia}
+            icon={Gift}
+            tone="purple"
           />
           <SummaryCard
             label="Pago"
@@ -471,7 +579,9 @@ export default function ControleEmpresas() {
 
               <Select
                 value={planoFilter}
-                onValueChange={(v) => setPlanoFilter(v as "TODOS" | TipoPlano)}
+                onValueChange={(v) =>
+                  setPlanoFilter(v as "TODOS" | TipoPlanoVisual)
+                }
               >
                 <SelectTrigger className="h-9 w-full sm:w-[160px]">
                   <SelectValue />
@@ -479,16 +589,39 @@ export default function ControleEmpresas() {
                 <SelectContent>
                   <SelectItem value="TODOS">Todos os Planos</SelectItem>
                   <SelectItem value="PLANO_GRATUITO">Gratuito</SelectItem>
+                  <SelectItem value="PLANO_CORTESIA">Cortesia</SelectItem>
                   <SelectItem value="PLANO_PAGO">Pago</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="text-xs text-muted-foreground whitespace-nowrap">
-              <span className="font-medium text-foreground">
-                {filtered.length}
-              </span>{" "}
-              de {empresas.length} empresas
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={exportarCsv}
+              >
+                <Download className="h-3.5 w-3.5" />
+                CSV
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={exportarExcel}
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                Excel
+              </Button>
+              <div className="text-xs text-muted-foreground whitespace-nowrap">
+                <span className="font-medium text-foreground">
+                  {filtered.length}
+                </span>{" "}
+                de {empresas.length} empresas
+              </div>
             </div>
           </div>
 
@@ -535,11 +668,10 @@ export default function ControleEmpresas() {
                     return (
                       <tr
                         key={e.id}
-                        className={`border-b border-border/70 last:border-0 transition-colors ${
-                          blocked
-                            ? "bg-rose-50/40 dark:bg-rose-950/10 hover:bg-rose-50/60"
-                            : "hover:bg-muted/30"
-                        }`}
+                        className={`border-b border-border/70 last:border-0 transition-colors ${blocked
+                          ? "bg-rose-50/40 dark:bg-rose-950/10 hover:bg-rose-50/60"
+                          : "hover:bg-muted/30"
+                          }`}
                       >
                         <td className="px-5 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
@@ -548,11 +680,10 @@ export default function ControleEmpresas() {
                             </div>
 
                             <span
-                              className={`font-medium ${
-                                blocked
-                                  ? "text-muted-foreground line-through"
-                                  : "text-foreground"
-                              }`}
+                              className={`font-medium ${blocked
+                                ? "text-muted-foreground line-through"
+                                : "text-foreground"
+                                }`}
                             >
                               {e.nomeEmpresa}
                             </span>
@@ -576,7 +707,7 @@ export default function ControleEmpresas() {
                         </td>
 
                         <td className="px-5 py-3 whitespace-nowrap">
-                          <PlanoBadge plano={e.tipoPlano} />
+                          <PlanoBadge plano={getPlanoVisualEmpresa(e)} />
                         </td>
 
                         <td className="px-5 py-3 whitespace-nowrap">
@@ -823,7 +954,7 @@ export default function ControleEmpresas() {
                   <Label>Plano *</Label>
                   <Select
                     value={novaEmpresa.tipoPlano}
-                    onValueChange={(v) => handlePlanoChange(v as TipoPlano)}
+                    onValueChange={(v) => handlePlanoChange(v as TipoPlanoVisual)}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -834,6 +965,9 @@ export default function ControleEmpresas() {
                       </SelectItem>
                       <SelectItem value="PLANO_PAGO">
                         {PLANO_LABELS.PLANO_PAGO}
+                      </SelectItem>
+                      <SelectItem value="PLANO_CORTESIA">
+                        {PLANO_LABELS.PLANO_CORTESIA}
                       </SelectItem>
                     </SelectContent>
                   </Select>

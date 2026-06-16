@@ -67,12 +67,15 @@ import {
   atualizarUsuarioEmpresa,
   buscarEmpresaControle,
   excluirPagamentoEmpresa,
+  getPlanoVisualEmpresa,
+  getTipoPlanoBackend,
   listarLogsEmpresa,
   listarPagamentosEmpresa,
   listarUsuariosEmpresa,
   PLANO_LABELS,
   registrarPagamentoEmpresa,
   ROLE_LABELS,
+  setPlanoCortesiaLocal,
   type EmpresaControle,
   type FormaPagamento,
   type LogAcessoEmpresa,
@@ -81,7 +84,7 @@ import {
   type StatusControleProprietario,
   type StatusPagamento,
   type StatusUsuarioPlataforma,
-  type TipoPlano,
+  type TipoPlanoVisual,
   type UserRoleEmpresa,
   type UsuarioEmpresa,
 } from "@/data/controleProprietario";
@@ -144,7 +147,7 @@ export default function ControleEmpresaDetalhe() {
   const [loading, setLoading] = useState(true);
 
   const [planoOpen, setPlanoOpen] = useState(false);
-  const [novoPlano, setNovoPlano] = useState<TipoPlano | "">("");
+  const [novoPlano, setNovoPlano] = useState<TipoPlanoVisual | "">("");
   const [novoLimiteUsuarios, setNovoLimiteUsuarios] = useState<number>(10);
 
   const [confirmStatus, setConfirmStatus] =
@@ -226,17 +229,19 @@ export default function ControleEmpresaDetalhe() {
     if (!empresa || !novoPlano) return;
 
     try {
+      const planoBackend = getTipoPlanoBackend(novoPlano);
       const atualizada = await alterarPlanoEmpresa(
         empresa.id,
-        novoPlano,
+        planoBackend,
         novoPlano === "PLANO_GRATUITO" ? 2 : novoLimiteUsuarios,
       );
 
+      setPlanoCortesiaLocal(empresa.id, novoPlano === "PLANO_CORTESIA");
       setEmpresa(atualizada);
       setPlanoOpen(false);
       setNovoPlano("");
 
-      toast.success(`Plano alterado para ${PLANO_LABELS[atualizada.tipoPlano]}.`);
+      toast.success(`Plano alterado para ${PLANO_LABELS[novoPlano]}.`);
     } catch (error) {
       console.error(error);
       toast.error(
@@ -498,7 +503,7 @@ export default function ControleEmpresaDetalhe() {
                 size="sm"
                 className="h-9 gap-1.5"
                 onClick={() => {
-                  setNovoPlano(empresa.tipoPlano);
+                  setNovoPlano(getPlanoVisualEmpresa(empresa));
                   setNovoLimiteUsuarios(empresa.limiteUsuarios);
                   setPlanoOpen(true);
                 }}
@@ -589,7 +594,7 @@ export default function ControleEmpresaDetalhe() {
                 <InfoRow label="Telefone" value={empresa.telefoneContato} />
                 <InfoRow
                   label="Plano atual"
-                  value={<PlanoBadge plano={empresa.tipoPlano} />}
+                  value={<PlanoBadge plano={getPlanoVisualEmpresa(empresa)} />}
                 />
                 <InfoRow
                   label="Status"
@@ -921,7 +926,8 @@ export default function ControleEmpresaDetalhe() {
           <DialogHeader>
             <DialogTitle>Alterar plano da empresa</DialogTitle>
             <DialogDescription>
-              Plano atual: <strong>{PLANO_LABELS[empresa.tipoPlano]}</strong>.
+              Plano atual:{" "}
+              <strong>{PLANO_LABELS[getPlanoVisualEmpresa(empresa)]}</strong>.
               Selecione o novo plano abaixo.
             </DialogDescription>
           </DialogHeader>
@@ -932,7 +938,7 @@ export default function ControleEmpresaDetalhe() {
               <Select
                 value={novoPlano}
                 onValueChange={(v) => {
-                  const plano = v as TipoPlano;
+                  const plano = v as TipoPlanoVisual;
 
                   setNovoPlano(plano);
 
@@ -948,6 +954,7 @@ export default function ControleEmpresaDetalhe() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="PLANO_GRATUITO">Gratuito</SelectItem>
+                  <SelectItem value="PLANO_CORTESIA">Cortesia</SelectItem>
                   <SelectItem value="PLANO_PAGO">Pago</SelectItem>
                 </SelectContent>
               </Select>

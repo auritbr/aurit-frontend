@@ -9,7 +9,7 @@ import {
   type StatusPagamento,
   type StatusUsuarioPlataforma,
   type TipoLogAcesso,
-  type TipoPlano,
+  type TipoPlanoVisual,
   type UserRoleEmpresa,
 } from "@/data/controleProprietario";
 
@@ -18,7 +18,7 @@ function BadgeBase({
   variant = "neutral",
 }: {
   children: React.ReactNode;
-  variant?: "neutral" | "success" | "danger" | "warning" | "info";
+  variant?: "neutral" | "success" | "danger" | "warning" | "info" | "purple";
 }) {
   const variants = {
     neutral: "bg-muted text-muted-foreground border-border",
@@ -29,6 +29,8 @@ function BadgeBase({
     warning:
       "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900",
     info: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900",
+    purple:
+      "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-900",
   };
 
   return (
@@ -40,9 +42,16 @@ function BadgeBase({
   );
 }
 
-export function PlanoBadge({ plano }: { plano: TipoPlano }) {
+export function PlanoBadge({ plano }: { plano: TipoPlanoVisual }) {
+  const variant =
+    plano === "PLANO_CORTESIA"
+      ? "purple"
+      : plano === "PLANO_PAGO"
+        ? "info"
+        : "neutral";
+
   return (
-    <BadgeBase variant={plano === "PLANO_PAGO" ? "info" : "neutral"}>
+    <BadgeBase variant={variant}>
       {PLANO_LABELS[plano] ?? plano}
     </BadgeBase>
   );
