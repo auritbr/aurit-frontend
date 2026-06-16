@@ -61,7 +61,7 @@ export default function RelatorioFinanceiroPatrimonioPage() {
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <RelatorioHeader
           title="Financeiro e Patrimônio"
-          tooltip="Acompanhe movimentações financeiras, planejamento financeiro, patrimônio e empréstimos de bens."
+          tooltip="Acompanhe movimentações financeiras, aplicação de resursos, patrimônio e empréstimos de bens."
           description="Este relatório reúne dados financeiros e patrimoniais para apoiar o acompanhamento de entradas, saídas, saldo, bens adquiridos e empréstimos realizados pela organização."
           nomeEmpresa={data?.nomeEmpresa}
           dataGeracao={data?.dataGeracao}

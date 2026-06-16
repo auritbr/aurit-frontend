@@ -1118,7 +1118,35 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
     ];
   }
 
-  if (normalizedReport.includes("integrante") || normalizedReport.includes("agente cultural")) {
+  if (normalizedReport.includes("agente cultural") || normalizedReport.includes("agentes culturais")) {
+    return [
+      {
+        label: "Nome / Razão Social",
+        aliases: [
+          "nome",
+          "nome completo",
+          "nomeCompleto",
+          "nome_completo",
+          "nomePrincipal",
+          "nome_principal",
+          "nomeFantasia",
+          "nome_fantasia",
+          "razaoSocial",
+          "razao_social",
+        ],
+      },
+      { label: "Tipo de Pessoa", aliases: ["tipo de pessoa", "tipoPessoa", "tipo_pessoa", "tipo de agente", "tipoAgente", "tipo_agente"] },
+      { label: "CPF/CNPJ", aliases: ["cpf/cnpj", "cpfCnpj", "cpf_cnpj", "cpf", "cnpj", "documento"] },
+      { label: "E-mail", aliases: ["email", "e-mail"] },
+      { label: "Telefone", aliases: ["telefone", "celular"] },
+      { label: "Área de Atuação", aliases: ["area de atuacao", "área de atuação", "areaAtuacao", "area_atuacao"] },
+      { label: "Cidade", aliases: ["cidade", "municipio", "município"] },
+      { label: "Estado", aliases: ["estado", "uf"] },
+      { label: "Status", aliases: ["status", "situacao", "situação"] },
+    ];
+  }
+
+  if (normalizedReport.includes("integrante")) {
     return [
       { label: "Nome Completo", aliases: ["nome completo", "nomeCompleto", "nome_completo", "nome"] },
       { label: "Data de Nascimento", aliases: ["data de nascimento", "dataNascimento", "data_nascimento", "nascimento"] },
@@ -1286,11 +1314,21 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
     normalizedReport.includes("aplicacao de recursos") ||
     normalizedReport.includes("aplicação de recursos") ||
     normalizedReport.includes("orcamento da proposta") ||
-    normalizedReport.includes("orçamento da proposta") ||
-    normalizedReport.includes("aplicacao de recursos")
+    normalizedReport.includes("orçamento da proposta")
   ) {
     return [
-      { label: "Item do Planejamento", aliases: ["item do planejamento", "nomePlanejamento", "nome_planejamento", "planejamento", "item"] },
+      {
+        label: "Item de Aplicação",
+        aliases: [
+          "item de aplicacao",
+          "item de aplicação",
+          "item do planejamento",
+          "nomePlanejamento",
+          "nome_planejamento",
+          "planejamento",
+          "item",
+        ],
+      },
       { label: "Proposta de Edital", aliases: ["proposta de edital", "propostaEdital", "proposta_edital", "proposta"] },
       { label: "Função da Equipe", aliases: ["funcao da equipe", "função da equipe", "funcaoEquipe", "funcao_equipe"] },
       { label: "Quantidade", aliases: ["quantidade"] },

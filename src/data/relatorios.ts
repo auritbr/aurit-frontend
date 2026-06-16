@@ -212,7 +212,7 @@ const RELATORIO_SLUGS_OPERACIONAIS = [
   "equipe-edital",
   "habilitacoes-propostas",
   "financeiro",
-  "aplicacao-recursos",
+  "aplicacao-de-recursos",
   "planejamento-financeiro",
   "prestacoes-contas",
   "prestacoes-metas",
@@ -248,7 +248,9 @@ export const RELATORIO_SLUG_ALIASES: Record<string, string> = {
   "resultado-proposta": "resultados-propostas",
   resultados: "resultados-propostas",
 
-  "planejamentos-financeiros": "planejamento-financeiro",
+  "aplicacao-recursos": "aplicacao-de-recursos",
+  "planejamento-financeiro": "aplicacao-de-recursos",
+  "planejamentos-financeiros": "aplicacao-de-recursos",
 
   "prestacao-contas": "prestacoes-contas",
   "prestacao-metas": "prestacoes-metas",
@@ -276,7 +278,8 @@ function getRelatorioEndpointCandidates(slugInput: string): string[] {
 
   const candidates = new Set<string>([slug]);
 
-  if (slug === "aplicacao-recursos") {
+  if (slug === "aplicacao-de-recursos") {
+    candidates.add("aplicacao-recursos");
     candidates.add("planejamento-financeiro");
   }
 
@@ -326,8 +329,8 @@ const RELATORIO_TITULOS: Record<string, string> = {
   "resultados-propostas": "Resultados da Proposta",
   "habilitacoes-propostas": "Habilitação Documental",
   "equipe-edital": "Equipe da Proposta",
-  "planejamento-financeiro": "Orçamento da Proposta",
-  "aplicacao-recursos": "Aplicação de Recursos",
+  "planejamento-financeiro": "Aplicação de Recursos",
+  "aplicacao-de-recursos": "Aplicação de Recursos",
 
   evidencias: "Evidências de Execução",
 
@@ -415,8 +418,8 @@ const RELATORIO_DESCRICOES: Record<string, string> = {
     "Consulte a equipe vinculada às propostas de edital, com função, carga horária, valor previsto, justificativa, mini biografia e pessoa associada.",
 
   "planejamento-financeiro":
-    "Consulte os itens do planejamento financeiro das propostas, com justificativa, quantidade, unidade, valores e vínculo com equipe ou agente.",
-  "aplicacao-recursos":
+    "Consulte os itens previstos para aplicação de recursos da proposta, com justificativa, quantidade, unidade de medida, valores e vínculos com equipe ou edital.",
+  "aplicacao-de-recursos":
     "Consulte os itens previstos para aplicação de recursos da proposta, com justificativa, quantidade, unidade de medida, valores e vínculos com equipe ou edital.",
 
   evidencias:
@@ -513,7 +516,8 @@ async function getRelatorioPlanosAulaFallback<T>(
 ): Promise<RelatorioDetalhadoResponse<T>> {
   try {
     const planos = await getPlanosAula();
-    const registros = planos.map(mapPlanoAulaToRelatorioRow) as T[];
+    const registrosBase = planos.map(mapPlanoAulaToRelatorioRow);
+    const registros = registrosBase as T[];
 
     return {
       tipoRelatorio: "RELATORIO_PLANOS_AULA",
@@ -522,7 +526,7 @@ async function getRelatorioPlanosAulaFallback<T>(
       dataGeracao: hojeLocalISO(),
       total: registros.length,
       resumo: buildResumoFromRows(registros.length),
-      colunas: getColunasRelatorio("planos-aula", registros),
+      colunas: getColunasRelatorio("planos-aula", registrosBase),
       registros,
       linhas: registros,
     };
@@ -589,7 +593,7 @@ function normalizarRegistroRelatorio(
     "habilitacoes-propostas",
     "equipe-edital",
     "planejamento-financeiro",
-    "aplicacao-recursos",
+    "aplicacao-de-recursos",
   ]);
 
   if (slugsComAgente.has(slug)) {
@@ -1316,7 +1320,7 @@ export function getColunasRelatorio(
     ],
 
     "planejamento-financeiro": [
-      { chave: "nome_planejamento", label: "Item do Planejamento" },
+      { chave: "nome_planejamento", label: "Item de Aplicação" },
       { chave: "proposta_edital", label: "Proposta de Edital" },
       { chave: "edital", label: "Edital", visivelPorPadrao: false },
       {
@@ -1338,8 +1342,8 @@ export function getColunasRelatorio(
       },
     ],
 
-    "aplicacao-recursos": [
-      { chave: "nome_planejamento", label: "Item" },
+    "aplicacao-de-recursos": [
+      { chave: "nome_planejamento", label: "Item de Aplicação" },
       { chave: "proposta_edital", label: "Proposta de Edital" },
       { chave: "edital", label: "Edital", visivelPorPadrao: false },
       {
