@@ -1322,22 +1322,73 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
         aliases: [
           "item de aplicacao",
           "item de aplicação",
+          "item da aplicacao",
+          "item da aplicação",
           "item do planejamento",
           "nomePlanejamento",
           "nome_planejamento",
           "planejamento",
+          "nome",
+          "titulo",
+          "título",
           "item",
         ],
       },
-      { label: "Proposta de Edital", aliases: ["proposta de edital", "propostaEdital", "proposta_edital", "proposta"] },
-      { label: "Função da Equipe", aliases: ["funcao da equipe", "função da equipe", "funcaoEquipe", "funcao_equipe"] },
-      { label: "Quantidade", aliases: ["quantidade"] },
+      {
+        label: "Justificativa",
+        aliases: [
+          "justificativa",
+          "justificativaPlanejamento",
+          "justificativa_planejamento",
+          "descricao",
+          "descrição",
+        ],
+      },
+      {
+        label: "Período",
+        aliases: [
+          "periodo",
+          "período",
+        ],
+        accessor: (row) => {
+          const periodo = getFirstExistingValue(row, ["periodo", "período"]);
+
+          if (periodo && periodo !== "—") return periodo;
+
+          const inicio = getFirstExistingValue(row, [
+            "dataInicio",
+            "data_inicio",
+            "inicio",
+          ]);
+          const fim = getFirstExistingValue(row, [
+            "dataFim",
+            "data_fim",
+            "fim",
+          ]);
+
+          if (inicio !== "—" && fim !== "—") return `${inicio} - ${fim}`;
+          if (inicio !== "—") return String(inicio);
+          if (fim !== "—") return String(fim);
+
+          return "—";
+        },
+      },
+      { label: "Quantidade", aliases: ["quantidade", "qtd"] },
       { label: "Unidade de Medida", aliases: ["unidade de medida", "unidadeMedida", "unidade_medida", "unidade"] },
-      { label: "Valor Unitário", aliases: ["valor unitario", "valor unitário", "valorUnitario", "valor_unitario"] },
-      { label: "Valor Total", aliases: ["valor total", "valorTotal", "valor_total"] },
-      { label: "Data de Início", aliases: ["data de inicio", "data de início", "dataInicio", "data_inicio"] },
-      { label: "Data de Fim", aliases: ["data de fim", "dataFim", "data_fim"] },
-      { label: "Justificativa", aliases: ["justificativa", "justificativaPlanejamento", "justificativa_planejamento"] },
+      { label: "Valor Unitário", aliases: ["valor unitario", "valor unitário", "valorUnitario", "valor_unitario", "valor"] },
+      { label: "Valor Total", aliases: ["valor total", "valorTotal", "valor_total", "total"] },
+      {
+        label: "Proposta de Edital",
+        aliases: [
+          "proposta de edital",
+          "propostaEdital",
+          "proposta_edital",
+          "propostaEditalId",
+          "proposta_edital_id",
+          "proposta",
+        ],
+      },
+      { label: "Função da Equipe", aliases: ["funcao da equipe", "função da equipe", "funcaoEquipe", "funcao_equipe", "equipe"] },
     ];
   }
 
@@ -1408,13 +1459,14 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
 
   if (normalizedReport.includes("evidencia")) {
     return [
-      { label: "Título", aliases: ["titulo", "título", "evidencia", "evidência"] },
-      { label: "Descrição", aliases: ["descricao", "descrição"] },
-      { label: "Projeto", aliases: ["projeto"] },
-      { label: "Atividade / Evento", aliases: ["atividade", "oficina", "evento"] },
-      { label: "Tipo", aliases: ["tipo", "categoria"] },
-      { label: "Data", aliases: ["data"] },
-      { label: "Responsável", aliases: ["responsavel", "responsável"] },
+      { label: "Título", aliases: ["titulo", "título", "tituloEvidencia", "titulo_evidencia", "evidencia", "evidência"] },
+      { label: "Descrição", aliases: ["descricao", "descrição", "descricaoEvidencia", "descricao_evidencia"] },
+      { label: "Tipo", aliases: ["tipo", "tipoEvidencia", "tipo_evidencia", "categoria"] },
+      { label: "Arquivo / Link", aliases: ["arquivo", "arquivoKey", "arquivo_key", "url", "link", "linkArquivo", "link_arquivo"] },
+      { label: "Projeto", aliases: ["projeto", "projeto.nome", "nomeProjeto", "nome_projeto"] },
+      { label: "Proposta", aliases: ["proposta", "propostaEdital", "proposta_edital"] },
+      { label: "Turma", aliases: ["turma", "turma.nome", "nomeTurma", "nome_turma"] },
+      { label: "Presença", aliases: ["presenca", "presença"] },
     ];
   }
 
