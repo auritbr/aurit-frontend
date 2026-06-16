@@ -45,10 +45,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { type TipoPlano } from "@/lib/plano";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-type TipoPlano = "PLANO_GRATUITO" | "PLANO_PAGO" | string;
 
 type SubItem = {
   title: string;

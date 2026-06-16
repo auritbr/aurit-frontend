@@ -2,7 +2,11 @@ import { getAuthHeaders, getUsuarioLogadoStorage } from "@/lib/auth";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
-export type TipoPlano = "PLANO_GRATUITO" | "PLANO_PAGO" | string;
+export type TipoPlano =
+  | "PLANO_GRATUITO"
+  | "PLANO_PAGO"
+  | "PLANO_CORTESIA"
+  | string;
 
 interface ConfiguracaoEmpresaDTO {
   id?: number;
@@ -46,4 +50,16 @@ export async function getTipoPlanoAtual(): Promise<TipoPlano | null> {
 
 export async function isPlanoGratuitoAtual() {
   return (await getTipoPlanoAtual()) === "PLANO_GRATUITO";
+}
+
+export function isPlanoPagoOuCortesia(tipoPlano?: TipoPlano | null): boolean {
+  return tipoPlano === "PLANO_PAGO" || tipoPlano === "PLANO_CORTESIA";
+}
+
+export function getPlanoLabel(tipoPlano?: TipoPlano | null): string {
+  if (tipoPlano === "PLANO_GRATUITO") return "Gratuito";
+  if (tipoPlano === "PLANO_PAGO") return "Pago";
+  if (tipoPlano === "PLANO_CORTESIA") return "Cortesia";
+
+  return tipoPlano ?? "";
 }

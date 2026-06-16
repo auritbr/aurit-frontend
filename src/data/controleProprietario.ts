@@ -1,8 +1,11 @@
 import { apiFetch } from "@/lib/api";
 
-export type TipoPlano = "PLANO_GRATUITO" | "PLANO_PAGO";
+export type TipoPlano =
+  | "PLANO_GRATUITO"
+  | "PLANO_PAGO"
+  | "PLANO_CORTESIA";
 
-export type TipoPlanoVisual = TipoPlano | "PLANO_CORTESIA";
+export type TipoPlanoVisual = TipoPlano;
 
 export type StatusControleProprietario = "ATIVO" | "INATIVO";
 
@@ -52,7 +55,6 @@ export interface CriarEmpresaProprietarioPayload {
   emailContato: string;
   telefoneContato: string;
   tipoPlano: TipoPlano;
-  planoCortesia?: boolean;
   limiteUsuarios?: number;
   nomeAdministrador: string;
   loginAdministrador: string;
@@ -120,15 +122,14 @@ export const PLANO_LABELS: Record<TipoPlanoVisual, string> = {
 export function getPlanoVisualEmpresa(
   empresa: Pick<EmpresaControle, "tipoPlano" | "planoCortesia">,
 ): TipoPlanoVisual {
-  if (empresa.tipoPlano === "PLANO_PAGO" && empresa.planoCortesia) {
+  if (
+    empresa.tipoPlano === "PLANO_CORTESIA" ||
+    (empresa.tipoPlano === "PLANO_PAGO" && empresa.planoCortesia)
+  ) {
     return "PLANO_CORTESIA";
   }
 
   return empresa.tipoPlano;
-}
-
-export function getTipoPlanoBackend(plano: TipoPlanoVisual): TipoPlano {
-  return plano === "PLANO_CORTESIA" ? "PLANO_PAGO" : plano;
 }
 
 export const ROLE_LABELS: Record<UserRoleEmpresa, string> = {
@@ -227,7 +228,6 @@ export async function alterarPlanoEmpresa(
   id: number,
   tipoPlano: TipoPlano,
   limiteUsuarios?: number,
-  planoCortesia?: boolean,
 ) {
   return apiFetch<EmpresaControle>(
     `/controle-proprietario/empresas/${id}/plano`,
@@ -236,7 +236,6 @@ export async function alterarPlanoEmpresa(
       body: JSON.stringify({
         tipoPlano,
         limiteUsuarios,
-        planoCortesia,
       }),
     },
   );

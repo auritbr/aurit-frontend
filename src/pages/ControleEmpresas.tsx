@@ -55,7 +55,6 @@ import {
 import {
   criarEmpresaComAdmin,
   getPlanoVisualEmpresa,
-  getTipoPlanoBackend,
   listarEmpresasControle,
   listarLogsGerais,
   PLANO_LABELS,
@@ -385,7 +384,7 @@ export default function ControleEmpresas() {
     }
 
     if (
-      novaEmpresa.tipoPlano === "PLANO_PAGO" &&
+      novaEmpresa.tipoPlano !== "PLANO_GRATUITO" &&
       (!novaEmpresa.limiteUsuarios || novaEmpresa.limiteUsuarios < 1)
     ) {
       toast.error("Informe um limite de usuários válido.");
@@ -404,8 +403,7 @@ export default function ControleEmpresas() {
         telefoneContato: novaEmpresa.telefoneContato.trim(),
         nomeAdministrador: novaEmpresa.nomeAdministrador.trim(),
         loginAdministrador: novaEmpresa.loginAdministrador.trim(),
-        tipoPlano: getTipoPlanoBackend(novaEmpresa.tipoPlano),
-        planoCortesia: novaEmpresa.tipoPlano === "PLANO_CORTESIA",
+        tipoPlano: novaEmpresa.tipoPlano,
         limiteUsuarios:
           novaEmpresa.tipoPlano === "PLANO_GRATUITO"
             ? 2

@@ -46,7 +46,12 @@ interface UsuarioStorage {
 interface ConfiguracaoEmpresaDTO {
   id: number;
   nomeEmpresa?: string;
-  tipoPlano?: "PLANO_GRATUITO" | "PLANO_PAGO" | string | null;
+  tipoPlano?:
+    | "PLANO_GRATUITO"
+    | "PLANO_PAGO"
+    | "PLANO_CORTESIA"
+    | string
+    | null;
   limiteUsuarios?: number | null;
 }
 

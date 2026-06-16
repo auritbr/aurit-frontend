@@ -1408,7 +1408,8 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
 
   if (normalizedReport.includes("evidencia")) {
     return [
-      { label: "Título", aliases: ["titulo", "título", "descricao", "descrição", "evidencia", "evidência"] },
+      { label: "Título", aliases: ["titulo", "título", "evidencia", "evidência"] },
+      { label: "Descrição", aliases: ["descricao", "descrição"] },
       { label: "Projeto", aliases: ["projeto"] },
       { label: "Atividade / Evento", aliases: ["atividade", "oficina", "evento"] },
       { label: "Tipo", aliases: ["tipo", "categoria"] },

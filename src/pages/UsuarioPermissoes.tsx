@@ -9,6 +9,7 @@ import { AccessDenied } from "@/components/AccessDenied";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { isPlanoAccessDenied } from "@/lib/access";
+import { getPlanoLabel } from "@/lib/plano";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -479,9 +480,7 @@ export default function UsuarioPermissoes() {
               <span>
                 Plano:{" "}
                 <span className="font-medium text-foreground">
-                  {tipoPlano === "PLANO_GRATUITO"
-                    ? "Plano Gratuito"
-                    : "Plano Pago"}
+                  {getPlanoLabel(tipoPlano)}
                 </span>
               </span>
             )}

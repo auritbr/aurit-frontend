@@ -106,8 +106,9 @@ const empty: ConfigEmpresaForm = {
 };
 
 const planos: { value: TipoPlanoApi; label: string }[] = [
-  { value: "PLANO_GRATUITO", label: "Plano Gratuito" },
-  { value: "PLANO_PAGO", label: "Plano Profissional" },
+  { value: "PLANO_GRATUITO", label: "Gratuito" },
+  { value: "PLANO_PAGO", label: "Pago" },
+  { value: "PLANO_CORTESIA", label: "Cortesia" },
 ];
 
 function formatDateTimeBR(value?: string | null) {
@@ -394,12 +395,12 @@ export default function ConfiguracaoEmpresa() {
       return;
     }
 
-    if (form.tipoPlano === "PLANO_PAGO" && !form.limiteUsuarios.trim()) {
+    if (form.tipoPlano !== "PLANO_GRATUITO" && !form.limiteUsuarios.trim()) {
       toast.error("Preencha o campo: Limite de usuários.");
       return;
     }
 
-    if (form.tipoPlano === "PLANO_PAGO" && Number(form.limiteUsuarios) < 1) {
+    if (form.tipoPlano !== "PLANO_GRATUITO" && Number(form.limiteUsuarios) < 1) {
       toast.error("O limite de usuários deve ser maior que zero.");
       return;
     }
@@ -688,7 +689,7 @@ export default function ConfiguracaoEmpresa() {
                 <FieldLabel
                   htmlFor="limiteUsuarios"
                   required
-                  tooltip="No plano gratuito o limite é fixado em 2 usuários. No plano pago, você pode informar a quantidade permitida."
+                  tooltip="No plano gratuito o limite é fixado em 2 usuários. Nos planos pago e cortesia, você pode informar a quantidade permitida."
                 >
                   Limite de Usuários
                 </FieldLabel>
@@ -925,7 +926,7 @@ export default function ConfiguracaoEmpresa() {
           {
             title: "Plano e acesso",
             content:
-              "No plano gratuito o limite é automaticamente 2 usuários. No plano pago, o limite informado é respeitado.",
+              "No plano gratuito o limite é automaticamente 2 usuários. Nos planos pago e cortesia, o limite informado é respeitado.",
           },
           {
             title: "Endereço",

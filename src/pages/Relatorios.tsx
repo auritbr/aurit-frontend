@@ -13,12 +13,12 @@ import {
   type PermissoesModulo,
 } from "@/lib/permissoes";
 import { isPlanoAccessDenied } from "@/lib/access";
-import { getTipoPlanoAtual } from "@/lib/plano";
+import { getTipoPlanoAtual, isPlanoPagoOuCortesia } from "@/lib/plano";
 import { RELATORIOS_CATALOGO } from "@/data/relatoriosCatalogo";
 
 export default function Relatorios() {
   const [loading, setLoading] = useState(true);
-  const [planoPago, setPlanoPago] = useState(false);
+  const [planoPremium, setPlanoPremium] = useState(false);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
@@ -28,7 +28,7 @@ export default function Relatorios() {
   const podeVisualizar = permissoes.VISUALIZAR;
 
   const relatoriosVisiveis = useMemo(() => {
-    if (planoPago) {
+    if (planoPremium) {
       return RELATORIOS_CATALOGO;
     }
 
@@ -36,7 +36,7 @@ export default function Relatorios() {
       ...grupo,
       itens: grupo.itens.filter((item) => item.plano === "gratis"),
     })).filter((grupo) => grupo.itens.length > 0);
-  }, [planoPago]);
+  }, [planoPremium]);
 
   useEffect(() => {
     let active = true;
@@ -45,7 +45,7 @@ export default function Relatorios() {
       try {
         setLoading(true);
         setAccessDeniedMessage(null);
-        setPlanoPago(false);
+        setPlanoPremium(false);
 
         const permissoesData =
           await getPermissoesUsuarioLogadoPorModulo("RELATORIOS");
@@ -62,7 +62,7 @@ export default function Relatorios() {
 
         if (!active) return;
 
-        setPlanoPago(tipoPlano !== "PLANO_GRATUITO");
+        setPlanoPremium(isPlanoPagoOuCortesia(tipoPlano));
       } catch (error) {
         const message =
           error instanceof Error
@@ -132,14 +132,14 @@ export default function Relatorios() {
         <PageTitle
           title="Relatórios"
           tooltip={
-            planoPago
+            planoPremium
               ? "Acesse todos os relatórios disponíveis para a organização."
               : "Acesse os relatórios disponíveis para o plano gratuito."
           }
         />
 
         <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          {planoPago ? (
+          {planoPremium ? (
             <>
               Esta área reúne os relatórios da organização seguindo a mesma
               lógica de navegação do sistema. O{" "}

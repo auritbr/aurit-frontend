@@ -68,7 +68,6 @@ import {
   buscarEmpresaControle,
   excluirPagamentoEmpresa,
   getPlanoVisualEmpresa,
-  getTipoPlanoBackend,
   listarLogsEmpresa,
   listarPagamentosEmpresa,
   listarUsuariosEmpresa,
@@ -228,12 +227,10 @@ export default function ControleEmpresaDetalhe() {
     if (!empresa || !novoPlano) return;
 
     try {
-      const planoBackend = getTipoPlanoBackend(novoPlano);
       const atualizada = await alterarPlanoEmpresa(
         empresa.id,
-        planoBackend,
+        novoPlano,
         novoPlano === "PLANO_GRATUITO" ? 2 : novoLimiteUsuarios,
-        novoPlano === "PLANO_CORTESIA",
       );
 
       setEmpresa(atualizada);

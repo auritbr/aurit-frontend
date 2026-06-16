@@ -30,7 +30,6 @@ import { maskCEP, maskPhone } from "@/lib/masks";
 import { estadosBrasil } from "@/data/colaboradores";
 import {
   getPlanoVisualEmpresa,
-  getTipoPlanoBackend,
   type TipoPlanoVisual,
 } from "@/data/controleProprietario";
 
@@ -116,9 +115,9 @@ const empty: ConfigEmpresaForm = {
 };
 
 const planos: { value: TipoPlanoVisual; label: string }[] = [
-  { value: "PLANO_GRATUITO", label: "Plano Gratuito" },
-  { value: "PLANO_CORTESIA", label: "Plano Cortesia" },
-  { value: "PLANO_PAGO", label: "Plano Pago" },
+  { value: "PLANO_GRATUITO", label: "Gratuito" },
+  { value: "PLANO_PAGO", label: "Pago" },
+  { value: "PLANO_CORTESIA", label: "Cortesia" },
 ];
 
 function formatDateTimeBR(value?: string | null) {
@@ -214,7 +213,6 @@ function buildPayload(form: ConfigEmpresaForm): ConfiguracaoEmpresaRequestDTO {
     telefoneContato: form.telefoneContato.trim(),
     documentoIdentificacao: form.documentoIdentificacao.trim(),
     tipoPlano: form.tipoPlano as TipoPlanoApi,
-    planoCortesia: Boolean(form.planoCortesia),
     limiteUsuarios:
       form.tipoPlano === "PLANO_GRATUITO"
         ? 2
@@ -334,8 +332,8 @@ export default function ConfiguracaoEmpresaProprietario() {
     setPlanoVisual(value);
     setForm((prev) => ({
       ...prev,
-      tipoPlano: getTipoPlanoBackend(value),
-      planoCortesia: value === "PLANO_CORTESIA",
+      tipoPlano: value,
+      planoCortesia: false,
       limiteUsuarios:
         value === "PLANO_GRATUITO"
           ? "2"
@@ -448,12 +446,12 @@ export default function ConfiguracaoEmpresaProprietario() {
       return;
     }
 
-    if (form.tipoPlano === "PLANO_PAGO" && !form.limiteUsuarios.trim()) {
+    if (form.tipoPlano !== "PLANO_GRATUITO" && !form.limiteUsuarios.trim()) {
       toast.error("Preencha o campo: Limite de usuários.");
       return;
     }
 
-    if (form.tipoPlano === "PLANO_PAGO" && Number(form.limiteUsuarios) < 1) {
+    if (form.tipoPlano !== "PLANO_GRATUITO" && Number(form.limiteUsuarios) < 1) {
       toast.error("O limite de usuários deve ser maior que zero.");
       return;
     }
@@ -789,7 +787,7 @@ export default function ConfiguracaoEmpresaProprietario() {
                 <FieldLabel
                   htmlFor="limiteUsuarios"
                   required
-                  tooltip="No plano gratuito o limite é fixado em 2 usuários. No plano pago, você pode informar a quantidade permitida."
+                  tooltip="No plano gratuito o limite é fixado em 2 usuários. Nos planos pago e cortesia, você pode informar a quantidade permitida."
                 >
                   Limite de Usuários
                 </FieldLabel>

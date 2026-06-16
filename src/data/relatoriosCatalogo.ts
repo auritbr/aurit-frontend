@@ -28,6 +28,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { resolveRelatorioSlug } from "@/data/relatorios";
+
 export type RelatorioPlano = "gratis" | "pago";
 
 export interface RelatorioCatalogoItem {
@@ -467,5 +469,12 @@ export const RELATORIOS_FLAT: RelatorioCatalogoItem[] =
 export function findRelatorioBySlug(
   slug: string,
 ): RelatorioCatalogoItem | undefined {
-  return RELATORIOS_FLAT.find((relatorio) => relatorio.slug === slug);
+  const resolvedSlug = resolveRelatorioSlug(slug);
+
+  return RELATORIOS_FLAT.find(
+    (relatorio) =>
+      relatorio.slug === slug ||
+      relatorio.slug === resolvedSlug ||
+      resolveRelatorioSlug(relatorio.slug) === resolvedSlug,
+  );
 }

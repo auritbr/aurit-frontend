@@ -1,6 +1,9 @@
 import { apiFetch } from "@/lib/api";
 
-export type TipoPlanoApi = "PLANO_GRATUITO" | "PLANO_PAGO";
+export type TipoPlanoApi =
+  | "PLANO_GRATUITO"
+  | "PLANO_PAGO"
+  | "PLANO_CORTESIA";
 
 export interface EnderecoDTO {
   cep: string;
@@ -36,7 +39,6 @@ export interface ConfiguracaoEmpresaRequestDTO {
   telefoneContato: string;
   documentoIdentificacao: string;
   tipoPlano: TipoPlanoApi;
-  planoCortesia?: boolean;
   limiteUsuarios: number;
   endereco: {
     cep: string;
