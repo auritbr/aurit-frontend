@@ -1287,7 +1287,7 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
     normalizedReport.includes("aplicação de recursos") ||
     normalizedReport.includes("orcamento da proposta") ||
     normalizedReport.includes("orçamento da proposta") ||
-    normalizedReport.includes("planejamento financeiro")
+    normalizedReport.includes("aplicacao de recursos")
   ) {
     return [
       { label: "Item do Planejamento", aliases: ["item do planejamento", "nomePlanejamento", "nome_planejamento", "planejamento", "item"] },
@@ -1376,8 +1376,6 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
       { label: "Tipo", aliases: ["tipo", "categoria"] },
       { label: "Data", aliases: ["data"] },
       { label: "Responsável", aliases: ["responsavel", "responsável"] },
-      { label: "Arquivo / Link", aliases: ["arquivo", "link"] },
-      { label: "Observação", aliases: ["observacao", "observação"] },
     ];
   }
 
