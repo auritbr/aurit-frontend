@@ -248,7 +248,7 @@ export const RELATORIO_SLUG_ALIASES: Record<string, string> = {
   "resultado-proposta": "resultados-propostas",
   resultados: "resultados-propostas",
 
-  "aplicacao-recursos": "aplicacao-de-recursos",
+  "aplicacao-de-recursos": "aplicacao-de-recursos",
   "planejamento-financeiro": "aplicacao-de-recursos",
   "planejamentos-financeiros": "aplicacao-de-recursos",
 
@@ -279,7 +279,7 @@ function getRelatorioEndpointCandidates(slugInput: string): string[] {
   const candidates = new Set<string>([slug]);
 
   if (slug === "aplicacao-de-recursos") {
-    candidates.add("aplicacao-recursos");
+    candidates.add("aplicacao-de-recursos");
     candidates.add("planejamento-financeiro");
   }
 

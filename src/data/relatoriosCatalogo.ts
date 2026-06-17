@@ -354,7 +354,7 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         searchPlaceholder: "Buscar por ação, estratégia, projeto...",
       },
       {
-        slug: "aplicacao-recursos",
+        slug: "aplicacao-de-recursos",
         title: "Aplicação de Recursos",
         description:
           "Apresenta os itens previstos para aplicação de recursos da proposta, com justificativa, quantidade, unidade de medida, valor unitário, valor total e vínculos com equipe ou edital.",
