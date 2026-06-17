@@ -585,6 +585,15 @@ function getResumoLabel(reportName: string) {
   if (normalized.includes("execucao") || normalized.includes("execução")) return "Total de execuções";
   if (normalized.includes("divulgacao") || normalized.includes("divulgação")) return "Total de ações de divulgação";
   if (normalized.includes("documento")) return "Total de documentos";
+  if (
+    normalized.includes("planejamento financeiro") ||
+    normalized.includes("aplicacao financeira") ||
+    normalized.includes("aplicação financeira") ||
+    normalized.includes("aplicacao de recursos") ||
+    normalized.includes("aplicação de recursos")
+  ) {
+    return "Total de aplicações de recursos";
+  }
   if (normalized.includes("financeiro")) return "Total de registros financeiros";
   if (normalized.includes("patrimonio")) return "Total de patrimônios";
   if (normalized.includes("evidencia")) return "Total de evidências";
@@ -1316,6 +1325,8 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
   }
 
   if (
+    normalizedReport.includes("planejamento financeiro") ||
+    normalizedReport.includes("planejamentos financeiros") ||
     normalizedReport.includes("aplicacao financeira") ||
     normalizedReport.includes("aplicação financeira") ||
     normalizedReport.includes("aplicacoes financeiras") ||

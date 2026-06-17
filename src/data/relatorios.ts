@@ -540,8 +540,8 @@ function mapPlanoAulaToRelatorioRow(plano: PlanoAula): Record<string, unknown> {
   const turmas = plano.turmaNomes?.length
     ? plano.turmaNomes
     : plano.turmas
-        ?.map((turma) => turma.nomeTurma || turma.nome)
-        .filter(Boolean);
+      ?.map((turma) => turma.nomeTurma || turma.nome)
+      .filter(Boolean);
 
   return {
     atividade: plano.atividadeNome || plano.atividade?.nomeAtividade || "—",
@@ -673,17 +673,17 @@ function normalizarVinculosParticipante(
 
   const atividades = joinUnique(
     firstTextValue(row.atividades, row.atividade, row.nome_atividade) ||
-      joinUnique(vinculosNormalizados.map((vinculo) => vinculo.atividade)),
+    joinUnique(vinculosNormalizados.map((vinculo) => vinculo.atividade)),
   );
 
   const turmas = joinUnique(
     firstTextValue(row.turmas, row.turma, row.nome_turma) ||
-      joinUnique(vinculosNormalizados.map((vinculo) => vinculo.turma)),
+    joinUnique(vinculosNormalizados.map((vinculo) => vinculo.turma)),
   );
 
   const niveis = joinUnique(
     firstTextValue(row.niveis_turma, row.nivel_turma, row.nivelTurma) ||
-      joinUnique(vinculosNormalizados.map((vinculo) => vinculo.nivelTurma)),
+    joinUnique(vinculosNormalizados.map((vinculo) => vinculo.nivelTurma)),
   );
 
   const statusMatriculas = joinUnique(
@@ -692,7 +692,7 @@ function normalizarVinculosParticipante(
       row.status_matricula,
       row.statusMatricula,
     ) ||
-      joinUnique(vinculosNormalizados.map((vinculo) => vinculo.statusMatricula)),
+    joinUnique(vinculosNormalizados.map((vinculo) => vinculo.statusMatricula)),
   );
 
   const datasMatricula = joinUnique(
@@ -701,16 +701,16 @@ function normalizarVinculosParticipante(
       row.data_matricula,
       row.dataMatricula,
     ) ||
-      joinUnique(
-        vinculosNormalizados.map((vinculo) =>
-          vinculo.dataMatricula ? formatDateBR(vinculo.dataMatricula) : "",
-        ),
+    joinUnique(
+      vinculosNormalizados.map((vinculo) =>
+        vinculo.dataMatricula ? formatDateBR(vinculo.dataMatricula) : "",
       ),
+    ),
   );
 
   const resumoVinculos = joinUnique(
     firstTextValue(row.vinculos_participante, row.vinculos_texto) ||
-      vinculosNormalizados.map(formatVinculoParticipante).filter(Boolean),
+    vinculosNormalizados.map(formatVinculoParticipante).filter(Boolean),
   );
 
   if (resumoVinculos) normalized.vinculos_participante = resumoVinculos;
@@ -1320,49 +1320,23 @@ export function getColunasRelatorio(
     ],
 
     "planejamento-financeiro": [
-      { chave: "nome_planejamento", label: "Item de Aplicação" },
-      { chave: "proposta_edital", label: "Proposta de Edital" },
-      { chave: "edital", label: "Edital", visivelPorPadrao: false },
-      {
-        chave: "funcao_equipe",
-        label: "Função da Equipe",
-        visivelPorPadrao: false,
-      },
-      { chave: "colaborador", label: "Colaborador", visivelPorPadrao: false },
-      { chave: "integrante", label: "Integrante", visivelPorPadrao: false },
-      { chave: "agente", label: "Agente Responsável", visivelPorPadrao: false },
+      { chave: "nome_planejamento", label: "Nome Planejamento" },
       { chave: "quantidade", label: "Quantidade", tipo: "numero" },
-      { chave: "unidade_medida", label: "Unidade de Medida" },
+      { chave: "unidade_medida", label: "Unidade Medida" },
       { chave: "valor_unitario", label: "Valor Unitário", tipo: "moeda" },
       { chave: "valor_total", label: "Valor Total", tipo: "moeda" },
-      {
-        chave: "justificativa_planejamento",
-        label: "Justificativa",
-        visivelPorPadrao: false,
-      },
+      { chave: "funcao_equipe", label: "Função Equipe" },
+      { chave: "colaborador", label: "Colaborador" },
     ],
 
     "aplicacao-de-recursos": [
-      { chave: "nome_planejamento", label: "Item de Aplicação" },
-      { chave: "proposta_edital", label: "Proposta de Edital" },
-      { chave: "edital", label: "Edital", visivelPorPadrao: false },
-      {
-        chave: "funcao_equipe",
-        label: "Função da Equipe",
-        visivelPorPadrao: false,
-      },
-      { chave: "colaborador", label: "Colaborador", visivelPorPadrao: false },
-      { chave: "integrante", label: "Integrante", visivelPorPadrao: false },
-      { chave: "agente", label: "Agente Responsável", visivelPorPadrao: false },
+      { chave: "nome_planejamento", label: "Nome Planejamento" },
       { chave: "quantidade", label: "Quantidade", tipo: "numero" },
-      { chave: "unidade_medida", label: "Unidade de Medida" },
+      { chave: "unidade_medida", label: "Unidade Medida" },
       { chave: "valor_unitario", label: "Valor Unitário", tipo: "moeda" },
       { chave: "valor_total", label: "Valor Total", tipo: "moeda" },
-      {
-        chave: "justificativa_planejamento",
-        label: "Justificativa",
-        visivelPorPadrao: false,
-      },
+      { chave: "funcao_equipe", label: "Função Equipe" },
+      { chave: "colaborador", label: "Colaborador" },
     ],
 
     "planos-aula": [

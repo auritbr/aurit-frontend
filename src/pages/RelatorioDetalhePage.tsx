@@ -46,6 +46,7 @@ const SLUGS_COM_AGENTE = new Set([
   "habilitacoes-propostas",
   "equipe-edital",
   "planejamento-financeiro",
+  "aplicacao-de-recursos",
 ]);
 
 export default function RelatorioDetalhePage() {
@@ -245,8 +246,12 @@ export default function RelatorioDetalhePage() {
     );
   }
 
-  const title = data?.titulo || item.title;
-  const description = data?.descricao || item.description;
+  const title = getTituloRelatorioParaExibicao(slug, data?.titulo, item.title);
+  const description = getDescricaoRelatorioParaExibicao(
+    slug,
+    data?.descricao,
+    item.description,
+  );
   const rows = data?.registros ?? [];
 
   const enablePdfExport = podeGerarPdf && rows.length > 0 && columns.length > 0;
@@ -331,6 +336,30 @@ function buildColumnFromMeta(meta: RelatorioColunaMeta): RelatorioColumn<Row> {
     render: (row) =>
       formatValorRelatorio(getValorColuna(row, meta.chave), meta.chave),
   };
+}
+
+function getTituloRelatorioParaExibicao(
+  slug: string,
+  tituloBackend: string | undefined,
+  tituloCatalogo: string,
+): string {
+  if (slug === "aplicacao-de-recursos") {
+    return tituloCatalogo || "Aplicação de Recursos";
+  }
+
+  return tituloBackend || tituloCatalogo;
+}
+
+function getDescricaoRelatorioParaExibicao(
+  slug: string,
+  descricaoBackend: string | undefined,
+  descricaoCatalogo: string,
+): string {
+  if (slug === "aplicacao-de-recursos") {
+    return descricaoCatalogo;
+  }
+
+  return descricaoBackend || descricaoCatalogo;
 }
 
 function normalizarRegistrosParaExibicao(slug: string, registros: Row[]): Row[] {
