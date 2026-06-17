@@ -114,6 +114,16 @@ function getEmailInputValue(valueOrEvent: string | ChangeEvent<HTMLInputElement>
   return valueOrEvent.target.value;
 }
 
+function getEmpresaLogKey(value?: number | string | null) {
+  if (value === null || value === undefined || value === "") return "";
+
+  return String(value);
+}
+
+function getEmpresaNomeLogKey(value?: string | null) {
+  return (value ?? "").trim().toLowerCase();
+}
+
 function SummaryCard({
   label,
   value,
@@ -306,6 +316,56 @@ export default function ControleEmpresas() {
 
   const logsPagination = usePagination(logs, 10, "");
 
+  const ultimoAcessoPorEmpresa = useMemo(() => {
+    const porConfiguracao = new Map<string, string>();
+    const porNome = new Map<string, string>();
+
+    logs.forEach((log) => {
+      if (log.tipoLogAcesso !== "LOGIN_SUCESSO") return;
+
+      const timestamp = new Date(log.dataEvento).getTime();
+
+      if (Number.isNaN(timestamp)) return;
+
+      const atual = log.dataEvento;
+      const configuracaoKey = getEmpresaLogKey(log.configuracaoEmpresaId);
+      const nomeKey = getEmpresaNomeLogKey(log.nomeEmpresa);
+
+      if (configuracaoKey) {
+        const existente = porConfiguracao.get(configuracaoKey);
+        const existenteTime = existente ? new Date(existente).getTime() : 0;
+
+        if (!existente || timestamp > existenteTime) {
+          porConfiguracao.set(configuracaoKey, atual);
+        }
+      }
+
+      if (nomeKey) {
+        const existente = porNome.get(nomeKey);
+        const existenteTime = existente ? new Date(existente).getTime() : 0;
+
+        if (!existente || timestamp > existenteTime) {
+          porNome.set(nomeKey, atual);
+        }
+      }
+    });
+
+    return { porConfiguracao, porNome };
+  }, [logs]);
+
+  function getUltimoAcessoEmpresa(empresa: EmpresaControle) {
+    const configuracaoKey = getEmpresaLogKey(empresa.configuracaoEmpresaId);
+    const nomeKey = getEmpresaNomeLogKey(empresa.nomeEmpresa);
+
+    return (
+      (configuracaoKey
+        ? ultimoAcessoPorEmpresa.porConfiguracao.get(configuracaoKey)
+        : undefined) ??
+      ultimoAcessoPorEmpresa.porNome.get(nomeKey) ??
+      null
+    );
+  }
+
   function handleNomeEmpresaChange(value: string) {
     setNovaEmpresa((prev) => ({
       ...prev,
@@ -435,6 +495,7 @@ export default function ControleEmpresas() {
       Plano: PLANO_LABELS[getPlanoVisualEmpresa(e)],
       Status: e.statusControleProprietario === "ATIVO" ? "Ativo" : "Inativo",
       Usuarios: `${e.totalUsuarios}/${e.limiteUsuarios}`,
+      "Ultimo Acesso": formatDateTime(getUltimoAcessoEmpresa(e)),
       "Data de Criacao": formatDateTime(e.dataCriacao),
       "Ultima Atualizacao": formatDateTime(e.dataAtualizacao),
     }));
@@ -647,6 +708,9 @@ export default function ControleEmpresas() {
                   <th className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
                     Usuários
                   </th>
+                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
+                    Último acesso
+                  </th>
                   <th className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
                     Detalhes
                   </th>
@@ -719,6 +783,10 @@ export default function ControleEmpresas() {
                           </span>
                         </td>
 
+                        <td className="px-5 py-3 whitespace-nowrap text-muted-foreground">
+                          {formatDateTime(getUltimoAcessoEmpresa(e))}
+                        </td>
+
                         <td className="px-5 py-3 text-right whitespace-nowrap">
                           <Button
                             size="sm"
@@ -738,7 +806,7 @@ export default function ControleEmpresas() {
 
                 {!loading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-5 py-16 text-center">
+                    <td colSpan={10} className="px-5 py-16 text-center">
                       <Building2 className="h-10 w-10 mx-auto text-muted-foreground/40" />
                       <p className="mt-3 text-sm text-muted-foreground">
                         Nenhuma empresa encontrada.
