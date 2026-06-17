@@ -1,5 +1,4 @@
 import { apiFetch } from "@/lib/api";
-import { getStoredToken } from "@/lib/auth";
 
 export type TipoPlano =
   | "PLANO_GRATUITO"
@@ -112,6 +111,27 @@ export interface LogAcessoEmpresa {
   userAgent: string | null;
   detalhe: string | null;
   dataEvento: string;
+}
+
+type LogsResponse =
+  | LogAcessoEmpresa[]
+  | {
+      content?: LogAcessoEmpresa[];
+      data?: LogAcessoEmpresa[];
+      items?: LogAcessoEmpresa[];
+      registros?: LogAcessoEmpresa[];
+    };
+
+function extractLogs(data: LogsResponse): LogAcessoEmpresa[] {
+  if (Array.isArray(data)) return data;
+
+  return (
+    data.content ??
+    data.data ??
+    data.items ??
+    data.registros ??
+    []
+  );
 }
 
 export const PLANO_LABELS: Record<TipoPlanoVisual, string> = {
@@ -239,19 +259,6 @@ export async function alterarPlanoEmpresa(
           limiteUsuarios,
         };
 
-  if (
-    import.meta.env.DEV ||
-    localStorage.getItem("debugControleProprietario") === "true"
-  ) {
-    console.debug("[controle-proprietario] alterar plano", {
-      method: "PATCH",
-      path,
-      controleId: id,
-      payload,
-      hasAuthorizationHeader: Boolean(getStoredToken()),
-    });
-  }
-
   return apiFetch<EmpresaControle>(
     path,
     {
@@ -346,5 +353,15 @@ export async function listarLogsEmpresa(id: number) {
 }
 
 export async function listarLogsGerais() {
-  return apiFetch<LogAcessoEmpresa[]>("/controle-proprietario/logs");
+  try {
+    const data = await apiFetch<LogsResponse>(
+      "/controle-proprietario/logs?size=10000&limit=10000",
+    );
+
+    return extractLogs(data);
+  } catch {
+    const data = await apiFetch<LogsResponse>("/controle-proprietario/logs");
+
+    return extractLogs(data);
+  }
 }
