@@ -1057,7 +1057,7 @@ export function getColunasRelatorio(
       },
       {
         chave: "planejamento_financeiro",
-        label: "Planejamento Financeiro",
+        label: "Aplicação de Recursos",
         visivelPorPadrao: false,
       },
       {

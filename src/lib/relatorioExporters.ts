@@ -1034,6 +1034,11 @@ function penalizeWrongMatchByRule(
     "titulo do projeto": ["resumo", "justificativa", "metodologia", "impacto"],
     "proposta de edital": ["status", "data", "valor"],
     "item do planejamento": ["justificativa"],
+    "nome planejamento": ["justificativa", "periodo", "valor", "quantidade"],
+    "valor unitario": ["total"],
+    "valor total": ["unitario"],
+    "tipo evidencia": ["vinculo"],
+    "tipo vinculo evidencia": ["arquivo", "link", "descricao"],
     "nome do projeto": ["status", "origem", "area", "data"],
     "nome completo": ["responsavel", "mae", "pai"],
     "cpf": ["responsavel"],
@@ -1311,6 +1316,10 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
   }
 
   if (
+    normalizedReport.includes("aplicacao financeira") ||
+    normalizedReport.includes("aplicação financeira") ||
+    normalizedReport.includes("aplicacoes financeiras") ||
+    normalizedReport.includes("aplicações financeiras") ||
     normalizedReport.includes("aplicacao de recursos") ||
     normalizedReport.includes("aplicação de recursos") ||
     normalizedReport.includes("orcamento da proposta") ||
@@ -1318,15 +1327,16 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
   ) {
     return [
       {
-        label: "Item de Aplicação",
+        label: "Nome Planejamento",
         aliases: [
+          "nome planejamento",
+          "nomePlanejamento",
+          "nome_planejamento",
+          "item do planejamento",
           "item de aplicacao",
           "item de aplicação",
           "item da aplicacao",
           "item da aplicação",
-          "item do planejamento",
-          "nomePlanejamento",
-          "nome_planejamento",
           "planejamento",
           "nome",
           "titulo",
@@ -1334,61 +1344,57 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
           "item",
         ],
       },
-      {
-        label: "Justificativa",
-        aliases: [
-          "justificativa",
-          "justificativaPlanejamento",
-          "justificativa_planejamento",
-          "descricao",
-          "descrição",
-        ],
-      },
-      {
-        label: "Período",
-        aliases: [
-          "periodo",
-          "período",
-        ],
-        accessor: (row) => {
-          const periodo = getFirstExistingValue(row, ["periodo", "período"]);
-
-          if (periodo && periodo !== "—") return periodo;
-
-          const inicio = getFirstExistingValue(row, [
-            "dataInicio",
-            "data_inicio",
-            "inicio",
-          ]);
-          const fim = getFirstExistingValue(row, [
-            "dataFim",
-            "data_fim",
-            "fim",
-          ]);
-
-          if (inicio !== "—" && fim !== "—") return `${inicio} - ${fim}`;
-          if (inicio !== "—") return String(inicio);
-          if (fim !== "—") return String(fim);
-
-          return "—";
-        },
-      },
       { label: "Quantidade", aliases: ["quantidade", "qtd"] },
-      { label: "Unidade de Medida", aliases: ["unidade de medida", "unidadeMedida", "unidade_medida", "unidade"] },
-      { label: "Valor Unitário", aliases: ["valor unitario", "valor unitário", "valorUnitario", "valor_unitario", "valor"] },
-      { label: "Valor Total", aliases: ["valor total", "valorTotal", "valor_total", "total"] },
       {
-        label: "Proposta de Edital",
+        label: "Unidade Medida",
         aliases: [
-          "proposta de edital",
-          "propostaEdital",
-          "proposta_edital",
-          "propostaEditalId",
-          "proposta_edital_id",
-          "proposta",
+          "unidade medida",
+          "unidade de medida",
+          "unidadeMedida",
+          "unidade_medida",
+          "unidade",
         ],
       },
-      { label: "Função da Equipe", aliases: ["funcao da equipe", "função da equipe", "funcaoEquipe", "funcao_equipe", "equipe"] },
+      {
+        label: "Valor Unitário",
+        aliases: [
+          "valor unitario",
+          "valor unitário",
+          "valorUnitario",
+          "valor_unitario",
+        ],
+      },
+      {
+        label: "Valor Total",
+        aliases: ["valor total", "valorTotal", "valor_total", "total"],
+      },
+      {
+        label: "Função Equipe",
+        aliases: [
+          "funcao equipe",
+          "função equipe",
+          "funcao da equipe",
+          "função da equipe",
+          "funcaoEquipe",
+          "funcao_equipe",
+          "equipe.funcao",
+          "equipe.funcaoEquipe",
+        ],
+      },
+      {
+        label: "Colaborador",
+        aliases: [
+          "colaborador",
+          "colaborador.nome",
+          "colaborador.nomeCompleto",
+          "colaborador.nome_completo",
+          "nomeColaborador",
+          "nome_colaborador",
+          "equipe.colaborador",
+          "equipe.colaborador.nome",
+          "equipe.colaborador.nomeCompleto",
+        ],
+      },
     ];
   }
 
@@ -1457,16 +1463,65 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
     ];
   }
 
-  if (normalizedReport.includes("evidencia")) {
+  if (
+    normalizedReport.includes("evidencia de execucao") ||
+    normalizedReport.includes("evidência de execução") ||
+    normalizedReport.includes("evidencias de execucao") ||
+    normalizedReport.includes("evidências de execução") ||
+    normalizedReport.includes("evidencia")
+  ) {
     return [
-      { label: "Título", aliases: ["titulo", "título", "tituloEvidencia", "titulo_evidencia", "evidencia", "evidência"] },
-      { label: "Descrição", aliases: ["descricao", "descrição", "descricaoEvidencia", "descricao_evidencia"] },
-      { label: "Tipo", aliases: ["tipo", "tipoEvidencia", "tipo_evidencia", "categoria"] },
-      { label: "Arquivo / Link", aliases: ["arquivo", "arquivoKey", "arquivo_key", "url", "link", "linkArquivo", "link_arquivo"] },
-      { label: "Projeto", aliases: ["projeto", "projeto.nome", "nomeProjeto", "nome_projeto"] },
-      { label: "Proposta", aliases: ["proposta", "propostaEdital", "proposta_edital"] },
-      { label: "Turma", aliases: ["turma", "turma.nome", "nomeTurma", "nome_turma"] },
-      { label: "Presença", aliases: ["presenca", "presença"] },
+      {
+        label: "Título Evidência",
+        aliases: [
+          "titulo evidencia",
+          "título evidência",
+          "tituloEvidencia",
+          "titulo_evidencia",
+          "titulo",
+          "título",
+          "evidencia",
+          "evidência",
+        ],
+      },
+      {
+        label: "Tipo Evidência",
+        aliases: [
+          "tipo evidencia",
+          "tipo evidência",
+          "tipoEvidencia",
+          "tipo_evidencia",
+          "tipo",
+          "categoria",
+        ],
+      },
+      {
+        label: "Tipo Vínculo Evidência",
+        aliases: [
+          "tipo vinculo evidencia",
+          "tipo vínculo evidência",
+          "tipoVinculoEvidencia",
+          "tipo_vinculo_evidencia",
+          "tipoVinculo",
+          "tipo_vinculo",
+          "vinculoEvidencia",
+          "vinculo_evidencia",
+          "vínculo evidência",
+          "vinculo",
+          "vínculo",
+        ],
+      },
+      {
+        label: "Projeto",
+        aliases: [
+          "projeto",
+          "projeto.nome",
+          "projeto.nomeProjeto",
+          "projeto.titulo",
+          "nomeProjeto",
+          "nome_projeto",
+        ],
+      },
     ];
   }
 

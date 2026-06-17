@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import { getStoredToken } from "@/lib/auth";
 
 export type TipoPlano =
   | "PLANO_GRATUITO"
@@ -229,14 +230,33 @@ export async function alterarPlanoEmpresa(
   tipoPlano: TipoPlano,
   limiteUsuarios?: number,
 ) {
+  const path = `/controle-proprietario/empresas/${id}/plano`;
+  const payload =
+    tipoPlano === "PLANO_CORTESIA"
+      ? { tipoPlano }
+      : {
+          tipoPlano,
+          limiteUsuarios,
+        };
+
+  if (
+    import.meta.env.DEV ||
+    localStorage.getItem("debugControleProprietario") === "true"
+  ) {
+    console.debug("[controle-proprietario] alterar plano", {
+      method: "PATCH",
+      path,
+      controleId: id,
+      payload,
+      hasAuthorizationHeader: Boolean(getStoredToken()),
+    });
+  }
+
   return apiFetch<EmpresaControle>(
-    `/controle-proprietario/empresas/${id}/plano`,
+    path,
     {
       method: "PATCH",
-      body: JSON.stringify({
-        tipoPlano,
-        limiteUsuarios,
-      }),
+      body: JSON.stringify(payload),
     },
   );
 }
