@@ -38,13 +38,12 @@ export interface ColaboradorResumo {
 export interface PlanoAula {
   id: string;
 
+  nomePlanoAula: string;
+
   atividadeId: string;
   atividadeNome?: string;
   atividade?: AtividadeResumo;
 
-  /**
-   * Compatibilidade com dados antigos. Para novos cadastros/edições, use turmaIds.
-   */
   turmaId?: string;
   turmaNome?: string;
   turma?: TurmaResumo | null;
@@ -71,12 +70,10 @@ export interface PlanoAula {
 export interface PlanoAulaPayloadDTO {
   id?: number;
 
+  nomePlanoAula: string;
+
   atividadeId: number;
 
-  /**
-   * Mantido para compatibilidade com o backend antigo.
-   * O campo principal para múltiplas turmas é turmaIds.
-   */
   turmaId?: number | null;
   turmaIds: number[];
 
@@ -95,9 +92,10 @@ export interface PlanoAulaPayloadDTO {
 export interface PlanoAulaApiDTO {
   id?: number | string | null;
 
+  nomePlanoAula?: string | null;
+
   atividadeId?: number | string | null;
 
-  /** Campos antigos e novos suportados durante a transição. */
   turmaId?: number | string | null;
   turmaIds?: Array<number | string | null> | null;
 
@@ -358,6 +356,8 @@ export function mapPlanoAula(dto: PlanoAulaApiDTO): PlanoAula {
   return {
     id: normalizeId(dto.id),
 
+    nomePlanoAula: dto.nomePlanoAula ?? "",
+
     atividadeId,
     atividadeNome,
     atividade: atividadeId
@@ -418,6 +418,8 @@ export function buildPlanoAulaPayload(
 
   return {
     id: planoAula.id ? Number(planoAula.id) : undefined,
+
+    nomePlanoAula: planoAula.nomePlanoAula.trim(),
 
     atividadeId: Number(planoAula.atividadeId),
     turmaId: turmaIds[0] ?? null,

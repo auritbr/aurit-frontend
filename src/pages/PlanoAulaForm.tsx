@@ -67,6 +67,8 @@ function salvarProximaAcaoPlanoAula() {
 interface FormState {
   id: string;
 
+  nomePlanoAula: string;
+
   atividadeId: string;
   atividadeNome: string;
 
@@ -87,6 +89,8 @@ interface FormState {
 
 const initial: FormState = {
   id: "",
+
+  nomePlanoAula: "",
 
   atividadeId: "",
   atividadeNome: "",
@@ -196,6 +200,8 @@ function mapPlanoAulaToForm(planoAula: PlanoAula): FormState {
   return {
     id: normalizeId(raw.id),
 
+    nomePlanoAula: raw.nomePlanoAula ?? "",
+
     atividadeId,
     atividadeNome,
 
@@ -263,6 +269,8 @@ function getColaboradorNome(
 function formToPlanoAula(form: FormState): PlanoAula {
   return {
     id: form.id,
+
+    nomePlanoAula: form.nomePlanoAula,
 
     atividadeId: form.atividadeId,
     atividadeNome: form.atividadeNome,
@@ -653,6 +661,11 @@ export default function PlanoAulaForm() {
 
     const formComVinculos = getFormComVinculos();
 
+    if (!formComVinculos.nomePlanoAula.trim()) {
+      toast.error("Informe o nome do plano de aula.");
+      return;
+    }
+
     if (!formComVinculos.atividadeId) {
       toast.error("Selecione a atividade.");
       return;
@@ -782,6 +795,17 @@ export default function PlanoAulaForm() {
               <h2 className="text-sm font-semibold uppercase tracking-wide">
                 Vínculos e Período
               </h2>
+            </div>
+
+            <div className="sm:col-span-2">
+              <FieldLabel required={!visualizando}>Nome do Plano de Aula</FieldLabel>
+
+              <Input
+                value={form.nomePlanoAula}
+                onChange={(event) => set("nomePlanoAula", event.target.value)}
+                disabled={bloqueado}
+                readOnly={visualizando}
+              />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

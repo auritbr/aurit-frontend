@@ -3740,7 +3740,7 @@ export async function exportDiretoriaPdf(d: DiretoriaPdf) {
             label: "RG",
             value: v(d.rg),
           },
-                    {
+          {
             label: "Gênero",
             value: v(d.genero),
           },
@@ -4481,6 +4481,8 @@ export async function exportResultadoPropostaPdf(r: ResultadoPropostaPdf) {
 type PlanoAulaPdf = {
   id: string | number;
 
+  nomePlanoAula?: string | null;
+
   atividade?: string | null;
   turma?: string | null;
   colaborador?: string | null;
@@ -4508,6 +4510,8 @@ function statusPlanoAulaLabel(value?: string | null) {
 }
 
 export async function exportPlanoAulaPdf(p: PlanoAulaPdf) {
+  const NOME_PLANO_AULA = v(p.nomePlanoAula);
+
   const ATIVIDADE = v(p.atividade);
 
   const TURMA = v(p.turma);
@@ -4536,8 +4540,12 @@ export async function exportPlanoAulaPdf(p: PlanoAulaPdf) {
     documentNumber: `PLA-${String(p.id).padStart(4, "0")}`,
     sections: [
       {
-        title: "1. Vínculos do Plano de Aula",
+        title: "1. Identificação e Vínculos do Plano de Aula",
         fields: [
+          {
+            label: "Nome do Plano de Aula",
+            value: NOME_PLANO_AULA,
+          },
           {
             label: "Atividade",
             value: ATIVIDADE,

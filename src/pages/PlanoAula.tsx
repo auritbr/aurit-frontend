@@ -52,7 +52,7 @@ import {
     type TurmaOption,
 } from "@/data/planosAula";
 
-type SortKey = "atividade" | "turmas" | "colaborador" | "inicio" | "fim" | "status" | "conteudo";
+type SortKey = "nomePlanoAula" | "atividade" | "turmas" | "colaborador" | "inicio" | "fim" | "status" | "conteudo";
 
 function formatDateBR(value?: string | null) {
     if (!value) return "—";
@@ -189,6 +189,7 @@ export default function PlanosAula() {
             ).toLowerCase();
 
             return [
+                plano.nomePlanoAula,
                 plano.conteudo,
                 plano.observacao ?? "",
                 atividade,
@@ -209,6 +210,8 @@ export default function PlanosAula() {
         filtered,
         (plano, key: SortKey) => {
             switch (key) {
+                case "nomePlanoAula":
+                    return plano.nomePlanoAula ?? "";
                 case "atividade":
                     return atividadeNome(plano.atividadeId);
                 case "turmas":
@@ -276,6 +279,8 @@ export default function PlanosAula() {
         try {
             await exportPlanoAulaPdf({
                 id: plano.id,
+
+                nomePlanoAula: plano.nomePlanoAula,
 
                 atividade: atividadeNome(plano.atividadeId),
                 turma: planoTurmasNome(plano),
@@ -381,6 +386,14 @@ export default function PlanosAula() {
                                     </th>
 
                                     <SortableHeader
+                                        label="Plano de Aula"
+                                        sortKey="nomePlanoAula"
+                                        sortConfig={sortConfig}
+                                        onSort={handleSort}
+                                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                                    />
+
+                                    <SortableHeader
                                         label="Atividade"
                                         sortKey="atividade"
                                         sortConfig={sortConfig}
@@ -438,7 +451,7 @@ export default function PlanosAula() {
                                 {loading && (
                                     <tr>
                                         <td
-                                            colSpan={8}
+                                            colSpan={9}
                                             className="py-10 text-center text-sm text-muted-foreground"
                                         >
                                             Carregando...
@@ -481,6 +494,12 @@ export default function PlanosAula() {
                                                             onClick={() => setConfirmDelete(plano.id)}
                                                         />
                                                     </div>
+                                                </td>
+
+                                                <td className="px-6 py-2.5">
+                                                    <TableCellText text={plano.nomePlanoAula || "—"}>
+                                                        {plano.nomePlanoAula || "—"}
+                                                    </TableCellText>
                                                 </td>
 
                                                 <td className="px-6 py-2.5">
@@ -529,7 +548,7 @@ export default function PlanosAula() {
                                 {!loading && paginated.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={8}
+                                            colSpan={9}
                                             className="py-10 text-center text-sm text-muted-foreground"
                                         >
                                             Nenhum plano de aula encontrado.
