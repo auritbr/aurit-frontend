@@ -797,18 +797,18 @@ export default function PlanoAulaForm() {
               </h2>
             </div>
 
-            <div className="sm:col-span-2">
-              <FieldLabel required={!visualizando}>Nome do Plano de Aula</FieldLabel>
-
-              <Input
-                value={form.nomePlanoAula}
-                onChange={(event) => set("nomePlanoAula", event.target.value)}
-                disabled={bloqueado}
-                readOnly={visualizando}
-              />
-            </div>
-
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <FieldLabel required={!visualizando}>Nome do Plano de Aula</FieldLabel>
+
+                <Input
+                  value={form.nomePlanoAula}
+                  onChange={(event) => set("nomePlanoAula", event.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </div>
+
               <div className="sm:col-span-2">
                 <FieldLabel required={!visualizando}>Atividade</FieldLabel>
 
