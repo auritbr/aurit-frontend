@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ClipboardList, FileText } from "lucide-react";
 
@@ -19,6 +25,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
+import { MultiSelect } from "@/components/MultiSelect";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { toast } from "sonner";
 import {
@@ -129,7 +136,9 @@ function normalizeId(value: unknown): string {
 function normalizeIds(values: unknown): string[] {
   if (!Array.isArray(values)) return [];
 
-  return uniqueStringArray(values.map((value) => normalizeId(value)).filter(Boolean));
+  return uniqueStringArray(
+    values.map((value) => normalizeId(value)).filter(Boolean),
+  );
 }
 
 function uniqueStringArray(values: string[]): string[] {
@@ -310,7 +319,9 @@ export default function PlanoAulaForm() {
   const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
+    null,
+  );
 
   const bloqueado = loading || saving || visualizando;
 
@@ -366,7 +377,7 @@ export default function PlanoAulaForm() {
     }
 
     return options;
-  }, [atividades, form.atividadeId, form.atividadeNome, existingPlanoAula]);
+  }, [atividades, atividadeAtualId, form.atividadeNome, existingPlanoAula]);
 
   const turmasDaAtividade = useMemo(() => {
     const atividadeId = atividadeAtualId;
@@ -376,7 +387,7 @@ export default function PlanoAulaForm() {
     return turmas.filter(
       (turma) => String(turma.atividadeId) === String(atividadeId),
     );
-  }, [turmas, form.atividadeId, existingPlanoAula]);
+  }, [turmas, atividadeAtualId]);
 
   const turmasOptions = useMemo(() => {
     const options = [...turmasDaAtividade];
@@ -409,6 +420,7 @@ export default function PlanoAulaForm() {
     form.turmaIds,
     form.turmaNomes,
     form.atividadeId,
+    turmaIdsSelecionados,
     existingPlanoAula,
   ]);
 
@@ -453,8 +465,9 @@ export default function PlanoAulaForm() {
       turmasOptions,
       turmaId,
       form.turmaNomes[index] ||
-      existingPlanoAula?.turmas?.find((turma) => String(turma.id) === String(turmaId))
-        ?.nomeTurma ||
+      existingPlanoAula?.turmas?.find(
+        (turma) => String(turma.id) === String(turmaId),
+      )?.nomeTurma ||
       existingPlanoAula?.turmaNomes?.[index],
     );
   };
@@ -463,6 +476,15 @@ export default function PlanoAulaForm() {
     .map((turmaId) => getNomeTurmaPorId(turmaId))
     .filter(Boolean)
     .join(", ");
+
+  const turmasMultiSelectOptions = useMemo(
+    () => turmasOptions.map((turma) => String(turma.id)),
+    [turmasOptions],
+  );
+
+  const turmaLabel = (turmaId: string) =>
+    turmasOptions.find((turma) => String(turma.id) === String(turmaId))
+      ?.nomeTurma ?? turmaId;
 
   useEffect(() => {
     let active = true;
@@ -617,43 +639,6 @@ export default function PlanoAulaForm() {
     };
   }
 
-  const toggleTurma = (turma: TurmaOption) => {
-    if (visualizando) return;
-
-    setForm((prev) => {
-      const turmaId = String(turma.id);
-      const baseIds = uniqueStringArray(
-        prev.turmaIds.length ? prev.turmaIds : turmaIdsSelecionados,
-      );
-      const selecionada = baseIds.some((idTurma) => String(idTurma) === turmaId);
-
-      const turmaIds = selecionada
-        ? baseIds.filter((idTurma) => String(idTurma) !== turmaId)
-        : [...baseIds, turmaId];
-
-      return {
-        ...prev,
-        turmaIds,
-        turmaNomes: turmaIds.map((idTurma) => {
-          if (String(idTurma) === turmaId && !selecionada) {
-            return turma.nomeTurma;
-          }
-
-          const indexAnterior = prev.turmaIds.findIndex(
-            (idAnterior) => String(idAnterior) === String(idTurma),
-          );
-
-          return (
-            prev.turmaNomes[indexAnterior] ||
-            turmasOptions.find((item) => String(item.id) === String(idTurma))
-              ?.nomeTurma ||
-            `Turma ${idTurma}`
-          );
-        }),
-      };
-    });
-  };
-
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -792,6 +777,7 @@ export default function PlanoAulaForm() {
           <Card className="p-6">
             <div className="mb-6 flex items-center gap-2 border-b pb-3">
               <ClipboardList className="h-4 w-4 text-primary" />
+
               <h2 className="text-sm font-semibold uppercase tracking-wide">
                 Vínculos e Período
               </h2>
@@ -799,7 +785,9 @@ export default function PlanoAulaForm() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <FieldLabel required={!visualizando}>Nome do Plano de Aula</FieldLabel>
+                <FieldLabel required={!visualizando}>
+                  Nome do Plano de Aula
+                </FieldLabel>
 
                 <Input
                   value={form.nomePlanoAula}
@@ -823,7 +811,9 @@ export default function PlanoAulaForm() {
 
                     setForm((prev) => {
                       const atividadeAnterior =
-                        prev.atividadeId || String(existingPlanoAula?.atividadeId ?? "");
+                        prev.atividadeId ||
+                        String(existingPlanoAula?.atividadeId ?? "");
+
                       const mudouAtividade =
                         Boolean(atividadeAnterior) &&
                         String(atividadeAnterior) !== String(value);
@@ -853,56 +843,62 @@ export default function PlanoAulaForm() {
                 </Select>
               </div>
 
-              <div className="sm:col-span-2">
-                <FieldLabel required={!visualizando}>Turmas</FieldLabel>
+              <Field full>
+                <FieldLabel
+                  htmlFor="turmas"
+                  required={!visualizando}
+                  tooltip="Selecione uma ou mais turmas vinculadas à atividade. As turmas ajudam a identificar para quais grupos, horários ou níveis este plano de aula será aplicado."
+                >
+                  Turmas
+                </FieldLabel>
 
-                <div className="rounded-md border border-input bg-background">
-                  {!atividadeSelectValue && (
-                    <p className="px-3 py-3 text-sm text-muted-foreground">
-                      Selecione uma atividade primeiro para listar as turmas.
-                    </p>
-                  )}
+                {!atividadeSelectValue && (
+                  <p className="rounded-md border border-input bg-background px-3 py-3 text-sm text-muted-foreground">
+                    Selecione uma atividade primeiro para listar as turmas.
+                  </p>
+                )}
 
-                  {atividadeSelectValue && turmasOptions.length === 0 && (
-                    <p className="px-3 py-3 text-sm text-muted-foreground">
-                      Nenhuma turma encontrada para a atividade selecionada.
-                    </p>
-                  )}
+                {atividadeSelectValue && turmasOptions.length === 0 && (
+                  <p className="rounded-md border border-input bg-background px-3 py-3 text-sm text-muted-foreground">
+                    Nenhuma turma encontrada para a atividade selecionada.
+                  </p>
+                )}
 
-                  {atividadeSelectValue && turmasOptions.length > 0 && (
-                    <div className="max-h-56 divide-y overflow-y-auto">
-                      {turmasOptions.map((turma) => {
-                        const checked = turmaIdsSelecionados.some(
-                          (turmaId) => String(turmaId) === String(turma.id),
-                        );
+                {atividadeSelectValue && turmasOptions.length > 0 && (
+                  <div
+                    className={
+                      visualizando ? "pointer-events-none opacity-80" : ""
+                    }
+                  >
+                    <MultiSelect
+                      id="turmas"
+                      options={turmasMultiSelectOptions}
+                      value={turmaIdsSelecionados}
+                      onChange={(value) => {
+                        if (visualizando) return;
 
-                        return (
-                          <label
-                            key={turma.id}
-                            className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-muted/40"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleTurma(turma)}
-                              disabled={bloqueado || !atividadeSelectValue}
-                              className="h-4 w-4 rounded border-border"
-                            />
+                        const turmaIds = value.map(String);
 
-                            <span>{turma.nomeTurma}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                        setForm((prev) => ({
+                          ...prev,
+                          turmaIds,
+                          turmaNomes: turmaIds.map((turmaId) =>
+                            getTurmaNome(turmasOptions, turmaId),
+                          ),
+                        }));
+                      }}
+                      getOptionLabel={turmaLabel}
+                      placeholder="Selecione as turmas"
+                    />
+                  </div>
+                )}
 
                 {!!turmaIdsSelecionados.length && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     Turmas selecionadas: {turmasSelecionadasTexto}
                   </p>
                 )}
-              </div>
+              </Field>
 
               <div className="sm:col-span-2">
                 <FieldLabel required={!visualizando}>
@@ -915,8 +911,7 @@ export default function PlanoAulaForm() {
                     if (visualizando) return;
 
                     const colaboradorSelecionado = colaboradoresOptions.find(
-                      (colaborador) =>
-                        String(colaborador.id) === String(value),
+                      (colaborador) => String(colaborador.id) === String(value),
                     );
 
                     setForm((prev) => ({
@@ -1008,6 +1003,7 @@ export default function PlanoAulaForm() {
           <Card className="p-6">
             <div className="mb-6 flex items-center gap-2 border-b pb-3">
               <FileText className="h-4 w-4 text-primary" />
+
               <h2 className="text-sm font-semibold uppercase tracking-wide">
                 Conteúdo e Observações
               </h2>
@@ -1062,5 +1058,21 @@ export default function PlanoAulaForm() {
         </form>
       </div>
     </AppLayout>
+  );
+}
+
+function Field({
+  children,
+  full,
+  className,
+}: {
+  children: ReactNode;
+  full?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`${full ? "sm:col-span-2" : ""} ${className ?? ""}`}>
+      {children}
+    </div>
   );
 }

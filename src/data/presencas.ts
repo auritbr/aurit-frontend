@@ -72,6 +72,8 @@ export interface TurmaApiDTO {
 export interface PlanoAulaApiDTO {
   id?: number | string;
 
+  nomePlanoAula?: string | null;
+
   conteudo?: string | null;
   observacao?: string | null;
   dataInicio?: string | null;
@@ -147,6 +149,7 @@ export interface TurmaOption {
 
 export interface PlanoAulaOption {
   id: string;
+  nomePlanoAula: string;
   conteudo: string;
   observacao: string;
   dataInicio: string;
@@ -228,11 +231,14 @@ function compareByName<T extends { nomeAtividade?: string; nomeTurma?: string }>
 }
 
 function comparePlanosAula(a: PlanoAulaOption, b: PlanoAulaOption) {
-  const dataCompare = a.dataInicio.localeCompare(b.dataInicio);
+  const nomeCompare = a.nomePlanoAula.localeCompare(
+    b.nomePlanoAula,
+    "pt-BR",
+  );
 
-  if (dataCompare !== 0) return dataCompare;
+  if (nomeCompare !== 0) return nomeCompare;
 
-  return a.conteudo.localeCompare(b.conteudo, "pt-BR");
+  return a.dataInicio.localeCompare(b.dataInicio);
 }
 
 export function matriculaPermitePresenca(statusMatricula?: string | null) {
@@ -329,8 +335,10 @@ export function mapPlanoAulaOption(dto: PlanoAulaApiDTO): PlanoAulaOption {
   const { ids: turmaIds, nomes: turmaNomes } = getPlanoAulaTurmas(dto);
   const turmaId = turmaIds[0] ?? "";
 
-  const conteudo =
-    pickText(dto.conteudo) || `Plano de aula ${id || ""}`.trim();
+  const nomePlanoAula =
+    pickText(dto.nomePlanoAula) || `Plano de aula ${id || ""}`.trim();
+
+  const conteudo = pickText(dto.conteudo);
 
   const dataInicio = pickText(dto.dataInicio);
   const dataFim = pickText(dto.dataFim);
@@ -339,12 +347,18 @@ export function mapPlanoAulaOption(dto: PlanoAulaApiDTO): PlanoAulaOption {
     ? `${formatDateBR(dataInicio)} a ${formatDateBR(dataFim)}`
     : formatDateBR(dataInicio);
 
-  const turmasLabel = turmaNomes.length > 0 ? ` · ${turmaNomes.join(", ")}` : "";
-  const labelBase = periodo ? `${conteudo} · ${periodo}` : conteudo;
+  const turmasLabel =
+    turmaNomes.length > 0 ? ` · ${turmaNomes.join(", ")}` : "";
+
+  const labelBase = periodo
+    ? `${nomePlanoAula} · ${periodo}`
+    : nomePlanoAula;
+
   const label = `${labelBase}${turmasLabel}`;
 
   return {
     id,
+    nomePlanoAula,
     conteudo,
     observacao: pickText(dto.observacao),
     dataInicio,
