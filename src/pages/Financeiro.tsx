@@ -680,6 +680,7 @@ export default function FinanceiroPage() {
     await exportFinanceiroPdf({
       id: item.id,
 
+      organizacaoId: item.organizacaoId,
       organizacao: organizacaoNome(item.organizacaoId),
       numeroDocumento: item.numeroDocumento,
       descricao: item.descricao,
@@ -696,10 +697,10 @@ export default function FinanceiroPage() {
       valor: formatCurrency(item.valor),
       observacao: (item as any).observacao,
 
-tipoOperacaoFinanceira: item.tipoOperacaoFinanceira,
-formaPagamento: item.formaPagamento,
-aplicacaoFinanceiro: (item as any).aplicacaoFinanceiro,
-statusFinanceiro: item.statusFinanceiro,
+      tipoOperacaoFinanceira: item.tipoOperacaoFinanceira,
+      formaPagamento: item.formaPagamento,
+      aplicacaoFinanceiro: (item as any).aplicacaoFinanceiro,
+      statusFinanceiro: item.statusFinanceiro,
 
       planejamentoFinanceiro: planejamentoId
         ? planejamentoNome(planejamentoId)

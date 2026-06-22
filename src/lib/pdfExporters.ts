@@ -182,6 +182,7 @@ type EditalPdf = {
 type FinanceiroPdf = {
   id: string | number;
 
+  organizacaoId?: string | number | null;
   organizacao?: string | null;
   numeroDocumento?: string | null;
   descricao?: string | null;
@@ -802,6 +803,32 @@ async function buscarOrganizacaoPrincipal(): Promise<OrganizacaoPdf> {
   } catch (error) {
     console.error("Erro ao buscar organização para o PDF:", error);
     return fallbackOrganizacaoFromEmpresa();
+  }
+}
+
+async function buscarOrganizacaoPorId(
+  organizacaoId?: string | number | null,
+): Promise<OrganizacaoPdf> {
+  if (!organizacaoId) {
+    return await buscarOrganizacaoPrincipal();
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/organizacoes/${organizacaoId}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      return await buscarOrganizacaoPrincipal();
+    }
+
+    const data = await parseJsonSafe<OrganizacaoPdf>(response);
+
+    return data ?? (await buscarOrganizacaoPrincipal());
+  } catch (error) {
+    console.error("Erro ao buscar organização do financeiro para o PDF:", error);
+    return await buscarOrganizacaoPrincipal();
   }
 }
 
@@ -3516,32 +3543,28 @@ function formatDocumentoComLabel(value?: string | number | null) {
   };
 }
 
-function dadosEmpresaFinanceiro() {
-  const empresa = getConfiguracaoEmpresa();
-
+function dadosOrganizacaoFinanceiro(org: OrganizacaoPdf) {
   const endereco = formatEnderecoCompleto({
-    logradouro: empresa.logradouro,
-    numero: empresa.numero,
-    complemento: empresa.complemento,
-    bairro: empresa.bairro,
-    cidade: empresa.cidade,
-    estado: empresa.estado,
-    cep: empresa.cep,
+    logradouro: org.logradouro,
+    numero: org.numero,
+    complemento: org.complemento,
+    bairro: org.bairro,
+    cidade: org.cidade,
+    estado: org.estado,
+    cep: org.cep,
   });
 
-  const municipioUF = [empresa.cidade, empresa.estado]
-    .filter(Boolean)
-    .join(" - ");
+  const municipioUF = [org.cidade, org.estado].filter(Boolean).join(" - ");
 
-  const documento = formatDocumentoComLabel(empresa.documentoIdentificacao);
+  const documento = formatDocumentoComLabel(org.cnpj);
 
   return {
-    nome: v(empresa.nomeEmpresa),
+    nome: getNomeInstitucional(org),
     documentoLabel: documento.label,
     documento: documento.value,
     endereco: endereco || PLACEHOLDER,
-    telefone: v(empresa.telefoneContato),
-    email: v(empresa.emailContato),
+    telefone: v(org.telefoneInstitucional),
+    email: v(org.emailInstitucional),
     municipioUF: municipioUF || "________________________________________",
   };
 }
@@ -3734,7 +3757,8 @@ export async function exportFinanceiroPdf(f: FinanceiroPdf) {
   const tipoOperacao = getFinanceiroTipoOperacao(f.tipoOperacaoFinanceira);
   const isDespesa = tipoOperacao === "SAIDA";
 
-  const empresa = dadosEmpresaFinanceiro();
+  const organizacao = await buscarOrganizacaoPorId(f.organizacaoId);
+  const empresa = dadosOrganizacaoFinanceiro(organizacao);
 
   const pessoa = getFinanceiroPessoa(f);
   const documentoPessoa = formatDocumentoComLabel(f.cpfCnpj);
@@ -3752,7 +3776,7 @@ export async function exportFinanceiroPdf(f: FinanceiroPdf) {
 
     await generateInstitutionalPdf({
       title: "Comprovante de Pagamento",
-      documentNumber: `COMPROVANTE Nº ${numero}`,
+      documentNumber: numero,
       sections: [
         {
           centeredHeading: `${valor} (${valorExtenso})`,
@@ -3851,7 +3875,7 @@ export async function exportFinanceiroPdf(f: FinanceiroPdf) {
 
   await generateInstitutionalPdf({
     title: "Recibo de Pagamento",
-    documentNumber: `RECIBO Nº ${numero}`,
+    documentNumber: numero,
     sections: [
       {
         centeredHeading: `Valor recebido: ${valor} (${valorExtenso})`,
