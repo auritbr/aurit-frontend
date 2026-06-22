@@ -3460,163 +3460,487 @@ export async function exportPlanejamentoFinanceiroPdf(
 // FINANCEIRO
 // =====================================================================
 
-export async function exportFinanceiroPdf(f: FinanceiroPdf) {
-  const APLICACAO_FINANCEIRA = labelFromList(
-    aplicacoesFinanceiro,
-    f.aplicacaoFinanceiro || f.aplicacaoFinanceira || "",
+function getFinanceiroTipoOperacao(value?: string | null) {
+  const tipo = String(value || "").trim().toUpperCase();
+
+  if (tipo === "ENTRADA" || tipo === "RECEITA") return "ENTRADA";
+  if (tipo === "SAIDA" || tipo === "SAÍDA" || tipo === "DESPESA") return "SAIDA";
+
+  return tipo;
+}
+
+function getFinanceiroPessoa(f: FinanceiroPdf) {
+  return f.colaborador && String(f.colaborador).trim()
+    ? v(f.colaborador)
+    : v(f.nomePessoa);
+}
+
+function getFinanceiroLabel(
+  lista: ReadonlyArray<{ readonly value: string; readonly label: string }>,
+  value?: string | null,
+) {
+  const raw = value?.trim();
+
+  if (!raw) return PLACEHOLDER;
+
+  const found = lista.find(
+    (item) =>
+      item.value === raw ||
+      item.label.toLocaleLowerCase("pt-BR") === raw.toLocaleLowerCase("pt-BR"),
   );
 
-  const TIPO_OPERACAO = labelFromList(
-    tiposOperacao,
-    f.tipoOperacaoFinanceira || "",
-  );
+  return found?.label ?? raw;
+}
 
-  const FORMA_PAGAMENTO = labelFromList(
-    formasPagamento,
-    f.formaPagamento || "",
-  );
+function getNumeroFinanceiro(f: FinanceiroPdf, prefixo: "REC" | "CPG") {
+  const numeroDocumento = f.numeroDocumento?.trim();
 
-  const STATUS_FINANCEIRO = labelFromList(
-    statusFinanceiro,
-    f.statusFinanceiro || "",
-  );
+  if (numeroDocumento) return numeroDocumento;
 
-  const pessoaFields =
-    f.colaborador && String(f.colaborador).trim()
-      ? [
-        {
-          label: "Colaborador",
-          value: v(f.colaborador),
-        },
-      ]
-      : [
-        {
-          label: "Nome da Pessoa",
-          value: v(f.nomePessoa),
-        },
-      ];
+  return `${prefixo}-${String(f.id).padStart(4, "0")}`;
+}
 
-  const vinculosFields = [
-    f.planejamentoFinanceiro?.trim()
-      ? {
-        label: "Planejamento Financeiro",
-        value: f.planejamentoFinanceiro,
-      }
-      : null,
+function getDocumentoLabel(value?: string | number | null) {
+  const digits = onlyDigits(value);
 
-    f.projeto?.trim()
-      ? {
-        label: "Projeto",
-        value: f.projeto,
-      }
-      : null,
+  if (digits.length === 11) return "CPF";
+  if (digits.length === 14) return "CNPJ";
 
-    f.atividade?.trim()
-      ? {
-        label: "Atividade",
-        value: f.atividade,
-      }
-      : null,
+  return "CPF/CNPJ";
+}
 
-    f.eventoCultural?.trim()
-      ? {
-        label: "Evento Cultural",
-        value: f.eventoCultural,
-      }
-      : null,
+function formatDocumentoComLabel(value?: string | number | null) {
+  return {
+    label: getDocumentoLabel(value),
+    value: formatCpfCnpj(value),
+  };
+}
 
-    f.acaoDivulgacao?.trim()
-      ? {
-        label: "Ação de Divulgação",
-        value: f.acaoDivulgacao,
-      }
-      : null,
-  ].filter(Boolean) as Array<{ label: string; value: string }>;
+function dadosEmpresaFinanceiro() {
+  const empresa = getConfiguracaoEmpresa();
 
-  const sections: any[] = [
-    {
-      title: "1. Identificação da Movimentação",
-      fields: [
-        {
-          label: "Organização",
-          value: v(f.organizacao),
-        },
-        {
-          label: "Número do Documento",
-          value: v(f.numeroDocumento),
-        },
-        {
-          label: "Descrição",
-          value: v(f.descricao),
-        },
-      ],
-    },
-    {
-      title: "2. Datas",
-      fields: [
-        {
-          label: "Data do Pagamento",
-          value: formatDateBR(f.dataPagamento),
-        },
-        {
-          label: "Data de Vencimento",
-          value: formatDateBR(f.dataVencimento),
-        },
-      ],
-    },
-    {
-      title: "3. Responsável / Favorecido",
-      fields: [
-        ...pessoaFields,
-        {
-          label: "CPF/CNPJ",
-          value: v(f.cpfCnpj),
-        },
-      ],
-    },
-    {
-      title: "4. Dados Financeiros",
-      fields: [
-        {
-          label: "Valor",
-          value: v(f.valor),
-        },
-        {
-          label: "Tipo de Operação",
-          value: v(TIPO_OPERACAO),
-        },
-        {
-          label: "Forma de Pagamento",
-          value: v(FORMA_PAGAMENTO),
-        },
-        {
-          label: "Aplicação Financeira",
-          value: v(APLICACAO_FINANCEIRA),
-        },
-        {
-          label: "Status Financeiro",
-          value: v(STATUS_FINANCEIRO),
-        },
-      ],
-    },
-  ];
-
-  if (vinculosFields.length > 0) {
-    sections.push({
-      title: "5. Vínculos da Movimentação",
-      fields: vinculosFields,
-    });
-  }
-
-  sections.push({
-    title: vinculosFields.length > 0 ? "6. Observação" : "5. Observação",
-    justifiedParagraphs: f.observacao ? [f.observacao] : [PLACEHOLDER],
+  const endereco = formatEnderecoCompleto({
+    logradouro: empresa.logradouro,
+    numero: empresa.numero,
+    complemento: empresa.complemento,
+    bairro: empresa.bairro,
+    cidade: empresa.cidade,
+    estado: empresa.estado,
+    cep: empresa.cep,
   });
 
+  const municipioUF = [empresa.cidade, empresa.estado]
+    .filter(Boolean)
+    .join(" - ");
+
+  const documento = formatDocumentoComLabel(empresa.documentoIdentificacao);
+
+  return {
+    nome: v(empresa.nomeEmpresa),
+    documentoLabel: documento.label,
+    documento: documento.value,
+    endereco: endereco || PLACEHOLDER,
+    telefone: v(empresa.telefoneContato),
+    email: v(empresa.emailContato),
+    municipioUF: municipioUF || "________________________________________",
+  };
+}
+
+function parseValorFinanceiro(value?: string | number | null) {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return null;
+  }
+
+  if (typeof value === "number") return value;
+
+  const cleaned = String(value)
+    .replace(/[^\d,.-]/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+
+  const number = Number(cleaned);
+
+  return Number.isFinite(number) ? number : null;
+}
+
+function formatValorFinanceiro(value?: string | number | null) {
+  const number = parseValorFinanceiro(value);
+
+  if (number === null) return "R$ 0,00";
+
+  return number.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function numeroAte999PorExtenso(n: number): string {
+  const unidades = [
+    "",
+    "um",
+    "dois",
+    "três",
+    "quatro",
+    "cinco",
+    "seis",
+    "sete",
+    "oito",
+    "nove",
+  ];
+
+  const especiais = [
+    "dez",
+    "onze",
+    "doze",
+    "treze",
+    "quatorze",
+    "quinze",
+    "dezesseis",
+    "dezessete",
+    "dezoito",
+    "dezenove",
+  ];
+
+  const dezenas = [
+    "",
+    "",
+    "vinte",
+    "trinta",
+    "quarenta",
+    "cinquenta",
+    "sessenta",
+    "setenta",
+    "oitenta",
+    "noventa",
+  ];
+
+  const centenas = [
+    "",
+    "cento",
+    "duzentos",
+    "trezentos",
+    "quatrocentos",
+    "quinhentos",
+    "seiscentos",
+    "setecentos",
+    "oitocentos",
+    "novecentos",
+  ];
+
+  if (n === 0) return "";
+  if (n === 100) return "cem";
+  if (n < 10) return unidades[n];
+  if (n < 20) return especiais[n - 10];
+
+  if (n < 100) {
+    const dezena = Math.floor(n / 10);
+    const unidade = n % 10;
+
+    return unidade
+      ? `${dezenas[dezena]} e ${unidades[unidade]}`
+      : dezenas[dezena];
+  }
+
+  const centena = Math.floor(n / 100);
+  const resto = n % 100;
+
+  return resto
+    ? `${centenas[centena]} e ${numeroAte999PorExtenso(resto)}`
+    : centenas[centena];
+}
+
+function numeroInteiroPorExtenso(n: number): string {
+  if (n === 0) return "zero";
+
+  const partes: string[] = [];
+
+  const milhoes = Math.floor(n / 1_000_000);
+  const milhares = Math.floor((n % 1_000_000) / 1_000);
+  const resto = n % 1_000;
+
+  if (milhoes) {
+    partes.push(
+      milhoes === 1
+        ? "um milhão"
+        : `${numeroAte999PorExtenso(milhoes)} milhões`,
+    );
+  }
+
+  if (milhares) {
+    partes.push(
+      milhares === 1
+        ? "mil"
+        : `${numeroAte999PorExtenso(milhares)} mil`,
+    );
+  }
+
+  if (resto) {
+    partes.push(numeroAte999PorExtenso(resto));
+  }
+
+  return partes.join(" e ");
+}
+
+function valorPorExtensoFinanceiro(value?: string | number | null) {
+  const number = parseValorFinanceiro(value);
+
+  if (number === null) return "zero reais";
+
+  const reais = Math.floor(number);
+  const centavos = Math.round((number - reais) * 100);
+
+  const reaisTexto =
+    reais === 1 ? "um real" : `${numeroInteiroPorExtenso(reais)} reais`;
+
+  if (!centavos) return reaisTexto;
+
+  const centavosTexto =
+    centavos === 1
+      ? "um centavo"
+      : `${numeroInteiroPorExtenso(centavos)} centavos`;
+
+  return `${reaisTexto} e ${centavosTexto}`;
+}
+
+function formaPagamentoFinanceiro(value?: string | null) {
+  const label = getFinanceiroLabel(formasPagamento, value);
+
+  const normalized = label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
+  if (normalized.includes("PIX")) return "Pix";
+  if (normalized.includes("TRANSFERENCIA")) return "Transferência bancária";
+  if (normalized.includes("DINHEIRO")) return "Dinheiro";
+  if (normalized.includes("BOLETO")) return "Boleto bancário";
+
+  if (
+    normalized.includes("CREDITO") ||
+    normalized.includes("DEBITO") ||
+    normalized.includes("CARTAO")
+  ) {
+    return "Cartão";
+  }
+
+  return label;
+}
+
+function observacaoFinanceira(value?: string | null) {
+  return value?.trim() || PLACEHOLDER;
+}
+
+export async function exportFinanceiroPdf(f: FinanceiroPdf) {
+  const tipoOperacao = getFinanceiroTipoOperacao(f.tipoOperacaoFinanceira);
+  const isDespesa = tipoOperacao === "SAIDA";
+
+  const empresa = dadosEmpresaFinanceiro();
+
+  const pessoa = getFinanceiroPessoa(f);
+  const documentoPessoa = formatDocumentoComLabel(f.cpfCnpj);
+
+  const valor = formatValorFinanceiro(f.valor);
+  const valorExtenso = valorPorExtensoFinanceiro(f.valor);
+
+  const descricao = v(f.descricao);
+  const formaPagamento = formaPagamentoFinanceiro(f.formaPagamento);
+  const dataPagamento = formatDateBR(f.dataPagamento);
+  const observacao = observacaoFinanceira(f.observacao);
+
+  if (isDespesa) {
+    const numero = getNumeroFinanceiro(f, "CPG");
+
+    await generateInstitutionalPdf({
+      title: "Comprovante de Pagamento",
+      documentNumber: `COMPROVANTE Nº ${numero}`,
+      sections: [
+        {
+          centeredHeading: `${valor} (${valorExtenso})`,
+        },
+        {
+          justifiedParagraphs: [
+            `Eu, ${empresa.nome}, inscrito(a) no ${empresa.documentoLabel} nº ${empresa.documento}, declaro que efetuei o pagamento da quantia acima indicada em favor de ${pessoa}, inscrito(a) no ${documentoPessoa.label} nº ${documentoPessoa.value}, referente a:`,
+            descricao,
+          ],
+        },
+        {
+          title: "Dados do pagamento",
+          fields: [
+            {
+              label: "Valor pago",
+              value: `${valor} (${valorExtenso})`,
+            },
+            {
+              label: "Forma de pagamento",
+              value: formaPagamento,
+            },
+            {
+              label: "Data do pagamento",
+              value: dataPagamento,
+            },
+            {
+              label: "Observações",
+              value: observacao,
+            },
+          ],
+        },
+        {
+          title: "Dados do pagador",
+          fields: [
+            {
+              label: "Nome/Razão Social",
+              value: empresa.nome,
+            },
+            {
+              label: empresa.documentoLabel,
+              value: empresa.documento,
+            },
+            {
+              label: "Endereço",
+              value: empresa.endereco,
+            },
+            {
+              label: "Telefone",
+              value: empresa.telefone,
+            },
+            {
+              label: "E-mail",
+              value: empresa.email,
+            },
+          ],
+        },
+        {
+          title: "Dados do favorecido",
+          fields: [
+            {
+              label: "Nome/Razão Social",
+              value: pessoa,
+            },
+            {
+              label: documentoPessoa.label,
+              value: documentoPessoa.value,
+            },
+          ],
+        },
+        {
+          justifiedParagraphs: [
+            "Declaro, para os devidos fins, que o pagamento acima descrito foi realizado na data indicada.",
+          ],
+        },
+        {
+          rightAlignedLine: `${empresa.municipioUF}, ${dataPorExtenso()}.`,
+        },
+        {
+          signatures: [
+            {
+              rotulo: "Assinatura do Pagador",
+              linhas: [
+                empresa.nome,
+                `${empresa.documentoLabel}: ${empresa.documento}`,
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    return;
+  }
+
+  const numero = getNumeroFinanceiro(f, "REC");
+
   await generateInstitutionalPdf({
-    title: "Ficha Controle Financeiro",
-    documentNumber: `FIN-${String(f.id).padStart(4, "0")}`,
-    sections,
+    title: "Recibo de Pagamento",
+    documentNumber: `RECIBO Nº ${numero}`,
+    sections: [
+      {
+        centeredHeading: `Valor recebido: ${valor} (${valorExtenso})`,
+      },
+      {
+        justifiedParagraphs: [
+          `Recebi de ${pessoa}, inscrito(a) no ${documentoPessoa.label} nº ${documentoPessoa.value}, a quantia acima indicada, referente a:`,
+          descricao,
+        ],
+      },
+      {
+        title: "Dados do recebimento",
+        fields: [
+          {
+            label: "Valor recebido",
+            value: `${valor} (${valorExtenso})`,
+          },
+          {
+            label: "Forma de pagamento",
+            value: formaPagamento,
+          },
+          {
+            label: "Data do pagamento",
+            value: dataPagamento,
+          },
+          {
+            label: "Observações",
+            value: observacao,
+          },
+        ],
+      },
+      {
+        justifiedParagraphs: [
+          "Declaro que o valor acima foi devidamente recebido, dando plena, geral e irrevogável quitação em relação ao objeto descrito neste recibo, para nada mais reclamar a esse título.",
+        ],
+      },
+      {
+        title: "Dados do recebedor",
+        fields: [
+          {
+            label: "Nome/Razão Social",
+            value: empresa.nome,
+          },
+          {
+            label: empresa.documentoLabel,
+            value: empresa.documento,
+          },
+          {
+            label: "Endereço",
+            value: empresa.endereco,
+          },
+          {
+            label: "Telefone",
+            value: empresa.telefone,
+          },
+          {
+            label: "E-mail",
+            value: empresa.email,
+          },
+        ],
+      },
+      {
+        title: "Dados do pagador",
+        fields: [
+          {
+            label: "Nome/Razão Social",
+            value: pessoa,
+          },
+          {
+            label: documentoPessoa.label,
+            value: documentoPessoa.value,
+          },
+        ],
+      },
+      {
+        rightAlignedLine: `${empresa.municipioUF}, ${dataPorExtenso()}.`,
+      },
+      {
+        signatures: [
+          {
+            rotulo: "Assinatura do Recebedor",
+            linhas: [
+              empresa.nome,
+              `${empresa.documentoLabel}: ${empresa.documento}`,
+            ],
+          },
+        ],
+      },
+    ],
   });
 }
 

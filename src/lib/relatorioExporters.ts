@@ -1205,7 +1205,7 @@ function getRegrasCamposEssenciais(normalizedReport: string): PdfEssentialRule[]
       { label: "Nome da Atividade", aliases: ["nome da atividade", "nome atividade", "nomeAtividade", "nome_atividade", "tituloAtividade"] },
       { label: "Data de Início da Atividade", aliases: ["data de inicio da atividade", "data de início da atividade", "dataInicioAtividade", "data_inicio_atividade", "dataInicio", "data_inicio"] },
       { label: "Data de Término da Atividade", aliases: ["data de termino da atividade", "data de término da atividade", "dataTerminoAtividade", "data_termino_atividade", "dataFimAtividade", "data_fim_atividade", "dataFim"] },
-      { label: "Quantidade de Vagas", aliases: ["quantidade de vagas", "quantidadeVagas", "quantidade_vagas", "qtdVagas", "qtd_vagas", "vagas"] },
+      { label: "Qtde Vagas", aliases: ["quantidade de vagas", "quantidadeVagas", "quantidade_vagas", "qtdVagas", "qtd_vagas", "vagas"] },
       { label: "Tipo de Atividade", aliases: ["tipo de atividade", "tipoAtividade", "tipo_atividade"] },
       { label: "Status da Atividade", aliases: ["status da atividade", "statusAtividade", "status_atividade", "status"] },
       { label: "Vínculos e Equipe", aliases: ["vinculos e equipe", "vínculos e equipe", "vinculosEquipe", "vinculos_equipe", "vinculoEquipe", "equipe"] },

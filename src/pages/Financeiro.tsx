@@ -696,14 +696,10 @@ export default function FinanceiroPage() {
       valor: formatCurrency(item.valor),
       observacao: (item as any).observacao,
 
-      tipoOperacaoFinanceira: tipoOperacaoLabel(
-        item.tipoOperacaoFinanceira,
-      ),
-      formaPagamento: labelFromList(formasPagamento, item.formaPagamento),
-      aplicacaoFinanceiro: aplicacaoFinanceiraLabel(
-        (item as any).aplicacaoFinanceiro,
-      ),
-      statusFinanceiro: statusFinanceiroLabel(item.statusFinanceiro),
+tipoOperacaoFinanceira: item.tipoOperacaoFinanceira,
+formaPagamento: item.formaPagamento,
+aplicacaoFinanceiro: (item as any).aplicacaoFinanceiro,
+statusFinanceiro: item.statusFinanceiro,
 
       planejamentoFinanceiro: planejamentoId
         ? planejamentoNome(planejamentoId)
@@ -1021,7 +1017,7 @@ export default function FinanceiroPage() {
                             className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
                           >
                             <FileDown className="h-3.5 w-3.5" />
-                            Gerar ficha
+                            Gerar comprovante
                           </Button>
                         </td>
                       )}
