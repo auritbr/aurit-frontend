@@ -369,15 +369,18 @@ export async function getInicioDados(): Promise<InicioDados> {
       ["/metas-projeto", "/metas-projetos"],
       isFreePlan,
     ),
-    fetchFirstAvailableList(["/cronogramas", "/cronograma"]),
+    fetchPaidFirstAvailableList(
+      ["/cronogramas", "/cronograma"],
+      isFreePlan,
+    ),
 
     fetchListSafe("/atividades"),
-    fetchListSafe("/planos-aula"),
+    fetchPaidListSafe("/planos-aula", isFreePlan),
     fetchListSafe("/turmas"),
     fetchListSafe("/presencas"),
 
     fetchListSafe("/eventos-culturais"),
-    fetchListSafe("/acoes-divulgacao"),
+    fetchPaidListSafe("/acoes-divulgacao", isFreePlan),
     fetchPaidFirstAvailableList(
       ["/planos-comunicacao", "/plano-comunicacao", "/planoComunicacao"],
       isFreePlan,

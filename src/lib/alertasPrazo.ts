@@ -12,6 +12,7 @@ import {
 } from "@/data/presencas";
 import { getJsonHeaders } from "@/lib/apiHeaders";
 import { isPlanoAccessDenied } from "@/lib/access";
+import { isPlanoGratuitoAtual } from "@/lib/plano";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -747,6 +748,7 @@ export interface AlertasPrazoCarregados {
 }
 
 async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
+  const planoGratuito = await isPlanoGratuitoAtual();
   const [
     emprestimos,
     patrimonios,
@@ -757,9 +759,9 @@ async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
     turmasPresenca,
     participantesPresenca,
   ] = await Promise.allSettled([
-    getEmprestimos(),
-    getPatrimonios(),
-    getEditais(),
+    planoGratuito ? Promise.resolve([]) : getEmprestimos(),
+    planoGratuito ? Promise.resolve([]) : getPatrimonios(),
+    planoGratuito ? Promise.resolve([]) : getEditais(),
     getRelatorioPresencasData(),
     getPresencasDiretas(),
     getAtividadesPresenca(),
@@ -768,21 +770,36 @@ async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
   ]);
 
   if (emprestimos.status === "rejected") {
-    console.error(
-      "Erro ao carregar alertas de empréstimos:",
-      emprestimos.reason,
-    );
+    const message =
+      emprestimos.reason instanceof Error ? emprestimos.reason.message : "";
+
+    if (!isPlanoAccessDenied(message)) {
+      console.error(
+        "Erro ao carregar alertas de empréstimos:",
+        emprestimos.reason,
+      );
+    }
   }
 
   if (editais.status === "rejected") {
-    console.error("Erro ao carregar alertas de editais:", editais.reason);
+    const message =
+      editais.reason instanceof Error ? editais.reason.message : "";
+
+    if (!isPlanoAccessDenied(message)) {
+      console.error("Erro ao carregar alertas de editais:", editais.reason);
+    }
   }
 
   if (patrimonios.status === "rejected") {
-    console.error(
-      "Erro ao carregar nomes dos patrimônios:",
-      patrimonios.reason,
-    );
+    const message =
+      patrimonios.reason instanceof Error ? patrimonios.reason.message : "";
+
+    if (!isPlanoAccessDenied(message)) {
+      console.error(
+        "Erro ao carregar nomes dos patrimônios:",
+        patrimonios.reason,
+      );
+    }
   }
 
   if (relatorioPresencas.status === "rejected") {

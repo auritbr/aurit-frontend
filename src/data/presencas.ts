@@ -1,5 +1,6 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
 import { isPlanoAccessDenied } from "@/lib/access";
+import { isPlanoGratuitoAtual } from "@/lib/plano";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -514,18 +515,21 @@ export async function getPresencasBaseData(): Promise<{
   planosAula: PlanoAulaOption[];
   participantes: ParticipanteApiDTO[];
 }> {
+  const planoGratuito = await isPlanoGratuitoAtual();
   const [atividades, turmas, planosAula, participantes] = await Promise.all([
     getAtividadesPresenca(),
     getTurmasPresenca(),
-    getPlanosAulaPresenca().catch((error) => {
-      const message = error instanceof Error ? error.message : "";
+    planoGratuito
+      ? Promise.resolve([])
+      : getPlanosAulaPresenca().catch((error) => {
+          const message = error instanceof Error ? error.message : "";
 
-      if (isPlanoAccessDenied(message)) {
-        return [];
-      }
+          if (isPlanoAccessDenied(message)) {
+            return [];
+          }
 
-      throw error;
-    }),
+          throw error;
+        }),
     getParticipantesPresenca(),
   ]);
 
