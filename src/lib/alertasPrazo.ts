@@ -142,12 +142,12 @@ export function montarAlertasAusencias(
   const grupos = new Map<string, RegistroPresenca[]>();
 
   for (const registro of registros) {
-    const participanteKey =
-      registro.participanteId ||
-      registro.participanteNome.trim().toLocaleLowerCase("pt-BR");
-    const atividadeKey =
-      registro.atividadeId ||
-      registro.atividadeNome.trim().toLocaleLowerCase("pt-BR");
+    const participanteKey = registro.participanteNome
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+    const atividadeKey = registro.atividadeNome
+      .trim()
+      .toLocaleLowerCase("pt-BR");
 
     if (!participanteKey || !atividadeKey || !registro.data) {
       continue;

@@ -117,4 +117,22 @@ describe("alertas de prazo", () => {
     expect(alertas[0].participanteNome).toBe("Ana");
     expect(alertas[0].quantidade).toBe(4);
   });
+
+  it("agrupa chamadas da mesma pessoa mesmo quando os ids variam", () => {
+    const registrosComIdsVariaveis = [
+      registro("2026-04-07", "AUSENTE"),
+      registro("2026-04-20", "AUSENTE"),
+      registro("2026-04-23", "AUSENTE"),
+      registro("2026-04-30", "AUSENTE"),
+    ].map((item, index) => ({
+      ...item,
+      participanteId: `registro-${index}`,
+      atividadeId: `atividade-registro-${index}`,
+    }));
+
+    const alertas = montarAlertasAusencias(registrosComIdsVariaveis);
+
+    expect(alertas).toHaveLength(1);
+    expect(alertas[0].quantidade).toBe(4);
+  });
 });
