@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  Building2,
+  Handshake,
   Eye,
   Pencil,
   Plus,
@@ -124,11 +124,21 @@ function formatDate(value: string | null | undefined) {
 function getCompetenciaOrder(value: string | null | undefined) {
   if (!value) return Number.MAX_SAFE_INTEGER;
 
-  const match = value.trim().match(/^(\d{4})-(\d{2})/);
+  const trimmed = value.trim();
 
-  if (!match) return Number.MAX_SAFE_INTEGER;
+  const matchIso = trimmed.match(/^(\d{4})-(\d{2})$/);
 
-  return Number(match[1]) * 100 + Number(match[2]);
+  if (matchIso) {
+    return Number(matchIso[1]) * 100 + Number(matchIso[2]);
+  }
+
+  const matchBr = trimmed.match(/^(\d{2})\/(\d{4})$/);
+
+  if (matchBr) {
+    return Number(matchBr[2]) * 100 + Number(matchBr[1]);
+  }
+
+  return Number.MAX_SAFE_INTEGER;
 }
 
 function ordenarPagamentosPorCompetencia(
@@ -161,6 +171,58 @@ function formatCompetencia(value: string | null | undefined) {
   }
 
   return trimmed;
+}
+
+function maskCompetencia(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 6);
+
+  if (digits.length <= 2) {
+    return digits;
+  }
+
+  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+}
+
+function parseCompetenciaToApi(value: string) {
+  const trimmed = value.trim();
+
+  const matchBr = trimmed.match(/^(\d{2})\/(\d{4})$/);
+
+  if (matchBr) {
+    return `${matchBr[2]}-${matchBr[1]}`;
+  }
+
+  const matchIso = trimmed.match(/^(\d{4})-(\d{2})$/);
+
+  if (matchIso) {
+    return trimmed;
+  }
+
+  return trimmed;
+}
+
+function isCompetenciaValida(value: string) {
+  const competenciaApi = parseCompetenciaToApi(value);
+  const match = competenciaApi.match(/^(\d{4})-(\d{2})$/);
+
+  if (!match) return false;
+
+  const mes = Number(match[2]);
+
+  return mes >= 1 && mes <= 12;
+}
+
+const FORMA_PAGAMENTO_LABELS: Record<FormaPagamento, string> = {
+  PIX: "Pix",
+  BOLETO: "Boleto",
+  CARTAO: "Cartão",
+  TRANSFERENCIA: "Transferência",
+};
+
+function formatFormaPagamento(value: FormaPagamento | null | undefined) {
+  if (!value) return "—";
+
+  return FORMA_PAGAMENTO_LABELS[value] ?? value;
 }
 
 function parseDateOnly(value: string | null | undefined) {
@@ -387,7 +449,7 @@ export default function ControleEmpresaDetalhe() {
 
     setNovoPgto({
       valor: p.valor,
-      competencia: p.competencia,
+      competencia: formatCompetencia(p.competencia) === "—" ? "" : formatCompetencia(p.competencia),
       dataVencimento: p.dataVencimento,
       dataPagamento: p.dataPagamento,
       statusPagamento: p.statusPagamento,
@@ -412,17 +474,27 @@ export default function ControleEmpresaDetalhe() {
       return;
     }
 
+    if (!isCompetenciaValida(novoPgto.competencia)) {
+      toast.error("Informe a competência no formato MM/AAAA. Ex.: 01/2026.");
+      return;
+    }
+
     if (!novoPgto.dataVencimento.trim()) {
       toast.error("Informe a data de vencimento.");
       return;
     }
+
+    const pagamentoPayload: SalvarPagamentoPayload = {
+      ...novoPgto,
+      competencia: parseCompetenciaToApi(novoPgto.competencia),
+    };
 
     try {
       if (editingPgto) {
         const atualizado = await atualizarPagamentoEmpresa(
           empresa.id,
           editingPgto.id,
-          novoPgto,
+          pagamentoPayload,
         );
 
         setPagamentos((prev) =>
@@ -431,7 +503,7 @@ export default function ControleEmpresaDetalhe() {
 
         toast.success("Pagamento atualizado.");
       } else {
-        const criado = await registrarPagamentoEmpresa(empresa.id, novoPgto);
+        const criado = await registrarPagamentoEmpresa(empresa.id, pagamentoPayload);
 
         setPagamentos((prev) => [criado, ...prev]);
         pagamentosPagination.setCurrentPage(1);
@@ -654,9 +726,6 @@ export default function ControleEmpresaDetalhe() {
           <TabsContent value="info" className="mt-4">
             <div className="bg-card border border-border rounded p-5">
               <div className="flex items-center gap-3 pb-4 mb-4 border-b border-border">
-                <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                  <Building2 className="h-5 w-5 text-muted-foreground" />
-                </div>
 
                 <div>
                   <h3 className="font-semibold text-foreground">
@@ -884,7 +953,7 @@ export default function ControleEmpresaDetalhe() {
                           {formatDate(p.dataPagamento)}
                         </td>
                         <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
-                          {p.formaPagamento ?? "—"}
+                          {formatFormaPagamento(p.formaPagamento)}
                         </td>
                         <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground tabular-nums">
                           {getDiasAtrasoPagamento(p)}
@@ -1126,16 +1195,18 @@ export default function ControleEmpresaDetalhe() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Competência (AAAA-MM)</Label>
+              <Label>Competência (MM/AAAA)</Label>
               <Input
                 value={novoPgto.competencia}
+                inputMode="numeric"
+                maxLength={7}
                 onChange={(e) =>
                   setNovoPgto({
                     ...novoPgto,
-                    competencia: e.target.value,
+                    competencia: maskCompetencia(e.target.value),
                   })
                 }
-                placeholder="2026-05"
+                placeholder="01/2026"
               />
             </div>
 
@@ -1205,7 +1276,7 @@ export default function ControleEmpresaDetalhe() {
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PIX">PIX</SelectItem>
+                  <SelectItem value="PIX">Pix</SelectItem>
                   <SelectItem value="BOLETO">Boleto</SelectItem>
                   <SelectItem value="CARTAO">Cartão</SelectItem>
                   <SelectItem value="TRANSFERENCIA">Transferência</SelectItem>
@@ -1280,7 +1351,7 @@ export default function ControleEmpresaDetalhe() {
                   <StatusPagamentoBadge status={viewPgto.statusPagamento} />
                 }
               />
-              <InfoRow label="Forma" value={viewPgto.formaPagamento ?? "—"} />
+              <InfoRow label="Forma" value={formatFormaPagamento(viewPgto.formaPagamento)} />
               <InfoRow label="Dias de atraso" value={getDiasAtrasoPagamento(viewPgto)} />
               <InfoRow
                 label="Referência"

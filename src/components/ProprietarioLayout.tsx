@@ -1,5 +1,6 @@
-import { Building2, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { AuritLogo } from "@/components/AuritLogo";
 
 import { Button } from "@/components/ui/button";
 import { limparSessaoUsuario, getUsuarioLogadoStorage } from "@/lib/auth";
@@ -21,17 +22,9 @@ export function ProprietarioLayout({
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 h-14 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 flex items-center justify-between px-5">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="h-8 w-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </div>
 
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground leading-none">
-              Aurit
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Painel do proprietário
-            </p>
+          <div className="flex items-center">
+            <AuritLogo size="md" withBackground={false} />
           </div>
         </div>
 

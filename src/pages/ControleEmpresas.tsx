@@ -9,14 +9,15 @@ import { useNavigate } from "react-router-dom";
 import {
   Activity,
   ArrowRight,
-  Building2,
+  BadgeCheck,
   CheckCircle2,
+  CreditCard,
   Download,
   FileSpreadsheet,
   Gift,
+  Landmark,
   Plus,
   Search,
-  Sparkles,
   Users,
   XCircle,
 } from "lucide-react";
@@ -435,13 +436,10 @@ export default function ControleEmpresas() {
     return filtered.map((e) => ({
       Empresa: e.nomeEmpresa,
       Subdominio: `${e.slug}.aurit.com.br`,
-      Documento: e.documentoIdentificacao,
-      Email: e.emailContato,
-      Telefone: e.telefoneContato,
+      "Data de Criacao": formatDateTime(e.dataCriacao),
       Plano: PLANO_LABELS[getPlanoVisualEmpresa(e)],
       Status: e.statusControleProprietario === "ATIVO" ? "Ativo" : "Inativo",
       Usuarios: `${e.totalUsuarios}/${e.limiteUsuarios}`,
-      "Data de Criacao": formatDateTime(e.dataCriacao),
       "Ultima Atualizacao": formatDateTime(e.dataAtualizacao),
     }));
   }
@@ -510,7 +508,7 @@ export default function ControleEmpresas() {
         />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mb-5">
-          <SummaryCard label="Total" value={resumo.total} icon={Building2} />
+          <SummaryCard label="Total" value={resumo.total} icon={Landmark} />
           <SummaryCard
             label="Ativas"
             value={resumo.ativas}
@@ -532,7 +530,7 @@ export default function ControleEmpresas() {
           <SummaryCard
             label="Gratuito"
             value={resumo.gratuito}
-            icon={Sparkles}
+            icon={BadgeCheck}
           />
           <SummaryCard
             label="Cortesia"
@@ -543,7 +541,7 @@ export default function ControleEmpresas() {
           <SummaryCard
             label="Pago"
             value={resumo.pago}
-            icon={Sparkles}
+            icon={CreditCard}
             tone="success"
           />
         </div>
@@ -636,13 +634,7 @@ export default function ControleEmpresas() {
                     Subdomínio
                   </th>
                   <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Documento
-                  </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    E-mail
-                  </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Telefone
+                    Data de criação
                   </th>
                   <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
                     Plano
@@ -675,9 +667,6 @@ export default function ControleEmpresas() {
                       >
                         <td className="px-5 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
-                            <div className="h-7 w-7 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                            </div>
 
                             <span
                               className={`font-medium ${blocked
@@ -695,15 +684,7 @@ export default function ControleEmpresas() {
                         </td>
 
                         <td className="px-5 py-3 whitespace-nowrap text-muted-foreground">
-                          {e.documentoIdentificacao}
-                        </td>
-
-                        <td className="px-5 py-3 whitespace-nowrap text-muted-foreground">
-                          {e.emailContato}
-                        </td>
-
-                        <td className="px-5 py-3 whitespace-nowrap text-muted-foreground">
-                          {e.telefoneContato}
+                          {formatDateTime(e.dataCriacao)}
                         </td>
 
                         <td className="px-5 py-3 whitespace-nowrap">
@@ -745,8 +726,8 @@ export default function ControleEmpresas() {
 
                 {!loading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-5 py-16 text-center">
-                      <Building2 className="h-10 w-10 mx-auto text-muted-foreground/40" />
+                    <td colSpan={7} className="px-5 py-16 text-center">
+                      <Landmark className="h-10 w-10 mx-auto text-muted-foreground/40" />
                       <p className="mt-3 text-sm text-muted-foreground">
                         Nenhuma empresa encontrada.
                       </p>
