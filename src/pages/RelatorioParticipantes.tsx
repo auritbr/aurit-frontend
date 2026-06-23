@@ -193,18 +193,85 @@ export default function RelatorioParticipantes() {
 
   const atividadeAplicadaLabel = aplicados.atividadeId === "TODOS" ? "Todas" : atividades.find((item) => item.id === aplicados.atividadeId)?.nomeAtividade ?? aplicados.atividadeId;
   const turmaAplicadaLabel = aplicados.turmaId === "TODOS" ? "Todas" : turmas.find((item) => item.id === aplicados.turmaId)?.nomeTurma ?? aplicados.turmaId;
+  const mostrarStatus = aplicados.status.length > 0;
+  const mostrarAtividade = aplicados.atividadeId !== "TODOS";
+  const mostrarTurma = aplicados.turmaId !== "TODOS";
+  const mostrarPresencas = aplicados.presencas.includes("PRESENTE");
+  const mostrarAusencias = aplicados.presencas.includes("AUSENTE");
+  const mostrarFeriados = aplicados.presencas.includes("FERIADO");
+  const mostrarSemAula = aplicados.presencas.includes("NAO_TEVE_AULA");
+  const mostrarPercentual = mostrarPresencas || mostrarAusencias;
+
   const colunasExport: RelatorioColumn<LinhaRelatorioParticipante>[] = [
     { key: "nome", label: "Participante", accessor: (row) => row.participanteNome },
-    { key: "status", label: "Status", accessor: (row) => statusParticipanteLabel(row.status) },
-    { key: "atividade", label: "Atividade", accessor: (row) => row.atividadeNome },
-    { key: "turma", label: "Turma", accessor: (row) => row.turmaNome ?? "—" },
-    { key: "presencas", label: "Presenças", accessor: (row) => row.presencas },
-    { key: "ausencias", label: "Ausências", accessor: (row) => row.ausencias },
-    { key: "feriados", label: "Feriados", accessor: (row) => row.feriados },
-    { key: "semAula", label: "Não teve aula", accessor: (row) => row.semAula },
-    { key: "percentual", label: "% Presença", accessor: (row) => `${row.percentualPresenca.toFixed(1)}%` },
-    { key: "ultima", label: "Última presença", accessor: (row) => formatDataBR(row.ultimaPresenca) },
   ];
+
+  if (mostrarStatus) {
+    colunasExport.push({
+      key: "status",
+      label: "Status",
+      accessor: (row) => statusParticipanteLabel(row.status),
+    });
+  }
+
+  if (mostrarAtividade) {
+    colunasExport.push({
+      key: "atividade",
+      label: "Atividade",
+      accessor: (row) => row.atividadeNome,
+    });
+  }
+
+  if (mostrarTurma) {
+    colunasExport.push({
+      key: "turma",
+      label: "Turma",
+      accessor: (row) => row.turmaNome ?? "—",
+    });
+  }
+
+  if (mostrarPresencas) {
+    colunasExport.push(
+      { key: "presencas", label: "Presenças", accessor: (row) => row.presencas },
+      {
+        key: "ultima",
+        label: "Última presença",
+        accessor: (row) => formatDataBR(row.ultimaPresenca),
+      },
+    );
+  }
+
+  if (mostrarAusencias) {
+    colunasExport.push({
+      key: "ausencias",
+      label: "Ausências",
+      accessor: (row) => row.ausencias,
+    });
+  }
+
+  if (mostrarFeriados) {
+    colunasExport.push({
+      key: "feriados",
+      label: "Feriados",
+      accessor: (row) => row.feriados,
+    });
+  }
+
+  if (mostrarSemAula) {
+    colunasExport.push({
+      key: "semAula",
+      label: "Não teve aula",
+      accessor: (row) => row.semAula,
+    });
+  }
+
+  if (mostrarPercentual) {
+    colunasExport.push({
+      key: "percentual",
+      label: "% Presença",
+      accessor: (row) => `${row.percentualPresenca.toFixed(1)}%`,
+    });
+  }
   const indicadoresPdf = [
     { label: "Status", valor: aplicados.status.length ? aplicados.status.map(statusToLabel).join(", ") : "Todos" },
     { label: "Atividade", valor: atividadeAplicadaLabel },
@@ -279,14 +346,27 @@ export default function RelatorioParticipantes() {
               <Table>
                 <TableHeader><TableRow>
                   <SortableHead active={sortKey === "nome"} dir={sortDir} onClick={() => toggleSort("nome")}>Participante</SortableHead>
-                  <SortableHead active={sortKey === "status"} dir={sortDir} onClick={() => toggleSort("status")}>Status</SortableHead>
-                  <SortableHead active={sortKey === "atividade"} dir={sortDir} onClick={() => toggleSort("atividade")}>Atividade</SortableHead>
-                  <SortableHead active={sortKey === "turma"} dir={sortDir} onClick={() => toggleSort("turma")}>Turma</SortableHead>
-                  <TableHead className="text-right text-xs">Presenças</TableHead><TableHead className="text-right text-xs">Ausências</TableHead><TableHead className="text-right text-xs">Feriados</TableHead><TableHead className="text-right text-xs">Não teve aula</TableHead>
-                  <SortableHead active={sortKey === "percentual"} dir={sortDir} onClick={() => toggleSort("percentual")}>% Presença</SortableHead><TableHead className="text-xs">Última presença</TableHead>
+                  {mostrarStatus && <SortableHead active={sortKey === "status"} dir={sortDir} onClick={() => toggleSort("status")}>Status</SortableHead>}
+                  {mostrarAtividade && <SortableHead active={sortKey === "atividade"} dir={sortDir} onClick={() => toggleSort("atividade")}>Atividade</SortableHead>}
+                  {mostrarTurma && <SortableHead active={sortKey === "turma"} dir={sortDir} onClick={() => toggleSort("turma")}>Turma</SortableHead>}
+                  {mostrarPresencas && <TableHead className="text-right text-xs">Presenças</TableHead>}
+                  {mostrarAusencias && <TableHead className="text-right text-xs">Ausências</TableHead>}
+                  {mostrarFeriados && <TableHead className="text-right text-xs">Feriados</TableHead>}
+                  {mostrarSemAula && <TableHead className="text-right text-xs">Não teve aula</TableHead>}
+                  {mostrarPercentual && <SortableHead active={sortKey === "percentual"} dir={sortDir} onClick={() => toggleSort("percentual")}>% Presença</SortableHead>}
+                  {mostrarPresencas && <TableHead className="text-xs">Última presença</TableHead>}
                 </TableRow></TableHeader>
                 <TableBody>{pagination.paginated.map((linha) => <TableRow key={linha.id}>
-                  <TableCell className="text-xs font-medium text-foreground">{linha.participanteNome}</TableCell><TableCell className="text-xs"><StatusBadge status={linha.status} /></TableCell><TableCell className="text-xs">{linha.atividadeNome}</TableCell><TableCell className="text-xs">{linha.turmaNome ?? "—"}</TableCell><TableCell className="text-right text-xs tabular-nums">{linha.presencas}</TableCell><TableCell className="text-right text-xs tabular-nums">{linha.ausencias}</TableCell><TableCell className="text-right text-xs tabular-nums">{linha.feriados}</TableCell><TableCell className="text-right text-xs tabular-nums">{linha.semAula}</TableCell><TableCell className="text-xs tabular-nums">{linha.percentualPresenca.toFixed(1)}%</TableCell><TableCell className="text-xs tabular-nums">{formatDataBR(linha.ultimaPresenca)}</TableCell>
+                  <TableCell className="text-xs font-medium text-foreground">{linha.participanteNome}</TableCell>
+                  {mostrarStatus && <TableCell className="text-xs"><StatusBadge status={linha.status} /></TableCell>}
+                  {mostrarAtividade && <TableCell className="text-xs">{linha.atividadeNome}</TableCell>}
+                  {mostrarTurma && <TableCell className="text-xs">{linha.turmaNome ?? "—"}</TableCell>}
+                  {mostrarPresencas && <TableCell className="text-right text-xs tabular-nums">{linha.presencas}</TableCell>}
+                  {mostrarAusencias && <TableCell className="text-right text-xs tabular-nums">{linha.ausencias}</TableCell>}
+                  {mostrarFeriados && <TableCell className="text-right text-xs tabular-nums">{linha.feriados}</TableCell>}
+                  {mostrarSemAula && <TableCell className="text-right text-xs tabular-nums">{linha.semAula}</TableCell>}
+                  {mostrarPercentual && <TableCell className="text-xs tabular-nums">{linha.percentualPresenca.toFixed(1)}%</TableCell>}
+                  {mostrarPresencas && <TableCell className="text-xs tabular-nums">{formatDataBR(linha.ultimaPresenca)}</TableCell>}
                 </TableRow>)}</TableBody>
               </Table>
             )}
