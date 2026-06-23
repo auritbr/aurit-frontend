@@ -252,8 +252,20 @@ export function AlertasPrazoNotifier({
   documentosNotifierHeight = 0,
 }: AlertasPrazoNotifierProps) {
   const location = useLocation();
+  const [tick, setTick] = useState(0);
   const [alerts, setAlerts] = useState(EMPTY_ALERTS);
   const [dismissed, setDismissed] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const refresh = () => setTick((value) => value + 1);
+    window.addEventListener("presencas:changed", refresh);
+    window.addEventListener("storage", refresh);
+
+    return () => {
+      window.removeEventListener("presencas:changed", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -265,7 +277,7 @@ export function AlertasPrazoNotifier({
     return () => {
       mounted = false;
     };
-  }, [location.pathname]);
+  }, [location.pathname, tick]);
 
   const empSignature = useMemo(
     () => resumoSignature(alerts.emprestimos),

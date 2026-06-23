@@ -102,4 +102,19 @@ describe("alertas de prazo", () => {
       ]),
     ).toEqual([]);
   });
+
+  it("agrupa pelo nome quando o backend não devolve os ids", () => {
+    const registrosSemIds = [
+      registro("2026-04-07", "AUSENTE"),
+      registro("2026-04-20", "AUSENTE"),
+      registro("2026-04-23", "AUSENTE"),
+      registro("2026-04-30", "AUSENTE"),
+    ].map((item) => ({ ...item, participanteId: "", atividadeId: "" }));
+
+    const alertas = montarAlertasAusencias(registrosSemIds);
+
+    expect(alertas).toHaveLength(1);
+    expect(alertas[0].participanteNome).toBe("Ana");
+    expect(alertas[0].quantidade).toBe(4);
+  });
 });

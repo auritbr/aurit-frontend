@@ -189,10 +189,12 @@ export function AlertasPopover() {
   useEffect(() => {
     const refresh = () => setTick((value) => value + 1);
     window.addEventListener("documentos:changed", refresh);
+    window.addEventListener("presencas:changed", refresh);
     window.addEventListener("storage", refresh);
 
     return () => {
       window.removeEventListener("documentos:changed", refresh);
+      window.removeEventListener("presencas:changed", refresh);
       window.removeEventListener("storage", refresh);
     };
   }, []);
@@ -288,40 +290,40 @@ export function AlertasPopover() {
             Carregando alertas...
           </div>
         ) : (
-          <ScrollArea className="max-h-[360px]">
-            <ul className="divide-y divide-border">
+          <ScrollArea className="max-h-[360px] w-full">
+            <ul className="w-full min-w-0 divide-y divide-border overflow-hidden">
               {alertas.map((alerta) => {
                 const Icon = alerta.icon;
 
                 return (
-                  <li key={alerta.id}>
+                  <li key={alerta.id} className="w-full min-w-0 overflow-hidden">
                     <button
                       type="button"
                       onClick={() => handleClick(alerta)}
-                      className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:bg-muted/50"
+                      className="w-full min-w-0 max-w-full overflow-hidden px-4 py-3 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:bg-muted/50"
                     >
                       <div className="flex items-start gap-3">
                         <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-muted">
                           <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="truncate text-[13px] font-medium text-foreground">
+                          <div className="flex min-w-0 items-start justify-between gap-2">
+                            <p className="min-w-0 break-words text-[13px] font-medium text-foreground">
                               {alerta.titulo}
                             </p>
                             <span
-                              className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium ${severidadeStyle[alerta.severidade]}`}
+                              className={`flex-shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium ${severidadeStyle[alerta.severidade]}`}
                             >
                               {severidadeLabel[alerta.severidade]}
                             </span>
                           </div>
-                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                          <p className="mt-0.5 whitespace-normal break-words text-[11px] text-muted-foreground">
                             <span className="text-foreground/80">
                               {alerta.itemLabel}:
                             </span>{" "}
                             {alerta.itemValue}
                           </p>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          <p className="mt-0.5 whitespace-normal break-words text-[11px] text-muted-foreground">
                             <span className="text-foreground/80">
                               {alerta.dataLabel}:
                             </span>{" "}

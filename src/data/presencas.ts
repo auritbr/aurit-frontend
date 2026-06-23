@@ -504,6 +504,8 @@ export async function createPresenca(payload: PresencaPayload): Promise<void> {
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
+
+  window.dispatchEvent(new Event("presencas:changed"));
 }
 
 export async function getPresencasBaseData(): Promise<{

@@ -142,11 +142,18 @@ export function montarAlertasAusencias(
   const grupos = new Map<string, RegistroPresenca[]>();
 
   for (const registro of registros) {
-    if (!registro.participanteId || !registro.atividadeId || !registro.data) {
+    const participanteKey =
+      registro.participanteId ||
+      registro.participanteNome.trim().toLocaleLowerCase("pt-BR");
+    const atividadeKey =
+      registro.atividadeId ||
+      registro.atividadeNome.trim().toLocaleLowerCase("pt-BR");
+
+    if (!participanteKey || !atividadeKey || !registro.data) {
       continue;
     }
 
-    const key = `${registro.participanteId}:${registro.atividadeId}`;
+    const key = JSON.stringify([participanteKey, atividadeKey]);
     const grupo = grupos.get(key) ?? [];
     grupo.push(registro);
     grupos.set(key, grupo);
@@ -178,9 +185,13 @@ export function montarAlertasAusencias(
 
     const ultima = aulas[0];
     alertas.push({
-      participanteId: ultima.participanteId,
+      participanteId:
+        ultima.participanteId ||
+        ultima.participanteNome.trim().toLocaleLowerCase("pt-BR"),
       participanteNome: ultima.participanteNome,
-      atividadeId: ultima.atividadeId,
+      atividadeId:
+        ultima.atividadeId ||
+        ultima.atividadeNome.trim().toLocaleLowerCase("pt-BR"),
       atividadeNome: ultima.atividadeNome,
       turmaNome: ultima.turmaNome,
       quantidade,
@@ -249,18 +260,16 @@ async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
   };
 }
 
-let ultimaBusca = 0;
 let buscaEmAndamento: Promise<AlertasPrazoCarregados> | null = null;
 
 export function carregarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
-  const agora = Date.now();
-
-  if (buscaEmAndamento && agora - ultimaBusca < 1_000) {
+  if (buscaEmAndamento) {
     return buscaEmAndamento;
   }
 
-  ultimaBusca = agora;
-  buscaEmAndamento = buscarAlertasPrazo();
+  buscaEmAndamento = buscarAlertasPrazo().finally(() => {
+    buscaEmAndamento = null;
+  });
 
   return buscaEmAndamento;
 }
