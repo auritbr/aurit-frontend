@@ -80,6 +80,14 @@ function formatDateTime(iso: string | null | undefined) {
   });
 }
 
+function getTimestamp(value: string | null | undefined) {
+  if (!value) return 0;
+
+  const timestamp = new Date(value).getTime();
+
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
 function gerarSlug(valor: string) {
   return valor
     .toLowerCase()
@@ -244,35 +252,35 @@ export default function ControleEmpresas() {
   }, []);
 
   const resumo = useMemo(() => {
-    const total = empresas.length;
-
-    const ativas = empresas.filter(
+    const empresasAtivas = empresas.filter(
       (e) => e.statusControleProprietario === "ATIVO",
-    ).length;
+    );
+
+    const ativas = empresasAtivas.length;
 
     const inativas = empresas.filter(
       (e) => e.statusControleProprietario === "INATIVO",
     ).length;
 
-    const usuariosTotais = empresas.reduce(
+    const usuariosTotais = empresasAtivas.reduce(
       (acc, e) => acc + Number(e.totalUsuarios || 0),
       0,
     );
 
-    const gratuito = empresas.filter(
+    const gratuito = empresasAtivas.filter(
       (e) => getPlanoVisualEmpresa(e) === "PLANO_GRATUITO",
     ).length;
 
-    const pago = empresas.filter(
+    const pago = empresasAtivas.filter(
       (e) => getPlanoVisualEmpresa(e) === "PLANO_PAGO",
     ).length;
 
-    const cortesia = empresas.filter(
+    const cortesia = empresasAtivas.filter(
       (e) => getPlanoVisualEmpresa(e) === "PLANO_CORTESIA",
     ).length;
 
     return {
-      total,
+      total: ativas,
       ativas,
       inativas,
       usuariosTotais,
@@ -323,9 +331,9 @@ export default function ControleEmpresas() {
     logs.forEach((log) => {
       if (log.tipoLogAcesso !== "LOGIN_SUCESSO") return;
 
-      const timestamp = new Date(log.dataEvento).getTime();
+      const timestamp = getTimestamp(log.dataEvento);
 
-      if (Number.isNaN(timestamp)) return;
+      if (!timestamp) return;
 
       const atual = log.dataEvento;
       const configuracaoKey = getEmpresaLogKey(log.configuracaoEmpresaId);
@@ -333,18 +341,16 @@ export default function ControleEmpresas() {
 
       if (configuracaoKey) {
         const existente = porConfiguracao.get(configuracaoKey);
-        const existenteTime = existente ? new Date(existente).getTime() : 0;
 
-        if (!existente || timestamp > existenteTime) {
+        if (!existente || timestamp > getTimestamp(existente)) {
           porConfiguracao.set(configuracaoKey, atual);
         }
       }
 
       if (nomeKey) {
         const existente = porNome.get(nomeKey);
-        const existenteTime = existente ? new Date(existente).getTime() : 0;
 
-        if (!existente || timestamp > existenteTime) {
+        if (!existente || timestamp > getTimestamp(existente)) {
           porNome.set(nomeKey, atual);
         }
       }
@@ -353,7 +359,34 @@ export default function ControleEmpresas() {
     return { porConfiguracao, porNome };
   }, [logs]);
 
+  function getUltimoAcessoDireto(empresa: EmpresaControle) {
+    const camposPossiveis = [
+      "ultimoAcesso",
+      "dataUltimoAcesso",
+      "ultimaDataAcesso",
+      "ultimoAcessoEm",
+      "ultimoLogin",
+      "dataUltimoLogin",
+      "lastAccessAt",
+      "lastLoginAt",
+    ];
+
+    const empresaRecord = empresa as unknown as Record<string, unknown>;
+
+    return (
+      camposPossiveis
+        .map((campo) => empresaRecord[campo])
+        .find((valor): valor is string =>
+          typeof valor === "string" && getTimestamp(valor) > 0,
+        ) ?? null
+    );
+  }
+
   function getUltimoAcessoEmpresa(empresa: EmpresaControle) {
+    const acessoDireto = getUltimoAcessoDireto(empresa);
+
+    if (acessoDireto) return acessoDireto;
+
     const configuracaoKey = getEmpresaLogKey(empresa.configuracaoEmpresaId);
     const nomeKey = getEmpresaNomeLogKey(empresa.nomeEmpresa);
 

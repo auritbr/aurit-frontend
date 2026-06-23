@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -102,16 +102,46 @@ function formatDateTime(iso: string | null | undefined) {
   });
 }
 
-function formatDate(iso: string | null | undefined) {
-  if (!iso) return "—";
+function formatDate(value: string | null | undefined) {
+  if (!value) return "—";
 
-  const d = new Date(iso);
+  const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})/)?.[0];
+
+  if (dateOnly) {
+    const [year, month, day] = dateOnly.split("-");
+    return `${day}/${month}/${year}`;
+  }
+
+  const d = new Date(value);
 
   if (Number.isNaN(d.getTime())) {
     return "—";
   }
 
   return d.toLocaleDateString("pt-BR");
+}
+
+function getCompetenciaOrder(value: string | null | undefined) {
+  if (!value) return Number.MAX_SAFE_INTEGER;
+
+  const match = value.trim().match(/^(\d{4})-(\d{2})/);
+
+  if (!match) return Number.MAX_SAFE_INTEGER;
+
+  return Number(match[1]) * 100 + Number(match[2]);
+}
+
+function ordenarPagamentosPorCompetencia(
+  pagamentos: PagamentoEmpresa[],
+): PagamentoEmpresa[] {
+  return [...pagamentos].sort((a, b) => {
+    const byCompetencia =
+      getCompetenciaOrder(a.competencia) - getCompetenciaOrder(b.competencia);
+
+    if (byCompetencia !== 0) return byCompetencia;
+
+    return a.id - b.id;
+  });
 }
 
 function formatBRL(v: number) {
@@ -167,7 +197,12 @@ export default function ControleEmpresaDetalhe() {
     useState<StatusUsuarioPlataforma>("ATIVO");
 
   const usuariosPagination = usePagination(usuarios, 10, "");
-  const pagamentosPagination = usePagination(pagamentos, 10, "");
+  const pagamentosOrdenados = useMemo(
+    () => ordenarPagamentosPorCompetencia(pagamentos),
+    [pagamentos],
+  );
+
+  const pagamentosPagination = usePagination(pagamentosOrdenados, 10, "");
   const logsPagination = usePagination(logs, 10, "");
 
   async function carregarDados() {
@@ -645,9 +680,8 @@ export default function ControleEmpresaDetalhe() {
                       return (
                         <tr
                           key={u.id}
-                          className={`border-b border-border/70 last:border-0 hover:bg-muted/30 ${
-                            inativo ? "opacity-70" : ""
-                          }`}
+                          className={`border-b border-border/70 last:border-0 hover:bg-muted/30 ${inativo ? "opacity-70" : ""
+                            }`}
                         >
                           <td className="px-5 py-2.5 font-medium text-foreground whitespace-nowrap">
                             {u.name}

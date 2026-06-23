@@ -66,6 +66,7 @@ interface ViaCepResponse {
   complemento?: string;
   bairro?: string;
   localidade?: string;
+  uf?: string;
   estado?: string;
   erro?: boolean;
 }
@@ -147,6 +148,10 @@ function formatDateTimeBR(value?: string | null) {
 }
 
 function mapUfToEstado(uf?: string): string {
+  const valor = (uf ?? "").trim();
+
+  if (!valor) return "";
+
   const mapa: Record<string, string> = {
     AC: "Acre",
     AL: "Alagoas",
@@ -177,7 +182,11 @@ function mapUfToEstado(uf?: string): string {
     TO: "Tocantins",
   };
 
-  return uf ? mapa[uf] ?? "" : "";
+  const upper = valor.toUpperCase();
+
+  if (mapa[upper]) return mapa[upper];
+
+  return estadosBrasil.includes(valor) ? valor : "";
 }
 
 function mapDataToForm(data: ConfiguracaoEmpresaData): ConfigEmpresaForm {
@@ -280,9 +289,9 @@ export default function ConfiguracaoEmpresaProprietario() {
         setPlanoVisual(
           mapped.tipoPlano
             ? getPlanoVisualEmpresa({
-                tipoPlano: mapped.tipoPlano as TipoPlanoApi,
-                planoCortesia: mapped.planoCortesia,
-              })
+              tipoPlano: mapped.tipoPlano as TipoPlanoApi,
+              planoCortesia: mapped.planoCortesia,
+            })
             : "",
         );
 
@@ -370,7 +379,7 @@ export default function ConfiguracaoEmpresaProprietario() {
         complemento: prev.complemento || data.complemento || "",
         bairro: data.bairro ?? "",
         cidade: data.localidade ?? "",
-        estado: mapUfToEstado(data.estado),
+        estado: mapUfToEstado(data.uf ?? data.estado),
       }));
     } catch (error) {
       console.error(error);
@@ -473,9 +482,9 @@ export default function ConfiguracaoEmpresaProprietario() {
       setPlanoVisual(
         mapped.tipoPlano
           ? getPlanoVisualEmpresa({
-              tipoPlano: mapped.tipoPlano as TipoPlanoApi,
-              planoCortesia: mapped.planoCortesia,
-            })
+            tipoPlano: mapped.tipoPlano as TipoPlanoApi,
+            planoCortesia: mapped.planoCortesia,
+          })
           : "",
       );
 
@@ -865,12 +874,12 @@ export default function ConfiguracaoEmpresaProprietario() {
                   Número
                 </FieldLabel>
 
-<Input
-  id="numero"
-  value={form.numero}
-  onChange={(e) => set("numero", e.target.value)}
-  disabled={loading || saving}
-/>
+                <Input
+                  id="numero"
+                  value={form.numero}
+                  onChange={(e) => set("numero", e.target.value)}
+                  disabled={loading || saving}
+                />
               </Field>
 
               <Field className="sm:col-span-4">
