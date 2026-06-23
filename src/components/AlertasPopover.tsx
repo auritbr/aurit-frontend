@@ -117,13 +117,15 @@ function buildAlertasPrazo(data: AlertasPrazoCarregados): AlertaItem[] {
 
   for (const item of data.ausencias) {
     out.push({
-      id: `presenca-${item.participanteId}-${item.atividadeId}-${item.turmaNome ?? "sem-turma"}`,
+      id: `presenca-${item.participanteId}-${item.atividadeId}-${item.turmaId ?? item.turmaNome ?? "sem-turma"
+        }-${item.quantidade}-${item.ultimaAusencia}`,
       tipo: "presenca",
       titulo: "Ausências consecutivas",
       itemLabel: "Participante",
       itemValue: item.participanteNome,
       dataLabel: "Atividade",
-      dataValue: `${item.atividadeNome}${item.turmaNome ? ` · ${item.turmaNome}` : ""} · ${item.quantidade} ausências`,
+      dataValue: `${item.atividadeNome}${item.turmaNome ? ` · Turma: ${item.turmaNome}` : ""
+        } · ${item.quantidade} ausências consecutivas`,
       severidade: "atencao",
       to: "/presencas",
       icon: UserRoundX,
@@ -295,7 +297,10 @@ export function AlertasPopover() {
                 const Icon = alerta.icon;
 
                 return (
-                  <li key={alerta.id} className="w-full min-w-0 overflow-hidden">
+                  <li
+                    key={alerta.id}
+                    className="w-full min-w-0 overflow-hidden"
+                  >
                     <button
                       type="button"
                       onClick={() => handleClick(alerta)}

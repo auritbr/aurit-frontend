@@ -253,10 +253,14 @@ const sections: Section[] = [
         items: [
           { title: "Relatórios", url: "/relatorios" },
           {
-            title: "Relatório Sociodemográfico",
+            title: "Sociodemográfico",
             url: "/relatorios/indicadores-sociodemograficos",
           },
-          { title: "Relatório de Presenças", url: "/relatorios/presencas" },
+          { title: "Presenças", url: "/relatorios/presencas" },
+          {
+            title: "Participantes",
+            url: "/relatorios/participantes",
+          },
         ],
       },
     ],

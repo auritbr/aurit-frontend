@@ -38,8 +38,7 @@ const toneStyles: Record<
   }
 > = {
   danger: {
-    card:
-      "border-rose-200 bg-rose-50/80 dark:border-rose-900/50 dark:bg-rose-950/30",
+    card: "border-rose-200 bg-rose-50/80 dark:border-rose-900/50 dark:bg-rose-950/30",
     accent: "bg-rose-400 dark:bg-rose-500",
     iconBg: "bg-rose-100 dark:bg-rose-900/40",
     iconColor: "text-rose-600 dark:text-rose-400",
@@ -47,8 +46,7 @@ const toneStyles: Record<
     badgeText: "text-rose-700 dark:text-rose-300",
   },
   warning: {
-    card:
-      "border-amber-200 bg-amber-50/80 dark:border-amber-900/50 dark:bg-amber-950/30",
+    card: "border-amber-200 bg-amber-50/80 dark:border-amber-900/50 dark:bg-amber-950/30",
     accent: "bg-amber-400 dark:bg-amber-500",
     iconBg: "bg-amber-100 dark:bg-amber-900/40",
     iconColor: "text-amber-700 dark:text-amber-400",
@@ -73,8 +71,13 @@ interface PopupProps {
   ctaPath: string;
   itemLabel: string;
   dateLabel: string;
-  items: Array<{ name: string; date: string }>;
+  items: Array<{
+    name: string;
+    date: string;
+    details?: Array<{ label: string; value: string }>;
+  }>;
   total: number;
+  showAllItems?: boolean;
   onDismiss: () => void;
 }
 
@@ -90,12 +93,13 @@ function PopupCard({
   dateLabel,
   items,
   total,
+  showAllItems = false,
   onDismiss,
 }: PopupProps) {
   const navigate = useNavigate();
   const tone = toneStyles[toneBySev[severity]];
   const StatusIcon = severity === "vencido" ? AlertTriangle : Clock;
-  const itensTopo = items.slice(0, 2);
+  const visibleItems = showAllItems ? items : items.slice(0, 2);
 
   return (
     <div
@@ -142,26 +146,51 @@ function PopupCard({
           </div>
         </div>
 
-        {itensTopo.length > 0 && (
-          <div className="mt-3 space-y-1.5 rounded-md border border-border/60 bg-background/70 px-3 py-2">
-            {itensTopo.map((item, index) => (
-              <div key={`${item.name}-${item.date}-${index}`} className="space-y-0.5 text-[12px]">
+        {visibleItems.length > 0 && (
+          <div
+            className={`mt-3 space-y-1.5 rounded-md border border-border/60 bg-background/70 px-3 py-2 ${showAllItems ? "max-h-[260px] overflow-y-auto pr-2" : ""
+              }`}
+          >
+            {visibleItems.map((item, index) => (
+              <div
+                key={`${item.name}-${item.date}-${index}`}
+                className="space-y-0.5 border-b border-border/50 pb-1.5 text-[12px] last:border-b-0 last:pb-0"
+              >
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-muted-foreground">{itemLabel}:</span>
-                  <span className="truncate font-medium text-foreground">
+                  <span className="shrink-0 text-muted-foreground">
+                    {itemLabel}:
+                  </span>
+                  <span className="min-w-0 break-words font-medium text-foreground">
                     {item.name}
                   </span>
                 </div>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-muted-foreground">{dateLabel}:</span>
-                  <span className="text-foreground">{item.date}</span>
+                  <span className="shrink-0 text-muted-foreground">
+                    {dateLabel}:
+                  </span>
+                  <span className="min-w-0 break-words text-foreground">
+                    {item.date}
+                  </span>
                 </div>
+                {item.details?.map((detail) => (
+                  <div
+                    key={`${detail.label}-${detail.value}`}
+                    className="flex items-baseline gap-1.5"
+                  >
+                    <span className="shrink-0 text-muted-foreground">
+                      {detail.label}:
+                    </span>
+                    <span className="min-w-0 break-words text-foreground">
+                      {detail.value}
+                    </span>
+                  </div>
+                ))}
               </div>
             ))}
-            {total > itensTopo.length && (
+            {!showAllItems && total > visibleItems.length && (
               <p className="border-t border-border/60 pt-1 text-[11px] text-muted-foreground">
-                +{total - itensTopo.length} outro
-                {total - itensTopo.length > 1 ? "s itens" : " item"} na lista
+                +{total - visibleItems.length} outro
+                {total - visibleItems.length > 1 ? "s itens" : " item"} na lista
               </p>
             )}
           </div>
@@ -201,7 +230,9 @@ const EMPTY_ALERTS = {
 
 const SK_AUSENCIAS = "alertas.ausencias.v3";
 
-function resumoSignature<T extends { id: string }>(resumo: AlertaResumo<T> | null) {
+function resumoSignature<T extends { id: string }>(
+  resumo: AlertaResumo<T> | null,
+) {
   if (!resumo) return "";
 
   return [...resumo.vencidos, ...resumo.hoje, ...resumo.proximos]
@@ -294,7 +325,8 @@ export function AlertasPrazoNotifier({
       alerts.ausencias
         .map(
           (item) =>
-            `${item.participanteId}:${item.atividadeId}:${item.turmaNome ?? "sem-turma"}:${item.quantidade}:${item.ultimaAusencia}`,
+            `${item.participanteId}:${item.atividadeId}:${item.turmaId ?? item.turmaNome ?? "sem-turma"
+            }:${item.quantidade}:${item.ultimaAusencia}`,
         )
         .sort()
         .join("|"),
@@ -324,14 +356,22 @@ export function AlertasPrazoNotifier({
   if (!showEmp && !showEdital && !showAusencias) return null;
 
   const emprestimoItems = alerts.emprestimos
-    ? [...alerts.emprestimos.vencidos, ...alerts.emprestimos.hoje, ...alerts.emprestimos.proximos]
+    ? [
+      ...alerts.emprestimos.vencidos,
+      ...alerts.emprestimos.hoje,
+      ...alerts.emprestimos.proximos,
+    ]
     : [];
   const editalItems = alerts.editais
-    ? [...alerts.editais.vencidos, ...alerts.editais.hoje, ...alerts.editais.proximos]
+    ? [
+      ...alerts.editais.vencidos,
+      ...alerts.editais.hoje,
+      ...alerts.editais.proximos,
+    ]
     : [];
 
-  const bottom = 16 +
-    (documentosNotifierHeight > 0 ? documentosNotifierHeight + 12 : 0);
+  const bottom =
+    16 + (documentosNotifierHeight > 0 ? documentosNotifierHeight + 12 : 0);
 
   return (
     <div
@@ -394,9 +434,19 @@ export function AlertasPrazoNotifier({
           dateLabel="Atividade"
           items={alerts.ausencias.map((item) => ({
             name: item.participanteNome,
-            date: `${item.atividadeNome}${item.turmaNome ? ` · ${item.turmaNome}` : ""} · ${item.quantidade} ausências`,
+            date: item.atividadeNome,
+            details: [
+              ...(item.turmaNome
+                ? [{ label: "Turma", value: item.turmaNome }]
+                : []),
+              {
+                label: "Ausências",
+                value: `${item.quantidade} consecutivas`,
+              },
+            ],
           }))}
           total={alerts.ausencias.length}
+          showAllItems
           onDismiss={() => dismiss(SK_AUSENCIAS, ausenciaSignature)}
         />
       )}

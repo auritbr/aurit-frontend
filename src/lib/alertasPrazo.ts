@@ -27,6 +27,7 @@ export interface AusenciaConsecutiva {
   participanteNome: string;
   atividadeId: string;
   atividadeNome: string;
+  turmaId?: string;
   turmaNome?: string;
   quantidade: number;
   ultimaAusencia: string;
@@ -109,7 +110,8 @@ export function montarAlertasEmprestimos(
 
     const dias = daysUntil(emprestimo.dataPrevistaDevolucao, today);
 
-    return dias !== null && (dias < 0 || dias === 0 || dias === 5 || dias === 10)
+    return dias !== null &&
+      (dias < 0 || dias === 0 || dias === 5 || dias === 10)
       ? [{ item: emprestimo, dias }]
       : [];
   });
@@ -122,13 +124,17 @@ export function montarAlertasEditais(
   today = new Date(),
 ): AlertaResumo<EditalData> | null {
   const items = editais.flatMap((edital) => {
-    if (edital.statusEdital === "CANCELADO" || edital.statusEdital === "ARQUIVADO") {
+    if (
+      edital.statusEdital === "CANCELADO" ||
+      edital.statusEdital === "ARQUIVADO"
+    ) {
       return [];
     }
 
     const dias = daysUntil(edital.dataEncerramento, today);
 
-    return dias !== null && (dias < 0 || dias === 0 || dias === 5 || dias === 10)
+    return dias !== null &&
+      (dias < 0 || dias === 0 || dias === 5 || dias === 10)
       ? [{ item: edital, dias }]
       : [];
   });
@@ -142,16 +148,19 @@ export function montarAlertasAusencias(
   const grupos = new Map<string, RegistroPresenca[]>();
 
   for (const registro of registros) {
-    const participanteKey =
-      normalizarChave(registro.participanteNome) || registro.participanteId;
-    const atividadeKey =
-      registro.atividadeId || normalizarChave(registro.atividadeNome);
-    const turmaKey =
-      registro.turmaId ||
-      normalizarChave(registro.turmaNome ?? "") ||
-      "__sem_turma__";
+    const participanteId = normalizarId(registro.participanteId);
+    const participanteNome = normalizarTexto(registro.participanteNome);
+    const atividadeId = normalizarId(registro.atividadeId);
+    const atividadeNome = normalizarTexto(registro.atividadeNome);
+    const turmaId = normalizarId(registro.turmaId);
+    const turmaNome = normalizarTexto(registro.turmaNome);
+    const data = normalizarTexto(registro.data);
 
-    if (!participanteKey || !atividadeKey || !registro.data) {
+    const participanteKey = participanteId || normalizarChave(participanteNome);
+    const atividadeKey = atividadeId || normalizarChave(atividadeNome);
+    const turmaKey = turmaId || normalizarChave(turmaNome) || "__sem_turma__";
+
+    if (!participanteKey || !atividadeKey || !data) {
       continue;
     }
 
@@ -167,47 +176,75 @@ export function montarAlertasAusencias(
     const registrosPorData = new Map<string, RegistroPresenca>();
 
     for (const registro of grupo) {
-      if (registro.status === "PRESENTE" || registro.status === "AUSENTE") {
-        registrosPorData.set(registro.data, registro);
+      if (registro.status !== "PRESENTE" && registro.status !== "AUSENTE") {
+        continue;
       }
+
+      const data = normalizarTexto(registro.data);
+
+      if (!data) continue;
+
+      registrosPorData.set(data, registro);
     }
 
-    const aulas = Array.from(registrosPorData.values())
-      .sort((a, b) => b.data.localeCompare(a.data));
+    const aulas = Array.from(registrosPorData.values()).sort((a, b) =>
+      normalizarTexto(b.data).localeCompare(normalizarTexto(a.data)),
+    );
 
     if (aulas.length < 3 || aulas[0].status !== "AUSENTE") continue;
 
-    const ausenciasConsecutivas = aulas.findIndex(
-      (registro) => registro.status === "PRESENTE",
-    );
-    const quantidade =
-      ausenciasConsecutivas === -1 ? aulas.length : ausenciasConsecutivas;
+    let quantidade = 0;
+
+    for (const aula of aulas) {
+      if (aula.status !== "AUSENTE") break;
+
+      quantidade += 1;
+    }
 
     if (quantidade < 3) continue;
 
     const ultima = aulas[0];
+    const participanteNome = normalizarTexto(ultima.participanteNome);
+    const atividadeNome = normalizarTexto(ultima.atividadeNome);
+    const turmaId = normalizarId(ultima.turmaId);
+    const turmaNome = normalizarTexto(ultima.turmaNome);
+
     alertas.push({
       participanteId:
-        ultima.participanteId ||
-        ultima.participanteNome.trim().toLocaleLowerCase("pt-BR"),
-      participanteNome: ultima.participanteNome,
+        normalizarId(ultima.participanteId) ||
+        normalizarChave(participanteNome),
+      participanteNome: participanteNome || "Participante sem nome",
       atividadeId:
-        ultima.atividadeId ||
-        ultima.atividadeNome.trim().toLocaleLowerCase("pt-BR"),
-      atividadeNome: ultima.atividadeNome,
-      turmaNome: ultima.turmaNome,
+        normalizarId(ultima.atividadeId) || normalizarChave(atividadeNome),
+      atividadeNome: atividadeNome || "Atividade sem nome",
+      turmaId: turmaId || undefined,
+      turmaNome: turmaNome || undefined,
       quantidade,
-      ultimaAusencia: ultima.data,
+      ultimaAusencia: normalizarTexto(ultima.data),
     });
   }
 
-  return alertas.sort((a, b) =>
-    b.ultimaAusencia.localeCompare(a.ultimaAusencia),
-  );
+  return alertas.sort((a, b) => {
+    const dataCompare = b.ultimaAusencia.localeCompare(a.ultimaAusencia);
+
+    if (dataCompare !== 0) return dataCompare;
+
+    return a.participanteNome.localeCompare(b.participanteNome, "pt-BR");
+  });
 }
 
-function normalizarChave(value: string): string {
-  return value
+function normalizarTexto(value?: string | null): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizarId(value?: string | number | null): string {
+  if (value === null || value === undefined || value === "") return "";
+
+  return String(value).trim();
+}
+
+function normalizarChave(value?: string | null): string {
+  return normalizarTexto(value)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, " ")
@@ -223,15 +260,19 @@ export interface AlertasPrazoCarregados {
 }
 
 async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
-  const [emprestimos, patrimonios, editais, presencas] = await Promise.allSettled([
-    getEmprestimos(),
-    getPatrimonios(),
-    getEditais(),
-    getRelatorioPresencasData(),
-  ]);
+  const [emprestimos, patrimonios, editais, presencas] =
+    await Promise.allSettled([
+      getEmprestimos(),
+      getPatrimonios(),
+      getEditais(),
+      getRelatorioPresencasData(),
+    ]);
 
   if (emprestimos.status === "rejected") {
-    console.error("Erro ao carregar alertas de empréstimos:", emprestimos.reason);
+    console.error(
+      "Erro ao carregar alertas de empréstimos:",
+      emprestimos.reason,
+    );
   }
 
   if (editais.status === "rejected") {
@@ -239,7 +280,10 @@ async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
   }
 
   if (patrimonios.status === "rejected") {
-    console.error("Erro ao carregar nomes dos patrimônios:", patrimonios.reason);
+    console.error(
+      "Erro ao carregar nomes dos patrimônios:",
+      patrimonios.reason,
+    );
   }
 
   if (presencas.status === "rejected") {
@@ -259,11 +303,13 @@ async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
     patrimonioNomePorId:
       patrimonios.status === "fulfilled"
         ? Object.fromEntries(
-            patrimonios.value.map((item) => [item.id, item.nomePatrimonio]),
-          )
+          patrimonios.value.map((item) => [item.id, item.nomePatrimonio]),
+        )
         : {},
     editais:
-      editais.status === "fulfilled" ? montarAlertasEditais(editais.value) : null,
+      editais.status === "fulfilled"
+        ? montarAlertasEditais(editais.value)
+        : null,
     ausencias:
       presencas.status === "fulfilled"
         ? montarAlertasAusencias(presencas.value.registros)
@@ -278,7 +324,5 @@ export function carregarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
 export function formatDateBR(value: string): string {
   const date = parseDate(value);
 
-  return date
-    ? new Intl.DateTimeFormat("pt-BR").format(date)
-    : value || "—";
+  return date ? new Intl.DateTimeFormat("pt-BR").format(date) : value || "—";
 }

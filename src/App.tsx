@@ -109,6 +109,7 @@ import RelatorioInstitucionalDocumentalPage from "./pages/RelatorioInstitucional
 import RelatorioDetalhePage from "./pages/RelatorioDetalhePage.tsx";
 import IndicadoresSociodemograficos from "@/pages/IndicadoresSociodemograficos.tsx";
 import RelatorioPresencas from "./pages/RelatorioPresencas.tsx";
+import RelatorioParticipantes from "./pages/RelatorioParticipantes.tsx";
 
 import ConfiguracaoEmpresa from "./pages/ConfiguracaoEmpresa.tsx";
 
@@ -976,6 +977,13 @@ function AppRoutes() {
           element={<IndicadoresSociodemograficos />}
         />
         <Route path="/relatorios/presencas" element={<RelatorioPresencas />}
+        />
+        <Route
+          path="/relatorios/participantes"
+          element={protectedPage(
+            <RelatorioParticipantes />,
+            permission("RELATORIOS"),
+          )}
         />
 
         <Route
