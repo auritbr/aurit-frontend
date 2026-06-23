@@ -40,17 +40,39 @@ interface PresencaParticipanteApiDTO {
   id?: number | string | null;
   participanteId?: number | string | null;
   statusPresenca?: StatusPresenca | string | null;
+  status?: StatusPresenca | string | null;
+  situacaoPresenca?: StatusPresenca | string | null;
+  participanteNome?: string | null;
+  nomeCompleto?: string | null;
+  nome?: string | null;
+  participante?:
+    | number
+    | string
+    | {
+        id?: number | string | null;
+        nomeCompleto?: string | null;
+        nome?: string | null;
+        participanteNome?: string | null;
+      }
+    | null;
 }
 
 interface PresencaApiDTO {
   id?: number | string | null;
   ano?: number | null;
   dataPresenca?: DateApiValue;
+  data?: DateApiValue;
+  dataAula?: DateApiValue;
   observacaoAula?: string | null;
   atividadeId?: number | string | null;
   turmaId?: number | string | null;
   planoAulaId?: number | string | null;
   participantes?: PresencaParticipanteApiDTO[] | null;
+  presencaParticipantes?: PresencaParticipanteApiDTO[] | null;
+  participantesPresenca?: PresencaParticipanteApiDTO[] | null;
+  registros?: PresencaParticipanteApiDTO[] | null;
+  atividade?: { id?: number | string | null } | null;
+  turma?: { id?: number | string | null } | null;
 }
 
 interface AtividadeApiDTO {
@@ -154,6 +176,27 @@ function toIdString(value?: number | string | null): string {
   }
 
   return String(value);
+}
+
+function objectId(value: unknown): string {
+  if (value && typeof value === "object" && "id" in value) {
+    return toIdString((value as { id?: number | string | null }).id);
+  }
+
+  return toIdString(value as number | string | null | undefined);
+}
+
+function unwrapList<T>(value: unknown): T[] {
+  if (Array.isArray(value)) return value as T[];
+  if (!value || typeof value !== "object") return [];
+
+  const record = value as Record<string, unknown>;
+
+  for (const key of ["content", "items", "data", "results"]) {
+    if (Array.isArray(record[key])) return record[key] as T[];
+  }
+
+  return [];
 }
 
 function pickText(...values: Array<unknown>): string {
@@ -303,14 +346,35 @@ function montarRegistrosPresenca(params: {
 
   return params.presencas.flatMap((presenca) => {
     const presencaId = toIdString(presenca.id);
-    const atividadeId = toIdString(presenca.atividadeId);
-    const turmaId = toIdString(presenca.turmaId);
-    const data = normalizeDateInput(presenca.dataPresenca);
-    const participantes = presenca.participantes ?? [];
+    const atividadeId = objectId(presenca.atividadeId ?? presenca.atividade);
+    const turmaId = objectId(presenca.turmaId ?? presenca.turma);
+    const data = normalizeDateInput(
+      presenca.dataPresenca ?? presenca.data ?? presenca.dataAula,
+    );
+    const participantes =
+      presenca.participantes ??
+      presenca.presencaParticipantes ??
+      presenca.participantesPresenca ??
+      presenca.registros ??
+      [];
 
     return participantes.map((participante, index) => {
-      const participanteId = toIdString(participante.participanteId);
+      const participanteId = objectId(
+        participante.participanteId ?? participante.participante,
+      );
       const participanteRegistroId = toIdString(participante.id);
+      const participanteAninhado =
+        participante.participante && typeof participante.participante === "object"
+          ? participante.participante
+          : undefined;
+      const participanteNomeRetorno = pickText(
+        participante.participanteNome,
+        participante.nomeCompleto,
+        participante.nome,
+        participanteAninhado?.nomeCompleto,
+        participanteAninhado?.nome,
+        participanteAninhado?.participanteNome,
+      );
 
       return {
         id: participanteRegistroId || `${presencaId}-${participanteId || index}`,
@@ -318,6 +382,7 @@ function montarRegistrosPresenca(params: {
         participanteId,
         participanteNome:
           participanteNomePorId.get(participanteId) ||
+          participanteNomeRetorno ||
           `Participante ${participanteId || "não informado"}`,
         atividadeId,
         atividadeNome:
@@ -328,7 +393,11 @@ function montarRegistrosPresenca(params: {
           ? turmaNomePorId.get(turmaId) || `Turma ${turmaId}`
           : undefined,
         data,
-        status: normalizarStatus(participante.statusPresenca),
+        status: normalizarStatus(
+          participante.statusPresenca ??
+            participante.status ??
+            participante.situacaoPresenca,
+        ),
         observacao: presenca.observacaoAula?.trim() || undefined,
       };
     });
@@ -342,7 +411,7 @@ export async function getRelatorioPresencasData(): Promise<{
 }> {
   const [presencas, atividadesRaw, turmasRaw, participantesRaw] =
     await Promise.all([
-      getApi<PresencaApiDTO[]>("/presencas"),
+      getApi<unknown>("/presencas"),
       getApiListSafe<AtividadeApiDTO>("/atividades"),
       getApiListSafe<TurmaApiDTO>("/turmas"),
       getApiListSafe<ParticipanteApiDTO>("/participantes"),
@@ -353,7 +422,7 @@ export async function getRelatorioPresencasData(): Promise<{
   const participantes = mapParticipantes(participantesRaw);
 
   const registros = montarRegistrosPresenca({
-    presencas: Array.isArray(presencas) ? presencas : [],
+    presencas: unwrapList<PresencaApiDTO>(presencas),
     atividades,
     turmas,
     participantes,

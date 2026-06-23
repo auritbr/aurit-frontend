@@ -5,6 +5,7 @@ import {
   getRelatorioPresencasData,
   type RegistroPresenca,
 } from "@/data/relatorioPresencas";
+import { isPlanoAccessDenied } from "@/lib/access";
 
 export type AlertaSeveridade = "vencido" | "hoje" | "proximo";
 
@@ -220,7 +221,12 @@ async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
   }
 
   if (presencas.status === "rejected") {
-    console.error("Erro ao carregar alertas de ausências:", presencas.reason);
+    const message =
+      presencas.reason instanceof Error ? presencas.reason.message : "";
+
+    if (!isPlanoAccessDenied(message)) {
+      console.error("Erro ao carregar alertas de ausências:", presencas.reason);
+    }
   }
 
   return {
