@@ -13,7 +13,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   formatDateBR as formatDocumentoDateBR,
   getDocumentos,
@@ -290,7 +289,7 @@ export function AlertasPopover() {
             Carregando alertas...
           </div>
         ) : (
-          <ScrollArea className="max-h-[360px] w-full">
+          <div className="max-h-[360px] w-full overflow-y-auto overscroll-contain">
             <ul className="w-full min-w-0 divide-y divide-border overflow-hidden">
               {alertas.map((alerta) => {
                 const Icon = alerta.icon;
@@ -336,7 +335,7 @@ export function AlertasPopover() {
                 );
               })}
             </ul>
-          </ScrollArea>
+          </div>
         )}
       </PopoverContent>
     </Popover>

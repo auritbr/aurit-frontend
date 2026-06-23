@@ -199,6 +199,8 @@ const EMPTY_ALERTS = {
   ausencias: [] as AusenciaConsecutiva[],
 };
 
+const SK_AUSENCIAS = "alertas.ausencias.v2";
+
 function resumoSignature<T extends { id: string }>(resumo: AlertaResumo<T> | null) {
   if (!resumo) return "";
 
@@ -317,8 +319,7 @@ export function AlertasPrazoNotifier({
     !isDismissed("alertas.editais", editalSignature);
   const showAusencias =
     alerts.ausencias.length > 0 &&
-    !location.pathname.startsWith("/presencas") &&
-    !isDismissed("alertas.ausencias", ausenciaSignature);
+    !isDismissed(SK_AUSENCIAS, ausenciaSignature);
 
   if (!showEmp && !showEdital && !showAusencias) return null;
 
@@ -396,7 +397,7 @@ export function AlertasPrazoNotifier({
             date: `${item.atividadeNome}${item.turmaNome ? ` · ${item.turmaNome}` : ""} · ${item.quantidade} ausências`,
           }))}
           total={alerts.ausencias.length}
-          onDismiss={() => dismiss("alertas.ausencias", ausenciaSignature)}
+          onDismiss={() => dismiss(SK_AUSENCIAS, ausenciaSignature)}
         />
       )}
     </div>

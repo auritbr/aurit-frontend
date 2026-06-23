@@ -264,18 +264,8 @@ async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
   };
 }
 
-let buscaEmAndamento: Promise<AlertasPrazoCarregados> | null = null;
-
 export function carregarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
-  if (buscaEmAndamento) {
-    return buscaEmAndamento;
-  }
-
-  buscaEmAndamento = buscarAlertasPrazo().finally(() => {
-    buscaEmAndamento = null;
-  });
-
-  return buscaEmAndamento;
+  return buscarAlertasPrazo();
 }
 
 export function formatDateBR(value: string): string {
