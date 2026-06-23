@@ -151,7 +151,6 @@ export function montarAlertasEditais(
 }
 
 type AnyRecord = Record<string, unknown>;
-type RegistroFlex = AnyRecord;
 
 interface DadosEnriquecimentoPresenca {
   participanteNomePorId?: Record<string, string>;
@@ -224,18 +223,31 @@ export function montarAlertasAusencias(
     );
 
     if (aulas.length < 3) continue;
-    if (aulas[0].status !== "AUSENTE") continue;
 
-    let quantidade = 0;
+    let melhorSequencia: RegistroPresencaNormalizado[] = [];
+    let sequenciaAtual: RegistroPresencaNormalizado[] = [];
 
     for (const aula of aulas) {
-      if (aula.status !== "AUSENTE") break;
-      quantidade += 1;
+      if (aula.status === "AUSENTE") {
+        sequenciaAtual.push(aula);
+        continue;
+      }
+
+      if (sequenciaAtual.length >= 3) {
+        melhorSequencia = sequenciaAtual;
+        break;
+      }
+
+      sequenciaAtual = [];
     }
 
-    if (quantidade < 3) continue;
+    if (melhorSequencia.length === 0 && sequenciaAtual.length >= 3) {
+      melhorSequencia = sequenciaAtual;
+    }
 
-    const ultima = aulas[0];
+    if (melhorSequencia.length < 3) continue;
+
+    const ultima = melhorSequencia[0];
 
     alertas.push({
       participanteId:
@@ -253,13 +265,14 @@ export function montarAlertasAusencias(
           : "Atividade não identificada"),
       turmaId: ultima.turmaId || undefined,
       turmaNome: ultima.turmaNome || undefined,
-      quantidade,
+      quantidade: melhorSequencia.length,
       ultimaAusencia: ultima.data,
     });
   }
 
   return alertas.sort((a, b) => {
     const dataCompare = b.ultimaAusencia.localeCompare(a.ultimaAusencia);
+
     if (dataCompare !== 0) return dataCompare;
 
     return a.participanteNome.localeCompare(b.participanteNome, "pt-BR");
@@ -579,19 +592,36 @@ function deduplicarRegistrosPresenca(
   for (const registro of registros) {
     const normalizado = normalizarRegistroPresenca(registro, enriquecimento);
 
-    const key = JSON.stringify([
-      normalizado.participanteId || normalizarChave(normalizado.participanteNome),
-      normalizado.atividadeId || normalizarChave(normalizado.atividadeNome),
+    const participanteKey =
+      normalizado.participanteId ||
+      normalizarChave(normalizado.participanteNome);
+
+    const atividadeKey =
+      normalizado.atividadeId || normalizarChave(normalizado.atividadeNome);
+
+    const turmaKey =
       normalizado.turmaId ||
       normalizarChave(normalizado.turmaNome) ||
-      "__sem_turma__",
+      "__sem_turma__";
+
+    if (
+      !participanteKey ||
+      !atividadeKey ||
+      !normalizado.data ||
+      !normalizado.status
+    ) {
+      continue;
+    }
+
+    const key = JSON.stringify([
+      participanteKey,
+      atividadeKey,
+      turmaKey,
       normalizado.data,
       normalizado.status,
     ]);
 
-    if (!key.includes(",,") && normalizado.data && normalizado.status) {
-      map.set(key, registro);
-    }
+    map.set(key, registro);
   }
 
   return Array.from(map.values());
@@ -854,27 +884,6 @@ async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
     enriquecimento,
   );
 
-  const ausencias = montarAlertasAusencias(registrosPresenca, enriquecimento);
-
-  console.log("ALERTAS PRESENÇA - TOTAL REGISTROS:", registrosPresenca.length);
-  console.table(
-    registrosPresenca.map((registro) => {
-      const normalizado = normalizarRegistroPresenca(registro, enriquecimento);
-
-      return {
-        participanteId: normalizado.participanteId,
-        participanteNome: normalizado.participanteNome,
-        atividadeId: normalizado.atividadeId,
-        atividadeNome: normalizado.atividadeNome,
-        turmaId: normalizado.turmaId,
-        turmaNome: normalizado.turmaNome,
-        data: normalizado.data,
-        status: normalizado.status,
-      };
-    }),
-  );
-  console.log("ALERTAS PRESENÇA - AUSÊNCIAS GERADAS:", ausencias);
-
   return {
     emprestimos:
       emprestimos.status === "fulfilled"
@@ -893,7 +902,7 @@ async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
         ? montarAlertasEditais(editais.value)
         : null,
 
-    ausencias,
+    ausencias: montarAlertasAusencias(registrosPresenca, enriquecimento),
   };
 }
 
