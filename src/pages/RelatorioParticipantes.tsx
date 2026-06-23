@@ -333,7 +333,7 @@ export default function RelatorioParticipantes() {
             <div><h2 className="text-sm font-semibold text-foreground">Participantes encontrados</h2><p className="mt-0.5 text-xs text-muted-foreground">Resultados consideram os filtros aplicados.</p></div>
             <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center lg:justify-end">
               <div className="relative w-full sm:w-72"><Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar por nome..." className="h-9 pl-8 text-xs" /></div>
-              <RelatorioExportButtons rows={ordenadas} columns={colunasExport} reportName="participantes" dataGeracao={new Date().toLocaleDateString("pt-BR")} indicadoresPdf={indicadoresPdf} disabled={!totalLinhas || loading} />
+              <RelatorioExportButtons rows={ordenadas} columns={colunasExport} reportName="participantes" dataGeracao={new Date().toLocaleDateString("pt-BR")} indicadoresPdf={indicadoresPdf} disabled={!totalLinhas || loading} showPdf />
             </div>
           </div>
 

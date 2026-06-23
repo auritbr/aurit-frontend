@@ -310,7 +310,22 @@ export async function exportPdf<T>(
     return;
   }
 
-  await exportRelatorioTabelaPdf(rows, cols, options);
+  const preservarColunasSelecionadas = isRelatorioParticipantes(reportSlug);
+
+  await exportRelatorioTabelaPdf(
+    rows,
+    cols,
+    options,
+    preservarColunasSelecionadas,
+  );
+}
+
+function isRelatorioParticipantes(reportSlug: string) {
+  return (
+    reportSlug === "participantes" ||
+    reportSlug === "relatorio-participantes" ||
+    reportSlug === "relatorio-de-participantes"
+  );
 }
 
 function isRelatorioPresencas<T>(
@@ -348,6 +363,7 @@ async function exportRelatorioTabelaPdf<T>(
   rows: T[],
   cols: RelatorioColumn<T>[],
   options: PdfOptions,
+  preservarColunasSelecionadas = false,
 ) {
   const doc = new jsPDF({
     orientation: "landscape",
@@ -393,11 +409,9 @@ async function exportRelatorioTabelaPdf<T>(
     ctx,
   );
 
-  const colunasEssenciais = selecionarColunasEssenciaisParaPdf(
-    rows,
-    cols,
-    options.reportName,
-  );
+  const colunasEssenciais = preservarColunasSelecionadas
+    ? cols
+    : selecionarColunasEssenciaisParaPdf(rows, cols, options.reportName);
 
   const body = rows.map((row) =>
     colunasEssenciais.map((col) => formatPdfTableCell(row, col)),
@@ -1611,6 +1625,7 @@ function buildRelatorioColumnStyles<T>(cols: RelatorioColumn<T>[]) {
       normalized.includes("nome da turma") ||
       normalized.includes("nome da acao") ||
       normalized.includes("nome da ação") ||
+      normalized.includes("participante") ||
       normalized.includes("titulo") ||
       normalized.includes("título") ||
       normalized.includes("descricao") ||
