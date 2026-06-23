@@ -230,17 +230,6 @@ export default function RelatorioParticipantes() {
     });
   }
 
-  if (mostrarPresencas) {
-    colunasExport.push(
-      { key: "presencas", label: "Presenças", accessor: (row) => row.presencas },
-      {
-        key: "ultima",
-        label: "Última presença",
-        accessor: (row) => formatDataBR(row.ultimaPresenca),
-      },
-    );
-  }
-
   if (mostrarAusencias) {
     colunasExport.push({
       key: "ausencias",
@@ -263,6 +252,17 @@ export default function RelatorioParticipantes() {
       label: "Não teve aula",
       accessor: (row) => row.semAula,
     });
+  }
+
+  if (mostrarPresencas) {
+    colunasExport.push(
+      { key: "presencas", label: "Presenças", accessor: (row) => row.presencas },
+      {
+        key: "ultima",
+        label: "Última presença",
+        accessor: (row) => formatDataBR(row.ultimaPresenca),
+      },
+    );
   }
 
   if (mostrarPercentual) {

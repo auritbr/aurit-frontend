@@ -310,14 +310,16 @@ export async function exportPdf<T>(
     return;
   }
 
-  const preservarColunasSelecionadas = isRelatorioParticipantes(reportSlug);
+  if (isRelatorioParticipantes(reportSlug)) {
+    await exportRelatorioParticipantesPdf(
+      rows as Record<string, unknown>[],
+      cols as RelatorioColumn<Record<string, unknown>>[],
+      options,
+    );
+    return;
+  }
 
-  await exportRelatorioTabelaPdf(
-    rows,
-    cols,
-    options,
-    preservarColunasSelecionadas,
-  );
+  await exportRelatorioTabelaPdf(rows, cols, options);
 }
 
 function isRelatorioParticipantes(reportSlug: string) {
@@ -326,6 +328,102 @@ function isRelatorioParticipantes(reportSlug: string) {
     reportSlug === "relatorio-participantes" ||
     reportSlug === "relatorio-de-participantes"
   );
+}
+
+const statusParticipantePdfLabel: Record<string, string> = {
+  MATRICULADO: "Matriculado",
+  ATIVO: "Ativo",
+  PENDENTE: "Pendente",
+  DESISTENTE: "Desistente",
+  CONCLUIDO: "Concluído",
+  INATIVO: "Inativo",
+  EM_ESPERA: "Em espera",
+  CANCELADO: "Cancelado",
+};
+
+const colunasRelatorioParticipantesPdf: RelatorioColumn<
+  Record<string, unknown>
+>[] = [
+  {
+    key: "nome",
+    label: "Participante",
+    accessor: (row) => texto(row.participanteNome) || "—",
+  },
+  {
+    key: "status",
+    label: "Status",
+    accessor: (row) => {
+      const status = texto(row.status);
+      return statusParticipantePdfLabel[status] || status || "—";
+    },
+  },
+  {
+    key: "atividade",
+    label: "Atividade",
+    accessor: (row) => texto(row.atividadeNome) || "—",
+  },
+  {
+    key: "turma",
+    label: "Turma",
+    accessor: (row) => texto(row.turmaNome) || "—",
+  },
+  {
+    key: "presencas",
+    label: "Presenças",
+    accessor: (row) => String(row.presencas ?? 0),
+  },
+  {
+    key: "ausencias",
+    label: "Ausências",
+    accessor: (row) => String(row.ausencias ?? 0),
+  },
+  {
+    key: "feriados",
+    label: "Feriados",
+    accessor: (row) => String(row.feriados ?? 0),
+  },
+  {
+    key: "semAula",
+    label: "Não teve aula",
+    accessor: (row) => String(row.semAula ?? 0),
+  },
+  {
+    key: "percentual",
+    label: "% Presença",
+    accessor: (row) => {
+      const percentual = Number(row.percentualPresenca ?? 0);
+      return `${Number.isFinite(percentual) ? percentual.toFixed(1) : "0.0"}%`;
+    },
+  },
+  {
+    key: "ultima",
+    label: "Última presença",
+    accessor: (row) => formatarDataRelatorioParticipantesPdf(row.ultimaPresenca),
+  },
+];
+
+function formatarDataRelatorioParticipantesPdf(value: unknown) {
+  const iso = normalizarDataPresenca(value);
+
+  if (!iso) return "—";
+
+  const [ano, mes, dia] = iso.split("-");
+  return ano && mes && dia ? `${dia}/${mes}/${ano}` : iso;
+}
+
+async function exportRelatorioParticipantesPdf(
+  rows: Record<string, unknown>[],
+  colunasSelecionadas: RelatorioColumn<Record<string, unknown>>[],
+  options: PdfOptions,
+) {
+  const chavesSelecionadas = new Set(
+    colunasSelecionadas.map((coluna) => coluna.key),
+  );
+  const colunasPdf = colunasRelatorioParticipantesPdf.filter((coluna) =>
+    chavesSelecionadas.has(coluna.key),
+  );
+
+  await exportRelatorioTabelaPdf(rows, colunasPdf, options, true);
 }
 
 function isRelatorioPresencas<T>(
