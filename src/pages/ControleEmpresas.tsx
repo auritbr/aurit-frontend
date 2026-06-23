@@ -56,7 +56,6 @@ import {
   criarEmpresaComAdmin,
   getPlanoVisualEmpresa,
   listarEmpresasControle,
-  listarLogsEmpresa,
   listarLogsGerais,
   PLANO_LABELS,
   type CriarEmpresaProprietarioPayload,
@@ -81,13 +80,6 @@ function formatDateTime(iso: string | null | undefined) {
   });
 }
 
-function getTimestamp(value: string | null | undefined) {
-  if (!value) return 0;
-
-  const timestamp = new Date(value).getTime();
-
-  return Number.isNaN(timestamp) ? 0 : timestamp;
-}
 
 function gerarSlug(valor: string) {
   return valor
@@ -211,9 +203,6 @@ export default function ControleEmpresas() {
 
   const [empresas, setEmpresas] = useState<EmpresaControle[]>([]);
   const [logs, setLogs] = useState<LogAcessoEmpresa[]>([]);
-  const [ultimoAcessoOrganizacoes, setUltimoAcessoOrganizacoes] = useState<
-    Record<number, string | null>
-  >({});
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
@@ -222,43 +211,12 @@ export default function ControleEmpresas() {
   const [novaEmpresa, setNovaEmpresa] =
     useState<NovaEmpresaProprietarioForm>(initialNovaEmpresa);
 
-  async function carregarUltimoAcessoPorOrganizacao(
-    empresasData: EmpresaControle[],
-  ) {
-    const acessosPorEmpresaEntries = await Promise.all(
-      empresasData.map(async (empresa) => {
-        try {
-          const logsEmpresa = await listarLogsEmpresa(empresa.id);
-
-          const ultimoLogin = logsEmpresa
-            .filter((log) => log.tipoLogAcesso === "LOGIN_SUCESSO")
-            .map((log) => log.dataEvento)
-            .filter((data): data is string => getTimestamp(data) > 0)
-            .sort((a, b) => getTimestamp(b) - getTimestamp(a))[0];
-
-          return [empresa.id, ultimoLogin ?? null] as const;
-        } catch (error) {
-          console.error(
-            `Não foi possível carregar logs da empresa ${empresa.id}.`,
-            error,
-          );
-
-          return [empresa.id, null] as const;
-        }
-      }),
-    );
-
-    setUltimoAcessoOrganizacoes(Object.fromEntries(acessosPorEmpresaEntries));
-  }
-
   async function carregarDados() {
     try {
       setLoading(true);
 
       const empresasData = await listarEmpresasControle();
       setEmpresas(empresasData);
-      setUltimoAcessoOrganizacoes({});
-
       try {
         const logsData = await listarLogsGerais();
         setLogs(logsData);
@@ -267,14 +225,11 @@ export default function ControleEmpresas() {
         setLogs([]);
         toast.error("Não foi possível carregar os logs gerais recentes.");
       }
-
-      void carregarUltimoAcessoPorOrganizacao(empresasData);
     } catch (error) {
       console.error(error);
       toast.error("Não foi possível carregar o controle de empresas.");
       setEmpresas([]);
       setLogs([]);
-      setUltimoAcessoOrganizacoes({});
     } finally {
       setLoading(false);
     }
@@ -356,36 +311,6 @@ export default function ControleEmpresas() {
   );
 
   const logsPagination = usePagination(logs, 10, "");
-
-  function getUltimoAcessoEmpresaPelosLogsGerais(empresa: EmpresaControle) {
-    const logsDaEmpresa = logs.filter((log) => {
-      const mesmoIdConfiguracao =
-        log.configuracaoEmpresaId != null &&
-        String(log.configuracaoEmpresaId) ===
-          String(empresa.configuracaoEmpresaId);
-
-      const mesmoNome =
-        (log.nomeEmpresa ?? "").trim().toLowerCase() ===
-        empresa.nomeEmpresa.trim().toLowerCase();
-
-      return log.tipoLogAcesso === "LOGIN_SUCESSO" && (mesmoIdConfiguracao || mesmoNome);
-    });
-
-    return (
-      logsDaEmpresa
-        .map((log) => log.dataEvento)
-        .filter((data): data is string => getTimestamp(data) > 0)
-        .sort((a, b) => getTimestamp(b) - getTimestamp(a))[0] ?? null
-    );
-  }
-
-  function getUltimoAcessoEmpresa(empresa: EmpresaControle) {
-    if (Object.prototype.hasOwnProperty.call(ultimoAcessoOrganizacoes, empresa.id)) {
-      return ultimoAcessoOrganizacoes[empresa.id];
-    }
-
-    return getUltimoAcessoEmpresaPelosLogsGerais(empresa);
-  }
 
   function handleNomeEmpresaChange(value: string) {
     setNovaEmpresa((prev) => ({
@@ -516,7 +441,6 @@ export default function ControleEmpresas() {
       Plano: PLANO_LABELS[getPlanoVisualEmpresa(e)],
       Status: e.statusControleProprietario === "ATIVO" ? "Ativo" : "Inativo",
       Usuarios: `${e.totalUsuarios}/${e.limiteUsuarios}`,
-      "Ultimo Acesso": formatDateTime(getUltimoAcessoEmpresa(e)),
       "Data de Criacao": formatDateTime(e.dataCriacao),
       "Ultima Atualizacao": formatDateTime(e.dataAtualizacao),
     }));
@@ -729,9 +653,6 @@ export default function ControleEmpresas() {
                   <th className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
                     Usuários
                   </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Último acesso
-                  </th>
                   <th className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
                     Detalhes
                   </th>
@@ -804,9 +725,6 @@ export default function ControleEmpresas() {
                           </span>
                         </td>
 
-                        <td className="px-5 py-3 whitespace-nowrap text-muted-foreground">
-                          {formatDateTime(getUltimoAcessoEmpresa(e))}
-                        </td>
 
                         <td className="px-5 py-3 text-right whitespace-nowrap">
                           <Button
