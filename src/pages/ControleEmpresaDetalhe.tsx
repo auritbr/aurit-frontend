@@ -815,14 +815,14 @@ export default function ControleEmpresaDetalhe() {
                 <table className="w-full text-[13px]">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
+                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap w-[140px]">
+                        Ações
+                      </th>
                       <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
                         Competência
                       </th>
                       <th className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
                         Valor
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap w-[140px]">
-                        Ações
                       </th>
                       <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
                         Vencimento
@@ -848,12 +848,6 @@ export default function ControleEmpresaDetalhe() {
                         key={p.id}
                         className="border-b border-border/70 last:border-0 hover:bg-muted/30"
                       >
-                        <td className="px-5 py-2.5 whitespace-nowrap font-medium text-foreground">
-                          {formatCompetencia(p.competencia)}
-                        </td>
-                        <td className="px-5 py-2.5 whitespace-nowrap text-right tabular-nums">
-                          {formatBRL(p.valor)}
-                        </td>
                         <td className="px-5 py-2.5 whitespace-nowrap">
                           <div className="flex items-center gap-1">
                             <TableActionIcon
@@ -873,6 +867,12 @@ export default function ControleEmpresaDetalhe() {
                               onClick={() => setConfirmDeletePgto(p.id)}
                             />
                           </div>
+                        </td>
+                        <td className="px-5 py-2.5 whitespace-nowrap font-medium text-foreground">
+                          {formatCompetencia(p.competencia)}
+                        </td>
+                        <td className="px-5 py-2.5 whitespace-nowrap text-right tabular-nums">
+                          {formatBRL(p.valor)}
                         </td>
                         <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
                           {formatDate(p.dataVencimento)}

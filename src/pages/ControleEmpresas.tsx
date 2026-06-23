@@ -123,16 +123,6 @@ function getEmailInputValue(valueOrEvent: string | ChangeEvent<HTMLInputElement>
   return valueOrEvent.target.value;
 }
 
-function getEmpresaLogKey(value?: number | string | null) {
-  if (value === null || value === undefined || value === "") return "";
-
-  return String(value);
-}
-
-function getEmpresaNomeLogKey(value?: string | null) {
-  return (value ?? "").trim().toLowerCase();
-}
-
 function SummaryCard({
   label,
   value,
@@ -232,44 +222,59 @@ export default function ControleEmpresas() {
   const [novaEmpresa, setNovaEmpresa] =
     useState<NovaEmpresaProprietarioForm>(initialNovaEmpresa);
 
+  async function carregarUltimoAcessoPorOrganizacao(
+    empresasData: EmpresaControle[],
+  ) {
+    const acessosPorEmpresaEntries = await Promise.all(
+      empresasData.map(async (empresa) => {
+        try {
+          const logsEmpresa = await listarLogsEmpresa(empresa.id);
+
+          const ultimoLogin = logsEmpresa
+            .filter((log) => log.tipoLogAcesso === "LOGIN_SUCESSO")
+            .map((log) => log.dataEvento)
+            .filter((data): data is string => getTimestamp(data) > 0)
+            .sort((a, b) => getTimestamp(b) - getTimestamp(a))[0];
+
+          return [empresa.id, ultimoLogin ?? null] as const;
+        } catch (error) {
+          console.error(
+            `Não foi possível carregar logs da empresa ${empresa.id}.`,
+            error,
+          );
+
+          return [empresa.id, null] as const;
+        }
+      }),
+    );
+
+    setUltimoAcessoOrganizacoes(Object.fromEntries(acessosPorEmpresaEntries));
+  }
+
   async function carregarDados() {
     try {
       setLoading(true);
 
-      const [empresasData, logsData] = await Promise.all([
-        listarEmpresasControle(),
-        listarLogsGerais(),
-      ]);
-
-      const acessosPorEmpresaEntries = await Promise.all(
-        empresasData.map(async (empresa) => {
-          try {
-            const logsEmpresa = await listarLogsEmpresa(empresa.id);
-
-            const ultimoLogin = logsEmpresa
-              .filter((log) => log.tipoLogAcesso === "LOGIN_SUCESSO")
-              .map((log) => log.dataEvento)
-              .filter((data): data is string => getTimestamp(data) > 0)
-              .sort((a, b) => getTimestamp(b) - getTimestamp(a))[0];
-
-            return [empresa.id, ultimoLogin ?? null] as const;
-          } catch (error) {
-            console.error(
-              `Não foi possível carregar logs da empresa ${empresa.id}.`,
-              error,
-            );
-
-            return [empresa.id, null] as const;
-          }
-        }),
-      );
-
+      const empresasData = await listarEmpresasControle();
       setEmpresas(empresasData);
-      setLogs(logsData);
-      setUltimoAcessoOrganizacoes(Object.fromEntries(acessosPorEmpresaEntries));
+      setUltimoAcessoOrganizacoes({});
+
+      try {
+        const logsData = await listarLogsGerais();
+        setLogs(logsData);
+      } catch (error) {
+        console.error(error);
+        setLogs([]);
+        toast.error("Não foi possível carregar os logs gerais recentes.");
+      }
+
+      void carregarUltimoAcessoPorOrganizacao(empresasData);
     } catch (error) {
       console.error(error);
       toast.error("Não foi possível carregar o controle de empresas.");
+      setEmpresas([]);
+      setLogs([]);
+      setUltimoAcessoOrganizacoes({});
     } finally {
       setLoading(false);
     }
@@ -352,8 +357,34 @@ export default function ControleEmpresas() {
 
   const logsPagination = usePagination(logs, 10, "");
 
+  function getUltimoAcessoEmpresaPelosLogsGerais(empresa: EmpresaControle) {
+    const logsDaEmpresa = logs.filter((log) => {
+      const mesmoIdConfiguracao =
+        log.configuracaoEmpresaId != null &&
+        String(log.configuracaoEmpresaId) ===
+          String(empresa.configuracaoEmpresaId);
+
+      const mesmoNome =
+        (log.nomeEmpresa ?? "").trim().toLowerCase() ===
+        empresa.nomeEmpresa.trim().toLowerCase();
+
+      return log.tipoLogAcesso === "LOGIN_SUCESSO" && (mesmoIdConfiguracao || mesmoNome);
+    });
+
+    return (
+      logsDaEmpresa
+        .map((log) => log.dataEvento)
+        .filter((data): data is string => getTimestamp(data) > 0)
+        .sort((a, b) => getTimestamp(b) - getTimestamp(a))[0] ?? null
+    );
+  }
+
   function getUltimoAcessoEmpresa(empresa: EmpresaControle) {
-    return ultimoAcessoOrganizacoes[empresa.id] ?? null;
+    if (Object.prototype.hasOwnProperty.call(ultimoAcessoOrganizacoes, empresa.id)) {
+      return ultimoAcessoOrganizacoes[empresa.id];
+    }
+
+    return getUltimoAcessoEmpresaPelosLogsGerais(empresa);
   }
 
   function handleNomeEmpresaChange(value: string) {
