@@ -3779,9 +3779,6 @@ export async function exportFinanceiroPdf(f: FinanceiroPdf) {
       documentNumber: numero,
       sections: [
         {
-          centeredHeading: `${valor} (${valorExtenso})`,
-        },
-        {
           justifiedParagraphs: [
             `Eu, ${empresa.nome}, inscrito(a) no ${empresa.documentoLabel} nº ${empresa.documento}, declaro que efetuei o pagamento da quantia acima indicada em favor de ${pessoa}, inscrito(a) no ${documentoPessoa.label} nº ${documentoPessoa.value}, referente a:`,
             descricao,
@@ -3877,9 +3874,6 @@ export async function exportFinanceiroPdf(f: FinanceiroPdf) {
     title: "Recibo de Pagamento",
     documentNumber: numero,
     sections: [
-      {
-        centeredHeading: `Valor recebido: ${valor} (${valorExtenso})`,
-      },
       {
         justifiedParagraphs: [
           `Recebi de ${pessoa}, inscrito(a) no ${documentoPessoa.label} nº ${documentoPessoa.value}, a quantia acima indicada, referente a:`,

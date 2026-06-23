@@ -1,4 +1,4 @@
-import { useEffect, type ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   BrowserRouter,
@@ -20,6 +20,7 @@ import ProtectedRouteWithPermission, {
 import PublicRoute from "@/components/PublicRoute";
 import { AccessDenied } from "@/components/AccessDenied";
 import { DocumentosVencidosNotifier } from "./components/DocumentosVencidosNotifier";
+import { AlertasPrazoNotifier } from "./components/AlertasPrazoNotifier";
 import {
   getUsuarioLogadoStorage,
   isAuthenticated,
@@ -185,6 +186,8 @@ function protectedProprietarioPage(element: ReactElement) {
 }
 
 function AuthenticatedServices() {
+  const [documentosNotifierHeight, setDocumentosNotifierHeight] = useState(0);
+
   if (!isAuthenticated()) {
     return null;
   }
@@ -195,7 +198,16 @@ function AuthenticatedServices() {
     return null;
   }
 
-  return <DocumentosVencidosNotifier />;
+  return (
+    <>
+      <DocumentosVencidosNotifier
+        onHeightChange={setDocumentosNotifierHeight}
+      />
+      <AlertasPrazoNotifier
+        documentosNotifierHeight={documentosNotifierHeight}
+      />
+    </>
+  );
 }
 
 function AppRoutes() {

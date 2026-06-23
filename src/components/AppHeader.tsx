@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Bell,
   ChevronDown,
   LogOut,
   User as UserIcon,
 } from "lucide-react";
 import { AuritLogo } from "@/components/AuritLogo";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { AlertasPopover } from "@/components/AlertasPopover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,26 +16,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
 import {
   getUsuarioLogado,
   limparSessaoUsuario,
-  isAuthenticated,
   type UsuarioLogado,
 } from "@/lib/auth";
-
-import {
-  getDocumentos,
-  contarDocumentosVencidos,
-} from "@/data/documentos";
-import { isPlanoAccessDenied } from "@/lib/access";
-import { isPlanoGratuitoAtual } from "@/lib/plano";
 
 type HeaderUser = {
   name: string;
@@ -57,7 +44,6 @@ export function AppHeader() {
     email: "",
   });
 
-  const [vencidos, setVencidos] = useState(0);
   const [loadingUser, setLoadingUser] = useState(true);
 
   useEffect(() => {
@@ -94,60 +80,6 @@ export function AppHeader() {
     };
   }, [navigate]);
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadDocumentos() {
-      if (!isAuthenticated()) {
-        if (active) {
-          setVencidos(0);
-        }
-
-        return;
-      }
-
-      try {
-        if (await isPlanoGratuitoAtual()) {
-          if (active) {
-            setVencidos(0);
-          }
-
-          return;
-        }
-
-        const documentos = await getDocumentos();
-
-        if (!active) return;
-
-        setVencidos(contarDocumentosVencidos(documentos));
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Erro ao buscar documentos.";
-
-        if (!isPlanoAccessDenied(message)) {
-          console.error("Erro ao buscar documentos:", error);
-        }
-
-        if (active) {
-          setVencidos(0);
-        }
-      }
-    }
-
-    void loadDocumentos();
-
-    const refresh = () => {
-      void loadDocumentos();
-    };
-
-    window.addEventListener("documentos:changed", refresh);
-
-    return () => {
-      active = false;
-      window.removeEventListener("documentos:changed", refresh);
-    };
-  }, []);
-
   const handleLogout = () => {
     limparSessaoUsuario();
     toast.success("Sessão encerrada.");
@@ -167,32 +99,7 @@ export function AppHeader() {
       </div>
 
       <div className="flex items-center gap-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => navigate("/documentos")}
-              aria-label="Documentos vencidos"
-              className="relative flex h-9 w-9 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-            >
-              <Bell className="h-4 w-4" strokeWidth={2} />
-
-              {vencidos > 0 && (
-                <span className="absolute right-1 top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
-                  {vencidos > 9 ? "9+" : vencidos}
-                </span>
-              )}
-            </button>
-          </TooltipTrigger>
-
-          <TooltipContent side="bottom">
-            {vencidos > 0
-              ? `${vencidos} documento${vencidos > 1 ? "s" : ""} vencido${
-                  vencidos > 1 ? "s" : ""
-                }`
-              : "Nenhum documento vencido"}
-          </TooltipContent>
-        </Tooltip>
+        <AlertasPopover />
 
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded px-2 py-1.5 transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
