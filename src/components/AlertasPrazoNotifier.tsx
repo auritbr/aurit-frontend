@@ -199,7 +199,7 @@ const EMPTY_ALERTS = {
   ausencias: [] as AusenciaConsecutiva[],
 };
 
-const SK_AUSENCIAS = "alertas.ausencias.v2";
+const SK_AUSENCIAS = "alertas.ausencias.v3";
 
 function resumoSignature<T extends { id: string }>(resumo: AlertaResumo<T> | null) {
   if (!resumo) return "";

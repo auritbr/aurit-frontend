@@ -142,15 +142,13 @@ export function montarAlertasAusencias(
   const grupos = new Map<string, RegistroPresenca[]>();
 
   for (const registro of registros) {
-    const participanteKey = registro.participanteNome
-      .trim()
-      .toLocaleLowerCase("pt-BR");
-    const atividadeKey = registro.atividadeNome
-      .trim()
-      .toLocaleLowerCase("pt-BR");
+    const participanteKey =
+      normalizarChave(registro.participanteNome) || registro.participanteId;
+    const atividadeKey =
+      registro.atividadeId || normalizarChave(registro.atividadeNome);
     const turmaKey =
-      registro.turmaNome?.trim().toLocaleLowerCase("pt-BR") ||
       registro.turmaId ||
+      normalizarChave(registro.turmaNome ?? "") ||
       "__sem_turma__";
 
     if (!participanteKey || !atividadeKey || !registro.data) {
@@ -206,6 +204,15 @@ export function montarAlertasAusencias(
   return alertas.sort((a, b) =>
     b.ultimaAusencia.localeCompare(a.ultimaAusencia),
   );
+}
+
+function normalizarChave(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
 }
 
 export interface AlertasPrazoCarregados {

@@ -127,7 +127,6 @@ describe("alertas de prazo", () => {
     ].map((item, index) => ({
       ...item,
       participanteId: `registro-${index}`,
-      atividadeId: `atividade-registro-${index}`,
     }));
 
     const alertas = montarAlertasAusencias(registrosComIdsVariaveis);
