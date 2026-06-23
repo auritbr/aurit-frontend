@@ -148,12 +148,16 @@ export function montarAlertasAusencias(
     const atividadeKey = registro.atividadeNome
       .trim()
       .toLocaleLowerCase("pt-BR");
+    const turmaKey =
+      registro.turmaNome?.trim().toLocaleLowerCase("pt-BR") ||
+      registro.turmaId ||
+      "__sem_turma__";
 
     if (!participanteKey || !atividadeKey || !registro.data) {
       continue;
     }
 
-    const key = JSON.stringify([participanteKey, atividadeKey]);
+    const key = JSON.stringify([participanteKey, atividadeKey, turmaKey]);
     const grupo = grupos.get(key) ?? [];
     grupo.push(registro);
     grupos.set(key, grupo);

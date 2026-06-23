@@ -118,13 +118,13 @@ function buildAlertasPrazo(data: AlertasPrazoCarregados): AlertaItem[] {
 
   for (const item of data.ausencias) {
     out.push({
-      id: `presenca-${item.participanteId}-${item.atividadeId}`,
+      id: `presenca-${item.participanteId}-${item.atividadeId}-${item.turmaNome ?? "sem-turma"}`,
       tipo: "presenca",
       titulo: "Ausências consecutivas",
       itemLabel: "Participante",
       itemValue: item.participanteNome,
       dataLabel: "Atividade",
-      dataValue: `${item.atividadeNome} · ${item.quantidade} ausências`,
+      dataValue: `${item.atividadeNome}${item.turmaNome ? ` · ${item.turmaNome}` : ""} · ${item.quantidade} ausências`,
       severidade: "atencao",
       to: "/presencas",
       icon: UserRoundX,

@@ -135,4 +135,54 @@ describe("alertas de prazo", () => {
     expect(alertas).toHaveLength(1);
     expect(alertas[0].quantidade).toBe(4);
   });
+
+  it("detecta ausências por turma sem misturar outros participantes", () => {
+    const datas = ["2026-04-07", "2026-04-20", "2026-04-23"];
+    const registrosTurma = datas.flatMap((data) => [
+      {
+        ...registro(data, "AUSENTE"),
+        turmaId: "10",
+        turmaNome: "Turma Percussão",
+      },
+      {
+        ...registro(data, "PRESENTE"),
+        participanteId: "8",
+        participanteNome: "Bruno",
+        turmaId: "10",
+        turmaNome: "Turma Percussão",
+      },
+    ]);
+
+    const alertas = montarAlertasAusencias(registrosTurma);
+
+    expect(alertas).toHaveLength(1);
+    expect(alertas[0].participanteNome).toBe("Ana");
+    expect(alertas[0].turmaNome).toBe("Turma Percussão");
+    expect(alertas[0].quantidade).toBe(3);
+  });
+
+  it("separa a mesma pessoa em turmas diferentes", () => {
+    const ausenciasTurmaA = ["2026-04-07", "2026-04-20", "2026-04-23"].map(
+      (data) => ({
+        ...registro(data, "AUSENTE"),
+        turmaId: "10",
+        turmaNome: "Turma A",
+      }),
+    );
+    const presencasTurmaB = ["2026-04-08", "2026-04-21", "2026-04-24"].map(
+      (data) => ({
+        ...registro(data, "PRESENTE"),
+        turmaId: "11",
+        turmaNome: "Turma B",
+      }),
+    );
+
+    const alertas = montarAlertasAusencias([
+      ...ausenciasTurmaA,
+      ...presencasTurmaB,
+    ]);
+
+    expect(alertas).toHaveLength(1);
+    expect(alertas[0].turmaNome).toBe("Turma A");
+  });
 });

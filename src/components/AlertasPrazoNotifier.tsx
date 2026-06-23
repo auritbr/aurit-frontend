@@ -292,7 +292,7 @@ export function AlertasPrazoNotifier({
       alerts.ausencias
         .map(
           (item) =>
-            `${item.participanteId}:${item.atividadeId}:${item.quantidade}:${item.ultimaAusencia}`,
+            `${item.participanteId}:${item.atividadeId}:${item.turmaNome ?? "sem-turma"}:${item.quantidade}:${item.ultimaAusencia}`,
         )
         .sort()
         .join("|"),
@@ -393,7 +393,7 @@ export function AlertasPrazoNotifier({
           dateLabel="Atividade"
           items={alerts.ausencias.map((item) => ({
             name: item.participanteNome,
-            date: `${item.atividadeNome} · ${item.quantidade} ausências`,
+            date: `${item.atividadeNome}${item.turmaNome ? ` · ${item.turmaNome}` : ""} · ${item.quantidade} ausências`,
           }))}
           total={alerts.ausencias.length}
           onDismiss={() => dismiss("alertas.ausencias", ausenciaSignature)}
