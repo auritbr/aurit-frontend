@@ -56,6 +56,7 @@ import {
   criarEmpresaComAdmin,
   getPlanoVisualEmpresa,
   listarEmpresasControle,
+  listarLogsEmpresa,
   listarLogsGerais,
   PLANO_LABELS,
   type CriarEmpresaProprietarioPayload,
@@ -220,6 +221,9 @@ export default function ControleEmpresas() {
 
   const [empresas, setEmpresas] = useState<EmpresaControle[]>([]);
   const [logs, setLogs] = useState<LogAcessoEmpresa[]>([]);
+  const [ultimoAcessoOrganizacoes, setUltimoAcessoOrganizacoes] = useState<
+    Record<number, string | null>
+  >({});
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
@@ -237,8 +241,32 @@ export default function ControleEmpresas() {
         listarLogsGerais(),
       ]);
 
+      const acessosPorEmpresaEntries = await Promise.all(
+        empresasData.map(async (empresa) => {
+          try {
+            const logsEmpresa = await listarLogsEmpresa(empresa.id);
+
+            const ultimoLogin = logsEmpresa
+              .filter((log) => log.tipoLogAcesso === "LOGIN_SUCESSO")
+              .map((log) => log.dataEvento)
+              .filter((data): data is string => getTimestamp(data) > 0)
+              .sort((a, b) => getTimestamp(b) - getTimestamp(a))[0];
+
+            return [empresa.id, ultimoLogin ?? null] as const;
+          } catch (error) {
+            console.error(
+              `Não foi possível carregar logs da empresa ${empresa.id}.`,
+              error,
+            );
+
+            return [empresa.id, null] as const;
+          }
+        }),
+      );
+
       setEmpresas(empresasData);
       setLogs(logsData);
+      setUltimoAcessoOrganizacoes(Object.fromEntries(acessosPorEmpresaEntries));
     } catch (error) {
       console.error(error);
       toast.error("Não foi possível carregar o controle de empresas.");
@@ -324,79 +352,8 @@ export default function ControleEmpresas() {
 
   const logsPagination = usePagination(logs, 10, "");
 
-  const ultimoAcessoPorEmpresa = useMemo(() => {
-    const porConfiguracao = new Map<string, string>();
-    const porNome = new Map<string, string>();
-
-    logs.forEach((log) => {
-      if (log.tipoLogAcesso !== "LOGIN_SUCESSO") return;
-
-      const timestamp = getTimestamp(log.dataEvento);
-
-      if (!timestamp) return;
-
-      const atual = log.dataEvento;
-      const configuracaoKey = getEmpresaLogKey(log.configuracaoEmpresaId);
-      const nomeKey = getEmpresaNomeLogKey(log.nomeEmpresa);
-
-      if (configuracaoKey) {
-        const existente = porConfiguracao.get(configuracaoKey);
-
-        if (!existente || timestamp > getTimestamp(existente)) {
-          porConfiguracao.set(configuracaoKey, atual);
-        }
-      }
-
-      if (nomeKey) {
-        const existente = porNome.get(nomeKey);
-
-        if (!existente || timestamp > getTimestamp(existente)) {
-          porNome.set(nomeKey, atual);
-        }
-      }
-    });
-
-    return { porConfiguracao, porNome };
-  }, [logs]);
-
-  function getUltimoAcessoDireto(empresa: EmpresaControle) {
-    const camposPossiveis = [
-      "ultimoAcesso",
-      "dataUltimoAcesso",
-      "ultimaDataAcesso",
-      "ultimoAcessoEm",
-      "ultimoLogin",
-      "dataUltimoLogin",
-      "lastAccessAt",
-      "lastLoginAt",
-    ];
-
-    const empresaRecord = empresa as unknown as Record<string, unknown>;
-
-    return (
-      camposPossiveis
-        .map((campo) => empresaRecord[campo])
-        .find((valor): valor is string =>
-          typeof valor === "string" && getTimestamp(valor) > 0,
-        ) ?? null
-    );
-  }
-
   function getUltimoAcessoEmpresa(empresa: EmpresaControle) {
-    const acessoDireto = getUltimoAcessoDireto(empresa);
-
-    if (acessoDireto) return acessoDireto;
-
-    const configuracaoKey = getEmpresaLogKey(empresa.configuracaoEmpresaId);
-    const nomeKey = getEmpresaNomeLogKey(empresa.nomeEmpresa);
-
-    return (
-      (configuracaoKey
-        ? ultimoAcessoPorEmpresa.porConfiguracao.get(configuracaoKey)
-        : undefined) ??
-      ultimoAcessoPorEmpresa.porNome.get(nomeKey) ??
-      null
-    );
+    return ultimoAcessoOrganizacoes[empresa.id] ?? null;
   }
 
   function handleNomeEmpresaChange(value: string) {

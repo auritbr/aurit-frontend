@@ -144,6 +144,63 @@ function ordenarPagamentosPorCompetencia(
   });
 }
 
+function formatCompetencia(value: string | null | undefined) {
+  if (!value) return "—";
+
+  const trimmed = value.trim();
+  const matchIso = trimmed.match(/^(\d{4})-(\d{2})$/);
+
+  if (matchIso) {
+    return `${matchIso[2]}/${matchIso[1]}`;
+  }
+
+  const matchBr = trimmed.match(/^(\d{2})\/(\d{4})$/);
+
+  if (matchBr) {
+    return trimmed;
+  }
+
+  return trimmed;
+}
+
+function parseDateOnly(value: string | null | undefined) {
+  if (!value) return null;
+
+  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (!match) return null;
+
+  return new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+  );
+}
+
+function diffCalendarDays(start: Date, end: Date) {
+  const startUtc = Date.UTC(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate(),
+  );
+  const endUtc = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+
+  return Math.floor((endUtc - startUtc) / 86400000);
+}
+
+function getDiasAtrasoPagamento(pagamento: PagamentoEmpresa) {
+  const vencimento = parseDateOnly(pagamento.dataVencimento);
+
+  if (!vencimento) return "—";
+
+  const dataReferencia = parseDateOnly(pagamento.dataPagamento) ?? new Date();
+  const dias = Math.max(0, diffCalendarDays(vencimento, dataReferencia));
+
+  if (dias === 0) return "0";
+
+  return `${dias} ${dias === 1 ? "dia" : "dias"}`;
+}
+
 function formatBRL(v: number) {
   return Number(v || 0).toLocaleString("pt-BR", {
     style: "currency",
@@ -764,26 +821,23 @@ export default function ControleEmpresaDetalhe() {
                       <th className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
                         Valor
                       </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Vencimento
+                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap w-[140px]">
+                        Ações
                       </th>
                       <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Pagamento
+                        Vencimento
                       </th>
                       <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
                         Status
                       </th>
                       <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
+                        Pagamento
+                      </th>
+                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
                         Forma
                       </th>
                       <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Referência
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Observação
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap w-[140px]">
-                        Ações
+                        Dias de atraso
                       </th>
                     </tr>
                   </thead>
@@ -795,28 +849,10 @@ export default function ControleEmpresaDetalhe() {
                         className="border-b border-border/70 last:border-0 hover:bg-muted/30"
                       >
                         <td className="px-5 py-2.5 whitespace-nowrap font-medium text-foreground">
-                          {p.competencia}
+                          {formatCompetencia(p.competencia)}
                         </td>
                         <td className="px-5 py-2.5 whitespace-nowrap text-right tabular-nums">
                           {formatBRL(p.valor)}
-                        </td>
-                        <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
-                          {formatDate(p.dataVencimento)}
-                        </td>
-                        <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
-                          {formatDate(p.dataPagamento)}
-                        </td>
-                        <td className="px-5 py-2.5 whitespace-nowrap">
-                          <StatusPagamentoBadge status={p.statusPagamento} />
-                        </td>
-                        <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
-                          {p.formaPagamento ?? "—"}
-                        </td>
-                        <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground font-mono text-[12px]">
-                          {p.referenciaExterna ?? "—"}
-                        </td>
-                        <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
-                          {p.observacao ?? "—"}
                         </td>
                         <td className="px-5 py-2.5 whitespace-nowrap">
                           <div className="flex items-center gap-1">
@@ -838,13 +874,28 @@ export default function ControleEmpresaDetalhe() {
                             />
                           </div>
                         </td>
+                        <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
+                          {formatDate(p.dataVencimento)}
+                        </td>
+                        <td className="px-5 py-2.5 whitespace-nowrap">
+                          <StatusPagamentoBadge status={p.statusPagamento} />
+                        </td>
+                        <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
+                          {formatDate(p.dataPagamento)}
+                        </td>
+                        <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
+                          {p.formaPagamento ?? "—"}
+                        </td>
+                        <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground tabular-nums">
+                          {getDiasAtrasoPagamento(p)}
+                        </td>
                       </tr>
                     ))}
 
                     {pagamentos.length === 0 && (
                       <tr>
                         <td
-                          colSpan={9}
+                          colSpan={8}
                           className="px-5 py-10 text-center text-muted-foreground"
                         >
                           Nenhum pagamento registrado.
@@ -1213,7 +1264,7 @@ export default function ControleEmpresaDetalhe() {
 
           {viewPgto && (
             <dl className="grid grid-cols-1 gap-3 text-[13px]">
-              <InfoRow label="Competência" value={viewPgto.competencia} />
+              <InfoRow label="Competência" value={formatCompetencia(viewPgto.competencia)} />
               <InfoRow label="Valor" value={formatBRL(viewPgto.valor)} />
               <InfoRow
                 label="Vencimento"
@@ -1230,6 +1281,7 @@ export default function ControleEmpresaDetalhe() {
                 }
               />
               <InfoRow label="Forma" value={viewPgto.formaPagamento ?? "—"} />
+              <InfoRow label="Dias de atraso" value={getDiasAtrasoPagamento(viewPgto)} />
               <InfoRow
                 label="Referência"
                 value={viewPgto.referenciaExterna ?? "—"}
