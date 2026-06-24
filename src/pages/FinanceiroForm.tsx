@@ -16,6 +16,7 @@ import {
 
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -62,11 +63,11 @@ interface FinanceiroNextStepCardData {
 function salvarProximaAcaoFinanceiro() {
   const card: FinanceiroNextStepCardData = {
     titulo:
-    "Após registrar o controle financeiro, acompanhe o cumprimento das metas", 
-    descricao: 
-    "O cumprimento de metas ajuda a comparar o que foi planejado com o que foi executado, registrando a meta prevista, o resultado alcançado e as evidências que comprovam a realização das ações.", 
-    acaoLabel: "Cadastrar cumprimento de metas", 
-    acaoUrl: "/cumprimento-metas/novo", 
+      "Após registrar o controle financeiro, acompanhe o cumprimento das metas",
+    descricao:
+      "O cumprimento de metas ajuda a comparar o que foi planejado com o que foi executado, registrando a meta prevista, o resultado alcançado e as evidências que comprovam a realização das ações.",
+    acaoLabel: "Cadastrar cumprimento de metas",
+    acaoUrl: "/cumprimento-metas/novo",
     acaoSecundariaLabel: "Ver controle financeiro",
     acaoSecundariaUrl: "/financeiro",
     variante: "pendente",
@@ -1461,6 +1462,10 @@ export default function FinanceiroForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Controle Financeiro"
+          href="https://www.aurit.com.br/wiki/financeiro/controle-financeiro"
+        />
       </div>
     </AppLayout>
   );

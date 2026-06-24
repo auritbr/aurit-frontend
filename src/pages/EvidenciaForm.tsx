@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { HelpTooltip } from "@/components/HelpTooltip";
 import {
   buildEvidenciaPayload,
@@ -184,22 +185,22 @@ export default function EvidenciaForm() {
 
   const tipoVinculoSelectValue = String(
     form.tipoVinculoEvidencia ||
-      existingEvidencia?.tipoVinculoEvidencia ||
-      "",
+    existingEvidencia?.tipoVinculoEvidencia ||
+    "",
   ) as TipoVinculoEvidencia | "";
 
   const tv = tipoVinculoSelectValue;
 
   const propostaEditalSelectValue = String(
     form.propostaEdital ||
-      (projetoOriginalAtivo ? existingEvidencia?.propostaEdital : "") ||
-      "",
+    (projetoOriginalAtivo ? existingEvidencia?.propostaEdital : "") ||
+    "",
   );
 
   const atividadeSelectValue = String(
     form.atividade ||
-      (projetoOriginalAtivo ? existingEvidencia?.atividade : "") ||
-      "",
+    (projetoOriginalAtivo ? existingEvidencia?.atividade : "") ||
+    "",
   );
 
   const turmaSelectValue = String(
@@ -208,20 +209,20 @@ export default function EvidenciaForm() {
 
   const eventoCulturalSelectValue = String(
     form.eventoCultural ||
-      (projetoOriginalAtivo ? existingEvidencia?.eventoCultural : "") ||
-      "",
+    (projetoOriginalAtivo ? existingEvidencia?.eventoCultural : "") ||
+    "",
   );
 
   const acaoDivulgacaoSelectValue = String(
     form.acaoDivulgacao ||
-      (projetoOriginalAtivo ? existingEvidencia?.acaoDivulgacao : "") ||
-      "",
+    (projetoOriginalAtivo ? existingEvidencia?.acaoDivulgacao : "") ||
+    "",
   );
 
   const presencaSelectValue = String(
     form.presenca ||
-      (projetoOriginalAtivo ? existingEvidencia?.presenca : "") ||
-      "",
+    (projetoOriginalAtivo ? existingEvidencia?.presenca : "") ||
+    "",
   );
 
   useEffect(() => {
@@ -976,6 +977,10 @@ export default function EvidenciaForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Evidências de Execução"
+          href="https://www.aurit.com.br/wiki/evidencias/evidencias-de-execucao"
+        />
       </div>
     </AppLayout>
   );

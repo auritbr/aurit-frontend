@@ -12,6 +12,7 @@ import {
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
 import { FieldLabel } from "@/components/FieldLabel";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { FormLegend } from "@/components/FormLegend";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -780,6 +781,11 @@ export default function DocumentoForm() {
             </div>
           </div>
         </section>
+
+      <WikiFloatingButton
+        pageTitle="Documentos"
+        href="https://www.aurit.com.br/wiki/institucional/documentos"
+      />
 
         <div className="flex justify-end gap-2">
           <Button

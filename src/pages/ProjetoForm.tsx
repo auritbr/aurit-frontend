@@ -11,6 +11,7 @@ import {
 
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -1010,6 +1011,10 @@ export default function ProjetoForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Projetos"
+          href="https://www.aurit.com.br/wiki/projetos/projetos"
+        />
       </div>
     </AppLayout>
   );

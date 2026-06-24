@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { FormLegend } from "@/components/FormLegend";
 import { HelpTooltip } from "@/components/HelpTooltip";
 import {
@@ -582,6 +583,10 @@ export default function MetaProjetoForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Metas do Projeto"
+          href="https://www.aurit.com.br/wiki/projetos/metas-do-projeto"
+        />
       </div>
     </AppLayout>
   );

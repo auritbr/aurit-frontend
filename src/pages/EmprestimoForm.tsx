@@ -12,6 +12,7 @@ import {
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -561,7 +562,7 @@ export default function EmprestimoForm() {
     if (
       form.dataPrevistaDevolucao.trim() &&
       brToComparable(form.dataPrevistaDevolucao) <
-        brToComparable(form.dataEmprestimo)
+      brToComparable(form.dataEmprestimo)
     ) {
       toast.error(
         "A data prevista de devolução não pode ser anterior à data do empréstimo.",
@@ -1238,6 +1239,10 @@ export default function EmprestimoForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Empréstimos"
+          href="https://www.aurit.com.br/wiki/patrimonio/emprestimos"
+        />
       </div>
     </AppLayout>
   );

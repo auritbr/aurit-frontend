@@ -13,6 +13,7 @@ import {
 
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -204,51 +205,51 @@ export default function PatrimonioForm() {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-const organizacoesOptions = useMemo(() => {
-  const options = [...organizacoes];
+  const organizacoesOptions = useMemo(() => {
+    const options = [...organizacoes];
 
-  const organizacaoId =
-    form.organizacaoId ||
-    String(existingPatrimonio?.organizacaoId ?? "") ||
-    String(organizacoes[0]?.id ?? "");
+    const organizacaoId =
+      form.organizacaoId ||
+      String(existingPatrimonio?.organizacaoId ?? "") ||
+      String(organizacoes[0]?.id ?? "");
 
-  const organizacaoIdNumber = Number(organizacaoId);
+    const organizacaoIdNumber = Number(organizacaoId);
 
-  if (
-    organizacaoId &&
-    Number.isFinite(organizacaoIdNumber) &&
-    !options.some((org) => String(org.id) === String(organizacaoId))
-  ) {
-    options.unshift({
-      id: organizacaoIdNumber,
-      nome: `Organização ${organizacaoId}`,
-    });
-  }
+    if (
+      organizacaoId &&
+      Number.isFinite(organizacaoIdNumber) &&
+      !options.some((org) => String(org.id) === String(organizacaoId))
+    ) {
+      options.unshift({
+        id: organizacaoIdNumber,
+        nome: `Organização ${organizacaoId}`,
+      });
+    }
 
-  return options;
-}, [organizacoes, form.organizacaoId, existingPatrimonio]);
+    return options;
+  }, [organizacoes, form.organizacaoId, existingPatrimonio]);
 
-const projetosOptions = useMemo(() => {
-  const options = [...projetos];
+  const projetosOptions = useMemo(() => {
+    const options = [...projetos];
 
-  const projetoId =
-    form.projetoId || String(existingPatrimonio?.projetoId ?? "");
+    const projetoId =
+      form.projetoId || String(existingPatrimonio?.projetoId ?? "");
 
-  const projetoIdNumber = Number(projetoId);
+    const projetoIdNumber = Number(projetoId);
 
-  if (
-    projetoId &&
-    Number.isFinite(projetoIdNumber) &&
-    !options.some((projeto) => String(projeto.id) === String(projetoId))
-  ) {
-    options.unshift({
-      id: projetoIdNumber,
-      nome: `Projeto ${projetoId}`,
-    });
-  }
+    if (
+      projetoId &&
+      Number.isFinite(projetoIdNumber) &&
+      !options.some((projeto) => String(projeto.id) === String(projetoId))
+    ) {
+      options.unshift({
+        id: projetoIdNumber,
+        nome: `Projeto ${projetoId}`,
+      });
+    }
 
-  return options;
-}, [projetos, form.projetoId, existingPatrimonio]);
+    return options;
+  }, [projetos, form.projetoId, existingPatrimonio]);
 
   const organizacaoSelectValue =
     form.organizacaoId ||
@@ -1016,6 +1017,10 @@ const projetosOptions = useMemo(() => {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Patrimônio"
+          href="https://www.aurit.com.br/wiki/patrimonio/patrimonio"
+        />
       </div>
     </AppLayout>
   );

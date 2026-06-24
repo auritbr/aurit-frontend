@@ -10,6 +10,7 @@ import { ArrowLeft, BookOpen, CalendarClock, Users } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { AccessDenied } from "@/components/AccessDenied";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -673,6 +674,10 @@ export default function TurmaForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Turmas"
+          href="https://www.aurit.com.br/wiki/execucao/turmas"
+        />
       </div>
     </AppLayout>
   );

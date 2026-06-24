@@ -416,8 +416,25 @@ export default function Login() {
           </div>
 
           <p className="mt-6 text-center text-[11px] text-muted-foreground">
-            Ao acessar, você concorda com os termos de uso e política de
-            privacidade.
+            Ao acessar, você concorda com os{" "}
+            <a
+              href="/legal/termos-de-uso-aurit.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 transition-colors hover:text-primary"
+            >
+              termos de uso
+            </a>{" "}
+            e{" "}
+            <a
+              href="/legal/politica-de-privacidade-aurit.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 transition-colors hover:text-primary"
+            >
+              política de privacidade
+            </a>
+            .
           </p>
 
           <p className="mt-2 text-center text-[11px] text-muted-foreground/80">
@@ -643,9 +660,8 @@ export default function Login() {
 function RuleItem({ ok, label }: { ok: boolean; label: string }) {
   return (
     <li
-      className={`flex items-center gap-1.5 ${
-        ok ? "text-[hsl(var(--status-active-fg))]" : "text-muted-foreground"
-      }`}
+      className={`flex items-center gap-1.5 ${ok ? "text-[hsl(var(--status-active-fg))]" : "text-muted-foreground"
+        }`}
     >
       {ok ? (
         <Check className="h-3.5 w-3.5" strokeWidth={2.5} />

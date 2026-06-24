@@ -4,6 +4,7 @@ import { ArrowLeft, User, GraduationCap, Sparkles, Info } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -475,6 +476,10 @@ export default function CurriculoForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Currículos"
+          href="https://www.aurit.com.br/wiki/trajetorias/curriculos"
+        />
       </div>
     </AppLayout>
   );

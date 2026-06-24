@@ -11,6 +11,7 @@ import {
 
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -768,6 +769,10 @@ export default function EquipeEditalForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Equipe da Proposta"
+          href="https://www.aurit.com.br/wiki/editais/equipe-da-proposta"
+        />
       </div>
     </AppLayout>
   );

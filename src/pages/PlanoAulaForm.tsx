@@ -10,6 +10,7 @@ import { ArrowLeft, ClipboardList, FileText } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { AccessDenied } from "@/components/AccessDenied";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1056,6 +1057,10 @@ export default function PlanoAulaForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Plano de Aula"
+          href="https://www.aurit.com.br/wiki/execucao/plano-aula"
+        />
       </div>
     </AppLayout>
   );

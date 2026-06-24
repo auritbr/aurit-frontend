@@ -12,6 +12,7 @@ import {
 import { AppLayout } from "@/components/AppLayout";
 import { EmailInput } from "@/components/EmailInput";
 import { PageTitle } from "@/components/PageTitle";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -1006,6 +1007,10 @@ export default function ColaboradorForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Colaboradores"
+          href="https://www.aurit.com.br/wiki/pessoas/colaboradores"
+        />
       </div>
     </AppLayout>
   );

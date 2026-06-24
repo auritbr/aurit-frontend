@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -888,6 +889,10 @@ export default function PrestacaoContasForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Prestação de Contas"
+          href="https://www.aurit.com.br/wiki/prestacao-de-contas/prestacao-de-contas"
+        />
       </div>
     </AppLayout>
   );

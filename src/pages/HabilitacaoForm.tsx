@@ -12,6 +12,7 @@ import {
 
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -907,22 +908,22 @@ export default function HabilitacaoForm() {
 
             {(retornoAntesEnvio ||
               (emRegularizacao && regularizacaoAntesRetorno)) && (
-              <div className="mt-4 space-y-2">
-                {retornoAntesEnvio && (
-                  <Aviso tone="danger">
-                    A data de retorno da análise não pode ser anterior à data
-                    de envio da documentação.
-                  </Aviso>
-                )}
+                <div className="mt-4 space-y-2">
+                  {retornoAntesEnvio && (
+                    <Aviso tone="danger">
+                      A data de retorno da análise não pode ser anterior à data
+                      de envio da documentação.
+                    </Aviso>
+                  )}
 
-                {emRegularizacao && regularizacaoAntesRetorno && (
-                  <Aviso tone="danger">
-                    A data de regularização/recurso não pode ser anterior à
-                    data de retorno da análise.
-                  </Aviso>
-                )}
-              </div>
-            )}
+                  {emRegularizacao && regularizacaoAntesRetorno && (
+                    <Aviso tone="danger">
+                      A data de regularização/recurso não pode ser anterior à
+                      data de retorno da análise.
+                    </Aviso>
+                  )}
+                </div>
+              )}
           </Section>
 
           <Section icon={CheckCircle2} title="Resultado da habilitação">
@@ -1017,6 +1018,10 @@ export default function HabilitacaoForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Habilitação Documental"
+          href="https://www.aurit.com.br/wiki/editais/habilitacao-documental"
+        />
       </div>
     </AppLayout>
   );

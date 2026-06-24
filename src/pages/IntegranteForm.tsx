@@ -12,6 +12,7 @@ import {
 import { AppLayout } from "@/components/AppLayout";
 import { EmailInput } from "@/components/EmailInput";
 import { PageTitle } from "@/components/PageTitle";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -1093,6 +1094,10 @@ export default function IntegranteForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Integrantes"
+          href="https://www.aurit.com.br/wiki/pessoas/integrantes"
+        />
       </div>
     </AppLayout>
   );

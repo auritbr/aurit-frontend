@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -139,9 +140,9 @@ function parseBRL(formatted: string): number {
 function numberToBRL(value?: number) {
   return typeof value === "number" && Number.isFinite(value)
     ? value.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
+      style: "currency",
+      currency: "BRL",
+    })
     : "";
 }
 
@@ -1117,6 +1118,10 @@ export default function PropostaEditalForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Propostas de Edital"
+          href="https://www.aurit.com.br/wiki/editais/propostas-de-edital"
+        />
       </div>
     </AppLayout>
   );

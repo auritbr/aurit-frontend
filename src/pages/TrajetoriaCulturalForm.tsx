@@ -4,6 +4,7 @@ import { ArrowLeft, User, FileText } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { AccessDenied } from "@/components/AccessDenied";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -473,6 +474,10 @@ export default function TrajetoriaCulturalForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Trajetórias Culturais"
+          href="https://www.aurit.com.br/wiki/trajetorias/trajetorias-culturais"
+        />
       </div>
     </AppLayout>
   );

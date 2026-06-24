@@ -12,6 +12,7 @@ import {
 
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -606,6 +607,10 @@ export default function PlanoComunicacaoForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Plano de Comunicação"
+          href="https://www.aurit.com.br/wiki/editais/plano-de-comunicacao"
+        />
       </div>
     </AppLayout>
   );

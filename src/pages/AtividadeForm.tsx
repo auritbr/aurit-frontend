@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { MultiSelect } from "@/components/MultiSelect";
 import {
   buildAtividadePayload,
@@ -711,6 +712,10 @@ export default function AtividadeForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Atividades"
+          href="https://www.aurit.com.br/wiki/execucao/atividades"
+        />
       </div>
     </AppLayout>
   );

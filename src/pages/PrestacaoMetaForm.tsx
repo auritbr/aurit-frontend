@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -689,6 +690,10 @@ export default function PrestacaoMetaForm() {
             )}
           </div>
         </form>
+        <WikiFloatingButton
+          pageTitle="Cumprimento de Metas"
+          href="https://www.aurit.com.br/wiki/prestacao-de-contas/cumprimento-de-metas"
+        />
       </div>
     </AppLayout>
   );
