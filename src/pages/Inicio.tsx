@@ -485,7 +485,7 @@ export default function Inicio() {
         key: "editais",
         title: "Editais",
         description:
-          "Organize editais, propostas, resultados, habilitação documental, equipe, comunicação e orçamento da proposta.",
+          "Organize editais, propostas, resultados, habilitação documental, equipe, comunicação e aplicação de recursos.",
         modules: editaisModules,
         microcopy:
           "Essa área acompanha todo o percurso da inscrição, desde o edital mapeado até o resultado, recursos, habilitação e orçamento.",

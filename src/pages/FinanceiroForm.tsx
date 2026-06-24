@@ -1295,9 +1295,9 @@ export default function FinanceiroForm() {
               <Field>
                 <FieldLabel
                   htmlFor="planejamentoFinanceiroId"
-                  tooltip="Selecione o orçamento da proposta relacionado, quando a movimentação executar ou comprovar uma previsão planejada."
+                  tooltip="Selecione a aplicação de recursos relacionado, quando a movimentação executar ou comprovar uma previsão planejada."
                 >
-                  Orçamento da Proposta
+                  Aplicação de Recursos
                 </FieldLabel>
 
                 <Select
