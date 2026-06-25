@@ -1081,9 +1081,9 @@ const App = () => (
     <TooltipProvider delayDuration={150}>
       <Toaster />
       <Sonner position="top-right" richColors />
-      <VLibrasWidget />
 
       <BrowserRouter>
+        <VLibrasWidget />
         <AppRoutes />
       </BrowserRouter>
     </TooltipProvider>

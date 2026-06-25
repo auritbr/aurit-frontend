@@ -1,69 +1,87 @@
 import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
-const VLIBRAS_SCRIPT_ID = "vlibras-widget-script";
-const VLIBRAS_APP_URL = "https://vlibras.gov.br/app";
+declare global {
+  interface Window {
+    VLibras?: {
+      Widget: new (url: string) => unknown;
+    };
+    __vlibrasWidgetInstance?: unknown;
+  }
+}
+
+const SCRIPT_ID = "vlibras-script";
+const VL_URL = "https://vlibras.gov.br/app";
 
 export function VLibrasWidget() {
+  const location = useLocation();
+
   useEffect(() => {
-    if (window.__vlibrasWidgetInitialized) return;
-
-    let attempts = 0;
-    let retryId: number | undefined;
-
-    const initWidget = () => {
-      if (window.__vlibrasWidgetInitialized) return true;
-      if (!window.VLibras?.Widget) return false;
-
-      new window.VLibras.Widget(VLIBRAS_APP_URL);
-      window.__vlibrasWidgetInitialized = true;
-      return true;
-    };
-
-    const retryInitWidget = () => {
-      if (initWidget()) return;
-
-      retryId = window.setInterval(() => {
-        attempts += 1;
-
-        if (initWidget() || attempts >= 40) {
-          window.clearInterval(retryId);
-        }
-      }, 250);
-    };
-
-    const existingScript = document.getElementById(
-      VLIBRAS_SCRIPT_ID,
-    ) as HTMLScriptElement | null;
-
-    if (existingScript) {
-      retryInitWidget();
-      existingScript.addEventListener("load", retryInitWidget, { once: true });
-
-      return () => {
-        if (retryId) window.clearInterval(retryId);
-        existingScript.removeEventListener("load", retryInitWidget);
-      };
+    function removeOldContainer() {
+      const oldContainer = document.querySelector("[vw]");
+      if (oldContainer) {
+        oldContainer.remove();
+      }
     }
 
-    const script = document.createElement("script");
-    script.id = VLIBRAS_SCRIPT_ID;
-    script.src = `${VLIBRAS_APP_URL}/vlibras-plugin.js`;
-    script.async = true;
-    script.onload = retryInitWidget;
+    function createContainer() {
+      const container = document.createElement("div");
+      container.setAttribute("vw", "");
+      container.className = "enabled aurit-vlibras-widget";
 
-    document.body.appendChild(script);
+      container.innerHTML = `
+        <div vw-access-button class="active"></div>
+        <div vw-plugin-wrapper>
+          <div class="vw-plugin-top-wrapper"></div>
+        </div>
+      `;
+
+      document.body.appendChild(container);
+    }
+
+    function initVLibras() {
+      try {
+        if (!window.VLibras?.Widget) return;
+
+        window.__vlibrasWidgetInstance = new window.VLibras.Widget(VL_URL);
+      } catch (error) {
+        console.warn("VLibras init failed:", error);
+      }
+    }
+
+    function setupVLibras() {
+      removeOldContainer();
+      createContainer();
+
+      const existingScript = document.getElementById(
+        SCRIPT_ID,
+      ) as HTMLScriptElement | null;
+
+      if (existingScript) {
+        initVLibras();
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = SCRIPT_ID;
+      script.src = `${VL_URL}/vlibras-plugin.js`;
+      script.async = true;
+      script.onload = initVLibras;
+      script.onerror = () => {
+        console.warn("Não foi possível carregar o script do VLibras.");
+      };
+
+      document.body.appendChild(script);
+    }
+
+    const timer = window.setTimeout(() => {
+      setupVLibras();
+    }, 300);
 
     return () => {
-      if (retryId) window.clearInterval(retryId);
+      window.clearTimeout(timer);
     };
-  }, []);
+  }, [location.pathname]);
 
-  return (
-    <div {...{ vw: "" }} className="enabled aurit-vlibras-widget">
-      <div {...{ "vw-access-button": "" }} className="active" />
-      <div {...{ "vw-plugin-wrapper": "" }}>
-        <div className="vw-plugin-top-wrapper" />
-      </div>
-    </div>
-  );
+  return null;
 }
