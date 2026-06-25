@@ -197,6 +197,14 @@
 }
 
 @layer components {
+  .aurit-vlibras-widget [vw-access-button] {
+    position: fixed !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 96px !important;
+    z-index: 2147483647 !important;
+  }
+
   .status-pill {
     @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold border;
   }

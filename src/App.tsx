@@ -21,6 +21,7 @@ import PublicRoute from "@/components/PublicRoute";
 import { AccessDenied } from "@/components/AccessDenied";
 import { DocumentosVencidosNotifier } from "./components/DocumentosVencidosNotifier";
 import { AlertasPrazoNotifier } from "./components/AlertasPrazoNotifier";
+import { VLibrasWidget } from "./components/VLibrasWidget";
 import {
   getUsuarioLogadoStorage,
   isAuthenticated,
@@ -1080,6 +1081,7 @@ const App = () => (
     <TooltipProvider delayDuration={150}>
       <Toaster />
       <Sonner position="top-right" richColors />
+      <VLibrasWidget />
 
       <BrowserRouter>
         <AppRoutes />
