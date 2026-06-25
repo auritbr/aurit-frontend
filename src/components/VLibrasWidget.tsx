@@ -13,7 +13,7 @@ declare global {
 const SCRIPT_ID = "vlibras-script";
 const VL_URL = "https://vlibras.gov.br/app";
 
-export function VLibrasWidget() {
+export default function VLibras() {
   const location = useLocation();
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export function VLibrasWidget() {
     function createContainer() {
       const container = document.createElement("div");
       container.setAttribute("vw", "");
-      container.className = "enabled aurit-vlibras-widget";
+      container.className = "enabled";
 
       container.innerHTML = `
         <div vw-access-button class="active"></div>
@@ -41,7 +41,7 @@ export function VLibrasWidget() {
 
     function initVLibras() {
       try {
-        if (!window.VLibras?.Widget) return;
+        if (!window.VLibras) return;
 
         window.__vlibrasWidgetInstance = new window.VLibras.Widget(VL_URL);
       } catch (error) {
@@ -54,7 +54,7 @@ export function VLibrasWidget() {
       createContainer();
 
       const existingScript = document.getElementById(
-        SCRIPT_ID,
+        SCRIPT_ID
       ) as HTMLScriptElement | null;
 
       if (existingScript) {

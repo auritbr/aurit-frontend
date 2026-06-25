@@ -257,24 +257,18 @@
   }
 }
 
-/* VLibras widget positioning */
+[vw] {
+  z-index: 9999;
+}
+
+[vw],
+[vw-access-button],
+[vw-plugin-wrapper] {
+  z-index: 999999 !important;
+}
+
 [vw] {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
-  z-index: 2147483647 !important;
-}
-
-[vw-access-button] {
-  position: fixed !important;
-  right: 0 !important;
-  bottom: 96px !important;
-  z-index: 2147483647 !important;
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-[vw-plugin-wrapper] {
-  z-index: 2147483647 !important;
 }
