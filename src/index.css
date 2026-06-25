@@ -261,3 +261,8 @@
 [vw-plugin-wrapper] {
   z-index: 2147483647 !important;
 }
+
+[vw-access-button] {
+  bottom: 100px !important;
+  z-index: 2147483647 !important;
+}
