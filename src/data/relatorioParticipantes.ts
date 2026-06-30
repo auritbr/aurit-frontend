@@ -2,8 +2,14 @@ import {
   getAtividadesOptions,
   getParticipantes,
   getTurmasOptions,
+  tipoDeficienciasParticipanteValueToLabel,
+  tipoDeficienciaParticipanteOptions,
+  tipoNeurodivergenciasValueToLabel,
+  tipoNeurodivergenciaOptions,
   type AtividadeOption,
   type Participante,
+  type TipoDeficienciaParticipante,
+  type TipoNeurodivergencia,
   type TurmaOption,
 } from "@/data/participantes";
 import {
@@ -41,6 +47,7 @@ export const statusParticipanteLabel = (status: string) =>
   status;
 
 export type TipoPresencaFiltro = StatusPresenca;
+export type BooleanFiltro = "SIM" | "NAO";
 
 export const tipoPresencaOptions: Array<{
   value: TipoPresencaFiltro;
@@ -56,6 +63,10 @@ export interface LinhaRelatorioParticipante {
   id: string;
   participanteId: string;
   participanteNome: string;
+  tipoNeurodivergencias: TipoNeurodivergencia[];
+  tipoDeficiencias: TipoDeficienciaParticipante[];
+  possuiCadunico: boolean;
+  possuiBolsaFamilia: boolean;
   status: string;
   atividadeId: string;
   atividadeNome: string;
@@ -76,6 +87,10 @@ export interface FiltrosRelatorioParticipantes {
   atividadeId: string;
   turmaId: string;
   presencas: TipoPresencaFiltro[];
+  tipoNeurodivergencias: TipoNeurodivergencia[];
+  tipoDeficiencias: TipoDeficienciaParticipante[];
+  possuiCadunico: BooleanFiltro[];
+  possuiBolsaFamilia: BooleanFiltro[];
   busca?: string;
 }
 
@@ -90,8 +105,35 @@ export const filtrosIniciais: FiltrosRelatorioParticipantes = {
   atividadeId: "TODOS",
   turmaId: "TODOS",
   presencas: [],
+  tipoNeurodivergencias: [],
+  tipoDeficiencias: [],
+  possuiCadunico: [],
+  possuiBolsaFamilia: [],
   busca: "",
 };
+
+export const booleanFiltroOptions: Array<{ value: BooleanFiltro; label: string }> = [
+  { value: "SIM", label: "Sim" },
+  { value: "NAO", label: "Não" },
+];
+
+export const tipoNeurodivergenciaRelatorioOptions = tipoNeurodivergenciaOptions.map(
+  (option) => option.value,
+);
+
+export const tipoDeficienciaRelatorioOptions =
+  tipoDeficienciaParticipanteOptions.map((option) => option.value);
+
+export const booleanFiltroLabel = (value: BooleanFiltro) =>
+  booleanFiltroOptions.find((option) => option.value === value)?.label ?? value;
+
+export const tipoNeurodivergenciasRelatorioLabel = (
+  values?: TipoNeurodivergencia[],
+) => tipoNeurodivergenciasValueToLabel(values ?? []);
+
+export const tipoDeficienciasRelatorioLabel = (
+  values?: TipoDeficienciaParticipante[],
+) => tipoDeficienciasParticipanteValueToLabel(values ?? []);
 
 function registrosDoVinculo(
   registros: RegistroPresenca[],
@@ -153,6 +195,12 @@ export async function getRelatorioParticipantes(): Promise<RelatorioParticipante
         id: `${participante.id}-${vinculo.atividadeId}-${vinculo.turmaId ?? "sem-turma"}-${vinculo.id ?? index}`,
         participanteId: participante.id,
         participanteNome: participante.nomeCompleto,
+        tipoNeurodivergencias:
+          (participante.tipoNeurodivergencias ?? []) as TipoNeurodivergencia[],
+        tipoDeficiencias:
+          (participante.tipoDeficiencias ?? []) as TipoDeficienciaParticipante[],
+        possuiCadunico: Boolean(participante.possuiCadunico),
+        possuiBolsaFamilia: Boolean(participante.possuiBolsaFamilia),
         status: vinculo.statusMatricula || participante.status,
         atividadeId: vinculo.atividadeId,
         atividadeNome:
@@ -212,7 +260,55 @@ export function aplicarFiltros(
       return false;
     }
 
-    if (busca && !linha.participanteNome.toLocaleLowerCase("pt-BR").includes(busca)) {
+    if (
+      filtros.tipoNeurodivergencias.length > 0 &&
+      !filtros.tipoNeurodivergencias.some((tipo) =>
+        linha.tipoNeurodivergencias.includes(tipo),
+      )
+    ) {
+      return false;
+    }
+
+    if (
+      filtros.tipoDeficiencias.length > 0 &&
+      !filtros.tipoDeficiencias.some((tipo) =>
+        linha.tipoDeficiencias.includes(tipo),
+      )
+    ) {
+      return false;
+    }
+
+    if (
+      filtros.possuiCadunico.length > 0 &&
+      !filtros.possuiCadunico.includes(linha.possuiCadunico ? "SIM" : "NAO")
+    ) {
+      return false;
+    }
+
+    if (
+      filtros.possuiBolsaFamilia.length > 0 &&
+      !filtros.possuiBolsaFamilia.includes(
+        linha.possuiBolsaFamilia ? "SIM" : "NAO",
+      )
+    ) {
+      return false;
+    }
+
+    if (
+      busca &&
+      ![
+        linha.participanteNome,
+        tipoNeurodivergenciasRelatorioLabel(linha.tipoNeurodivergencias),
+        tipoDeficienciasRelatorioLabel(linha.tipoDeficiencias),
+        linha.possuiCadunico ? "cadunico cadúnico sim" : "cadunico cadúnico não",
+        linha.possuiBolsaFamilia
+          ? "bolsa familia bolsa família sim"
+          : "bolsa familia bolsa família não",
+      ]
+        .join(" ")
+        .toLocaleLowerCase("pt-BR")
+        .includes(busca)
+    ) {
       return false;
     }
 

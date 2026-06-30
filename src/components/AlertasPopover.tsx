@@ -179,6 +179,28 @@ const severidadeOrder: Record<SeveridadePopover, number> = {
   proximo: 2,
 };
 
+const ALERTAS_DISPENSADOS_STORAGE_KEY = "aurit:alertas-popover:dispensados";
+
+function getAlertasDispensados() {
+  try {
+    const raw = localStorage.getItem(ALERTAS_DISPENSADOS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function setAlertasDispensados(ids: string[]) {
+  localStorage.setItem(
+    ALERTAS_DISPENSADOS_STORAGE_KEY,
+    JSON.stringify(Array.from(new Set(ids))),
+  );
+}
+
 export function AlertasPopover() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -213,7 +235,10 @@ export function AlertasPopover() {
 
       if (!active) return;
 
-      const todos = [...buildAlertasPrazo(prazos), ...documentos];
+      const dispensados = new Set(getAlertasDispensados());
+      const todos = [...buildAlertasPrazo(prazos), ...documentos].filter(
+        (alerta) => !dispensados.has(alerta.id),
+      );
       todos.sort(
         (a, b) => severidadeOrder[a.severidade] - severidadeOrder[b.severidade],
       );
@@ -234,6 +259,18 @@ export function AlertasPopover() {
   const handleClick = (alerta: AlertaItem) => {
     setOpen(false);
     navigate(alerta.to);
+  };
+
+  const handleLimparAlertas = () => {
+    if (alertas.length === 0) return;
+
+    setAlertasDispensados([
+      ...getAlertasDispensados(),
+      ...alertas.map((alerta) => alerta.id),
+    ]);
+    setAlertas([]);
+    setOpen(false);
+    window.dispatchEvent(new Event("storage"));
   };
 
   return (
@@ -271,7 +308,17 @@ export function AlertasPopover() {
                   : `${total} ${total === 1 ? "item precisa" : "itens precisam"} da sua atenção`}
             </p>
           </div>
-          <Bell className="h-4 w-4 text-muted-foreground" />
+          {!loading && total > 0 ? (
+            <button
+              type="button"
+              onClick={handleLimparAlertas}
+              className="rounded px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            >
+              Limpar
+            </button>
+          ) : (
+            <Bell className="h-4 w-4 text-muted-foreground" />
+          )}
         </div>
 
         {!loading && total === 0 ? (

@@ -35,17 +35,31 @@ import {
 } from "@/components/ui/table";
 import {
   aplicarFiltros,
+  booleanFiltroLabel,
+  booleanFiltroOptions,
   filtrosIniciais,
   getRelatorioParticipantes,
   statusParticipanteLabel,
   statusParticipanteOptions,
+  tipoDeficienciasRelatorioLabel,
+  tipoDeficienciaRelatorioOptions,
+  tipoNeurodivergenciasRelatorioLabel,
+  tipoNeurodivergenciaRelatorioOptions,
   tipoPresencaOptions,
+  type BooleanFiltro,
   type FiltrosRelatorioParticipantes,
   type LinhaRelatorioParticipante,
   type StatusParticipanteRelatorio,
   type TipoPresencaFiltro,
 } from "@/data/relatorioParticipantes";
-import type { AtividadeOption, TurmaOption } from "@/data/participantes";
+import {
+  tipoDeficienciaParticipanteValueToLabel,
+  tipoNeurodivergenciaValueToLabel,
+  type AtividadeOption,
+  type TipoDeficienciaParticipante,
+  type TipoNeurodivergencia,
+  type TurmaOption,
+} from "@/data/participantes";
 import { usePagination } from "@/hooks/usePagination";
 import type { RelatorioColumn } from "@/lib/relatorioExporters";
 
@@ -130,10 +144,17 @@ export default function RelatorioParticipantes() {
 
   const statusLabels = statusParticipanteOptions.map((option) => option.label);
   const presencaLabels = tipoPresencaOptions.map((option) => option.label);
+  const cadunicoLabels = booleanFiltroOptions.map((option) => option.label);
+  const bolsaFamiliaLabels = booleanFiltroOptions.map((option) => option.label);
   const statusToLabel = (value: StatusParticipanteRelatorio) => statusParticipanteOptions.find((option) => option.value === value)?.label ?? value;
   const statusByLabel = (label: string) => statusParticipanteOptions.find((option) => option.label === label)?.value ?? "ATIVO";
   const presencaToLabel = (value: TipoPresencaFiltro) => tipoPresencaOptions.find((option) => option.value === value)?.label ?? value;
   const presencaByLabel = (label: string) => tipoPresencaOptions.find((option) => option.label === label)?.value ?? "PRESENTE";
+  const neurodivergenciaToLabel = (value: TipoNeurodivergencia) => tipoNeurodivergenciaValueToLabel(value);
+  const neurodivergenciaByLabel = (label: string) => tipoNeurodivergenciaRelatorioOptions.find((option) => tipoNeurodivergenciaValueToLabel(option) === label) ?? "TEA";
+  const deficienciaToLabel = (value: TipoDeficienciaParticipante) => tipoDeficienciaParticipanteValueToLabel(value);
+  const deficienciaByLabel = (label: string) => tipoDeficienciaRelatorioOptions.find((option) => tipoDeficienciaParticipanteValueToLabel(option) === label) ?? "NAO_INFORMADO";
+  const booleanByLabel = (label: string): BooleanFiltro => booleanFiltroOptions.find((option) => option.label === label)?.value ?? "SIM";
 
   const turmasDisponiveis = useMemo(
     () => filtros.atividadeId === "TODOS" ? turmas : turmas.filter((turma) => turma.atividadeId === filtros.atividadeId),
@@ -204,6 +225,27 @@ export default function RelatorioParticipantes() {
 
   const colunasExport: RelatorioColumn<LinhaRelatorioParticipante>[] = [
     { key: "nome", label: "Participante", accessor: (row) => row.participanteNome },
+    {
+      key: "tipoNeurodivergencias",
+      label: "Neurodivergências",
+      accessor: (row) =>
+        tipoNeurodivergenciasRelatorioLabel(row.tipoNeurodivergencias),
+    },
+    {
+      key: "tipoDeficiencias",
+      label: "Tipo de deficiência",
+      accessor: (row) => tipoDeficienciasRelatorioLabel(row.tipoDeficiencias),
+    },
+    {
+      key: "possuiCadunico",
+      label: "CadÚnico",
+      accessor: (row) => (row.possuiCadunico ? "Sim" : "Não"),
+    },
+    {
+      key: "possuiBolsaFamilia",
+      label: "Bolsa Família",
+      accessor: (row) => (row.possuiBolsaFamilia ? "Sim" : "Não"),
+    },
   ];
 
   if (mostrarStatus) {
@@ -277,7 +319,11 @@ export default function RelatorioParticipantes() {
     { label: "Atividade", valor: atividadeAplicadaLabel },
     { label: "Turma", valor: turmaAplicadaLabel },
     { label: "Presença", valor: aplicados.presencas.length ? aplicados.presencas.map(presencaToLabel).join(", ") : "Todas" },
-    { label: "Total de participantes", valor: String(totalLinhas) },
+    { label: "Tipos de Neurodivergências", valor: aplicados.tipoNeurodivergencias.length ? aplicados.tipoNeurodivergencias.map(neurodivergenciaToLabel).join(", ") : "Todas" },
+    { label: "Tipo de Deficiência", valor: aplicados.tipoDeficiencias.length ? aplicados.tipoDeficiencias.map(deficienciaToLabel).join(", ") : "Todos" },
+    { label: "CadÚnico", valor: aplicados.possuiCadunico.length ? aplicados.possuiCadunico.map(booleanFiltroLabel).join(", ") : "Todos" },
+    { label: "Bolsa Família", valor: aplicados.possuiBolsaFamilia.length ? aplicados.possuiBolsaFamilia.map(booleanFiltroLabel).join(", ") : "Todos" },
+    { label: "Total de Participantes", valor: String(totalLinhas) },
     { label: "Presenças", valor: String(totalPresencas) },
     { label: "Ausências", valor: String(totalAusencias) },
     { label: "% Médio", valor: `${pctMedio.toFixed(1)}%` },
@@ -290,7 +336,7 @@ export default function RelatorioParticipantes() {
         <p className="-mt-2 mb-5 text-sm text-muted-foreground">Consulte participantes por status, atividade, turma e registros de presença.</p>
 
         <section className="mb-5 rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
-          <h2 className="mb-4 text-sm font-semibold tracking-tight text-foreground">Filtros do relatório</h2>
+          <h2 className="mb-4 text-sm font-semibold tracking-tight text-foreground">Filtros do Relatório</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <Label htmlFor="f-status">Status</Label>
@@ -313,6 +359,66 @@ export default function RelatorioParticipantes() {
             <div className="space-y-1.5">
               <Label htmlFor="f-presenca">Presença</Label>
               <MultiSelect id="f-presenca" placeholder="Todas" options={presencaLabels} value={filtros.presencas.map(presencaToLabel)} onChange={(values) => setFiltros((current) => ({ ...current, presencas: values.map(presencaByLabel) }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="f-neurodivergencias">Tipos de Neurodivergências</Label>
+              <MultiSelect
+                id="f-neurodivergencias"
+                placeholder="Todas"
+                options={tipoNeurodivergenciaRelatorioOptions.map(neurodivergenciaToLabel)}
+                value={filtros.tipoNeurodivergencias.map(neurodivergenciaToLabel)}
+                onChange={(values) =>
+                  setFiltros((current) => ({
+                    ...current,
+                    tipoNeurodivergencias: values.map(neurodivergenciaByLabel),
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="f-deficiencias">Tipo de Deficiência</Label>
+              <MultiSelect
+                id="f-deficiencias"
+                placeholder="Todos"
+                options={tipoDeficienciaRelatorioOptions.map(deficienciaToLabel)}
+                value={filtros.tipoDeficiencias.map(deficienciaToLabel)}
+                onChange={(values) =>
+                  setFiltros((current) => ({
+                    ...current,
+                    tipoDeficiencias: values.map(deficienciaByLabel),
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="f-cadunico">CadÚnico</Label>
+              <MultiSelect
+                id="f-cadunico"
+                placeholder="Todos"
+                options={cadunicoLabels}
+                value={filtros.possuiCadunico.map(booleanFiltroLabel)}
+                onChange={(values) =>
+                  setFiltros((current) => ({
+                    ...current,
+                    possuiCadunico: values.map(booleanByLabel),
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="f-bolsa-familia">Bolsa Família</Label>
+              <MultiSelect
+                id="f-bolsa-familia"
+                placeholder="Todos"
+                options={bolsaFamiliaLabels}
+                value={filtros.possuiBolsaFamilia.map(booleanFiltroLabel)}
+                onChange={(values) =>
+                  setFiltros((current) => ({
+                    ...current,
+                    possuiBolsaFamilia: values.map(booleanByLabel),
+                  }))
+                }
+              />
             </div>
           </div>
           <div className="mt-5 flex flex-col justify-end gap-2 sm:flex-row">
@@ -346,6 +452,10 @@ export default function RelatorioParticipantes() {
               <Table>
                 <TableHeader><TableRow>
                   <SortableHead active={sortKey === "nome"} dir={sortDir} onClick={() => toggleSort("nome")}>Participante</SortableHead>
+                  <TableHead className="text-xs">Tipos de Neurodivergências</TableHead>
+                  <TableHead className="text-xs">Tipo de Deficiência</TableHead>
+                  <TableHead className="text-xs">CadÚnico</TableHead>
+                  <TableHead className="text-xs">Bolsa Família</TableHead>
                   {mostrarStatus && <SortableHead active={sortKey === "status"} dir={sortDir} onClick={() => toggleSort("status")}>Status</SortableHead>}
                   {mostrarAtividade && <SortableHead active={sortKey === "atividade"} dir={sortDir} onClick={() => toggleSort("atividade")}>Atividade</SortableHead>}
                   {mostrarTurma && <SortableHead active={sortKey === "turma"} dir={sortDir} onClick={() => toggleSort("turma")}>Turma</SortableHead>}
@@ -358,6 +468,10 @@ export default function RelatorioParticipantes() {
                 </TableRow></TableHeader>
                 <TableBody>{pagination.paginated.map((linha) => <TableRow key={linha.id}>
                   <TableCell className="text-xs font-medium text-foreground">{linha.participanteNome}</TableCell>
+                  <TableCell className="text-xs">{tipoNeurodivergenciasRelatorioLabel(linha.tipoNeurodivergencias)}</TableCell>
+                  <TableCell className="text-xs">{tipoDeficienciasRelatorioLabel(linha.tipoDeficiencias)}</TableCell>
+                  <TableCell className="text-xs">{linha.possuiCadunico ? "Sim" : "Não"}</TableCell>
+                  <TableCell className="text-xs">{linha.possuiBolsaFamilia ? "Sim" : "Não"}</TableCell>
                   {mostrarStatus && <TableCell className="text-xs"><StatusBadge status={linha.status} /></TableCell>}
                   {mostrarAtividade && <TableCell className="text-xs">{linha.atividadeNome}</TableCell>}
                   {mostrarTurma && <TableCell className="text-xs">{linha.turmaNome ?? "—"}</TableCell>}

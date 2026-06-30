@@ -34,6 +34,7 @@ import {
   getOrganizacoes,
   racasCoresIntegrante,
   tiposDeficienciaIntegrante,
+  tiposVinculoIntegrante,
   updateIntegrante,
   type GeneroApi,
   type IntegranteDTO,
@@ -41,6 +42,7 @@ import {
   type OrganizacaoOption,
   type RacaCorApi,
   type TipoDeficienciaApi,
+  type TipoVinculoIntegranteApi,
 } from "@/data/integrantes";
 import { toast } from "sonner";
 
@@ -92,6 +94,7 @@ interface FormState {
   estado: string;
 
   funcaoIntegrante: string;
+  tipoVinculoIntegrante: TipoVinculoIntegranteApi | "";
   dataEntrada: string;
   dataSaida: string;
   status: IntegranteStatusApi | "";
@@ -130,6 +133,7 @@ const initial: FormState = {
   estado: "",
 
   funcaoIntegrante: "",
+  tipoVinculoIntegrante: "",
   dataEntrada: "",
   dataSaida: "",
   status: "",
@@ -376,6 +380,7 @@ export default function IntegranteForm() {
         estado: resolverEstadoParaSelect(data.estado),
 
         funcaoIntegrante: data.funcaoIntegrante,
+        tipoVinculoIntegrante: data.tipoVinculoIntegrante,
         dataEntrada: toInputDate(data.dataEntrada),
         dataSaida: toInputDate(data.dataSaida),
         status: data.status,
@@ -448,6 +453,7 @@ export default function IntegranteForm() {
       tipoDeficiencia: form.tipoDeficiencia,
 
       funcaoIntegrante: form.funcaoIntegrante.trim(),
+      tipoVinculoIntegrante: form.tipoVinculoIntegrante || null,
       dataEntrada: form.dataEntrada,
       dataSaida: statusConcluido ? form.dataSaida || null : null,
 
@@ -977,14 +983,14 @@ export default function IntegranteForm() {
           </Section>
 
           <Section icon={Briefcase} title="Atuação">
-            <div className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="funcaoIntegrante"
                   required
                   tooltip="Descreva como o integrante atua junto à organização, indicando seu papel, contribuição, linguagem artística, parceria ou participação nas ações culturais. Ex.: banda parceira em apresentações culturais, coletivo convidado para oficinas, artista integrante de espetáculo ou grupo de apoio em ações comunitárias."
                 >
-                  Função / Atuação
+                  Função do Integrante
                 </FieldLabel>
 
                 <Input
@@ -994,6 +1000,39 @@ export default function IntegranteForm() {
                   disabled={bloqueado}
                   readOnly={visualizando}
                 />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="tipoVinculoIntegrante"
+                  tooltip="Indique o tipo de vínculo do integrante quando houver uma classificação específica para este cadastro."
+                >
+                  Tipo de Vínculo
+                </FieldLabel>
+
+                <Select
+                  value={form.tipoVinculoIntegrante}
+                  onValueChange={(v) => {
+                    if (visualizando) return;
+                    set(
+                      "tipoVinculoIntegrante",
+                      v as TipoVinculoIntegranteApi,
+                    );
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="tipoVinculoIntegrante">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {tiposVinculoIntegrante.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
             </div>
           </Section>

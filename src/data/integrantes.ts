@@ -41,6 +41,8 @@ export type TipoDeficienciaApi =
   | "OUTRA"
   | "NAO_INFORMADO";
 
+export type TipoVinculoIntegranteApi = "PARECERISTA";
+
 export const racasCoresIntegrante = [
   { value: "BRANCA", label: "Branca" },
   { value: "PRETA", label: "Preta" },
@@ -71,6 +73,10 @@ export const tiposDeficienciaIntegrante = [
   { value: "NAO_INFORMADO", label: "Não informado" },
 ] as const;
 
+export const tiposVinculoIntegrante = [
+  { value: "PARECERISTA", label: "Parecerista" },
+] as const;
+
 export function racaCorValueToLabel(value?: RacaCorApi | string | null) {
   return (
     racasCoresIntegrante.find((item) => item.value === value)?.label ?? "—"
@@ -90,6 +96,14 @@ export function tipoDeficienciaValueToLabel(
   );
 }
 
+export function tipoVinculoIntegranteValueToLabel(
+  value?: TipoVinculoIntegranteApi | string | null,
+) {
+  return (
+    tiposVinculoIntegrante.find((item) => item.value === value)?.label ?? "—"
+  );
+}
+
 export interface IntegranteDTO {
   id?: number | string;
   nomeCompleto?: string | null;
@@ -100,6 +114,7 @@ export interface IntegranteDTO {
   email?: string | null;
 
   funcaoIntegrante?: string | null;
+  tipoVinculoIntegrante?: TipoVinculoIntegranteApi | string | null;
   dataEntrada?: string | null;
   dataSaida?: string | null;
 
@@ -136,6 +151,7 @@ export interface Integrante {
   email: string;
 
   funcaoIntegrante: string;
+  tipoVinculoIntegrante: TipoVinculoIntegranteApi | "";
   dataEntrada: string;
   dataSaida: string;
 
@@ -248,6 +264,16 @@ function normalizeTipoDeficiencia(
     : "";
 }
 
+function normalizeTipoVinculoIntegrante(
+  value?: string | null,
+): TipoVinculoIntegranteApi | "" {
+  const allowed: TipoVinculoIntegranteApi[] = ["PARECERISTA"];
+
+  return allowed.includes(value as TipoVinculoIntegranteApi)
+    ? (value as TipoVinculoIntegranteApi)
+    : "";
+}
+
 export function statusValueToLabel(
   status: IntegranteStatusApi | string,
 ): IntegranteStatusLabel {
@@ -274,6 +300,9 @@ export function mapIntegrante(dto: IntegranteDTO): Integrante {
     email: normalizeText(dto.email),
 
     funcaoIntegrante: normalizeText(dto.funcaoIntegrante),
+    tipoVinculoIntegrante: normalizeTipoVinculoIntegrante(
+      dto.tipoVinculoIntegrante,
+    ),
     dataEntrada: normalizeText(dto.dataEntrada),
     dataSaida: normalizeText(dto.dataSaida),
 

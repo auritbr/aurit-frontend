@@ -1,4 +1,4 @@
-import { getJsonHeaders } from "@/lib/apiHeaders";
+import { getJsonHeaders, getMultipartHeaders } from "@/lib/apiHeaders";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -38,6 +38,53 @@ export type FaixaRenda =
   | "ACIMA_DE_3_SALARIOS"
   | "PREFERE_NAO_INFORMAR";
 
+export type TipoDocumentoParticipante =
+  | "RG"
+  | "CPF"
+  | "CERTIDAO_NASCIMENTO"
+  | "COMPROVANTE_RESIDENCIA"
+  | "COMPROVANTE_ESCOLAR"
+  | "DOCUMENTO_RESPONSAVEL"
+  | "AUTORIZACAO_RESPONSAVEL"
+  | "TERMO_AUTORIZACAO_IMAGEM"
+  | "TERMO_AUTORIZACAO_PARTICIPACAO"
+  | "LAUDO_MEDICO"
+  | "RELATORIO_MEDICO"
+  | "RELATORIO_PSICOLOGICO"
+  | "RELATORIO_PEDAGOGICO"
+  | "CADUNICO"
+  | "COMPROVANTE_BOLSA_FAMILIA"
+  | "NIS"
+  | "OUTRO";
+
+export type TipoNeurodivergencia =
+  | "TEA"
+  | "ASPERGER"
+  | "TDAH"
+  | "TOD"
+  | "DISLEXIA"
+  | "DISCALCULIA"
+  | "DISGRAFIA"
+  | "DISPRAXIA"
+  | "TOURETTE"
+  | "TOC"
+  | "ALTAS_HABILIDADES_SUPERDOTACAO"
+  | "TRANSTORNO_PROCESSAMENTO_SENSORIAL"
+  | "TRANSTORNO_PROCESSAMENTO_AUDITIVO"
+  | "OUTRA";
+
+export type TipoDeficienciaParticipante =
+  | "NAO_POSSUI"
+  | "FISICA"
+  | "AUDITIVA"
+  | "VISUAL"
+  | "INTELECTUAL"
+  | "PSICOSSOCIAL"
+  | "MULTIPLA"
+  | "TRANSTORNO_ESPECTRO_AUTISTA"
+  | "OUTRA"
+  | "NAO_INFORMADO";
+
 export const generoOptions = [
   { value: "FEMININO", label: "Feminino" },
   { value: "MASCULINO", label: "Masculino" },
@@ -62,6 +109,68 @@ export const faixaRendaOptions = [
   { value: "DE_2_A_3_SALARIOS", label: "De 2 a 3 salários mínimos" },
   { value: "ACIMA_DE_3_SALARIOS", label: "Acima de 3 salários mínimos" },
   { value: "PREFERE_NAO_INFORMAR", label: "Prefere não informar" },
+] as const;
+
+export const tipoDocumentoParticipanteOptions = [
+  { value: "RG", label: "RG" },
+  { value: "CPF", label: "CPF" },
+  { value: "CERTIDAO_NASCIMENTO", label: "Certidão de nascimento" },
+  { value: "COMPROVANTE_RESIDENCIA", label: "Comprovante de residência" },
+  { value: "COMPROVANTE_ESCOLAR", label: "Comprovante escolar" },
+  { value: "DOCUMENTO_RESPONSAVEL", label: "Documento do responsável" },
+  { value: "AUTORIZACAO_RESPONSAVEL", label: "Autorização do responsável" },
+  { value: "TERMO_AUTORIZACAO_IMAGEM", label: "Termo de autorização de imagem" },
+  {
+    value: "TERMO_AUTORIZACAO_PARTICIPACAO",
+    label: "Termo de autorização de participação",
+  },
+  { value: "LAUDO_MEDICO", label: "Laudo médico" },
+  { value: "RELATORIO_MEDICO", label: "Relatório médico" },
+  { value: "RELATORIO_PSICOLOGICO", label: "Relatório psicológico" },
+  { value: "RELATORIO_PEDAGOGICO", label: "Relatório pedagógico" },
+  { value: "CADUNICO", label: "CadÚnico" },
+  { value: "COMPROVANTE_BOLSA_FAMILIA", label: "Comprovante Bolsa Família" },
+  { value: "NIS", label: "NIS" },
+  { value: "OUTRO", label: "Outro" },
+] as const;
+
+export const tipoNeurodivergenciaOptions = [
+  { value: "TEA", label: "TEA" },
+  { value: "ASPERGER", label: "Asperger" },
+  { value: "TDAH", label: "TDAH" },
+  { value: "TOD", label: "TOD" },
+  { value: "DISLEXIA", label: "Dislexia" },
+  { value: "DISCALCULIA", label: "Discalculia" },
+  { value: "DISGRAFIA", label: "Disgrafia" },
+  { value: "DISPRAXIA", label: "Dispraxia" },
+  { value: "TOURETTE", label: "Tourette" },
+  { value: "TOC", label: "TOC" },
+  {
+    value: "ALTAS_HABILIDADES_SUPERDOTACAO",
+    label: "Altas habilidades/superdotação",
+  },
+  {
+    value: "TRANSTORNO_PROCESSAMENTO_SENSORIAL",
+    label: "Transtorno do processamento sensorial",
+  },
+  {
+    value: "TRANSTORNO_PROCESSAMENTO_AUDITIVO",
+    label: "Transtorno do processamento auditivo",
+  },
+  { value: "OUTRA", label: "Outra" },
+] as const;
+
+export const tipoDeficienciaParticipanteOptions = [
+  { value: "NAO_POSSUI", label: "Não possui" },
+  { value: "FISICA", label: "Física" },
+  { value: "AUDITIVA", label: "Auditiva" },
+  { value: "VISUAL", label: "Visual" },
+  { value: "INTELECTUAL", label: "Intelectual" },
+  { value: "PSICOSSOCIAL", label: "Psicossocial" },
+  { value: "MULTIPLA", label: "Múltipla" },
+  { value: "TRANSTORNO_ESPECTRO_AUTISTA", label: "Transtorno do Espectro Autista" },
+  { value: "OUTRA", label: "Outra" },
+  { value: "NAO_INFORMADO", label: "Não informado" },
 ] as const;
 
 export const statusParticipante = [
@@ -93,6 +202,47 @@ export const statusMatriculaValueToLabel = (v?: string) =>
 
 export const nivelTurmaValueToLabel = (v?: string | null) =>
   v ? niveisTurmaOptions.find((nivel) => nivel.value === v)?.label ?? v : "—";
+
+export const tipoDocumentoParticipanteValueToLabel = (v?: string | null) =>
+  v
+    ? tipoDocumentoParticipanteOptions.find((item) => item.value === v)
+      ?.label ?? v
+    : "—";
+
+export const tipoNeurodivergenciaValueToLabel = (v?: string | null) =>
+  v
+    ? tipoNeurodivergenciaOptions.find((item) => item.value === v)?.label ?? v
+    : "—";
+
+export const tipoDeficienciaParticipanteValueToLabel = (v?: string | null) =>
+  v
+    ? tipoDeficienciaParticipanteOptions.find((item) => item.value === v)
+      ?.label ?? v
+    : "—";
+
+export const tipoNeurodivergenciasValueToLabel = (
+  values?: Array<TipoNeurodivergencia | string> | TipoNeurodivergencia | string | null,
+) => {
+  const lista = normalizeEnumList(values);
+
+  return lista.length
+    ? lista.map((item) => tipoNeurodivergenciaValueToLabel(item)).join(", ")
+    : "—";
+};
+
+export const tipoDeficienciasParticipanteValueToLabel = (
+  values?:
+    | Array<TipoDeficienciaParticipante | string>
+    | TipoDeficienciaParticipante
+    | string
+    | null,
+) => {
+  const lista = normalizeEnumList(values);
+
+  return lista.length
+    ? lista.map((item) => tipoDeficienciaParticipanteValueToLabel(item)).join(", ")
+    : "—";
+};
 
 export interface ParticipanteVinculo {
   id?: string;
@@ -131,6 +281,13 @@ export interface Participante {
   genero?: string;
   racaCor?: string;
   faixaRenda?: string;
+  tipoDocumentoParticipante?: TipoDocumentoParticipante | string;
+  urlDocumento?: string;
+  removerDocumento?: boolean;
+  possuiCadunico?: boolean;
+  possuiBolsaFamilia?: boolean;
+  tipoNeurodivergencias?: Array<TipoNeurodivergencia | string>;
+  tipoDeficiencias?: Array<TipoDeficienciaParticipante | string>;
   vinculos: ParticipanteVinculo[];
 }
 
@@ -202,6 +359,21 @@ export interface ParticipanteApiDTO {
   genero?: string | null;
   racaCor?: string | null;
   faixaRenda?: string | null;
+  tipoDocumentoParticipante?: TipoDocumentoParticipante | string | null;
+  urlDocumento?: string | null;
+  removerDocumento?: boolean | null;
+  possuiCadunico?: boolean | null;
+  possuiBolsaFamilia?: boolean | null;
+  tipoNeurodivergencias?:
+    | Array<TipoNeurodivergencia | string>
+    | TipoNeurodivergencia
+    | string
+    | null;
+  tipoDeficiencias?:
+    | Array<TipoDeficienciaParticipante | string>
+    | TipoDeficienciaParticipante
+    | string
+    | null;
 
   organizacao?: {
     id?: number | string | null;
@@ -241,6 +413,13 @@ export interface ParticipantePayloadDTO {
   genero?: string | null;
   racaCor?: string | null;
   faixaRenda?: string | null;
+  tipoDocumentoParticipante?: TipoDocumentoParticipante | string | null;
+  urlDocumento?: string | null;
+  removerDocumento?: boolean | null;
+  possuiCadunico?: boolean | null;
+  possuiBolsaFamilia?: boolean | null;
+  tipoNeurodivergencias?: Array<TipoNeurodivergencia | string> | null;
+  tipoDeficiencias?: Array<TipoDeficienciaParticipante | string> | null;
 
   status: string;
   organizacaoId?: number | null;
@@ -340,6 +519,22 @@ function pickText(...values: Array<unknown>) {
   return "";
 }
 
+function normalizeEnumList(
+  values?: Array<string | null | undefined> | string | null,
+) {
+  if (Array.isArray(values)) {
+    return values.filter(
+      (item): item is string => typeof item === "string" && !!item.trim(),
+    );
+  }
+
+  if (typeof values === "string" && values.trim()) {
+    return [values.trim()];
+  }
+
+  return [];
+}
+
 export function formatIsoToBR(iso?: string | null) {
   if (!iso) return "";
 
@@ -414,6 +609,13 @@ export function mapParticipante(dto: ParticipanteApiDTO): Participante {
     genero: dto.genero ?? "",
     racaCor: dto.racaCor ?? "",
     faixaRenda: dto.faixaRenda ?? "",
+    tipoDocumentoParticipante: dto.tipoDocumentoParticipante ?? "",
+    urlDocumento: dto.urlDocumento ?? "",
+    removerDocumento: Boolean(dto.removerDocumento),
+    possuiCadunico: Boolean(dto.possuiCadunico),
+    possuiBolsaFamilia: Boolean(dto.possuiBolsaFamilia),
+    tipoNeurodivergencias: normalizeEnumList(dto.tipoNeurodivergencias),
+    tipoDeficiencias: normalizeEnumList(dto.tipoDeficiencias),
 
     cep: dto.cep ?? "",
     logradouro: dto.logradouro ?? "",
@@ -459,6 +661,17 @@ export function buildParticipantePayload(
     genero: participante.genero || null,
     racaCor: participante.racaCor || null,
     faixaRenda: participante.faixaRenda || null,
+    tipoDocumentoParticipante: participante.tipoDocumentoParticipante || null,
+    urlDocumento: participante.urlDocumento || null,
+    removerDocumento: Boolean(participante.removerDocumento),
+    possuiCadunico: Boolean(participante.possuiCadunico),
+    possuiBolsaFamilia: Boolean(participante.possuiBolsaFamilia),
+    tipoNeurodivergencias: participante.tipoNeurodivergencias?.length
+      ? participante.tipoNeurodivergencias
+      : null,
+    tipoDeficiencias: participante.tipoDeficiencias?.length
+      ? participante.tipoDeficiencias
+      : null,
 
     cep: onlyDigits(participante.cep),
     logradouro: participante.logradouro?.trim() || "",
@@ -521,11 +734,13 @@ export async function getParticipanteById(id: number): Promise<Participante> {
 
 export async function createParticipante(
   payload: ParticipantePayloadDTO,
+  documento?: File | null,
 ): Promise<Participante> {
+  const body = buildParticipanteRequestBody(payload, documento);
   const response = await fetch(`${API_URL}/participantes`, {
     method: "POST",
-    headers: getJsonHeaders(),
-    body: JSON.stringify(payload),
+    headers: documento ? getMultipartHeaders() : getJsonHeaders(),
+    body,
   });
 
   if (!response.ok) {
@@ -540,11 +755,14 @@ export async function createParticipante(
 export async function updateParticipante(
   id: number,
   payload: ParticipantePayloadDTO,
+  documento?: File | null,
 ): Promise<Participante> {
+  const usarMultipart = Boolean(documento);
+  const body = buildParticipanteRequestBody(payload, documento);
   const response = await fetch(`${API_URL}/participantes/${id}`, {
     method: "PUT",
-    headers: getJsonHeaders(),
-    body: JSON.stringify(payload),
+    headers: usarMultipart ? getMultipartHeaders() : getJsonHeaders(),
+    body,
   });
 
   if (!response.ok) {
@@ -554,6 +772,41 @@ export async function updateParticipante(
   const data: ParticipanteApiDTO = await response.json();
 
   return mapParticipante(data);
+}
+
+function buildParticipanteRequestBody(
+  payload: ParticipantePayloadDTO,
+  documento?: File | null,
+) {
+  if (!documento) return JSON.stringify(payload);
+
+  const formData = new FormData();
+
+  formData.append("dados", JSON.stringify(payload));
+  formData.append("documento", documento);
+
+  return formData;
+}
+
+export async function getParticipanteDocumentoDownloadUrl(
+  id: number,
+): Promise<string> {
+  const response = await fetch(`${API_URL}/participantes/${id}/documento/download`, {
+    method: "GET",
+    headers: getJsonHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const url = await response.text();
+
+  if (!url?.trim()) {
+    throw new Error("Link do documento não retornado pelo servidor.");
+  }
+
+  return url;
 }
 
 export async function deleteParticipante(id: number): Promise<void> {
@@ -650,6 +903,10 @@ export interface IndicadoresSociodemograficos {
   porRacaCor: IndicadorItem[];
   porFaixaRenda: IndicadorItem[];
   porFaixaEtaria: IndicadorItem[];
+  porTipoDeficiencia?: IndicadorItem[];
+  porTipoNeurodivergencia?: IndicadorItem[];
+  porCadunico?: IndicadorItem[];
+  porBolsaFamilia?: IndicadorItem[];
 }
 
 export interface IndicadoresSociodemograficosFiltros {

@@ -341,6 +341,50 @@ const statusParticipantePdfLabel: Record<string, string> = {
   CANCELADO: "Cancelado",
 };
 
+const tipoNeurodivergenciaParticipantePdfLabel: Record<string, string> = {
+  TEA: "TEA",
+  ASPERGER: "Asperger",
+  TDAH: "TDAH",
+  TOD: "TOD",
+  DISLEXIA: "Dislexia",
+  DISCALCULIA: "Discalculia",
+  DISGRAFIA: "Disgrafia",
+  DISPRAXIA: "Dispraxia",
+  TOURETTE: "Tourette",
+  TOC: "TOC",
+  ALTAS_HABILIDADES_SUPERDOTACAO: "Altas habilidades/superdotação",
+  TRANSTORNO_PROCESSAMENTO_SENSORIAL:
+    "Transtorno do processamento sensorial",
+  TRANSTORNO_PROCESSAMENTO_AUDITIVO: "Transtorno do processamento auditivo",
+  OUTRA: "Outra",
+};
+
+const tipoDeficienciaParticipantePdfLabel: Record<string, string> = {
+  NAO_POSSUI: "Não possui",
+  FISICA: "Física",
+  AUDITIVA: "Auditiva",
+  VISUAL: "Visual",
+  INTELECTUAL: "Intelectual",
+  PSICOSSOCIAL: "Psicossocial",
+  MULTIPLA: "Múltipla",
+  TRANSTORNO_ESPECTRO_AUTISTA: "Transtorno do Espectro Autista",
+  OUTRA: "Outra",
+  NAO_INFORMADO: "Não informado",
+};
+
+function formatarListaEnumRelatorioParticipantesPdf(
+  value: unknown,
+  labels: Record<string, string>,
+) {
+  const values = Array.isArray(value) ? value : value ? [value] : [];
+  const formatted = values
+    .map((item) => texto(item))
+    .filter(Boolean)
+    .map((item) => labels[item] ?? item);
+
+  return formatted.length ? formatted.join(", ") : "—";
+}
+
 const colunasRelatorioParticipantesPdf: RelatorioColumn<
   Record<string, unknown>
 >[] = [
@@ -348,6 +392,34 @@ const colunasRelatorioParticipantesPdf: RelatorioColumn<
     key: "nome",
     label: "Participante",
     accessor: (row) => texto(row.participanteNome) || "—",
+  },
+  {
+    key: "tipoNeurodivergencias",
+    label: "Neurodivergências",
+    accessor: (row) =>
+      formatarListaEnumRelatorioParticipantesPdf(
+        row.tipoNeurodivergencias,
+        tipoNeurodivergenciaParticipantePdfLabel,
+      ),
+  },
+  {
+    key: "tipoDeficiencias",
+    label: "Tipo de deficiência",
+    accessor: (row) =>
+      formatarListaEnumRelatorioParticipantesPdf(
+        row.tipoDeficiencias,
+        tipoDeficienciaParticipantePdfLabel,
+      ),
+  },
+  {
+    key: "possuiCadunico",
+    label: "CadÚnico",
+    accessor: (row) => (row.possuiCadunico ? "Sim" : "Não"),
+  },
+  {
+    key: "possuiBolsaFamilia",
+    label: "Bolsa Família",
+    accessor: (row) => (row.possuiBolsaFamilia ? "Sim" : "Não"),
   },
   {
     key: "status",

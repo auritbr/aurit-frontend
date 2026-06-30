@@ -48,6 +48,13 @@ const FILTROS_INICIAIS: Filtros = {
 };
 
 const categoriaLabels: Record<string, string> = {
+  true: "Sim",
+  false: "Não",
+  TRUE: "Sim",
+  FALSE: "Não",
+  SIM: "Sim",
+  NAO: "Não",
+
   FEMININO: "Feminino",
   MASCULINO: "Masculino",
   NAO_BINARIO: "Não binário",
@@ -72,6 +79,31 @@ const categoriaLabels: Record<string, string> = {
   DE_18_A_29_ANOS: "18 a 29 anos",
   DE_30_A_59_ANOS: "30 a 59 anos",
   "60_ANOS_OU_MAIS": "60 anos ou mais",
+
+  TEA: "TEA",
+  ASPERGER: "Asperger",
+  TDAH: "TDAH",
+  TOD: "TOD",
+  DISLEXIA: "Dislexia",
+  DISCALCULIA: "Discalculia",
+  DISGRAFIA: "Disgrafia",
+  DISPRAXIA: "Dispraxia",
+  TOURETTE: "Tourette",
+  TOC: "TOC",
+  ALTAS_HABILIDADES_SUPERDOTACAO: "Altas habilidades/superdotação",
+  TRANSTORNO_PROCESSAMENTO_SENSORIAL:
+    "Transtorno do processamento sensorial",
+  TRANSTORNO_PROCESSAMENTO_AUDITIVO: "Transtorno do processamento auditivo",
+  OUTRA: "Outra",
+
+  NAO_POSSUI: "Não possui",
+  FISICA: "Física",
+  AUDITIVA: "Auditiva",
+  VISUAL: "Visual",
+  INTELECTUAL: "Intelectual",
+  PSICOSSOCIAL: "Psicossocial",
+  MULTIPLA: "Múltipla",
+  TRANSTORNO_ESPECTRO_AUTISTA: "Transtorno do Espectro Autista",
 
   NAO_INFORMADO: "Não informado",
 };
@@ -282,6 +314,22 @@ export default function IndicadoresSociodemograficos() {
           title: "Perfil por faixa etária",
           itens: converterIndicadores(dados.porFaixaEtaria ?? []),
         },
+        {
+          title: "Perfil por tipo de deficiência",
+          itens: converterIndicadores(dados.porTipoDeficiencia ?? []),
+        },
+        {
+          title: "Perfil por tipo de neurodivergência",
+          itens: converterIndicadores(dados.porTipoNeurodivergencia ?? []),
+        },
+        {
+          title: "Participantes com CadÚnico",
+          itens: converterIndicadores(dados.porCadunico ?? []),
+        },
+        {
+          title: "Participantes com Bolsa Família",
+          itens: converterIndicadores(dados.porBolsaFamilia ?? []),
+        },
       ],
     };
 
@@ -295,7 +343,7 @@ export default function IndicadoresSociodemograficos() {
       <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl mx-auto">
         <PageTitle
           title="Relatório Sociodemográfico"
-          tooltip="Relatório com o perfil sociodemográfico dos participantes por gênero, raça/cor, faixa de renda e faixa etária com filtros por ano, atividade, turma e status da matrícula."
+          tooltip="Relatório com o perfil sociodemográfico dos participantes por gênero, raça/cor, faixa de renda, faixa etária, deficiência, neurodivergência, CadÚnico e Bolsa Família com filtros por ano, atividade, turma e status da matrícula."
         />
 
         <section className="rounded-lg border border-border bg-card p-4 sm:p-5 shadow-sm mb-5">
@@ -516,6 +564,26 @@ export default function IndicadoresSociodemograficos() {
             <IndicadorCard
               title="Perfil por faixa etária"
               itens={dados?.porFaixaEtaria ?? []}
+            />
+
+            <IndicadorCard
+              title="Perfil por tipo de deficiência"
+              itens={dados?.porTipoDeficiencia ?? []}
+            />
+
+            <IndicadorCard
+              title="Perfil por tipo de neurodivergência"
+              itens={dados?.porTipoNeurodivergencia ?? []}
+            />
+
+            <IndicadorCard
+              title="Participantes com CadÚnico"
+              itens={dados?.porCadunico ?? []}
+            />
+
+            <IndicadorCard
+              title="Participantes com Bolsa Família"
+              itens={dados?.porBolsaFamilia ?? []}
             />
           </div>
         )}

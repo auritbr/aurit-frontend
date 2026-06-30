@@ -588,7 +588,9 @@ type IntegrantePdf = {
   estado?: string | null;
 
   organizacao?: string | null;
+  organizacaoId?: string | number | null;
   funcaoIntegrante?: string | null;
+  tipoVinculoIntegrante?: string | null;
   dataEntrada?: string | null;
   dataSaida?: string | null;
   status?: string | null;
@@ -863,23 +865,32 @@ function getMunicipioUFInstitucional(org: OrganizacaoPdf) {
 }
 
 function getRepresentanteNome(org: OrganizacaoPdf) {
-  return v(org.representanteLegal?.nomeRepresentante);
+  return v(
+    org.representanteLegal?.nomeRepresentante ?? org.nomeRepresentanteLegal,
+  );
 }
 
 function getRepresentanteCpf(org: OrganizacaoPdf) {
-  return formatCpfCnpj(org.representanteLegal?.cpfRepresentante);
+  return formatCpfCnpj(
+    org.representanteLegal?.cpfRepresentante ?? org.cpfRepresentanteLegal,
+  );
 }
 
 function getRepresentanteRg(org: OrganizacaoPdf) {
-  return v(org.representanteLegal?.rgRepresentante);
+  return v(org.representanteLegal?.rgRepresentante ?? org.rgRepresentanteLegal);
 }
 
 function getRepresentanteTelefone(org: OrganizacaoPdf) {
-  return v(org.representanteLegal?.telefoneRepresentante);
+  return v(
+    org.representanteLegal?.telefoneRepresentante ??
+    org.telefoneRepresentanteLegal,
+  );
 }
 
 function getRepresentanteEmail(org: OrganizacaoPdf) {
-  return v(org.representanteLegal?.emailRepresentante);
+  return v(
+    org.representanteLegal?.emailRepresentante ?? org.emailRepresentanteLegal,
+  );
 }
 
 // =====================================================================
@@ -4562,6 +4573,10 @@ export async function exportIntegrantePdf(i: IntegrantePdf) {
       value: v(i.funcaoIntegrante),
     },
     {
+      label: "Tipo de Vínculo",
+      value: v(i.tipoVinculoIntegrante),
+    },
+    {
       label: "Data de Entrada",
       value: formatDateBR(i.dataEntrada),
     },
@@ -4660,6 +4675,175 @@ export async function exportIntegrantePdf(i: IntegrantePdf) {
       {
         title: "3. Vínculo Institucional",
         fields: vinculoFields,
+      },
+    ],
+  });
+}
+
+export async function exportContratoPareceristaPdf(i: IntegrantePdf) {
+  const org = await buscarOrganizacaoPorId(i.organizacaoId);
+
+  const NOME_INST = getNomeInstitucional(org);
+  const RAZAO_SOCIAL = getRazaoSocialInstitucional(org);
+  const CNPJ = getCnpjInstitucional(org);
+  const ENDERECO_INST = getEnderecoInstitucional(org);
+  const municipioUF = getMunicipioUFInstitucional(org);
+
+  const REPRESENTANTE = getRepresentanteNome(org);
+  const CPF_REPR = getRepresentanteCpf(org);
+
+  const NOME = v(i.nomeCompleto);
+  const CPF_CONTR = formatCpfCnpj(i.cpf);
+  const CNPJ_CONTR = "[Preencher]";
+  const ENDERECO_CONTR = v(
+    formatEnderecoCompleto({
+      logradouro: i.logradouro,
+      numero: i.numero,
+      complemento: i.complemento,
+      bairro: i.bairro,
+      cidade: i.cidade,
+      estado: i.estado,
+      cep: i.cep,
+    }),
+  );
+
+  const clauses: PdfClause[] = [
+    {
+      titulo: "CLÁUSULA PRIMEIRA - DO OBJETO",
+      itens: [
+        "1.1. O presente contrato tem por objeto a prestação de serviços de Parecerista Técnico, a serem executados pelo(a) CONTRATADO(A) de forma autônoma, consistindo na análise técnica, avaliação de propostas/projetos e emissão de pareceres técnicos fundamentados.",
+        "1.2. Os serviços referidos no item anterior serão aplicados aos editais de seleção pública ou privada emitidos por clientes da CONTRATANTE que contam com a assessoria técnica e a consultoria da organização CONTRATANTE.",
+        "1.3. Os serviços compreendem, de forma exemplificativa:",
+        "• Análise detalhada de propostas, portfólios, planos de trabalho e documentações técnicas submetidas aos editais indicados pela CONTRATANTE;",
+        "• Atribuição de notas ou conceitos conforme os critérios e matrizes de avaliação estabelecidos em cada edital específico;",
+        "• Emissão de parecer técnico individualizado e justificado para cada projeto avaliado, utilizando o sistema, plataforma ou formulário indicado pela CONTRATANTE;",
+        "• Participação em reuniões de alinhamento, comissões de heteroidentificação ou julgamento de recursos, quando expressamente solicitado e acordado entre as partes.",
+        "1.4. Todo o material, relatório ou parecer produzido pelo(a) CONTRATADO(A) em decorrência deste instrumento poderá ser utilizado pela CONTRATANTE e por seus respectivos clientes para subsidiar as decisões dos editais, divulgação de resultados, prestação de contas e comprovação de execução jurídica, respeitado o sigilo das informações e os créditos institucionais.",
+        "1.5. Também integram o objeto deste contrato, como desdobramento natural da atividade técnica de parecerista, a prestação de esclarecimentos, complementações, retificações, manifestações técnicas, declarações ou justificativas relacionadas aos pareceres emitidos pelo(a) CONTRATADO(A), sempre que solicitadas pela CONTRATANTE em razão de recursos administrativos, diligências, pedidos de esclarecimento, impugnações, determinações de órgãos de controle, decisões judiciais, liminares ou quaisquer outros questionamentos formais decorrentes do processo de seleção.",
+      ],
+    },
+    {
+      titulo: "CLÁUSULA SEGUNDA - DO PERÍODO, LOCAL E DA EXECUÇÃO DOS SERVIÇOS",
+      itens: [
+        "2.1. Os serviços serão prestados por demanda, dentro do período de cronograma específico de cada edital assessorado, pelo período de até 30 dias, podendo ser prorrogado mediante necessidade técnica dos certames.",
+        "2.2. Tendo em vista a natureza das atividades de avaliação, os serviços serão executados em formato remoto/digital, por meio das plataformas digitais fornecidas pela CONTRATANTE ou por seus clientes, sem obrigatoriedade de comparecimento presencial na sede da instituição, salvo convocação prévia específica.",
+        "2.3. A execução das atividades dar-se-á com total autonomia de tempo pelo(a) CONTRATADO(A), devendo este(a) observar estritamente os prazos finais de entrega dos pareceres estipulados pela coordenação do edital, não se caracterizando controle de jornada, subordinação jurídica ou regime empregatício.",
+      ],
+    },
+    {
+      titulo: "CLÁUSULA TERCEIRA - DO VALOR E DA FORMA DE PAGAMENTO",
+      itens: [
+        "3.1. Pela prestação dos serviços técnicos de avaliação e emissão de pareceres, a CONTRATANTE pagará ao(à) CONTRATADO(A) os seguintes valores:",
+        "• Categoria A: Projetos com orçamento solicitado de até R$ 50.000,00 - R$ 75,00 por parecer.",
+        "• Categoria B: Projetos com orçamento solicitado entre R$ 50.000,01 e R$ 100.000,00 - R$ 100,00 por parecer.",
+        "• Categoria C: Projetos com orçamento solicitado acima de R$ 100.000,00 - R$ 150,00 por parecer.",
+        "3.2. O pagamento será realizado pela CONTRATANTE em parcela única em até 15 dias após a entrega final de todas as avaliações do período bem como Nota Fiscal, mediante transferência bancária ou PIX para a conta indicada pelo(a) CONTRATADO(A).",
+        "3.3. O pagamento estará condicionado à validação técnica dos pareceres pela coordenação da CONTRATANTE e à apresentação de Nota Fiscal correspondente.",
+        "3.4. Despesas ordinárias necessárias para a execução remota, tais como uso de internet, computador e energia elétrica, correm exclusivamente por conta do(a) CONTRATADO(A).",
+      ],
+    },
+    {
+      titulo: "CLÁUSULA QUARTA - DAS OBRIGAÇÕES DO(A) CONTRATADO(A)",
+      itens: [
+        "4.1. Constituem obrigações específicas do(a) CONTRATADO(A) como parecerista técnico:",
+        "• Imparcialidade e Isenção: Avaliar todos os projetos de forma estritamente técnica, impessoal e isenta, utilizando unicamente os critérios estabelecidos no edital do cliente;",
+        "• Ausência de Conflito de Interesses: Declarar-se imediatamente impedido(a) de avaliar qualquer projeto ou proposta em que possua vínculo de parentesco, profissional, societário ou interesse comercial direto ou indireto com os proponentes;",
+        "• Pontualidade: Cumprir rigorosamente os prazos estabelecidos para a entrega das avaliações e pareceres, reconhecendo que atrasos comprometem o calendário público do edital do cliente;",
+        "• Qualidade Técnica: Fundamentar os pareceres de forma clara, coerente, construtiva e baseada nas regras técnicas, evitando justificativas genéricas ou superficiais;",
+        "• Sigilo Absoluto: Manter total confidencialidade sobre a identidade dos proponentes, o teor das propostas e os resultados parciais das notas até que ocorra a publicação oficial pelo cliente da CONTRATANTE.",
+        "4.2. O(A) CONTRATADO(A) obriga-se a permanecer disponível, durante a vigência do edital avaliado e enquanto houver necessidade administrativa, técnica, jurídica ou judicial relacionada aos pareceres por ele(a) emitidos, para prestar esclarecimentos, corrigir eventual erro material, complementar fundamentação, emitir declaração técnica, elaborar manifestação complementar ou adotar providência correlata solicitada pela CONTRATANTE.",
+        "4.3. Caso seja identificado erro material, inconsistência objetiva, omissão relevante ou necessidade de esclarecimento no parecer emitido, o(a) CONTRATADO(A) deverá colaborar de forma imediata e diligente para a correção, complementação ou justificação técnica do ato, sem prejuízo da sua responsabilidade pela qualidade, coerência e fundamentação das avaliações realizadas.",
+        "4.4. A obrigação prevista nos itens anteriores não implica subordinação jurídica, controle de jornada ou vínculo empregatício, tratando-se de responsabilidade técnica decorrente da atividade autônoma contratada e dos pareceres efetivamente emitidos pelo(a) CONTRATADO(A).",
+      ],
+    },
+    {
+      titulo: "CLÁUSULA QUINTA - DAS OBRIGAÇÕES DA CONTRATANTE",
+      itens: [
+        "5.1. Constituem obrigações da CONTRATANTE:",
+        "• Disponibilizar as diretrizes, editais, manuais de avaliação, critérios de pontuação e acesso aos sistemas ou plataformas onde os projetos estão hospedados;",
+        "• Prestar o apoio técnico e logístico necessário para dirimir dúvidas sobre a interpretação das regras dos editais assessorados;",
+        "• Efetuar o pagamento dos honorários na forma e prazos estipulados neste contrato;",
+        "• Comunicar imediatamente ao(à) CONTRATADO(A) eventuais alterações nos cronogramas ou suspensões dos editais promovidos por seus clientes.",
+      ],
+    },
+    {
+      titulo: "CLÁUSULA SEXTA - DA AUTONOMIA E INEXISTÊNCIA DE VÍNCULO EMPREGATÍCIO",
+      itens: [
+        "6.1. O presente contrato tem natureza estritamente civil, regulado pelas disposições do Código Civil Brasileiro, não gerando qualquer vínculo de emprego, subordinação jurídica, dependência econômica ou direitos de natureza trabalhista entre o(a) CONTRATADO(A) e a CONTRATANTE ou os clientes desta.",
+        "6.2. O(A) CONTRATADO(A) executará suas atividades com total autonomia profissional, sendo o único responsável pelo recolhimento de eventuais encargos fiscais, tributários ou previdenciários incidentes sobre a sua atividade autônoma.",
+      ],
+    },
+    {
+      titulo: "CLÁUSULA SÉTIMA - DA CONFIDENCIALIDADE E PROTEÇÃO DE DADOS (LGPD)",
+      itens: [
+        "7.1. O(A) CONTRATADO(A) obriga-se a manter sob absoluto sigilo todas as informações institucionais, comerciais e dados pessoais pertencentes à CONTRATANTE, aos seus clientes e aos proponentes dos editais a que tiver acesso em razão deste contrato.",
+        "7.2. As partes comprometem-se a cumprir integralmente as normas da Lei nº 13.709/2018 (Lei Geral de Proteção de Dados - LGPD). Os dados pessoais contidos nos projetos avaliados deverão ser tratados única e exclusivamente para a finalidade de pontuação técnica, sendo vedado o seu armazenamento em dispositivos pessoais, compartilhamento com terceiros ou utilização para fins acadêmicos, comerciais ou profissionais próprios.",
+      ],
+    },
+    {
+      titulo: "CLÁUSULA OITAVA - DA RESCISÃO",
+      itens: [
+        "8.1. O presente contrato poderá ser rescindido por iniciativa de qualquer das partes, mediante aviso prévio por escrito com antecedência mínima de 20 dias, resguardando-se o pagamento proporcional aos pareceres efetivamente entregues e validados até a data do encerramento.",
+        "8.2. Constituem motivos para a rescisão imediata deste contrato, sem direito a qualquer indenização:",
+        "• Quebra de sigilo ou confidencialidade das propostas ou dados dos editais;",
+        "• Constatação de fraude, favorecimento ou conflito de interesses ocultado pelo(a) CONTRATADO(A);",
+        "• Descumprimento injustificado dos prazos de entrega dos pareceres técnicos;",
+        "• Emissão de pareceres técnicos flagrantemente desprovidos de fundamentação ou que não sigam os critérios do edital.",
+      ],
+    },
+    {
+      titulo: "CLÁUSULA NONA - DISPOSIÇÕES GERAIS E FORO",
+      itens: [
+        "9.1. Qualquer alteração ou aditamento às condições estabelecidas neste instrumento só terá validade se efetuada por escrito e assinada por ambas as partes.",
+        "9.2. A nulidade ou invalidade de qualquer cláusula não prejudicará a vigência das demais disposições deste contrato.",
+        "9.3. Este contrato deverá ser assinado por meio eletrônico ou digital idôneo, sendo plenamente válido e gerando efeitos a partir da data de seu último aceite técnico.",
+        `9.4. Fica eleito o foro da Comarca de ${municipioUF}, com renúncia expressa a qualquer outro, por mais privilegiado que seja, para dirimir eventuais controvérsias oriundas deste instrumento.`,
+      ],
+    },
+  ];
+
+  await generateInstitutionalPdf({
+    title: "Contrato de Prestação de Serviços Técnicos de Parecerista",
+    documentNumber: `CPP-${String(i.id).padStart(4, "0")}`,
+    sections: [
+      {
+        justifiedParagraphs: [
+          "Pelo presente instrumento particular, de um lado:",
+          `CONTRATANTE: ${RAZAO_SOCIAL}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${CNPJ}, com sede em ${ENDERECO_INST}, neste ato representada por sua representante legal, ${REPRESENTANTE}, inscrita no CPF sob o nº ${CPF_REPR}, doravante denominada simplesmente CONTRATANTE.`,
+          `CONTRATADO(A): ${NOME}, portador(a) do CPF sob o nº ${CPF_CONTR}, residente e domiciliado(a) em ${ENDERECO_CONTR}, doravante denominado(a) simplesmente CONTRATADO(A).`,
+          "As partes acima identificadas têm entre si justo e contratado o presente Contrato de Prestação de Serviços, de natureza estritamente civil, que se regerá pelas cláusulas e condições seguintes:",
+        ],
+      },
+      { clauses },
+      {
+        justifiedParagraphs: [
+          "E, por estarem assim justas e contratadas, as partes firmam o presente instrumento em formato digital, conjuntamente com 2 (duas) testemunhas.",
+        ],
+      },
+      { rightAlignedLine: `${municipioUF}, ${dataPorExtenso()}.` },
+      {
+        signatures: [
+          {
+            rotulo: "CONTRATANTE",
+            linhas: [
+              NOME_INST,
+              `Representante Legal: ${REPRESENTANTE}`,
+              `CPF: ${CPF_REPR}`,
+            ],
+          },
+          {
+            rotulo: "CONTRATADO(A)",
+            linhas: [NOME, "Função: Parecerista Técnico(a)", `CPF: ${CPF_CONTR}`],
+          },
+          {
+            rotulo: "TESTEMUNHA 1",
+            linhas: ["Nome:", "CPF:"],
+          },
+          {
+            rotulo: "TESTEMUNHA 2",
+            linhas: ["Nome:", "CPF:"],
+          },
+        ],
       },
     ],
   });

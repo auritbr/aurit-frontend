@@ -8,6 +8,8 @@ import {
   Trash2,
   UserRound,
   FileSignature,
+  FileText,
+  Users
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -20,6 +22,7 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { StatusPill } from "@/components/StatusPill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
+import { PageInfoCard } from "@/components/PageInfoCard";
 import { TablePagination } from "@/components/TablePagination";
 import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
@@ -36,6 +39,7 @@ import {
   deleteParticipante,
   getAtividadesOptions,
   getOrganizacoesParticipante,
+  getParticipanteDocumentoDownloadUrl,
   getParticipantes,
   getTurmasOptions,
   statusValueToLabel,
@@ -43,6 +47,9 @@ import {
   nivelTurmaValueToLabel,
   generoOptions,
   racaCorOptions,
+  tipoDeficienciasParticipanteValueToLabel,
+  tipoDocumentoParticipanteValueToLabel,
+  tipoNeurodivergenciasValueToLabel,
   type AtividadeOption,
   type OrganizacaoOption,
   type Participante,
@@ -61,7 +68,15 @@ import {
 import { exportTermoImagemPdf } from "@/lib/pdfExporters";
 import { toast } from "sonner";
 
-type SortKey = "nome" | "status" | "genero" | "racaCor" | "telefone" | "responsavel" | "matriculas";
+type SortKey =
+  | "nome"
+  | "status"
+  | "genero"
+  | "racaCor"
+  | "telefone"
+  | "responsavel"
+  | "documento"
+  | "matriculas";
 
 const PARTICIPANTE_NEXT_STEP_KEY = "aurit:participantes:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -219,6 +234,8 @@ export default function Participantes() {
   const racaCorLabel = (value?: string | null) =>
     value ? racaCorOptions.find((item) => item.value === value)?.label ?? value : "—";
 
+  const simNaoLabel = (value?: boolean | null) => (value ? "Sim" : "Não");
+
   const formatVinculos = (vs: Participante["vinculos"]) =>
     vs
       .filter((v) => v.atividadeId)
@@ -254,6 +271,11 @@ export default function Participantes() {
         p.email ?? "",
         p.cpf ?? "",
         p.rg ?? "",
+        tipoDocumentoParticipanteValueToLabel(p.tipoDocumentoParticipante),
+        tipoNeurodivergenciasValueToLabel(p.tipoNeurodivergencias),
+        tipoDeficienciasParticipanteValueToLabel(p.tipoDeficiencias),
+        p.possuiCadunico ? "cadunico cadúnico sim" : "cadunico cadúnico não",
+        p.possuiBolsaFamilia ? "bolsa familia sim" : "bolsa familia não",
         organizacao,
         vinculos,
         status,
@@ -281,6 +303,10 @@ export default function Participantes() {
           return item.telefone ?? "";
         case "responsavel":
           return item.nomeResponsavel ?? "";
+        case "documento":
+          return tipoDocumentoParticipanteValueToLabel(
+            item.tipoDocumentoParticipante,
+          );
         case "matriculas":
           return formatVinculos(item.vinculos);
         default:
@@ -352,6 +378,27 @@ export default function Participantes() {
     toast.success("Termo de autorização gerado em PDF.");
   };
 
+  const handleAbrirDocumento = async (participante: Participante) => {
+    if (!participante.urlDocumento) {
+      toast.info("Nenhum documento anexado.");
+      return;
+    }
+
+    try {
+      const url = await getParticipanteDocumentoDownloadUrl(
+        Number(participante.id),
+      );
+
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível abrir o documento.",
+      );
+    }
+  };
+
   if (!podeVisualizar) {
     return (
       <AppLayout>
@@ -374,6 +421,11 @@ export default function Participantes() {
         <PageTitle
           title="Participantes"
           tooltip="Cadastre e acompanhe os participantes da organização. O vínculo com atividades e turmas é opcional e deve ser preenchido apenas quando o participante estiver matriculado ou vinculado a uma ação específica."
+        />
+
+        <PageInfoCard
+          description="Cadastre e gerencie os participantes das atividades do projeto. Vincule cada participante à atividade e, quando necessário, à turma correspondente para organizar melhor o acompanhamento e os registros."
+          icon={Users}
         />
 
         {nextStepCard && (
@@ -479,6 +531,14 @@ export default function Participantes() {
                   />
 
                   <SortableHeader
+                    label="Documento"
+                    sortKey="documento"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
                     label="Matrículas"
                     sortKey="matriculas"
                     sortConfig={sortConfig}
@@ -569,6 +629,57 @@ export default function Participantes() {
                       </td>
 
                       <td className="px-6 py-2.5">
+                        <div className="space-y-1 text-[13px]">
+                          <div className="text-foreground">
+                            {tipoDocumentoParticipanteValueToLabel(
+                              p.tipoDocumentoParticipante,
+                            )}
+                          </div>
+
+                          <div className="text-xs text-muted-foreground">
+                            CadÚnico: {simNaoLabel(p.possuiCadunico)} • Bolsa
+                            Família: {simNaoLabel(p.possuiBolsaFamilia)}
+                          </div>
+
+                          {((p.tipoNeurodivergencias?.length ?? 0) > 0 ||
+                            (p.tipoDeficiencias?.length ?? 0) > 0) && (
+                              <TableCellText
+                                text={[
+                                  (p.tipoNeurodivergencias?.length ?? 0) > 0 &&
+                                  `Neurodiv.: ${tipoNeurodivergenciasValueToLabel(p.tipoNeurodivergencias)}`,
+                                  (p.tipoDeficiencias?.length ?? 0) > 0 &&
+                                  `Defic.: ${tipoDeficienciasParticipanteValueToLabel(p.tipoDeficiencias)}`,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" • ")}
+                                muted
+                              >
+                                {[
+                                  (p.tipoNeurodivergencias?.length ?? 0) > 0 &&
+                                  `Neurodiv.: ${tipoNeurodivergenciasValueToLabel(p.tipoNeurodivergencias)}`,
+                                  (p.tipoDeficiencias?.length ?? 0) > 0 &&
+                                  `Defic.: ${tipoDeficienciasParticipanteValueToLabel(p.tipoDeficiencias)}`,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" • ")}
+                              </TableCellText>
+                            )}
+
+                          {p.urlDocumento && (
+                            <button
+                              type="button"
+                              onClick={() => void handleAbrirDocumento(p)}
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                              data-no-copy
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              Abrir documento
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-2.5">
                         {vinculos ? (
                           <TableCellText text={vinculos} muted>
                             {vinculos}
@@ -598,7 +709,7 @@ export default function Participantes() {
                 })}
 
                 {paginated.length === 0 && (
-                  <EmptyRow colspan={podeGerarPdf ? 9 : 8} />
+                  <EmptyRow colspan={podeGerarPdf ? 10 : 9} />
                 )}
               </tbody>
             </table>
@@ -667,6 +778,36 @@ export default function Participantes() {
                     </p>
                   )}
 
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Documento:{" "}
+                    {tipoDocumentoParticipanteValueToLabel(
+                      p.tipoDocumentoParticipante,
+                    )}
+                  </p>
+
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    CadÚnico: {simNaoLabel(p.possuiCadunico)} • Bolsa Família:{" "}
+                    {simNaoLabel(p.possuiBolsaFamilia)}
+                  </p>
+
+                  {((p.tipoNeurodivergencias?.length ?? 0) > 0 ||
+                    (p.tipoDeficiencias?.length ?? 0) > 0) && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {[
+                          (p.tipoNeurodivergencias?.length ?? 0) > 0 &&
+                          tipoNeurodivergenciasValueToLabel(
+                            p.tipoNeurodivergencias,
+                          ),
+                          (p.tipoDeficiencias?.length ?? 0) > 0 &&
+                          tipoDeficienciasParticipanteValueToLabel(
+                            p.tipoDeficiencias,
+                          ),
+                        ]
+                          .filter(Boolean)
+                          .join(" • ")}
+                      </p>
+                    )}
+
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <StatusPill status={statusValueToLabel(p.status) as any} />
 
@@ -679,6 +820,17 @@ export default function Participantes() {
                     <p className="mt-1 text-xs text-muted-foreground">
                       Telefone: {p.telefone}
                     </p>
+                  )}
+
+                  {p.urlDocumento && (
+                    <button
+                      type="button"
+                      onClick={() => void handleAbrirDocumento(p)}
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Abrir documento
+                    </button>
                   )}
                 </div>
               ))

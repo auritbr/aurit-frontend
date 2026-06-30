@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -15,6 +16,15 @@ import {
   Plus,
   Trash2,
   Info,
+  Check,
+  ChevronsUpDown,
+  Download,
+  FilePlus2,
+  FileText,
+  Upload,
+  X,
+  CircleHelp,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -24,6 +34,8 @@ import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { MultiSelect } from "@/components/MultiSelect";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -32,6 +44,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { maskCPF, maskPhone, maskCEP, maskDate } from "@/lib/masks";
@@ -42,6 +60,7 @@ import {
   getAtividadesOptions,
   getOrganizacoesParticipante,
   getParticipanteById,
+  getParticipanteDocumentoDownloadUrl,
   getTurmasOptions,
   isValidBrDate,
   onlyDigits,
@@ -52,17 +71,24 @@ import {
   racaCorOptions,
   faixaRendaOptions,
   niveisTurmaOptions,
+  tipoDeficienciaParticipanteOptions,
+  tipoDocumentoParticipanteOptions,
+  tipoNeurodivergenciaOptions,
   type AtividadeOption,
   type OrganizacaoOption,
   type Participante,
   type ParticipanteVinculo,
   type TurmaOption,
+  type TipoDeficienciaParticipante,
+  type TipoDocumentoParticipante,
+  type TipoNeurodivergencia,
 } from "@/data/participantes";
 import { toast } from "sonner";
 
 const SEM_TURMA = "__SEM_TURMA__";
 const SEM_NIVEL_TURMA = "__SEM_NIVEL_TURMA__";
 const PARTICIPANTE_NEXT_STEP_KEY = "aurit:participantes:next-step-card";
+const MAX_FILE_MB = 10;
 
 const STATUS_MATRICULA_FINAIS = [
   "CANCELADO",
@@ -107,6 +133,13 @@ interface FormState {
   genero: string;
   racaCor: string;
   faixaRenda: string;
+  possuiCadunico: boolean;
+  possuiBolsaFamilia: boolean;
+  tipoNeurodivergencias: TipoNeurodivergencia[];
+  tipoDeficiencias: TipoDeficienciaParticipante[];
+  tipoDocumentoParticipante: TipoDocumentoParticipante | "";
+  urlDocumento: string;
+  removerDocumento: boolean;
 
   cep: string;
   logradouro: string;
@@ -158,6 +191,13 @@ const initial: FormState = {
   genero: "",
   racaCor: "",
   faixaRenda: "",
+  possuiCadunico: false,
+  possuiBolsaFamilia: false,
+  tipoNeurodivergencias: [],
+  tipoDeficiencias: [],
+  tipoDocumentoParticipante: "",
+  urlDocumento: "",
+  removerDocumento: false,
 
   cep: "",
   logradouro: "",
@@ -275,7 +315,9 @@ function normalizarEstado(value?: string): string {
   }
 
   const encontrado = estadosBrasil.find(
-    (item) => removerAcentos(item).toLowerCase() === removerAcentos(estado).toLowerCase(),
+    (item) =>
+      removerAcentos(item).toLowerCase() ===
+      removerAcentos(estado).toLowerCase(),
   );
 
   if (encontrado) return encontrado;
@@ -322,6 +364,23 @@ function mapParticipanteToForm(participante: Participante): FormState {
     genero: participante.genero ?? "",
     racaCor: participante.racaCor ?? "",
     faixaRenda: participante.faixaRenda ?? "",
+    possuiCadunico: Boolean(participante.possuiCadunico),
+    possuiBolsaFamilia: Boolean(participante.possuiBolsaFamilia),
+    tipoNeurodivergencias: Array.isArray(participante.tipoNeurodivergencias)
+      ? (participante.tipoNeurodivergencias as TipoNeurodivergencia[])
+      : participante.tipoNeurodivergencias
+        ? [participante.tipoNeurodivergencias as TipoNeurodivergencia]
+        : [],
+    tipoDeficiencias: Array.isArray(participante.tipoDeficiencias)
+      ? (participante.tipoDeficiencias as TipoDeficienciaParticipante[])
+      : participante.tipoDeficiencias
+        ? [participante.tipoDeficiencias as TipoDeficienciaParticipante]
+        : [],
+    tipoDocumentoParticipante:
+      (participante.tipoDocumentoParticipante as TipoDocumentoParticipante) ??
+      "",
+    urlDocumento: participante.urlDocumento ?? "",
+    removerDocumento: false,
 
     cep: participante.cep ? maskCEP(participante.cep) : "",
     logradouro: participante.logradouro ?? "",
@@ -365,6 +424,13 @@ function formToParticipante(form: FormState): Participante {
     genero: form.genero,
     racaCor: form.racaCor,
     faixaRenda: form.faixaRenda,
+    possuiCadunico: form.possuiCadunico,
+    possuiBolsaFamilia: form.possuiBolsaFamilia,
+    tipoNeurodivergencias: form.tipoNeurodivergencias,
+    tipoDeficiencias: form.tipoDeficiencias,
+    tipoDocumentoParticipante: form.tipoDocumentoParticipante,
+    urlDocumento: form.urlDocumento,
+    removerDocumento: form.removerDocumento,
 
     cep: form.cep,
     logradouro: form.logradouro,
@@ -387,6 +453,25 @@ function formToParticipante(form: FormState): Participante {
   };
 }
 
+function isAllowedDocumentoParticipante(file: File) {
+  const allowed = ["pdf", "png", "jpg", "jpeg", "webp"];
+  const extension = file.name.split(".").pop()?.toLowerCase();
+
+  return !!extension && allowed.includes(extension);
+}
+
+function getNomeArquivoDocumento(url: string) {
+  try {
+    const pathname = new URL(url).pathname;
+    const filename = pathname.split("/").filter(Boolean).pop();
+
+    return filename ? decodeURIComponent(filename) : "Documento anexado";
+  } catch {
+    const filename = url.split("/").filter(Boolean).pop();
+
+    return filename ? decodeURIComponent(filename) : "Documento anexado";
+  }
+}
 
 function dataMatriculaToTimestamp(data?: string) {
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(data?.trim() ?? "");
@@ -407,10 +492,27 @@ function dataMatriculaToTimestamp(data?: string) {
   return dataValida ? date.getTime() : null;
 }
 
+const tipoNeurodivergenciaValues = tipoNeurodivergenciaOptions.map(
+  (item) => item.value,
+);
+
+const tipoDeficienciaValues = tipoDeficienciaParticipanteOptions.map(
+  (item) => item.value,
+);
+
+const getTipoNeurodivergenciaLabel = (value: string) =>
+  tipoNeurodivergenciaOptions.find((item) => item.value === value)?.label ??
+  value;
+
+const getTipoDeficienciaLabel = (value: string) =>
+  tipoDeficienciaParticipanteOptions.find((item) => item.value === value)
+    ?.label ?? value;
+
 export default function ParticipanteForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const visualizando = !!id && !location.pathname.endsWith("/editar");
   const isEdit = !!id && location.pathname.endsWith("/editar");
@@ -421,6 +523,8 @@ export default function ParticipanteForm() {
   const [atividades, setAtividades] = useState<AtividadeOption[]>([]);
   const [turmas, setTurmas] = useState<TurmaOption[]>([]);
   const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
+  const [documento, setDocumento] = useState<File | null>(null);
+  const [documentoNome, setDocumentoNome] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
@@ -556,8 +660,16 @@ export default function ParticipanteForm() {
             organizacaoNome:
               mapped.organizacaoNome || getOrganizacaoNome(organizacaoPadrao),
           });
+          setDocumento(null);
+          setDocumentoNome(
+            mapped.urlDocumento
+              ? getNomeArquivoDocumento(mapped.urlDocumento)
+              : "",
+          );
         } else {
           setExistingParticipante(null);
+          setDocumento(null);
+          setDocumentoNome("");
 
           setForm({
             ...initial,
@@ -588,6 +700,78 @@ export default function ParticipanteForm() {
       active = false;
     };
   }, [id, navigate]);
+
+  const handleDocumentoFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (visualizando) return;
+
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (!isAllowedDocumentoParticipante(file)) {
+      toast.error("Formato não permitido. Envie PDF, PNG, JPG, JPEG ou WEBP.");
+      event.target.value = "";
+      return;
+    }
+
+    const sizeMB = file.size / (1024 * 1024);
+
+    if (sizeMB > MAX_FILE_MB) {
+      toast.error("O documento deve ter no máximo 10 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    setDocumento(file);
+    setDocumentoNome(file.name);
+    setForm((prev) => ({
+      ...prev,
+      removerDocumento: false,
+    }));
+  };
+
+  const removeDocumento = () => {
+    if (visualizando) return;
+
+    setDocumento(null);
+    setDocumentoNome("");
+    setForm((prev) => ({
+      ...prev,
+      urlDocumento: "",
+      removerDocumento: Boolean(prev.urlDocumento),
+    }));
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleAbrirDocumento = async () => {
+    const participanteId = Number(id || form.id);
+
+    if (!participanteId) {
+      toast.error("Participante não identificado.");
+      return;
+    }
+
+    if (!form.urlDocumento) {
+      toast.info("Nenhum documento anexado.");
+      return;
+    }
+
+    try {
+      const urlTemporaria =
+        await getParticipanteDocumentoDownloadUrl(participanteId);
+
+      window.open(urlTemporaria, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível abrir o documento.",
+      );
+    }
+  };
 
   async function buscarEnderecoPorCep(cepFormatado: string) {
     const cepLimpo = cepFormatado.replace(/\D/g, "");
@@ -823,10 +1007,10 @@ export default function ParticipanteForm() {
       const payload = buildParticipantePayload(participante);
 
       if (isEdit && id) {
-        await updateParticipante(Number(id), payload);
+        await updateParticipante(Number(id), payload, documento);
         toast.success("Participante atualizado com sucesso.");
       } else {
-        await createParticipante(payload);
+        await createParticipante(payload, documento);
         salvarProximaAcaoParticipante();
         toast.success("Participante salvo com sucesso.");
       }
@@ -875,9 +1059,7 @@ export default function ParticipanteForm() {
           <Tabs defaultValue="dados" className="w-full">
             <TabsList className="grid w-full grid-cols-2 sm:inline-flex sm:w-auto">
               <TabsTrigger value="dados">Dados do Participante</TabsTrigger>
-              <TabsTrigger value="vinculos">
-                Matrículas
-              </TabsTrigger>
+              <TabsTrigger value="vinculos">Matrículas</TabsTrigger>
             </TabsList>
 
             <TabsContent value="dados" className="mt-4 space-y-5">
@@ -898,10 +1080,7 @@ export default function ParticipanteForm() {
                   </Field>
 
                   <Field>
-                    <FieldLabel
-                      htmlFor="dataNascimento"
-                      required={!visualizando}
-                    >
+                    <FieldLabel htmlFor="dataNascimento" required={!visualizando}>
                       Data de Nascimento
                     </FieldLabel>
 
@@ -1063,6 +1242,205 @@ export default function ParticipanteForm() {
                 </div>
               </Section>
 
+              <Section icon={FilePlus2} title="Informações complementares">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field>
+                    <div className="flex h-10 items-center justify-between rounded-md border border-input bg-background px-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <label
+                          htmlFor="possuiCadunico"
+                          className="cursor-pointer truncate text-sm text-foreground"
+                        >
+                          Possui CadÚnico?
+                        </label>
+
+                        <InlineTooltip content="Indique se o participante possui inscrição no Cadastro Único. Essa informação pode apoiar relatórios sociais, editais, projetos com critérios de vulnerabilidade e prestação de contas." />
+                      </div>
+
+                      <Switch
+                        id="possuiCadunico"
+                        checked={form.possuiCadunico}
+                        onCheckedChange={(value) => {
+                          if (visualizando) return;
+                          set("possuiCadunico", value);
+                        }}
+                        disabled={bloqueado}
+                      />
+                    </div>
+                  </Field>
+
+                  <Field>
+                    <div className="flex h-10 items-center justify-between rounded-md border border-input bg-background px-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <label
+                          htmlFor="possuiBolsaFamilia"
+                          className="cursor-pointer truncate text-sm text-foreground"
+                        >
+                          Possui Bolsa Família?
+                        </label>
+
+                        <InlineTooltip content="Informe se o participante ou sua família recebe Bolsa Família. Esse dado ajuda a caracterizar o público atendido em relatórios, diagnósticos sociais, editais e ações voltadas a famílias em situação de vulnerabilidade." />
+                      </div>
+
+                      <Switch
+                        id="possuiBolsaFamilia"
+                        checked={form.possuiBolsaFamilia}
+                        onCheckedChange={(value) => {
+                          if (visualizando) return;
+                          set("possuiBolsaFamilia", value);
+                        }}
+                        disabled={bloqueado}
+                      />
+                    </div>
+                  </Field>
+
+                  <Field full>
+                    <FieldLabel
+                      htmlFor="tipoNeurodivergencias"
+                      tooltip="Selecione as neurodivergências informadas pelo participante, responsável ou documentação apresentada. Preencha apenas quando a informação for declarada ou necessária para acompanhamento, acessibilidade, relatórios ou editais."
+                    >
+                      Tipos de Neurodivergências
+                    </FieldLabel>
+
+                    <div className={bloqueado ? "pointer-events-none opacity-80" : ""}>
+                      <MultiSelect
+                        id="tipoNeurodivergencias"
+                        options={tipoNeurodivergenciaValues}
+                        value={form.tipoNeurodivergencias}
+                        onChange={(value) => {
+                          if (visualizando) return;
+                          set("tipoNeurodivergencias", value as TipoNeurodivergencia[]);
+                        }}
+                        getOptionLabel={getTipoNeurodivergenciaLabel}
+                      />
+                    </div>
+                  </Field>
+
+                  <Field full>
+                    <FieldLabel
+                      htmlFor="tipoDeficiencias"
+                      tooltip="Informe os tipos de deficiência declarados pelo participante, responsável ou identificados em documento de apoio. Essa informação auxilia no planejamento de acessibilidade, adaptação de atividades, relatórios sociodemográficos e prestação de contas."
+                    >
+                      Tipos de Deficiência
+                    </FieldLabel>
+
+                    <div className={bloqueado ? "pointer-events-none opacity-80" : ""}>
+                      <MultiSelect
+                        id="tipoDeficiencias"
+                        options={tipoDeficienciaValues}
+                        value={form.tipoDeficiencias}
+                        onChange={(value) => {
+                          if (visualizando) return;
+                          set("tipoDeficiencias", value as TipoDeficienciaParticipante[]);
+                        }}
+                        getOptionLabel={getTipoDeficienciaLabel}
+                      />
+                    </div>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="tipoDocumentoParticipante"
+                      tooltip="Selecione o tipo de documento que será anexado ao cadastro. Essa classificação facilita a localização posterior do arquivo e mantém a documentação organizada para conferência, relatórios, editais e prestação de contas."
+                    >
+                      Tipo de Documento
+                    </FieldLabel>
+
+                    <Select
+                      value={form.tipoDocumentoParticipante}
+                      onValueChange={(value) => {
+                        if (visualizando) return;
+                        set(
+                          "tipoDocumentoParticipante",
+                          value as TipoDocumentoParticipante,
+                        );
+                      }}
+                      disabled={bloqueado}
+                    >
+                      <SelectTrigger id="tipoDocumentoParticipante">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {tipoDocumentoParticipanteOptions.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="anexoDocumento"
+                      tooltip="Anexe o arquivo correspondente ao tipo de documento selecionado. Use este campo para documentos pessoais, comprovantes, autorizações, laudos, relatórios ou outros registros necessários ao acompanhamento do participante."
+                    >
+                      Anexar Documento
+                    </FieldLabel>
+
+                    {documentoNome || form.urlDocumento ? (
+                      <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-input bg-muted/30">
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
+
+                        <span className="text-sm text-foreground truncate flex-1"
+                          title={documentoNome || "Documento anexado"}
+                        >
+                          {documentoNome || "Documento anexado"}
+                        </span>
+
+                        {form.urlDocumento && !documento && (
+                          <button
+                            type="button"
+                            onClick={handleAbrirDocumento}
+                            disabled={loading || saving}
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                            aria-label="Baixar/visualizar documento"
+                          >
+                            <Download className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {!visualizando && (
+                          <button
+                            type="button"
+                            onClick={removeDocumento}
+                            disabled={loading || saving}
+                            className="text-muted-foreground hover:text-destructive transition-colors"
+                            aria-label="Remover documento"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      !visualizando && (
+                        <label
+                          htmlFor="anexoDocumento"
+                          className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-dashed border-input bg-background px-3 transition-colors hover:border-primary/40"
+                        >
+                          <Upload className="h-4 w-4 shrink-0 text-muted-foreground" />
+
+                          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                            PDF, PNG, JPG, JPEG ou WEBP até 10 MB
+                          </span>
+
+                          <input
+                            ref={fileInputRef}
+                            id="anexoDocumento"
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
+                            className="hidden"
+                            onChange={handleDocumentoFile}
+                            disabled={bloqueado}
+                          />
+                        </label>
+                      )
+                    )}
+                  </Field>
+                </div>
+              </Section>
+
               <Section icon={MapPin} title="Endereço">
                 <div className="grid gap-4 sm:grid-cols-6">
                   <Field className="sm:col-span-2">
@@ -1112,7 +1490,9 @@ export default function ParticipanteForm() {
                   </Field>
 
                   <Field className="sm:col-span-2">
-                    <FieldLabel htmlFor="numero" required={!visualizando}
+                    <FieldLabel
+                      htmlFor="numero"
+                      required={!visualizando}
                       tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
                     >
                       Número
@@ -1206,9 +1586,7 @@ export default function ParticipanteForm() {
                     <Input
                       id="nomeResponsavel"
                       value={form.nomeResponsavel}
-                      onChange={(e) =>
-                        set("nomeResponsavel", e.target.value)
-                      }
+                      onChange={(e) => set("nomeResponsavel", e.target.value)}
                       disabled={bloqueado}
                       readOnly={visualizando}
                     />
@@ -1404,13 +1782,18 @@ export default function ParticipanteForm() {
                       !!v.atividadeId && turmasDaAtividade.length === 0;
 
                     const turmaSelecionada = v.turmaId
-                      ? turmasDaAtividade.find((t) => String(t.id) === String(v.turmaId))
+                      ? turmasDaAtividade.find(
+                        (t) => String(t.id) === String(v.turmaId),
+                      )
                       : null;
 
                     const nivelTurmaDaTurma = turmaSelecionada?.nivelTurma ?? "";
                     const nivelTurmaValue = v.nivelTurma || nivelTurmaDaTurma;
                     const nivelTurmaBloqueado =
-                      !v.atividadeId || semTurmas || !v.turmaId || !nivelTurmaDaTurma;
+                      !v.atividadeId ||
+                      semTurmas ||
+                      !v.turmaId ||
+                      !nivelTurmaDaTurma;
 
                     const nivelTurmaMensagem = !v.atividadeId
                       ? "Selecione uma atividade"
@@ -1474,11 +1857,14 @@ export default function ParticipanteForm() {
                                       "pt-BR",
                                       {
                                         sensitivity: "base",
-                                      }
-                                    )
+                                      },
+                                    ),
                                   )
                                   .map((a) => (
-                                    <SelectItem key={String(a.id)} value={String(a.id)}>
+                                    <SelectItem
+                                      key={String(a.id)}
+                                      value={String(a.id)}
+                                    >
                                       {a.nomeAtividade}
                                     </SelectItem>
                                   ))}
@@ -1513,7 +1899,8 @@ export default function ParticipanteForm() {
 
                                   setVinculo(originalIndex, {
                                     turmaId: val === SEM_TURMA ? "" : val,
-                                    nivelTurma: turmaSelecionada?.nivelTurma ?? "",
+                                    nivelTurma:
+                                      turmaSelecionada?.nivelTurma ?? "",
                                   });
                                 }}
                                 disabled={bloqueado || !v.atividadeId}
@@ -1529,12 +1916,19 @@ export default function ParticipanteForm() {
 
                                   {[...turmasDaAtividade]
                                     .sort((a, b) =>
-                                      a.nomeTurma.localeCompare(b.nomeTurma, "pt-BR", {
-                                        sensitivity: "base",
-                                      })
+                                      a.nomeTurma.localeCompare(
+                                        b.nomeTurma,
+                                        "pt-BR",
+                                        {
+                                          sensitivity: "base",
+                                        },
+                                      ),
                                     )
                                     .map((t) => (
-                                      <SelectItem key={String(t.id)} value={String(t.id)}>
+                                      <SelectItem
+                                        key={String(t.id)}
+                                        value={String(t.id)}
+                                      >
                                         {t.nomeTurma}
                                       </SelectItem>
                                     ))}
@@ -1586,7 +1980,9 @@ export default function ParticipanteForm() {
                               }}
                               disabled={bloqueado}
                             >
-                              <SelectTrigger id={`status-vinculo-${originalIndex}`}>
+                              <SelectTrigger
+                                id={`status-vinculo-${originalIndex}`}
+                              >
                                 <SelectValue placeholder="Selecione" />
                               </SelectTrigger>
 
@@ -1614,7 +2010,8 @@ export default function ParticipanteForm() {
                                 if (visualizando || nivelTurmaBloqueado) return;
 
                                 setVinculo(originalIndex, {
-                                  nivelTurma: val === SEM_NIVEL_TURMA ? "" : val,
+                                  nivelTurma:
+                                    val === SEM_NIVEL_TURMA ? "" : val,
                                 });
                               }}
                               disabled={bloqueado || nivelTurmaBloqueado}
@@ -1630,7 +2027,10 @@ export default function ParticipanteForm() {
                                   </SelectItem>
                                 ) : (
                                   niveisTurmaOptions.map((nivel) => (
-                                    <SelectItem key={nivel.value} value={nivel.value}>
+                                    <SelectItem
+                                      key={nivel.value}
+                                      value={nivel.value}
+                                    >
                                       {nivel.label}
                                     </SelectItem>
                                   ))
@@ -1668,6 +2068,7 @@ export default function ParticipanteForm() {
             )}
           </div>
         </form>
+
         <WikiFloatingButton
           pageTitle="Participantes"
           href="https://www.aurit.com.br/wiki/pessoas/participantes"
@@ -1683,7 +2084,7 @@ function Section({
   action,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
   action?: ReactNode;
   children: ReactNode;
@@ -1720,5 +2121,32 @@ function Field({
     <div className={`${full ? "sm:col-span-2" : ""} ${className ?? ""}`}>
       {children}
     </div>
+  );
+}
+
+function InlineTooltip({ content }: { content: string }) {
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary transition-colors hover:bg-primary/15"
+            aria-label="Ajuda sobre o campo"
+            tabIndex={0}
+          >
+            <CircleHelp className="h-3.5 w-3.5" strokeWidth={2.3} />
+          </button>
+        </TooltipTrigger>
+
+        <TooltipContent
+          side="top"
+          align="start"
+          className="max-w-xs text-xs leading-relaxed"
+        >
+          {content}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

@@ -8,6 +8,7 @@ import {
   Trash2,
   UsersRound,
   FileDown,
+  FileSignature,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -25,7 +26,10 @@ import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
 import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
-import { exportIntegrantePdf } from "@/lib/pdfExporters";
+import {
+  exportContratoPareceristaPdf,
+  exportIntegrantePdf,
+} from "@/lib/pdfExporters";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -39,6 +43,7 @@ import {
   racaCorValueToLabel,
   statusValueToLabel,
   tipoDeficienciaValueToLabel,
+  tipoVinculoIntegranteValueToLabel,
   type Integrante,
   type OrganizacaoOption,
 } from "@/data/integrantes";
@@ -54,7 +59,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
-type SortKey = "nome" | "funcao" | "organizacao" | "status";
+type SortKey = "nome" | "funcao" | "tipoVinculo" | "organizacao" | "status";
 
 const INTEGRANTE_NEXT_STEP_KEY = "aurit:integrantes:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
@@ -195,6 +200,7 @@ export default function Integrantes() {
       [
         i.nomeCompleto,
         i.funcaoIntegrante,
+        tipoVinculoIntegranteValueToLabel(i.tipoVinculoIntegrante),
         statusValueToLabel(i.status),
         racaCorValueToLabel(i.racaCor),
         generoValueToLabel(i.genero),
@@ -224,6 +230,8 @@ export default function Integrantes() {
           return item.nomeCompleto ?? "";
         case "funcao":
           return item.funcaoIntegrante ?? "";
+        case "tipoVinculo":
+          return tipoVinculoIntegranteValueToLabel(item.tipoVinculoIntegrante);
         case "organizacao":
           return organizacaoNome(item);
         case "status":
@@ -274,13 +282,8 @@ export default function Integrantes() {
 
   const statusLabel = (status: string) => statusValueToLabel(status) as Status;
 
-  async function handleExportPdf(i: Integrante) {
-    if (!podeGerarPdf) {
-      toast.error("Você não possui permissão para gerar PDF.");
-      return;
-    }
-
-    await exportIntegrantePdf({
+  function buildIntegrantePdfPayload(i: Integrante) {
+    return {
       id: i.id,
 
       nomeCompleto: i.nomeCompleto,
@@ -303,11 +306,33 @@ export default function Integrantes() {
       estado: i.estado,
 
       organizacao: organizacaoNome(i),
+      organizacaoId: i.organizacaoId || null,
       funcaoIntegrante: i.funcaoIntegrante,
+      tipoVinculoIntegrante: tipoVinculoIntegranteValueToLabel(
+        i.tipoVinculoIntegrante,
+      ),
       dataEntrada: i.dataEntrada,
       dataSaida: i.dataSaida,
       status: statusValueToLabel(i.status),
-    } as any);
+    };
+  }
+
+  async function handleExportPdf(i: Integrante) {
+    if (!podeGerarPdf) {
+      toast.error("Você não possui permissão para gerar PDF.");
+      return;
+    }
+
+    await exportIntegrantePdf(buildIntegrantePdfPayload(i));
+  }
+
+  async function handleExportContratoParecerista(i: Integrante) {
+    if (!podeGerarPdf) {
+      toast.error("Você não possui permissão para gerar PDF.");
+      return;
+    }
+
+    await exportContratoPareceristaPdf(buildIntegrantePdfPayload(i));
   }
 
   if (!podeVisualizar) {
@@ -365,7 +390,7 @@ export default function Integrantes() {
           </div>
 
           <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[980px]">
+            <table ref={tableRef} className="w-full min-w-[1120px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th
@@ -392,6 +417,14 @@ export default function Integrantes() {
                   />
 
                   <SortableHeader
+                    label="Tipo de vínculo"
+                    sortKey="tipoVinculo"
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  />
+
+                  <SortableHeader
                     label="Organização"
                     sortKey="organizacao"
                     sortConfig={sortConfig}
@@ -409,7 +442,7 @@ export default function Integrantes() {
 
                   {podeGerarPdf && (
                     <th
-                      className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      className="w-[250px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
                       data-no-copy
                     >
                       Documento
@@ -469,6 +502,19 @@ export default function Integrantes() {
                     </td>
 
                     <td className="px-6 py-2.5">
+                      <TableCellText
+                        text={tipoVinculoIntegranteValueToLabel(
+                          i.tipoVinculoIntegrante,
+                        )}
+                        muted={!i.tipoVinculoIntegrante}
+                      >
+                        {tipoVinculoIntegranteValueToLabel(
+                          i.tipoVinculoIntegrante,
+                        )}
+                      </TableCellText>
+                    </td>
+
+                    <td className="px-6 py-2.5">
                       <TableCellText text={organizacaoNome(i)} muted>
                         {organizacaoNome(i)}
                       </TableCellText>
@@ -480,22 +526,38 @@ export default function Integrantes() {
 
                     {podeGerarPdf && (
                       <td className="whitespace-nowrap px-6 py-2.5">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleExportPdf(i)}
-                          className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                        >
-                          <FileDown className="h-3.5 w-3.5" />
-                          Gerar ficha
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          {i.tipoVinculoIntegrante === "PARECERISTA" ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                void handleExportContratoParecerista(i)
+                              }
+                              className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
+                            >
+                              <FileSignature className="h-3.5 w-3.5" />
+                              Gerar contrato
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void handleExportPdf(i)}
+                              className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
+                            >
+                              <FileDown className="h-3.5 w-3.5" />
+                              Gerar ficha
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
                 ))}
 
                 {paginated.length === 0 && (
-                  <EmptyRow colspan={podeGerarPdf ? 6 : 5} />
+                  <EmptyRow colspan={podeGerarPdf ? 7 : 6} />
                 )}
               </tbody>
             </table>
@@ -538,15 +600,31 @@ export default function Integrantes() {
                     )}
 
                     {podeGerarPdf && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void handleExportPdf(i)}
-                        className="ml-auto h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                      >
-                        <FileDown className="h-3.5 w-3.5" />
-                        PDF
-                      </Button>
+                      <div className="ml-auto flex flex-wrap justify-end gap-2">
+                        {i.tipoVinculoIntegrante === "PARECERISTA" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              void handleExportContratoParecerista(i)
+                            }
+                            className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
+                          >
+                            <FileSignature className="h-3.5 w-3.5" />
+                            Gerar contrato
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleExportPdf(i)}
+                            className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
+                          >
+                            <FileDown className="h-3.5 w-3.5" />
+                            PDF
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -555,6 +633,14 @@ export default function Integrantes() {
                   {i.funcaoIntegrante && (
                     <p className="mt-2 text-sm text-foreground">
                       {i.funcaoIntegrante}
+                    </p>
+                  )}
+
+                  {i.tipoVinculoIntegrante && (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {tipoVinculoIntegranteValueToLabel(
+                        i.tipoVinculoIntegrante,
+                      )}
                     </p>
                   )}
 
