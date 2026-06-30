@@ -11,6 +11,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  ALERTAS_DISPENSADOS_EVENT,
+  addAlertasDispensados,
+  alertaAusenciaId,
+  alertaEditalId,
+  alertaEmprestimoId,
+  getAlertasDispensados,
+} from "@/lib/alertasDismissed";
+import {
   carregarAlertasPrazo,
   formatDateBR,
   type AlertaResumo,
@@ -288,15 +296,25 @@ export function AlertasPrazoNotifier({
   const [tick, setTick] = useState(0);
   const [alerts, setAlerts] = useState(EMPTY_ALERTS);
   const [dismissed, setDismissed] = useState<Record<string, string>>({});
+  const [alertasDispensados, setAlertasDispensadosState] = useState<string[]>(
+    () => getAlertasDispensados(),
+  );
 
   useEffect(() => {
     const refresh = () => setTick((value) => value + 1);
+    const refreshDispensados = () => {
+      setAlertasDispensadosState(getAlertasDispensados());
+      refresh();
+    };
+
     window.addEventListener("presencas:changed", refresh);
-    window.addEventListener("storage", refresh);
+    window.addEventListener("storage", refreshDispensados);
+    window.addEventListener(ALERTAS_DISPENSADOS_EVENT, refreshDispensados);
 
     return () => {
       window.removeEventListener("presencas:changed", refresh);
-      window.removeEventListener("storage", refresh);
+      window.removeEventListener("storage", refreshDispensados);
+      window.removeEventListener(ALERTAS_DISPENSADOS_EVENT, refreshDispensados);
     };
   }, []);
 
@@ -336,21 +354,46 @@ export function AlertasPrazoNotifier({
   const isDismissed = (key: string, signature: string) =>
     Boolean(signature) && (dismissed[key] ?? readDismissed(key)) === signature;
 
-  const dismiss = (key: string, signature: string) => {
+  const allDismissedById = (ids: string[]) =>
+    ids.length > 0 && ids.every((id) => alertasDispensados.includes(id));
+
+  const dismiss = (key: string, signature: string, ids: string[]) => {
     writeDismissed(key, signature);
+    addAlertasDispensados(ids);
     setDismissed((current) => ({ ...current, [key]: signature }));
   };
+
+  const emprestimoAlertIds = alerts.emprestimos
+    ? [
+        ...alerts.emprestimos.vencidos,
+        ...alerts.emprestimos.hoje,
+        ...alerts.emprestimos.proximos,
+      ].map(({ item }) => alertaEmprestimoId(item.id))
+    : [];
+  const editalAlertIds = alerts.editais
+    ? [
+        ...alerts.editais.vencidos,
+        ...alerts.editais.hoje,
+        ...alerts.editais.proximos,
+      ].map(({ item }) => alertaEditalId(item.id))
+    : [];
+  const ausenciaAlertIds = alerts.ausencias.map((item) =>
+    alertaAusenciaId(item),
+  );
 
   const showEmp =
     alerts.emprestimos &&
     !location.pathname.startsWith("/emprestimos") &&
+    !allDismissedById(emprestimoAlertIds) &&
     !isDismissed("alertas.emprestimos", empSignature);
   const showEdital =
     alerts.editais &&
     !location.pathname.startsWith("/editais") &&
+    !allDismissedById(editalAlertIds) &&
     !isDismissed("alertas.editais", editalSignature);
   const showAusencias =
     alerts.ausencias.length > 0 &&
+    !allDismissedById(ausenciaAlertIds) &&
     !isDismissed(SK_AUSENCIAS, ausenciaSignature);
 
   if (!showEmp && !showEdital && !showAusencias) return null;
@@ -398,7 +441,9 @@ export function AlertasPrazoNotifier({
             date: formatDateBR(item.dataPrevistaDevolucao),
           }))}
           total={alerts.emprestimos.total}
-          onDismiss={() => dismiss("alertas.emprestimos", empSignature)}
+          onDismiss={() =>
+            dismiss("alertas.emprestimos", empSignature, emprestimoAlertIds)
+          }
         />
       )}
 
@@ -417,7 +462,9 @@ export function AlertasPrazoNotifier({
             date: formatDateBR(item.dataEncerramento),
           }))}
           total={alerts.editais.total}
-          onDismiss={() => dismiss("alertas.editais", editalSignature)}
+          onDismiss={() =>
+            dismiss("alertas.editais", editalSignature, editalAlertIds)
+          }
         />
       )}
 
@@ -447,7 +494,9 @@ export function AlertasPrazoNotifier({
           }))}
           total={alerts.ausencias.length}
           showAllItems
-          onDismiss={() => dismiss(SK_AUSENCIAS, ausenciaSignature)}
+          onDismiss={() =>
+            dismiss(SK_AUSENCIAS, ausenciaSignature, ausenciaAlertIds)
+          }
         />
       )}
     </div>

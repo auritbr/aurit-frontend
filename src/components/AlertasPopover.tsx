@@ -21,6 +21,15 @@ import {
 } from "@/data/documentos";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
+  ALERTAS_DISPENSADOS_EVENT,
+  addAlertasDispensados,
+  alertaAusenciaId,
+  alertaDocumentoId,
+  alertaEditalId,
+  alertaEmprestimoId,
+  getAlertasDispensados,
+} from "@/lib/alertasDismissed";
+import {
   carregarAlertasPrazo,
   formatDateBR,
   type AlertasPrazoCarregados,
@@ -76,7 +85,7 @@ function buildAlertasPrazo(data: AlertasPrazoCarregados): AlertaItem[] {
 
     for (const { item, dias } of items) {
       out.push({
-        id: `ed-${item.id}`,
+        id: alertaEditalId(item.id),
         tipo: "edital",
         titulo: "Prazo de edital",
         itemLabel: "Edital",
@@ -99,7 +108,7 @@ function buildAlertasPrazo(data: AlertasPrazoCarregados): AlertaItem[] {
 
     for (const { item, dias } of items) {
       out.push({
-        id: `emp-${item.id}`,
+        id: alertaEmprestimoId(item.id),
         tipo: "emprestimo",
         titulo: "Devolução de empréstimo",
         itemLabel: "Item",
@@ -117,8 +126,7 @@ function buildAlertasPrazo(data: AlertasPrazoCarregados): AlertaItem[] {
 
   for (const item of data.ausencias) {
     out.push({
-      id: `presenca-${item.participanteId}-${item.atividadeId}-${item.turmaId ?? item.turmaNome ?? "sem-turma"
-        }-${item.quantidade}-${item.ultimaAusencia}`,
+      id: alertaAusenciaId(item),
       tipo: "presenca",
       titulo: "Ausências consecutivas",
       itemLabel: "Participante",
@@ -148,7 +156,7 @@ async function getDocumentosAlertas(): Promise<AlertaItem[]> {
           isDocumentoVencido(documento),
       )
       .map((documento) => ({
-        id: `doc-${documento.id}`,
+        id: alertaDocumentoId(documento.id),
         tipo: "documento" as const,
         titulo: "Documento vencido",
         itemLabel: "Documento",
@@ -179,28 +187,6 @@ const severidadeOrder: Record<SeveridadePopover, number> = {
   proximo: 2,
 };
 
-const ALERTAS_DISPENSADOS_STORAGE_KEY = "aurit:alertas-popover:dispensados";
-
-function getAlertasDispensados() {
-  try {
-    const raw = localStorage.getItem(ALERTAS_DISPENSADOS_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-
-    return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function setAlertasDispensados(ids: string[]) {
-  localStorage.setItem(
-    ALERTAS_DISPENSADOS_STORAGE_KEY,
-    JSON.stringify(Array.from(new Set(ids))),
-  );
-}
-
 export function AlertasPopover() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -214,11 +200,13 @@ export function AlertasPopover() {
     window.addEventListener("documentos:changed", refresh);
     window.addEventListener("presencas:changed", refresh);
     window.addEventListener("storage", refresh);
+    window.addEventListener(ALERTAS_DISPENSADOS_EVENT, refresh);
 
     return () => {
       window.removeEventListener("documentos:changed", refresh);
       window.removeEventListener("presencas:changed", refresh);
       window.removeEventListener("storage", refresh);
+      window.removeEventListener(ALERTAS_DISPENSADOS_EVENT, refresh);
     };
   }, []);
 
@@ -264,13 +252,9 @@ export function AlertasPopover() {
   const handleLimparAlertas = () => {
     if (alertas.length === 0) return;
 
-    setAlertasDispensados([
-      ...getAlertasDispensados(),
-      ...alertas.map((alerta) => alerta.id),
-    ]);
+    addAlertasDispensados(alertas.map((alerta) => alerta.id));
     setAlertas([]);
     setOpen(false);
-    window.dispatchEvent(new Event("storage"));
   };
 
   return (

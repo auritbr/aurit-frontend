@@ -10,6 +10,12 @@ import {
   type Documento,
 } from "@/data/documentos";
 import { isPlanoAccessDenied } from "@/lib/access";
+import {
+  ALERTAS_DISPENSADOS_EVENT,
+  addAlertasDispensados,
+  alertaDocumentoId,
+  getAlertasDispensados,
+} from "@/lib/alertasDismissed";
 import { isPlanoGratuitoAtual } from "@/lib/plano";
 
 const SESSION_KEY = "documentos.vencidos.dismissed";
@@ -26,6 +32,9 @@ export function DocumentosVencidosNotifier({
   const notifierRef = useRef<HTMLDivElement>(null);
 
   const [documentosVencidos, setDocumentosVencidos] = useState<Documento[]>([]);
+  const [alertasDispensados, setAlertasDispensadosState] = useState<string[]>(
+    () => getAlertasDispensados(),
+  );
   const [dismissed, setDismissed] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem(SESSION_KEY) === "1";
@@ -77,12 +86,22 @@ export function DocumentosVencidosNotifier({
     const handleChanged = () => {
       void refresh();
     };
+    const handleDismissedChanged = () => {
+      setAlertasDispensadosState(getAlertasDispensados());
+    };
 
     window.addEventListener("documentos:changed", handleChanged);
+    window.addEventListener("storage", handleDismissedChanged);
+    window.addEventListener(ALERTAS_DISPENSADOS_EVENT, handleDismissedChanged);
 
     return () => {
       mounted = false;
       window.removeEventListener("documentos:changed", handleChanged);
+      window.removeEventListener("storage", handleDismissedChanged);
+      window.removeEventListener(
+        ALERTAS_DISPENSADOS_EVENT,
+        handleDismissedChanged,
+      );
     };
   }, []);
 
@@ -92,9 +111,13 @@ export function DocumentosVencidosNotifier({
     "/controle-proprietario",
   );
 
+  const documentosVisiveis = documentosVencidos.filter(
+    (documento) => !alertasDispensados.includes(alertaDocumentoId(documento.id)),
+  );
+
   const visible = !(
     dismissed ||
-    documentosVencidos.length === 0 ||
+    documentosVisiveis.length === 0 ||
     onDocumentosPage ||
     onLogin ||
     onControleProprietario
@@ -134,6 +157,9 @@ export function DocumentosVencidosNotifier({
       // ignora erro de storage
     }
 
+    addAlertasDispensados(
+      documentosVencidos.map((documento) => alertaDocumentoId(documento.id)),
+    );
     setDismissed(true);
   };
 
@@ -142,8 +168,8 @@ export function DocumentosVencidosNotifier({
     navigate("/documentos");
   };
 
-  const itensTopo = documentosVencidos.slice(0, 2);
-  const count = documentosVencidos.length;
+  const itensTopo = documentosVisiveis.slice(0, 2);
+  const count = documentosVisiveis.length;
 
   return (
     <div
