@@ -8,6 +8,7 @@ import {
   Trash2,
   Users,
   FileSignature,
+  Landmark,
 } from "lucide-react";
 
 import { exportTermoColaboradorPdf } from "@/lib/pdfExporters";
@@ -38,6 +39,7 @@ import {
   tipoVinculoValueToLabel,
   type Colaborador,
 } from "@/data/colaboradores";
+import { converterColaboradorParaDiretoria } from "@/lib/diretoriaStore";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -260,6 +262,22 @@ export default function Colaboradores() {
     exportTermoColaboradorPdf(colaborador as any);
   };
 
+  const handleConverterParaDiretoria = async (colaborador: Colaborador) => {
+    try {
+      const saved = await converterColaboradorParaDiretoria(colaborador.id);
+
+      toast.success("Registro convertido com sucesso.");
+      navigate(`/diretoria?editar=${saved.id}`);
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível converter o colaborador.",
+      );
+    }
+  };
+
 
   if (!podeVisualizar) {
     return (
@@ -397,6 +415,14 @@ export default function Colaboradores() {
                             />
                           )}
 
+                          {podeCriar && (
+                            <TableActionIcon
+                              icon={Landmark}
+                              label="Converter em Diretoria"
+                              onClick={() => void handleConverterParaDiretoria(c)}
+                            />
+                          )}
+
                           {podeExcluir && (
                             <TableActionIcon
                               icon={Trash2}
@@ -488,6 +514,14 @@ export default function Colaboradores() {
                             onClick={() =>
                               navigate(`/colaboradores/${c.id}/editar`)
                             }
+                          />
+                        )}
+
+                        {podeCriar && (
+                          <TableActionIcon
+                            icon={Landmark}
+                            label="Converter em Diretoria"
+                            onClick={() => void handleConverterParaDiretoria(c)}
                           />
                         )}
 

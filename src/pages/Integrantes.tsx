@@ -7,6 +7,7 @@ import {
   Pencil,
   Trash2,
   UsersRound,
+  UserPlus,
   FileDown,
   FileSignature,
 } from "lucide-react";
@@ -35,6 +36,9 @@ import {
   permissoesVazias,
   type PermissoesModulo,
 } from "@/lib/permissoes";
+import {
+  converterIntegranteParaColaborador,
+} from "@/data/colaboradores";
 import {
   deleteIntegrante,
   generoValueToLabel,
@@ -335,6 +339,22 @@ export default function Integrantes() {
     await exportContratoPareceristaPdf(buildIntegrantePdfPayload(i));
   }
 
+  async function handleConverterParaColaborador(integrante: Integrante) {
+    try {
+      const saved = await converterIntegranteParaColaborador(integrante.id);
+
+      toast.success("Registro convertido com sucesso.");
+      navigate(`/colaboradores/${saved.id}/editar`);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível converter o integrante.";
+
+      toast.error(message);
+    }
+  }
+
   if (!podeVisualizar) {
     return (
       <AppLayout>
@@ -475,6 +495,16 @@ export default function Integrantes() {
                           />
                         )}
 
+                        {podeCriar && (
+                          <TableActionIcon
+                            icon={UserPlus}
+                            label="Converter em Colaborador"
+                            onClick={() =>
+                              void handleConverterParaColaborador(i)
+                            }
+                          />
+                        )}
+
                         {podeExcluir && (
                           <TableActionIcon
                             icon={Trash2}
@@ -587,6 +617,14 @@ export default function Integrantes() {
                         icon={Pencil}
                         label="Editar"
                         onClick={() => navigate(`/integrantes/${i.id}/editar`)}
+                      />
+                    )}
+
+                    {podeCriar && (
+                      <TableActionIcon
+                        icon={UserPlus}
+                        label="Converter em Colaborador"
+                        onClick={() => void handleConverterParaColaborador(i)}
                       />
                     )}
 

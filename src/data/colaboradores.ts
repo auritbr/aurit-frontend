@@ -499,6 +499,46 @@ export async function createColaborador(
   return mapColaborador(data);
 }
 
+export async function converterDiretoriaParaColaborador(
+  diretoriaId: number | string,
+): Promise<Colaborador> {
+  const response = await fetch(
+    `${API_URL}/colaboradores/converter-de-diretoria/${diretoriaId}`,
+    {
+      method: "POST",
+      headers: getJsonHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data: ColaboradorDTO = await response.json();
+
+  return mapColaborador(data);
+}
+
+export async function converterIntegranteParaColaborador(
+  integranteId: number | string,
+): Promise<Colaborador> {
+  const response = await fetch(
+    `${API_URL}/colaboradores/converter-de-integrante/${integranteId}`,
+    {
+      method: "POST",
+      headers: getJsonHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data: ColaboradorDTO = await response.json();
+
+  return mapColaborador(data);
+}
+
 export async function updateColaborador(
   id: number,
   payload: ColaboradorDTO,

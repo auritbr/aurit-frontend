@@ -9,9 +9,11 @@ import {
   Plus,
   Search,
   Trash2,
+  UserPlus,
   UserRound,
   FileDown,
 } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { AppLayout } from "@/components/AppLayout";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
@@ -41,7 +43,10 @@ import { usePagination } from "@/hooks/usePagination";
 import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { maskCEP, maskCPF, maskPhone } from "@/lib/masks";
-import { estadosBrasil } from "@/data/colaboradores";
+import {
+  converterDiretoriaParaColaborador,
+  estadosBrasil,
+} from "@/data/colaboradores";
 import { exportDiretoriaPdf } from "@/lib/pdfExporters";
 import {
   getPermissoesUsuarioLogadoPorModulo,
@@ -284,6 +289,8 @@ function salvarProximaAcaoDiretoria() {
 }
 
 export default function Diretoria() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [organizacoes, setOrganizacoes] = useState<
     OrganizacaoDiretoriaOption[]
   >([]);
@@ -384,6 +391,34 @@ export default function Diretoria() {
 
     void carregar();
   }, [loadingPermissoes, podeVisualizar]);
+
+  useEffect(() => {
+    if (loading || showForm) return;
+
+    const params = new URLSearchParams(location.search);
+    const editarId = params.get("editar");
+
+    if (!editarId) return;
+
+    const record = registros.find((item) => String(item.id) === editarId);
+
+    if (!record) return;
+
+    if (!podeEditar) {
+      toast.error("Você não possui permissão para editar registros da diretoria.");
+      navigate("/diretoria", { replace: true });
+      return;
+    }
+
+    setSelectedId(record.id);
+    setForm({
+      ...record,
+      estado: resolverEstadoParaSelect(record.estado),
+    });
+    setMode("edit");
+    setShowForm(true);
+    navigate("/diretoria", { replace: true });
+  }, [loading, location.search, navigate, podeEditar, registros, showForm]);
 
   async function carregar() {
     try {
@@ -611,6 +646,22 @@ export default function Diretoria() {
       organizacao: organizacaoNome(item.organizacaoId),
       observacao: item.observacao,
     } as any);
+  }
+
+  async function handleConverterParaColaborador(item: DiretoriaData) {
+    try {
+      const saved = await converterDiretoriaParaColaborador(item.id);
+
+      toast.success("Registro convertido com sucesso.");
+      navigate(`/colaboradores/${saved.id}/editar`);
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível converter o registro da diretoria.",
+      );
+    }
   }
 
   async function buscarEnderecoPorCep(cepFormatado: string) {
@@ -1503,6 +1554,16 @@ export default function Diretoria() {
                               />
                             )}
 
+                            {podeCriar && (
+                              <TableActionIcon
+                                icon={UserPlus}
+                                label="Converter em Colaborador"
+                                onClick={() =>
+                                  void handleConverterParaColaborador(item)
+                                }
+                              />
+                            )}
+
                             {podeExcluir && (
                               <TableActionIcon
                                 icon={Trash2}
@@ -1609,6 +1670,16 @@ export default function Diretoria() {
                           icon={Pencil}
                           label="Editar"
                           onClick={() => openRecord(item, "edit")}
+                        />
+                      )}
+
+                      {podeCriar && (
+                        <TableActionIcon
+                          icon={UserPlus}
+                          label="Converter em Colaborador"
+                          onClick={() =>
+                            void handleConverterParaColaborador(item)
+                          }
                         />
                       )}
 

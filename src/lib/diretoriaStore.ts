@@ -545,6 +545,26 @@ export async function createDiretoria(
   return mapDiretoria(data);
 }
 
+export async function converterColaboradorParaDiretoria(
+  colaboradorId: number | string,
+): Promise<DiretoriaData> {
+  const response = await fetch(
+    `${API_URL}/diretorias/converter-de-colaborador/${colaboradorId}`,
+    {
+      method: "POST",
+      headers: getJsonHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data: DiretoriaDTO = await response.json();
+
+  return mapDiretoria(data);
+}
+
 export async function updateDiretoria(
   id: number,
   payload: DiretoriaDTO,
