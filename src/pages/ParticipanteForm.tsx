@@ -16,8 +16,6 @@ import {
   Plus,
   Trash2,
   Info,
-  Check,
-  ChevronsUpDown,
   Download,
   FilePlus2,
   FileText,
@@ -1414,7 +1412,11 @@ export default function ParticipanteForm() {
                         )}
                       </div>
                     ) : (
-                      !visualizando && (
+                      visualizando ? (
+                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm text-muted-foreground">
+                          Nenhum documento anexado
+                        </div>
+                      ) : (
                         <label
                           htmlFor="anexoDocumento"
                           className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-dashed border-input bg-background px-3 transition-colors hover:border-primary/40"
@@ -1501,8 +1503,12 @@ export default function ParticipanteForm() {
                     <Input
                       id="numero"
                       value={form.numero}
-                      onChange={(e) => set("numero", e.target.value)}
-                      disabled={loading || saving}
+                      onChange={(e) => {
+                        if (visualizando) return;
+                        set("numero", e.target.value);
+                      }}
+                      disabled={bloqueado}
+                      readOnly={visualizando}
                     />
                   </Field>
 

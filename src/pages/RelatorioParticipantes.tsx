@@ -222,31 +222,47 @@ export default function RelatorioParticipantes() {
   const mostrarFeriados = aplicados.presencas.includes("FERIADO");
   const mostrarSemAula = aplicados.presencas.includes("NAO_TEVE_AULA");
   const mostrarPercentual = mostrarPresencas || mostrarAusencias;
+  const mostrarNeurodivergencias = aplicados.tipoNeurodivergencias.length > 0;
+  const mostrarDeficiencias = aplicados.tipoDeficiencias.length > 0;
+  const mostrarCadunico = aplicados.possuiCadunico.length > 0;
+  const mostrarBolsaFamilia = aplicados.possuiBolsaFamilia.length > 0;
 
   const colunasExport: RelatorioColumn<LinhaRelatorioParticipante>[] = [
     { key: "nome", label: "Participante", accessor: (row) => row.participanteNome },
-    {
+  ];
+
+  if (mostrarNeurodivergencias) {
+    colunasExport.push({
       key: "tipoNeurodivergencias",
-      label: "Neurodivergências",
+      label: "Tipos de Neurodivergências",
       accessor: (row) =>
         tipoNeurodivergenciasRelatorioLabel(row.tipoNeurodivergencias),
-    },
-    {
+    });
+  }
+
+  if (mostrarDeficiencias) {
+    colunasExport.push({
       key: "tipoDeficiencias",
-      label: "Tipo de deficiência",
+      label: "Tipo de Deficiência",
       accessor: (row) => tipoDeficienciasRelatorioLabel(row.tipoDeficiencias),
-    },
-    {
+    });
+  }
+
+  if (mostrarCadunico) {
+    colunasExport.push({
       key: "possuiCadunico",
       label: "CadÚnico",
       accessor: (row) => (row.possuiCadunico ? "Sim" : "Não"),
-    },
-    {
+    });
+  }
+
+  if (mostrarBolsaFamilia) {
+    colunasExport.push({
       key: "possuiBolsaFamilia",
       label: "Bolsa Família",
       accessor: (row) => (row.possuiBolsaFamilia ? "Sim" : "Não"),
-    },
-  ];
+    });
+  }
 
   if (mostrarStatus) {
     colunasExport.push({
@@ -452,10 +468,10 @@ export default function RelatorioParticipantes() {
               <Table>
                 <TableHeader><TableRow>
                   <SortableHead active={sortKey === "nome"} dir={sortDir} onClick={() => toggleSort("nome")}>Participante</SortableHead>
-                  <TableHead className="text-xs">Tipos de Neurodivergências</TableHead>
-                  <TableHead className="text-xs">Tipo de Deficiência</TableHead>
-                  <TableHead className="text-xs">CadÚnico</TableHead>
-                  <TableHead className="text-xs">Bolsa Família</TableHead>
+                  {mostrarNeurodivergencias && <TableHead className="text-xs">Tipos de Neurodivergências</TableHead>}
+                  {mostrarDeficiencias && <TableHead className="text-xs">Tipo de Deficiência</TableHead>}
+                  {mostrarCadunico && <TableHead className="text-xs">CadÚnico</TableHead>}
+                  {mostrarBolsaFamilia && <TableHead className="text-xs">Bolsa Família</TableHead>}
                   {mostrarStatus && <SortableHead active={sortKey === "status"} dir={sortDir} onClick={() => toggleSort("status")}>Status</SortableHead>}
                   {mostrarAtividade && <SortableHead active={sortKey === "atividade"} dir={sortDir} onClick={() => toggleSort("atividade")}>Atividade</SortableHead>}
                   {mostrarTurma && <SortableHead active={sortKey === "turma"} dir={sortDir} onClick={() => toggleSort("turma")}>Turma</SortableHead>}
@@ -468,10 +484,10 @@ export default function RelatorioParticipantes() {
                 </TableRow></TableHeader>
                 <TableBody>{pagination.paginated.map((linha) => <TableRow key={linha.id}>
                   <TableCell className="text-xs font-medium text-foreground">{linha.participanteNome}</TableCell>
-                  <TableCell className="text-xs">{tipoNeurodivergenciasRelatorioLabel(linha.tipoNeurodivergencias)}</TableCell>
-                  <TableCell className="text-xs">{tipoDeficienciasRelatorioLabel(linha.tipoDeficiencias)}</TableCell>
-                  <TableCell className="text-xs">{linha.possuiCadunico ? "Sim" : "Não"}</TableCell>
-                  <TableCell className="text-xs">{linha.possuiBolsaFamilia ? "Sim" : "Não"}</TableCell>
+                  {mostrarNeurodivergencias && <TableCell className="text-xs">{tipoNeurodivergenciasRelatorioLabel(linha.tipoNeurodivergencias)}</TableCell>}
+                  {mostrarDeficiencias && <TableCell className="text-xs">{tipoDeficienciasRelatorioLabel(linha.tipoDeficiencias)}</TableCell>}
+                  {mostrarCadunico && <TableCell className="text-xs">{linha.possuiCadunico ? "Sim" : "Não"}</TableCell>}
+                  {mostrarBolsaFamilia && <TableCell className="text-xs">{linha.possuiBolsaFamilia ? "Sim" : "Não"}</TableCell>}
                   {mostrarStatus && <TableCell className="text-xs"><StatusBadge status={linha.status} /></TableCell>}
                   {mostrarAtividade && <TableCell className="text-xs">{linha.atividadeNome}</TableCell>}
                   {mostrarTurma && <TableCell className="text-xs">{linha.turmaNome ?? "—"}</TableCell>}

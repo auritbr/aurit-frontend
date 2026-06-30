@@ -14,11 +14,13 @@ import {
 import {
   getAtividadesOptions,
   getIndicadoresSociodemograficos,
+  getParticipantes,
   getTurmasOptions,
   statusMatriculaOptions,
   type AtividadeOption,
   type IndicadorItem,
   type IndicadoresSociodemograficos,
+  type Participante,
   type TurmaOption,
 } from "@/data/participantes";
 import { exportToCSV, exportToExcel } from "@/lib/indicadoresExport";
@@ -126,6 +128,137 @@ function converterIndicadores(items: IndicadorItem[]): IndicadorExportItem[] {
   }));
 }
 
+function anoDaData(value?: string) {
+  if (!value) return "";
+
+  const trimmed = value.trim();
+  const brMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
+  if (brMatch) return brMatch[3];
+
+  const isoMatch = /^(\d{4})-\d{2}-\d{2}/.exec(trimmed);
+  return isoMatch?.[1] ?? "";
+}
+
+function participanteAtendeFiltros(
+  participante: Participante,
+  filtros: Filtros,
+) {
+  const filtraVinculo =
+    filtros.ano !== TODOS ||
+    filtros.atividadeId !== TODOS ||
+    filtros.turmaId !== TODOS ||
+    filtros.statusMatricula !== TODOS;
+
+  if (!filtraVinculo) return true;
+
+  return participante.vinculos.some((vinculo) => {
+    if (
+      filtros.ano !== TODOS &&
+      anoDaData(vinculo.dataMatricula) !== filtros.ano
+    ) {
+      return false;
+    }
+
+    if (
+      filtros.atividadeId !== TODOS &&
+      String(vinculo.atividadeId) !== String(filtros.atividadeId)
+    ) {
+      return false;
+    }
+
+    if (
+      filtros.turmaId !== TODOS &&
+      String(vinculo.turmaId ?? "") !== String(filtros.turmaId)
+    ) {
+      return false;
+    }
+
+    if (
+      filtros.statusMatricula !== TODOS &&
+      vinculo.statusMatricula !== filtros.statusMatricula
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function mapCountsToIndicadores(counts: Map<string, number>, total: number) {
+  return Array.from(counts.entries())
+    .map(([categoria, quantidade]) => ({
+      categoria,
+      total: quantidade,
+      percentual: total > 0 ? (quantidade / total) * 100 : 0,
+    }))
+    .sort((a, b) => b.total - a.total || a.categoria.localeCompare(b.categoria));
+}
+
+function montarIndicadoresLista(
+  participantes: Participante[],
+  getValues: (participante: Participante) => string[] | undefined,
+) {
+  const counts = new Map<string, number>();
+
+  participantes.forEach((participante) => {
+    const values = getValues(participante)?.filter(Boolean);
+    const categorias = values?.length ? values : ["NAO_INFORMADO"];
+
+    Array.from(new Set(categorias)).forEach((categoria) => {
+      counts.set(categoria, (counts.get(categoria) ?? 0) + 1);
+    });
+  });
+
+  return mapCountsToIndicadores(counts, participantes.length);
+}
+
+function montarIndicadoresBooleanos(
+  participantes: Participante[],
+  getValue: (participante: Participante) => boolean | undefined,
+) {
+  const counts = new Map<string, number>();
+
+  participantes.forEach((participante) => {
+    const categoria = getValue(participante) ? "SIM" : "NAO";
+    counts.set(categoria, (counts.get(categoria) ?? 0) + 1);
+  });
+
+  return mapCountsToIndicadores(counts, participantes.length);
+}
+
+async function getIndicadoresComplementares(
+  filtros: Filtros,
+): Promise<Pick<
+  IndicadoresSociodemograficos,
+  | "porTipoDeficiencia"
+  | "porTipoNeurodivergencia"
+  | "porCadunico"
+  | "porBolsaFamilia"
+>> {
+  const participantes = (await getParticipantes()).filter((participante) =>
+    participanteAtendeFiltros(participante, filtros),
+  );
+
+  return {
+    porTipoDeficiencia: montarIndicadoresLista(
+      participantes,
+      (participante) => participante.tipoDeficiencias,
+    ),
+    porTipoNeurodivergencia: montarIndicadoresLista(
+      participantes,
+      (participante) => participante.tipoNeurodivergencias,
+    ),
+    porCadunico: montarIndicadoresBooleanos(
+      participantes,
+      (participante) => participante.possuiCadunico,
+    ),
+    porBolsaFamilia: montarIndicadoresBooleanos(
+      participantes,
+      (participante) => participante.possuiBolsaFamilia,
+    ),
+  };
+}
+
 interface IndicadorCardProps {
   title: string;
   itens: IndicadorItem[];
@@ -223,18 +356,26 @@ export default function IndicadoresSociodemograficos() {
       try {
         setLoading(true);
 
-        const response = await getIndicadoresSociodemograficos({
-          ano: aplicados.ano === TODOS ? undefined : aplicados.ano,
-          atividadeId:
-            aplicados.atividadeId === TODOS ? undefined : aplicados.atividadeId,
-          turmaId: aplicados.turmaId === TODOS ? undefined : aplicados.turmaId,
-          statusMatricula:
-            aplicados.statusMatricula === TODOS
-              ? undefined
-              : aplicados.statusMatricula,
-        });
+        const [response, complementares] = await Promise.all([
+          getIndicadoresSociodemograficos({
+            ano: aplicados.ano === TODOS ? undefined : aplicados.ano,
+            atividadeId:
+              aplicados.atividadeId === TODOS
+                ? undefined
+                : aplicados.atividadeId,
+            turmaId: aplicados.turmaId === TODOS ? undefined : aplicados.turmaId,
+            statusMatricula:
+              aplicados.statusMatricula === TODOS
+                ? undefined
+                : aplicados.statusMatricula,
+          }),
+          getIndicadoresComplementares(aplicados),
+        ]);
 
-        setDados(response);
+        setDados({
+          ...response,
+          ...complementares,
+        });
       } catch (error) {
         console.error(error);
 
