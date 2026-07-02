@@ -199,7 +199,7 @@ interface OrganizacaoDTO {
 
   cep?: string | null;
   logradouro?: string | null;
-  numero?: number | null;
+  numero?: string | null;
   complemento?: string | null;
   bairro?: string | null;
   cidade?: string | null;
@@ -982,7 +982,7 @@ function buildPayload(form: OrganizacaoForm): OrganizacaoDTO {
 
     cep: onlyDigits(form.cep),
     logradouro: form.logradouro.trim(),
-    numero: Number(form.numero),
+    numero: form.numero.trim(),
     complemento: form.complemento.trim() || null,
     bairro: form.bairro.trim(),
     cidade: form.cidade.trim(),
@@ -2096,13 +2096,7 @@ export default function Organizacao() {
                   <Input
                     id="numero"
                     value={form.numero}
-                    onChange={(e) =>
-                      setField(
-                        "numero",
-                        e.target.value.replace(/\D/g, "").slice(0, 6),
-                      )
-                    }
-                    inputMode="numeric"
+                    onChange={(e) => setField("numero", e.target.value)}
                     disabled={readOnly || saving}
                     readOnly={readOnly}
                   />

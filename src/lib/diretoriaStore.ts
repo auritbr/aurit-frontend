@@ -201,7 +201,7 @@ export interface DiretoriaDTO {
 
   cep?: string | null;
   logradouro?: string | null;
-  numero?: number | string | null;
+  numero?: string | null;
   complemento?: string | null;
   bairro?: string | null;
   cidade?: string | null;
@@ -480,7 +480,7 @@ export function buildDiretoriaPayload(form: DiretoriaData): DiretoriaDTO {
 
     cep: onlyDigits(form.cep),
     logradouro: form.logradouro.trim(),
-    numero: form.numero.trim() ? Number(form.numero) : null,
+    numero: form.numero.trim() || null,
     complemento: form.complemento.trim() || null,
     bairro: form.bairro.trim(),
     cidade: form.cidade.trim(),

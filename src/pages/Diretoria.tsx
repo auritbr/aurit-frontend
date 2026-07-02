@@ -1133,13 +1133,7 @@ export default function Diretoria() {
                     <Input
                       id="numero"
                       value={form.numero}
-                      onChange={(e) =>
-                        setField(
-                          "numero",
-                          e.target.value.replace(/\D/g, "").slice(0, 6),
-                        )
-                      }
-                      inputMode="numeric"
+                      onChange={(e) => setField("numero", e.target.value)}
                       disabled={bloqueado}
                       readOnly={readOnly}
                     />
