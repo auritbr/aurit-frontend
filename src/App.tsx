@@ -31,6 +31,7 @@ import {
   startInactivityMonitoring,
   stopInactivityMonitoring,
 } from "@/lib/inactivityLogout";
+import { AniversariantesPopup } from "./components/AniversariantesPopup";
 
 import Dashboard from "./pages/Dashboard.tsx";
 import Inicio from "./pages/Inicio.tsx";
@@ -207,6 +208,7 @@ function AuthenticatedServices() {
       <AlertasPrazoNotifier
         documentosNotifierHeight={documentosNotifierHeight}
       />
+      <AniversariantesPopup />
     </>
   );
 }
