@@ -4731,9 +4731,13 @@ export async function exportContratoPareceristaPdf(i: IntegrantePdf) {
   const REPRESENTANTE = getRepresentanteNome(org);
   const CPF_REPR = getRepresentanteCpf(org);
 
-  const NOME = v(i.nomeCompleto);
+  const pessoaJuridica = i.tipoPessoaIntegrante === "PESSOA_JURIDICA";
+  const NOME = pessoaJuridica
+    ? v(i.nomeSocial || i.nomeFantasia)
+    : v(i.nomeCompleto);
   const CPF_CONTR = formatCpfCnpj(i.cpf);
-  const CNPJ_CONTR = "[Preencher]";
+  const CNPJ_CONTR = formatCpfCnpj(i.cnpj);
+  const DOCUMENTO_CONTR = pessoaJuridica ? CNPJ_CONTR : CPF_CONTR;
   const ENDERECO_CONTR = v(
     formatEnderecoCompleto({
       logradouro: i.logradouro,
@@ -4745,6 +4749,17 @@ export async function exportContratoPareceristaPdf(i: IntegrantePdf) {
       cep: i.cep,
     }),
   );
+  const introContratado = pessoaJuridica
+    ? `CONTRATADO(A): ${NOME}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${CNPJ_CONTR}, nome fantasia ${v(i.nomeFantasia)}, com sede em ${ENDERECO_CONTR}, doravante denominada simplesmente CONTRATADO(A).`
+    : `CONTRATADO(A): ${NOME}, portador(a) do CPF sob o nº ${CPF_CONTR}, residente e domiciliado(a) em ${ENDERECO_CONTR}, doravante denominado(a) simplesmente CONTRATADO(A).`;
+  const linhasAssinaturaContratado = pessoaJuridica
+    ? [
+        NOME,
+        i.nomeFantasia ? `Nome fantasia: ${i.nomeFantasia}` : "",
+        "Função: Parecerista Técnico(a)",
+        `CNPJ: ${DOCUMENTO_CONTR}`,
+      ].filter(Boolean)
+    : [NOME, "Função: Parecerista Técnico(a)", `CPF: ${DOCUMENTO_CONTR}`];
 
   const clauses: PdfClause[] = [
     {
@@ -4849,7 +4864,7 @@ export async function exportContratoPareceristaPdf(i: IntegrantePdf) {
         justifiedParagraphs: [
           "Pelo presente instrumento particular, de um lado:",
           `CONTRATANTE: ${RAZAO_SOCIAL}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${CNPJ}, com sede em ${ENDERECO_INST}, neste ato representada por sua representante legal, ${REPRESENTANTE}, inscrita no CPF sob o nº ${CPF_REPR}, doravante denominada simplesmente CONTRATANTE.`,
-          `CONTRATADO(A): ${NOME}, portador(a) do CPF sob o nº ${CPF_CONTR}, residente e domiciliado(a) em ${ENDERECO_CONTR}, doravante denominado(a) simplesmente CONTRATADO(A).`,
+          introContratado,
           "As partes acima identificadas têm entre si justo e contratado o presente Contrato de Prestação de Serviços, de natureza estritamente civil, que se regerá pelas cláusulas e condições seguintes:",
         ],
       },
@@ -4872,7 +4887,7 @@ export async function exportContratoPareceristaPdf(i: IntegrantePdf) {
           },
           {
             rotulo: "CONTRATADO(A)",
-            linhas: [NOME, "Função: Parecerista Técnico(a)", `CPF: ${CPF_CONTR}`],
+            linhas: linhasAssinaturaContratado,
           },
           {
             rotulo: "TESTEMUNHA 1",

@@ -360,6 +360,13 @@ export default function Integrantes() {
   }
 
   async function handleConverterParaColaborador(integrante: Integrante) {
+    if (integrante.tipoPessoaIntegrante === "PESSOA_JURIDICA") {
+      toast.error(
+        "A conversão para colaborador está disponível apenas para integrantes Pessoa Física.",
+      );
+      return;
+    }
+
     try {
       const saved = await converterIntegranteParaColaborador(integrante.id);
 

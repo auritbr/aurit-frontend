@@ -694,7 +694,7 @@ export default function IntegranteForm() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field full>
                 <FieldLabel htmlFor="tipoPessoaIntegrante" required>
-                  Tipo de pessoa
+                  Tipo de Pessoa
                 </FieldLabel>
 
                 <Select
@@ -738,7 +738,7 @@ export default function IntegranteForm() {
 
                   <Field>
                     <FieldLabel htmlFor="nomeSocial" required>
-                      Nome social/Razão social
+                      Razão Social
                     </FieldLabel>
 
                     <Input
@@ -752,7 +752,7 @@ export default function IntegranteForm() {
 
                   <Field>
                     <FieldLabel htmlFor="nomeFantasia" required>
-                      Nome fantasia
+                      Nome Fantasia
                     </FieldLabel>
 
                     <Input
