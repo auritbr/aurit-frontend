@@ -232,6 +232,8 @@ export const RELATORIO_SLUG_ALIASES: Record<string, string> = {
 
   "agentes-culturais": "agentes",
 
+  "participantes-geral": "participantes",
+
   metas: "metas-projeto",
 
   cronograma: "cronogramas",

@@ -142,7 +142,7 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         searchPlaceholder: "Buscar por nome, função, cidade, status...",
       },
       {
-        slug: "participantes",
+        slug: "participantes-geral",
         title: "Participantes",
         description:
           "Reúne participantes cadastrados, com dados pessoais, contatos, responsáveis, endereço e status de acompanhamento.",
