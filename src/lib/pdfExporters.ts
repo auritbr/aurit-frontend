@@ -568,10 +568,14 @@ type OrganizacaoPdf = {
 type IntegrantePdf = {
   id: string | number;
 
+  tipoPessoaIntegrante?: string | null;
   nomeCompleto?: string | null;
   dataNascimento?: string | null;
   cpf?: string | null;
   rg?: string | null;
+  cnpj?: string | null;
+  nomeSocial?: string | null;
+  nomeFantasia?: string | null;
   telefone?: string | null;
   email?: string | null;
 
@@ -4555,6 +4559,7 @@ export async function exportOrganizacaoPdf(o: OrganizacaoPdf) {
 // =====================================================================
 
 export async function exportIntegrantePdf(i: IntegrantePdf) {
+  const pessoaJuridica = i.tipoPessoaIntegrante === "PESSOA_JURIDICA";
   const statusNormalizado = String(i.status ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -4593,51 +4598,85 @@ export async function exportIntegrantePdf(i: IntegrantePdf) {
       value: v(i.status),
     },
   ];
+  const dadosIdentificacaoFields = pessoaJuridica
+    ? [
+      {
+        label: "Tipo de Pessoa",
+        value: "Pessoa Jurídica",
+      },
+      {
+        label: "CNPJ",
+        value: formatCpfCnpj(i.cnpj),
+      },
+      {
+        label: "Nome social/Razão social",
+        value: v(i.nomeSocial),
+      },
+      {
+        label: "Nome fantasia",
+        value: v(i.nomeFantasia),
+      },
+      {
+        label: "Telefone",
+        value: v(i.telefone),
+      },
+      {
+        label: "E-mail",
+        value: v(i.email),
+      },
+    ]
+    : [
+      {
+        label: "Tipo de Pessoa",
+        value: "Pessoa Física",
+      },
+      {
+        label: "Nome Completo",
+        value: v(i.nomeCompleto),
+      },
+      {
+        label: "Data de Nascimento",
+        value: formatDateBR(i.dataNascimento),
+      },
+      {
+        label: "CPF",
+        value: formatCpfCnpj(i.cpf),
+      },
+      {
+        label: "RG",
+        value: v(i.rg),
+      },
+      {
+        label: "Gênero",
+        value: v(i.genero),
+      },
+      {
+        label: "Raça/Cor",
+        value: v(i.racaCor),
+      },
+      {
+        label: "Tipo de Deficiência",
+        value: v(i.tipoDeficiencia),
+      },
+      {
+        label: "Telefone",
+        value: v(i.telefone),
+      },
+      {
+        label: "E-mail",
+        value: v(i.email),
+      },
+    ];
 
   await generateInstitutionalPdf({
     title: "Ficha de Integrante",
     documentNumber: `INT-${String(i.id).padStart(4, "0")}`,
     sections: [
       {
-        title: "1. Dados Pessoais",
-        fields: [
-          {
-            label: "Nome Completo",
-            value: v(i.nomeCompleto),
-          },
-          {
-            label: "Data de Nascimento",
-            value: formatDateBR(i.dataNascimento),
-          },
-          {
-            label: "CPF",
-            value: v(i.cpf),
-          },
-          {
-            label: "RG",
-            value: v(i.rg),
-          },
-          {
-            label: "Gênero",
-            value: v(i.genero),
-          },
-          {
-            label: "Raça/Cor",
-            value: v(i.racaCor),
-          },
-          {
-            label: "Tipo de Deficiência",
-            value: v(i.tipoDeficiencia),
-          },
-          {
-            label: "Telefone",
-            value: v(i.telefone),
-          },
-          {
-            label: "E-mail",
-            value: v(i.email),
-          },
-        ],
+        title: pessoaJuridica
+          ? "1. Dados da Pessoa Jurídica"
+          : "1. Dados Pessoais",
+        fields: dadosIdentificacaoFields,
       },
       {
         title: "2. Endereço",

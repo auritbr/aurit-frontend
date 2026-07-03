@@ -43,6 +43,8 @@ export type TipoDeficienciaApi =
 
 export type TipoVinculoIntegranteApi = "PARECERISTA";
 
+export type TipoPessoaIntegranteApi = "PESSOA_FISICA" | "PESSOA_JURIDICA";
+
 export const racasCoresIntegrante = [
   { value: "BRANCA", label: "Branca" },
   { value: "PRETA", label: "Preta" },
@@ -77,6 +79,11 @@ export const tiposVinculoIntegrante = [
   { value: "PARECERISTA", label: "Parecerista" },
 ] as const;
 
+export const tiposPessoaIntegrante = [
+  { value: "PESSOA_FISICA", label: "Pessoa Física" },
+  { value: "PESSOA_JURIDICA", label: "Pessoa Jurídica" },
+] as const;
+
 export function racaCorValueToLabel(value?: RacaCorApi | string | null) {
   return (
     racasCoresIntegrante.find((item) => item.value === value)?.label ?? "—"
@@ -104,12 +111,25 @@ export function tipoVinculoIntegranteValueToLabel(
   );
 }
 
+export function tipoPessoaIntegranteValueToLabel(
+  value?: TipoPessoaIntegranteApi | string | null,
+) {
+  return (
+    tiposPessoaIntegrante.find((item) => item.value === value)?.label ??
+    "Pessoa Física"
+  );
+}
+
 export interface IntegranteDTO {
   id?: number | string;
+  tipoPessoaIntegrante?: TipoPessoaIntegranteApi | string | null;
   nomeCompleto?: string | null;
   dataNascimento?: string | null;
   cpf?: string | null;
   rg?: string | null;
+  cnpj?: string | null;
+  nomeSocial?: string | null;
+  nomeFantasia?: string | null;
   telefone?: string | null;
   email?: string | null;
 
@@ -143,10 +163,14 @@ export interface IntegranteDTO {
 
 export interface Integrante {
   id: number;
+  tipoPessoaIntegrante: TipoPessoaIntegranteApi;
   nomeCompleto: string;
   dataNascimento: string;
   cpf: string;
   rg: string;
+  cnpj: string;
+  nomeSocial: string;
+  nomeFantasia: string;
   telefone: string;
   email: string;
 
@@ -274,6 +298,12 @@ function normalizeTipoVinculoIntegrante(
     : "";
 }
 
+function normalizeTipoPessoaIntegrante(
+  value?: string | null,
+): TipoPessoaIntegranteApi {
+  return value === "PESSOA_JURIDICA" ? "PESSOA_JURIDICA" : "PESSOA_FISICA";
+}
+
 export function statusValueToLabel(
   status: IntegranteStatusApi | string,
 ): IntegranteStatusLabel {
@@ -289,13 +319,20 @@ export function statusValueToLabel(
 
 export function mapIntegrante(dto: IntegranteDTO): Integrante {
   const organizacaoId = normalizeId(dto.organizacaoId ?? dto.organizacao);
+  const tipoPessoaIntegrante = normalizeTipoPessoaIntegrante(
+    dto.tipoPessoaIntegrante,
+  );
 
   return {
     id: Number(dto.id ?? 0),
+    tipoPessoaIntegrante,
     nomeCompleto: normalizeText(dto.nomeCompleto),
     dataNascimento: normalizeText(dto.dataNascimento),
     cpf: normalizeText(dto.cpf),
     rg: normalizeText(dto.rg),
+    cnpj: normalizeText(dto.cnpj),
+    nomeSocial: normalizeText(dto.nomeSocial),
+    nomeFantasia: normalizeText(dto.nomeFantasia),
     telefone: normalizeText(dto.telefone),
     email: normalizeText(dto.email),
 

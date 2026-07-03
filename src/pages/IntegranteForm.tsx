@@ -7,6 +7,7 @@ import {
   Briefcase,
   CalendarClock,
   Building2,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { maskCPF, maskPhone, maskCEP, maskDate } from "@/lib/masks";
+import { maskCNPJ, maskCPF, maskPhone, maskCEP, maskDate } from "@/lib/masks";
 import { estadosBrasil } from "@/data/colaboradores";
 import {
   createIntegrante,
@@ -34,6 +35,7 @@ import {
   getOrganizacoes,
   racasCoresIntegrante,
   tiposDeficienciaIntegrante,
+  tiposPessoaIntegrante,
   tiposVinculoIntegrante,
   updateIntegrante,
   type GeneroApi,
@@ -42,6 +44,7 @@ import {
   type OrganizacaoOption,
   type RacaCorApi,
   type TipoDeficienciaApi,
+  type TipoPessoaIntegranteApi,
   type TipoVinculoIntegranteApi,
 } from "@/data/integrantes";
 import { toast } from "sonner";
@@ -74,10 +77,14 @@ function salvarProximaAcaoIntegrante() {
 }
 
 interface FormState {
+  tipoPessoaIntegrante: TipoPessoaIntegranteApi;
   nomeCompleto: string;
   dataNascimento: string;
   cpf: string;
   rg: string;
+  cnpj: string;
+  nomeSocial: string;
+  nomeFantasia: string;
   telefone: string;
   email: string;
 
@@ -113,10 +120,14 @@ interface ViaCepResponse {
 }
 
 const initial: FormState = {
+  tipoPessoaIntegrante: "PESSOA_FISICA",
   nomeCompleto: "",
   dataNascimento: "",
   cpf: "",
   rg: "",
+  cnpj: "",
+  nomeSocial: "",
+  nomeFantasia: "",
   telefone: "",
   email: "",
 
@@ -313,6 +324,7 @@ export default function IntegranteForm() {
 
   const bloqueado = visualizando || loading || saving;
   const statusConcluido = isStatusConcluido(form.status);
+  const pessoaJuridica = form.tipoPessoaIntegrante === "PESSOA_JURIDICA";
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((p) => ({ ...p, [k]: v }));
@@ -360,10 +372,14 @@ export default function IntegranteForm() {
       const data = await getIntegranteById(integranteId);
 
       setForm({
+        tipoPessoaIntegrante: data.tipoPessoaIntegrante || "PESSOA_FISICA",
         nomeCompleto: data.nomeCompleto,
         dataNascimento: isoToBrDate(data.dataNascimento),
         cpf: data.cpf ? maskCPF(data.cpf) : "",
         rg: data.rg,
+        cnpj: data.cnpj ? maskCNPJ(data.cnpj) : "",
+        nomeSocial: data.nomeSocial,
+        nomeFantasia: data.nomeFantasia,
         telefone: data.telefone ? maskPhone(data.telefone) : "",
         email: data.email,
 
@@ -438,19 +454,38 @@ export default function IntegranteForm() {
   }
 
   function buildPayload(): IntegranteDTO {
+    const payloadPessoa = pessoaJuridica
+      ? {
+          nomeCompleto: null,
+          dataNascimento: null,
+          cpf: null,
+          rg: null,
+          racaCor: null,
+          genero: null,
+          tipoDeficiencia: null,
+          cnpj: onlyDigits(form.cnpj),
+          nomeSocial: form.nomeSocial.trim(),
+          nomeFantasia: form.nomeFantasia.trim(),
+        }
+      : {
+          nomeCompleto: form.nomeCompleto.trim(),
+          dataNascimento: brToIsoDate(form.dataNascimento),
+          cpf: onlyDigits(form.cpf),
+          rg: form.rg.trim() || null,
+          racaCor: form.racaCor,
+          genero: form.genero,
+          tipoDeficiencia: form.tipoDeficiencia,
+          cnpj: null,
+          nomeSocial: null,
+          nomeFantasia: null,
+        };
+
     return {
       id: editando && id ? Number(id) : undefined,
-
-      nomeCompleto: form.nomeCompleto.trim(),
-      dataNascimento: brToIsoDate(form.dataNascimento),
-      cpf: onlyDigits(form.cpf),
-      rg: form.rg.trim() || null,
+      tipoPessoaIntegrante: form.tipoPessoaIntegrante,
+      ...payloadPessoa,
       telefone: form.telefone.trim(),
       email: form.email.trim() || null,
-
-      racaCor: form.racaCor,
-      genero: form.genero,
-      tipoDeficiencia: form.tipoDeficiencia,
 
       funcaoIntegrante: form.funcaoIntegrante.trim(),
       tipoVinculoIntegrante: form.tipoVinculoIntegrante || null,
@@ -476,39 +511,56 @@ export default function IntegranteForm() {
   }
 
   function validar() {
-    if (!form.nomeCompleto.trim()) {
-      toast.error("Informe o nome completo.");
-      return false;
-    }
+    if (pessoaJuridica) {
+      if (onlyDigits(form.cnpj).length !== 14) {
+        toast.error("Informe um CNPJ válido.");
+        return false;
+      }
 
-    if (!form.dataNascimento.trim()) {
-      toast.error("Informe a data de nascimento.");
-      return false;
-    }
+      if (!form.nomeSocial.trim()) {
+        toast.error("Informe o nome social/razão social.");
+        return false;
+      }
 
-    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(form.dataNascimento.trim())) {
-      toast.error("Informe a data de nascimento no formato dd/mm/aaaa.");
-      return false;
-    }
+      if (!form.nomeFantasia.trim()) {
+        toast.error("Informe o nome fantasia.");
+        return false;
+      }
+    } else {
+      if (!form.nomeCompleto.trim()) {
+        toast.error("Informe o nome completo.");
+        return false;
+      }
 
-    if (onlyDigits(form.cpf).length !== 11) {
-      toast.error("Informe um CPF válido.");
-      return false;
-    }
+      if (!form.dataNascimento.trim()) {
+        toast.error("Informe a data de nascimento.");
+        return false;
+      }
 
-    if (!form.racaCor) {
-      toast.error("Informe a raça/cor.");
-      return false;
-    }
+      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(form.dataNascimento.trim())) {
+        toast.error("Informe a data de nascimento no formato dd/mm/aaaa.");
+        return false;
+      }
 
-    if (!form.genero) {
-      toast.error("Informe o gênero.");
-      return false;
-    }
+      if (onlyDigits(form.cpf).length !== 11) {
+        toast.error("Informe um CPF válido.");
+        return false;
+      }
 
-    if (!form.tipoDeficiencia) {
-      toast.error("Informe a deficiência.");
-      return false;
+      if (!form.racaCor) {
+        toast.error("Informe a raça/cor.");
+        return false;
+      }
+
+      if (!form.genero) {
+        toast.error("Informe o gênero.");
+        return false;
+      }
+
+      if (!form.tipoDeficiencia) {
+        toast.error("Informe a deficiência.");
+        return false;
+      }
     }
 
     if (!form.telefone.trim()) {
@@ -640,6 +692,80 @@ export default function IntegranteForm() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <Section icon={User} title="Dados pessoais">
             <div className="grid gap-4 sm:grid-cols-2">
+              <Field full>
+                <FieldLabel htmlFor="tipoPessoaIntegrante" required>
+                  Tipo de pessoa
+                </FieldLabel>
+
+                <Select
+                  value={form.tipoPessoaIntegrante}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
+                    set("tipoPessoaIntegrante", value as TipoPessoaIntegranteApi);
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="tipoPessoaIntegrante">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {tiposPessoaIntegrante.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {pessoaJuridica ? (
+                <>
+                  <Field>
+                    <FieldLabel htmlFor="cnpj" required>
+                      CNPJ
+                    </FieldLabel>
+
+                    <Input
+                      id="cnpj"
+                      value={form.cnpj}
+                      onChange={(e) => set("cnpj", maskCNPJ(e.target.value))}
+                      inputMode="numeric"
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="nomeSocial" required>
+                      Nome social/Razão social
+                    </FieldLabel>
+
+                    <Input
+                      id="nomeSocial"
+                      value={form.nomeSocial}
+                      onChange={(e) => set("nomeSocial", e.target.value)}
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="nomeFantasia" required>
+                      Nome fantasia
+                    </FieldLabel>
+
+                    <Input
+                      id="nomeFantasia"
+                      value={form.nomeFantasia}
+                      onChange={(e) => set("nomeFantasia", e.target.value)}
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
+                </>
+              ) : (
+                <>
               <Field>
                 <FieldLabel htmlFor="nomeCompleto" required>
                   Nome Completo
@@ -778,6 +904,8 @@ export default function IntegranteForm() {
                   </SelectContent>
                 </Select>
               </Field>
+                </>
+              )}
 
               <Field>
                 <FieldLabel htmlFor="telefone" required>
@@ -1147,7 +1275,7 @@ function Section({
   title,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
   children: React.ReactNode;
 }) {

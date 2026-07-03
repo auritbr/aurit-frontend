@@ -46,6 +46,7 @@ import {
   getOrganizacoes,
   racaCorValueToLabel,
   statusValueToLabel,
+  tipoPessoaIntegranteValueToLabel,
   tipoDeficienciaValueToLabel,
   tipoVinculoIntegranteValueToLabel,
   type Integrante,
@@ -195,6 +196,16 @@ export default function Integrantes() {
     );
   };
 
+  const integranteNome = (integrante: Integrante) =>
+    integrante.tipoPessoaIntegrante === "PESSOA_JURIDICA"
+      ? integrante.nomeSocial || integrante.nomeFantasia || "—"
+      : integrante.nomeCompleto || "—";
+
+  const integranteDocumento = (integrante: Integrante) =>
+    integrante.tipoPessoaIntegrante === "PESSOA_JURIDICA"
+      ? integrante.cnpj || "—"
+      : integrante.cpf || "—";
+
   const filtered = useMemo(() => {
     const s = search.toLowerCase().trim();
 
@@ -202,7 +213,11 @@ export default function Integrantes() {
 
     return items.filter((i) =>
       [
+        integranteNome(i),
+        tipoPessoaIntegranteValueToLabel(i.tipoPessoaIntegrante),
         i.nomeCompleto,
+        i.nomeSocial,
+        i.nomeFantasia,
         i.funcaoIntegrante,
         tipoVinculoIntegranteValueToLabel(i.tipoVinculoIntegrante),
         statusValueToLabel(i.status),
@@ -212,6 +227,7 @@ export default function Integrantes() {
         i.email,
         i.telefone,
         i.cpf,
+        i.cnpj,
         i.rg,
         organizacaoNome(i),
         i.dataEntrada,
@@ -231,7 +247,7 @@ export default function Integrantes() {
     (item, key: SortKey) => {
       switch (key) {
         case "nome":
-          return item.nomeCompleto ?? "";
+          return integranteNome(item);
         case "funcao":
           return item.funcaoIntegrante ?? "";
         case "tipoVinculo":
@@ -291,6 +307,10 @@ export default function Integrantes() {
       id: i.id,
 
       nomeCompleto: i.nomeCompleto,
+      tipoPessoaIntegrante: i.tipoPessoaIntegrante,
+      cnpj: i.cnpj,
+      nomeSocial: i.nomeSocial,
+      nomeFantasia: i.nomeFantasia,
       dataNascimento: i.dataNascimento,
       cpf: i.cpf,
       rg: i.rg,
@@ -428,6 +448,10 @@ export default function Integrantes() {
                     className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
                   />
 
+                  <th className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Documento
+                  </th>
+
                   <SortableHeader
                     label="Função / atuação"
                     sortKey="funcao"
@@ -465,7 +489,7 @@ export default function Integrantes() {
                       className="w-[250px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
                       data-no-copy
                     >
-                      Documento
+                      PDF
                     </th>
                   )}
                 </tr>
@@ -517,8 +541,14 @@ export default function Integrantes() {
                     </td>
 
                     <td className="px-6 py-2.5">
-                      <TableCellText text={i.nomeCompleto || "—"} bold>
-                        {i.nomeCompleto || "—"}
+                      <TableCellText text={integranteNome(i)} bold>
+                        {integranteNome(i)}
+                      </TableCellText>
+                    </td>
+
+                    <td className="px-6 py-2.5">
+                      <TableCellText text={integranteDocumento(i)} muted>
+                        {integranteDocumento(i)}
                       </TableCellText>
                     </td>
 
@@ -587,7 +617,7 @@ export default function Integrantes() {
                 ))}
 
                 {paginated.length === 0 && (
-                  <EmptyRow colspan={podeGerarPdf ? 7 : 6} />
+                  <EmptyRow colspan={podeGerarPdf ? 8 : 7} />
                 )}
               </tbody>
             </table>
@@ -666,7 +696,13 @@ export default function Integrantes() {
                     )}
                   </div>
 
-                  <p className="font-medium text-foreground">{i.nomeCompleto}</p>
+                  <p className="font-medium text-foreground">
+                    {integranteNome(i)}
+                  </p>
+
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {integranteDocumento(i)}
+                  </p>
 
                   {i.funcaoIntegrante && (
                     <p className="mt-2 text-sm text-foreground">
