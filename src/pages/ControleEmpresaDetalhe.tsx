@@ -51,6 +51,7 @@ import {
 import { TableActionIcon } from "@/components/TableActionIcon";
 import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/hooks/usePagination";
+import { LIMITE_USUARIOS_PLANO_GRATUITO } from "@/lib/plano";
 import {
   PlanoBadge,
   RoleBadge,
@@ -384,7 +385,9 @@ export default function ControleEmpresaDetalhe() {
       const atualizada = await alterarPlanoEmpresa(
         empresa.id,
         novoPlano,
-        novoPlano === "PLANO_GRATUITO" ? 2 : novoLimiteUsuarios,
+        novoPlano === "PLANO_GRATUITO"
+          ? LIMITE_USUARIOS_PLANO_GRATUITO
+          : novoLimiteUsuarios,
       );
 
       setEmpresa(atualizada);
@@ -1093,7 +1096,7 @@ export default function ControleEmpresaDetalhe() {
                   setNovoPlano(plano);
 
                   if (plano === "PLANO_GRATUITO") {
-                    setNovoLimiteUsuarios(2);
+                    setNovoLimiteUsuarios(LIMITE_USUARIOS_PLANO_GRATUITO);
                   } else if (!novoLimiteUsuarios || novoLimiteUsuarios < 1) {
                     setNovoLimiteUsuarios(10);
                   }
@@ -1114,7 +1117,11 @@ export default function ControleEmpresaDetalhe() {
               <Label>Limite de usuários</Label>
               <Input
                 type="number"
-                min={novoPlano === "PLANO_GRATUITO" ? 2 : 1}
+                min={
+                  novoPlano === "PLANO_GRATUITO"
+                    ? LIMITE_USUARIOS_PLANO_GRATUITO
+                    : 1
+                }
                 disabled={novoPlano === "PLANO_GRATUITO"}
                 value={novoLimiteUsuarios}
                 onChange={(e) => setNovoLimiteUsuarios(Number(e.target.value))}

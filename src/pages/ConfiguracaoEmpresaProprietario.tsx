@@ -27,6 +27,7 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { maskCEP, maskPhone } from "@/lib/masks";
+import { LIMITE_USUARIOS_PLANO_GRATUITO } from "@/lib/plano";
 import { estadosBrasil } from "@/data/colaboradores";
 import {
   getPlanoVisualEmpresa,
@@ -224,7 +225,7 @@ function buildPayload(form: ConfigEmpresaForm): ConfiguracaoEmpresaRequestDTO {
     tipoPlano: form.tipoPlano as TipoPlanoApi,
     limiteUsuarios:
       form.tipoPlano === "PLANO_GRATUITO"
-        ? 2
+        ? LIMITE_USUARIOS_PLANO_GRATUITO
         : Number(form.limiteUsuarios || "0"),
     endereco: {
       cep: form.cep.replace(/\D/g, ""),
@@ -332,10 +333,15 @@ export default function ConfiguracaoEmpresaProprietario() {
   }, [configId]);
 
   useEffect(() => {
-    if (planoVisual === "PLANO_GRATUITO" && form.limiteUsuarios !== "2") {
-      set("limiteUsuarios", "2");
+    const limiteGratuito = String(LIMITE_USUARIOS_PLANO_GRATUITO);
+
+    if (
+      planoVisual === "PLANO_GRATUITO" &&
+      form.limiteUsuarios !== limiteGratuito
+    ) {
+      set("limiteUsuarios", limiteGratuito);
     }
-  }, [planoVisual]);
+  }, [form.limiteUsuarios, planoVisual]);
 
   function handlePlanoVisualChange(value: TipoPlanoVisual) {
     setPlanoVisual(value);
@@ -345,7 +351,7 @@ export default function ConfiguracaoEmpresaProprietario() {
       planoCortesia: false,
       limiteUsuarios:
         value === "PLANO_GRATUITO"
-          ? "2"
+          ? String(LIMITE_USUARIOS_PLANO_GRATUITO)
           : prev.limiteUsuarios && Number(prev.limiteUsuarios) > 0
             ? prev.limiteUsuarios
             : "10",
@@ -796,7 +802,7 @@ export default function ConfiguracaoEmpresaProprietario() {
                 <FieldLabel
                   htmlFor="limiteUsuarios"
                   required
-                  tooltip="No plano gratuito o limite é fixado em 2 usuários. Nos planos pago e cortesia, você pode informar a quantidade permitida."
+                  tooltip={`No plano gratuito o limite é fixado em ${LIMITE_USUARIOS_PLANO_GRATUITO} usuários. Nos planos pago e cortesia, você pode informar a quantidade permitida.`}
                 >
                   Limite de Usuários
                 </FieldLabel>

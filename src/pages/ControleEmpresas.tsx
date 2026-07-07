@@ -32,6 +32,7 @@ import { EmailInput } from "@/components/EmailInput";
 import { Label } from "@/components/ui/label";
 import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/hooks/usePagination";
+import { LIMITE_USUARIOS_PLANO_GRATUITO } from "@/lib/plano";
 import {
   Dialog,
   DialogContent,
@@ -336,7 +337,7 @@ export default function ControleEmpresas() {
       tipoPlano: value,
       limiteUsuarios:
         value === "PLANO_GRATUITO"
-          ? 2
+          ? LIMITE_USUARIOS_PLANO_GRATUITO
           : prev.limiteUsuarios && prev.limiteUsuarios > 0
             ? prev.limiteUsuarios
             : 10,
@@ -413,7 +414,7 @@ export default function ControleEmpresas() {
         tipoPlano: novaEmpresa.tipoPlano,
         limiteUsuarios:
           novaEmpresa.tipoPlano === "PLANO_GRATUITO"
-            ? 2
+            ? LIMITE_USUARIOS_PLANO_GRATUITO
             : novaEmpresa.limiteUsuarios || 10,
       };
 
@@ -959,7 +960,11 @@ export default function ControleEmpresas() {
                   <Label>Limite de Usuários *</Label>
                   <Input
                     type="number"
-                    min={novaEmpresa.tipoPlano === "PLANO_GRATUITO" ? 2 : 1}
+                    min={
+                      novaEmpresa.tipoPlano === "PLANO_GRATUITO"
+                        ? LIMITE_USUARIOS_PLANO_GRATUITO
+                        : 1
+                    }
                     disabled={novaEmpresa.tipoPlano === "PLANO_GRATUITO"}
                     value={novaEmpresa.limiteUsuarios ?? ""}
                     onChange={(e) =>
@@ -972,7 +977,8 @@ export default function ControleEmpresas() {
 
                   {novaEmpresa.tipoPlano === "PLANO_GRATUITO" && (
                     <p className="text-[11px] text-muted-foreground">
-                      O plano gratuito possui limite fixo de 2 usuários.
+                      O plano gratuito possui limite fixo de{" "}
+                      {LIMITE_USUARIOS_PLANO_GRATUITO} usuários.
                     </p>
                   )}
                 </div>

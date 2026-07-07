@@ -25,6 +25,7 @@ import { FormLegend } from "@/components/FormLegend";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { maskCEP, maskPhone } from "@/lib/masks";
 import { estadosBrasil } from "@/data/colaboradores";
+import { LIMITE_USUARIOS_PLANO_GRATUITO } from "@/lib/plano";
 import { toast } from "sonner";
 import {
   fetchConfiguracaoEmpresa,
@@ -214,7 +215,7 @@ function buildPayload(form: ConfigEmpresaForm): ConfiguracaoEmpresaRequestDTO {
     tipoPlano: form.tipoPlano as TipoPlanoApi,
     limiteUsuarios:
       form.tipoPlano === "PLANO_GRATUITO"
-        ? 2
+        ? LIMITE_USUARIOS_PLANO_GRATUITO
         : Number(form.limiteUsuarios || "0"),
     endereco: {
       cep: form.cep.replace(/\D/g, ""),
@@ -302,10 +303,15 @@ export default function ConfiguracaoEmpresa() {
   }, []);
 
   useEffect(() => {
-    if (form.tipoPlano === "PLANO_GRATUITO" && form.limiteUsuarios !== "2") {
-      set("limiteUsuarios", "2");
+    const limiteGratuito = String(LIMITE_USUARIOS_PLANO_GRATUITO);
+
+    if (
+      form.tipoPlano === "PLANO_GRATUITO" &&
+      form.limiteUsuarios !== limiteGratuito
+    ) {
+      set("limiteUsuarios", limiteGratuito);
     }
-  }, [form.tipoPlano]);
+  }, [form.limiteUsuarios, form.tipoPlano]);
 
   async function buscarEnderecoPorCep(cepFormatado: string) {
     const cepLimpo = cepFormatado.replace(/\D/g, "");
@@ -698,7 +704,7 @@ export default function ConfiguracaoEmpresa() {
                 <FieldLabel
                   htmlFor="limiteUsuarios"
                   required
-                  tooltip="No plano gratuito o limite é fixado em 2 usuários. Nos planos pago e cortesia, você pode informar a quantidade permitida."
+                  tooltip={`No plano gratuito o limite é fixado em ${LIMITE_USUARIOS_PLANO_GRATUITO} usuários. Nos planos pago e cortesia, você pode informar a quantidade permitida.`}
                 >
                   Limite de Usuários
                 </FieldLabel>
@@ -935,7 +941,7 @@ export default function ConfiguracaoEmpresa() {
           {
             title: "Plano e acesso",
             content:
-              "No plano gratuito o limite é automaticamente 2 usuários. Nos planos pago e cortesia, o limite informado é respeitado.",
+              `No plano gratuito o limite é automaticamente ${LIMITE_USUARIOS_PLANO_GRATUITO} usuários. Nos planos pago e cortesia, o limite informado é respeitado.`,
           },
           {
             title: "Endereço",

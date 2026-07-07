@@ -8,6 +8,8 @@ export type TipoPlano =
   | "PLANO_CORTESIA"
   | string;
 
+export const LIMITE_USUARIOS_PLANO_GRATUITO = 3;
+
 interface ConfiguracaoEmpresaDTO {
   id?: number;
   tipoPlano?: TipoPlano | null;

@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import { LIMITE_USUARIOS_PLANO_GRATUITO } from "@/lib/plano";
 
 export type UserRole = "USER" | "ADMIN" | "ADMIN_PROPRIETARIO";
 export type StatusUsuario = "ATIVO" | "INATIVO";
@@ -182,7 +183,7 @@ async function validarLimitePlanoAntesDeCriar(configuracaoEmpresaId?: number) {
 
   const limite =
     configuracao.tipoPlano === "PLANO_GRATUITO"
-      ? 2
+      ? LIMITE_USUARIOS_PLANO_GRATUITO
       : configuracao.limiteUsuarios ?? null;
 
   if (!limite) return;
@@ -196,7 +197,7 @@ async function validarLimitePlanoAntesDeCriar(configuracaoEmpresaId?: number) {
   if (totalDaEmpresa >= limite) {
     if (configuracao.tipoPlano === "PLANO_GRATUITO") {
       throw new Error(
-        "O plano gratuito permite no máximo 2 usuários. Para cadastrar mais usuários, atualize para o plano pago.",
+        `O plano gratuito permite no máximo ${LIMITE_USUARIOS_PLANO_GRATUITO} usuários. Para cadastrar mais usuários, atualize para o plano pago.`,
       );
     }
 
