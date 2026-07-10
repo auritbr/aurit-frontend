@@ -65,6 +65,10 @@ const tipoOptions = Object.entries(tipoDocumentoLabels) as [
   string,
 ][];
 
+tipoOptions.sort(([, labelA], [, labelB]) =>
+  labelA.localeCompare(labelB, "pt-BR", { sensitivity: "base" }),
+);
+
 const statusOptions = Object.entries(statusDocumentoLabels) as [
   StatusDocumento,
   string,
