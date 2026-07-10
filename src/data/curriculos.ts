@@ -95,11 +95,6 @@ export interface CurriculoDTO {
   itens: CurriculoItemDTO[];
 }
 
-interface CurriculoUpdatePayload {
-  colaboradorId: number;
-  itens: CurriculoItemDTO[];
-}
-
 export interface CurriculoFormData {
   colaboradorId: string;
   colaboradorNome: string;
@@ -318,45 +313,6 @@ export function formToDto(
   };
 }
 
-function buildUpdatePayload(payload: CurriculoDTO): CurriculoUpdatePayload {
-  return {
-    colaboradorId: Number(payload.colaboradorId),
-    itens: (payload.itens ?? [])
-      .map((item, index) => ({
-        ...(item.id != null ? { id: Number(item.id) } : {}),
-        tipoSecaoCurriculo: item.tipoSecaoCurriculo,
-        textoItem: item.textoItem?.trim() ?? "",
-        ordem: Number(item.ordem ?? index + 1),
-      }))
-      .filter((item) => item.tipoSecaoCurriculo && item.textoItem),
-  };
-}
-
-function maskAuthorizationHeader(value?: string) {
-  if (!value) return null;
-
-  const token = value.replace(/^Bearer\s+/i, "");
-
-  return `Bearer ${token.slice(0, 12)}...${token.slice(-8)} (${token.length} chars)`;
-}
-
-function logCurriculoUpdateRequest(
-  url: string,
-  headers: Record<string, string>,
-  payload: CurriculoUpdatePayload,
-) {
-  console.info("[curriculos] PUT request", {
-    method: "PUT",
-    url,
-    headers: {
-      "Content-Type": headers["Content-Type"] ?? null,
-      Authorization: maskAuthorizationHeader(headers.Authorization),
-      "X-Tenant-Slug": headers["X-Tenant-Slug"] ?? null,
-    },
-    payload,
-  });
-}
-
 export function dtoToListItem(dto: CurriculoDTO): CurriculoListItem {
   const form = dtoToForm(dto);
   const nomeColaborador = resolveNomeColaborador(dto);
@@ -382,51 +338,6 @@ export function dtoToListItem(dto: CurriculoDTO): CurriculoListItem {
   };
 }
 
-function listItemToDto(item: CurriculoListItem): CurriculoDTO {
-  const itens: CurriculoItemDTO[] = [];
-  let ordemAtual = 1;
-
-  const pushSection = (
-    values: string[],
-    tipoSecaoCurriculo: TipoSecaoCurriculo,
-  ) => {
-    cleanList(values).forEach((textoItem) => {
-      itens.push({
-        tipoSecaoCurriculo,
-        textoItem,
-        ordem: ordemAtual,
-      });
-
-      ordemAtual += 1;
-    });
-  };
-
-  pushSection(item.formacaoAcademica, "FORMACAO_ACADEMICA");
-  pushSection(item.atuacaoProfissional, "ATUACAO_PROFISSIONAL");
-  pushSection(item.experienciasRelevantes, "EXPERIENCIAS");
-  pushSection(
-    item.atividadesFormativasParticipacoes,
-    "ATIVIDADES_FORMATIVAS_PARTICIPACOES",
-  );
-  pushSection(item.habilidadesCompetencias, "HABILIDADES_COMPETENCIAS");
-  pushSection(item.atuacaoSociocultural, "ATUACAO_SOCIOCULTURAL");
-
-  return {
-    id: Number(item.id),
-    colaboradorId: Number(item.colaboradorId),
-    colaboradorNome: item.colaboradorNome,
-    nomeCompleto: item.nomeCompleto,
-    email: item.email,
-    telefone: item.telefone,
-    enderecoCompleto: item.enderecoCompleto,
-    cidadeAssinatura: item.cidadeAssinatura,
-    estadoAssinatura: item.estadoAssinatura,
-    dataAssinaturaTexto: item.dataAssinaturaTexto,
-    nomeAssinatura: item.nomeAssinatura,
-    itens,
-  };
-}
-
 export async function getCurriculos(): Promise<CurriculoListItem[]> {
   const response = await fetch(`${API_URL}/curriculos`, {
     method: "GET",
@@ -449,15 +360,6 @@ export async function getCurriculoById(id: number): Promise<CurriculoDTO> {
   });
 
   if (!response.ok) {
-    if (response.status === 403) {
-      const curriculos = await getCurriculos();
-      const curriculo = curriculos.find((item) => Number(item.id) === id);
-
-      if (curriculo) {
-        return listItemToDto(curriculo);
-      }
-    }
-
     throw new Error(await parseError(response));
   }
 
@@ -484,16 +386,10 @@ export async function updateCurriculo(
   id: number,
   payload: CurriculoDTO,
 ): Promise<CurriculoDTO> {
-  const url = `${API_URL}/curriculos/${id}`;
-  const headers = getJsonHeaders();
-  const updatePayload = buildUpdatePayload(payload);
-
-  logCurriculoUpdateRequest(url, headers, updatePayload);
-
-  const response = await fetch(url, {
+  const response = await fetch(`${API_URL}/curriculos/${id}`, {
     method: "PUT",
-    headers,
-    body: JSON.stringify(updatePayload),
+    headers: getJsonHeaders(),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
