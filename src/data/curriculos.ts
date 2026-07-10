@@ -313,6 +313,15 @@ export function formToDto(
   };
 }
 
+function buildUpdatePayload(payload: CurriculoDTO): CurriculoDTO {
+  const { id: _id, ...rest } = payload;
+
+  return {
+    ...rest,
+    itens: (rest.itens ?? []).map(({ id: _itemId, ...item }) => item),
+  };
+}
+
 export function dtoToListItem(dto: CurriculoDTO): CurriculoListItem {
   const form = dtoToForm(dto);
   const nomeColaborador = resolveNomeColaborador(dto);
@@ -338,6 +347,51 @@ export function dtoToListItem(dto: CurriculoDTO): CurriculoListItem {
   };
 }
 
+function listItemToDto(item: CurriculoListItem): CurriculoDTO {
+  const itens: CurriculoItemDTO[] = [];
+  let ordemAtual = 1;
+
+  const pushSection = (
+    values: string[],
+    tipoSecaoCurriculo: TipoSecaoCurriculo,
+  ) => {
+    cleanList(values).forEach((textoItem) => {
+      itens.push({
+        tipoSecaoCurriculo,
+        textoItem,
+        ordem: ordemAtual,
+      });
+
+      ordemAtual += 1;
+    });
+  };
+
+  pushSection(item.formacaoAcademica, "FORMACAO_ACADEMICA");
+  pushSection(item.atuacaoProfissional, "ATUACAO_PROFISSIONAL");
+  pushSection(item.experienciasRelevantes, "EXPERIENCIAS");
+  pushSection(
+    item.atividadesFormativasParticipacoes,
+    "ATIVIDADES_FORMATIVAS_PARTICIPACOES",
+  );
+  pushSection(item.habilidadesCompetencias, "HABILIDADES_COMPETENCIAS");
+  pushSection(item.atuacaoSociocultural, "ATUACAO_SOCIOCULTURAL");
+
+  return {
+    id: Number(item.id),
+    colaboradorId: Number(item.colaboradorId),
+    colaboradorNome: item.colaboradorNome,
+    nomeCompleto: item.nomeCompleto,
+    email: item.email,
+    telefone: item.telefone,
+    enderecoCompleto: item.enderecoCompleto,
+    cidadeAssinatura: item.cidadeAssinatura,
+    estadoAssinatura: item.estadoAssinatura,
+    dataAssinaturaTexto: item.dataAssinaturaTexto,
+    nomeAssinatura: item.nomeAssinatura,
+    itens,
+  };
+}
+
 export async function getCurriculos(): Promise<CurriculoListItem[]> {
   const response = await fetch(`${API_URL}/curriculos`, {
     method: "GET",
@@ -360,6 +414,15 @@ export async function getCurriculoById(id: number): Promise<CurriculoDTO> {
   });
 
   if (!response.ok) {
+    if (response.status === 403) {
+      const curriculos = await getCurriculos();
+      const curriculo = curriculos.find((item) => Number(item.id) === id);
+
+      if (curriculo) {
+        return listItemToDto(curriculo);
+      }
+    }
+
     throw new Error(await parseError(response));
   }
 
@@ -389,7 +452,7 @@ export async function updateCurriculo(
   const response = await fetch(`${API_URL}/curriculos/${id}`, {
     method: "PUT",
     headers: getJsonHeaders(),
-    body: JSON.stringify(payload),
+    body: JSON.stringify(buildUpdatePayload(payload)),
   });
 
   if (!response.ok) {
