@@ -316,10 +316,32 @@ export function formToDto(
 function buildUpdatePayload(payload: CurriculoDTO): CurriculoDTO {
   const { id: _id, ...rest } = payload;
 
-  return {
-    ...rest,
-    itens: (rest.itens ?? []).map(({ id: _itemId, ...item }) => item),
-  };
+  return rest;
+}
+
+function maskAuthorizationHeader(value?: string) {
+  if (!value) return null;
+
+  const token = value.replace(/^Bearer\s+/i, "");
+
+  return `Bearer ${token.slice(0, 12)}...${token.slice(-8)} (${token.length} chars)`;
+}
+
+function logCurriculoUpdateRequest(
+  url: string,
+  headers: Record<string, string>,
+  payload: CurriculoDTO,
+) {
+  console.info("[curriculos] PUT request", {
+    method: "PUT",
+    url,
+    headers: {
+      "Content-Type": headers["Content-Type"] ?? null,
+      Authorization: maskAuthorizationHeader(headers.Authorization),
+      "X-Tenant-Slug": headers["X-Tenant-Slug"] ?? null,
+    },
+    payload,
+  });
 }
 
 export function dtoToListItem(dto: CurriculoDTO): CurriculoListItem {
@@ -449,10 +471,16 @@ export async function updateCurriculo(
   id: number,
   payload: CurriculoDTO,
 ): Promise<CurriculoDTO> {
-  const response = await fetch(`${API_URL}/curriculos/${id}`, {
+  const url = `${API_URL}/curriculos/${id}`;
+  const headers = getJsonHeaders();
+  const updatePayload = buildUpdatePayload(payload);
+
+  logCurriculoUpdateRequest(url, headers, updatePayload);
+
+  const response = await fetch(url, {
     method: "PUT",
-    headers: getJsonHeaders(),
-    body: JSON.stringify(buildUpdatePayload(payload)),
+    headers,
+    body: JSON.stringify(updatePayload),
   });
 
   if (!response.ok) {
