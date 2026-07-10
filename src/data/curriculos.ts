@@ -95,6 +95,11 @@ export interface CurriculoDTO {
   itens: CurriculoItemDTO[];
 }
 
+interface CurriculoUpdatePayload {
+  colaboradorId: number;
+  itens: CurriculoItemDTO[];
+}
+
 export interface CurriculoFormData {
   colaboradorId: string;
   colaboradorNome: string;
@@ -313,10 +318,18 @@ export function formToDto(
   };
 }
 
-function buildUpdatePayload(payload: CurriculoDTO): CurriculoDTO {
-  const { id: _id, ...rest } = payload;
-
-  return rest;
+function buildUpdatePayload(payload: CurriculoDTO): CurriculoUpdatePayload {
+  return {
+    colaboradorId: Number(payload.colaboradorId),
+    itens: (payload.itens ?? [])
+      .map((item, index) => ({
+        ...(item.id != null ? { id: Number(item.id) } : {}),
+        tipoSecaoCurriculo: item.tipoSecaoCurriculo,
+        textoItem: item.textoItem?.trim() ?? "",
+        ordem: Number(item.ordem ?? index + 1),
+      }))
+      .filter((item) => item.tipoSecaoCurriculo && item.textoItem),
+  };
 }
 
 function maskAuthorizationHeader(value?: string) {
@@ -330,7 +343,7 @@ function maskAuthorizationHeader(value?: string) {
 function logCurriculoUpdateRequest(
   url: string,
   headers: Record<string, string>,
-  payload: CurriculoDTO,
+  payload: CurriculoUpdatePayload,
 ) {
   console.info("[curriculos] PUT request", {
     method: "PUT",
