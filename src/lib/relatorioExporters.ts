@@ -583,7 +583,13 @@ async function exportRelatorioTabelaPdf<T>(
     ? cols
     : selecionarColunasEssenciaisParaPdf(rows, cols, options.reportName);
 
-  const body = rows.map((row) =>
+  const rowsOrdenadas = ordenarLinhasRelatorioPdf(
+    rows,
+    colunasEssenciais,
+    options.reportName,
+  );
+
+  const body = rowsOrdenadas.map((row) =>
     colunasEssenciais.map((col) => formatPdfTableCell(row, col)),
   );
 
@@ -595,6 +601,7 @@ async function exportRelatorioTabelaPdf<T>(
     margin: {
       left: MARGIN_LEFT,
       right: MARGIN_RIGHT,
+      top: BODY_START_Y,
       bottom: FOOTER_HEIGHT + 8,
     },
     styles: {
@@ -688,6 +695,40 @@ async function exportRelatorioTabelaPdf<T>(
   }
 
   doc.save(buildFileName(options.reportName || "Relatório", "pdf"));
+}
+
+function ordenarLinhasRelatorioPdf<T>(
+  rows: T[],
+  cols: RelatorioColumn<T>[],
+  reportName: string,
+): T[] {
+  const normalizedReport = normalizeLabel(reportName);
+
+  if (!normalizedReport.includes("documento")) {
+    return rows;
+  }
+
+  const tipoDocumentoColumn = cols.find((col) => {
+    const normalizedColumn = normalizeLabel(`${col.key} ${col.label}`);
+
+    return (
+      normalizedColumn.includes("tipo de documento") ||
+      normalizedColumn.includes("tipodocumento") ||
+      normalizedColumn.includes("tipo_documento")
+    );
+  });
+
+  if (!tipoDocumentoColumn) {
+    return rows;
+  }
+
+  return [...rows].sort((a, b) =>
+    formatPdfTableCell(a, tipoDocumentoColumn).localeCompare(
+      formatPdfTableCell(b, tipoDocumentoColumn),
+      "pt-BR",
+      { numeric: true, sensitivity: "base" },
+    ),
+  );
 }
 
 function buildRelatorioDocumentNumber(reportName: string): string {
@@ -2215,6 +2256,7 @@ function drawTabelaPresencas(
     margin: {
       left: tableMarginLeft,
       right: tableMarginRight,
+      top: BODY_START_Y,
       bottom: FOOTER_HEIGHT + 8,
     },
     styles: {
@@ -4174,6 +4216,7 @@ export async function exportIndicadoresSociodemograficosPdf(
       margin: {
         left: MARGIN_LEFT,
         right: MARGIN_RIGHT,
+        top: BODY_START_Y,
         bottom: FOOTER_HEIGHT + 8,
       },
       styles: {
