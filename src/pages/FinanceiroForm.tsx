@@ -251,7 +251,7 @@ async function parseError(response: Response): Promise<string> {
 }
 
 function isAllowedComprovante(file: File) {
-  const allowed = ["pdf", "png", "jpg", "jpeg", "webp"];
+  const allowed = ["pdf", "png", "jpg", "jpeg", "webp", "ofx"];
   const extension = file.name.split(".").pop()?.toLowerCase();
 
   return !!extension && allowed.includes(extension);
@@ -585,7 +585,7 @@ export default function FinanceiroForm() {
     if (!file) return;
 
     if (!isAllowedComprovante(file)) {
-      toast.error("Formato não permitido. Envie PDF, PNG, JPG, JPEG ou WEBP.");
+      toast.error("Formato não permitido. Envie PDF, PNG, JPG, JPEG, WEBP ou OFX.");
       e.target.value = "";
       return;
     }
@@ -862,7 +862,7 @@ export default function FinanceiroForm() {
                   ref={fileInputRef}
                   type="file"
                   className="hidden"
-                  accept=".pdf,.png,.jpg,.jpeg,.webp"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.ofx"
                   onChange={handleComprovanteChange}
                   disabled={bloqueado}
                 />
@@ -933,7 +933,7 @@ export default function FinanceiroForm() {
                 )}
 
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Formatos aceitos: PDF, PNG, JPG, JPEG ou WEBP. Tamanho máximo:
+                  Formatos aceitos: PDF, PNG, JPG, JPEG, WEBP ou OFX. Tamanho máximo:
                   10 MB.
                 </p>
               </Field>
