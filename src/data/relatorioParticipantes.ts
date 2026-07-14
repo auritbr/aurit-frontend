@@ -102,8 +102,8 @@ export interface RelatorioParticipantesData {
 
 export const filtrosIniciais: FiltrosRelatorioParticipantes = {
   status: [],
-  atividadeId: "TODOS",
-  turmaId: "TODOS",
+  atividadeId: "SELECIONE",
+  turmaId: "SELECIONE",
   presencas: [],
   tipoNeurodivergencias: [],
   tipoDeficiencias: [],
@@ -235,6 +235,7 @@ export function aplicarFiltros(
   return linhas.filter((linha) => {
     if (
       filtros.status.length > 0 &&
+      filtros.status.length < statusParticipanteOptions.length &&
       !filtros.status.includes(linha.status as StatusParticipanteRelatorio)
     ) {
       return false;
@@ -242,17 +243,19 @@ export function aplicarFiltros(
 
     if (
       filtros.atividadeId !== "TODOS" &&
+      filtros.atividadeId !== "SELECIONE" &&
       linha.atividadeId !== filtros.atividadeId
     ) {
       return false;
     }
 
-    if (filtros.turmaId !== "TODOS" && linha.turmaId !== filtros.turmaId) {
+    if (filtros.turmaId !== "TODOS" && filtros.turmaId !== "SELECIONE" && linha.turmaId !== filtros.turmaId) {
       return false;
     }
 
     if (
       filtros.presencas.length > 0 &&
+      filtros.presencas.length < tipoPresencaOptions.length &&
       !filtros.presencas.some((status) =>
         linha.registros.some((registro) => registro.status === status),
       )
@@ -262,6 +265,7 @@ export function aplicarFiltros(
 
     if (
       filtros.tipoNeurodivergencias.length > 0 &&
+      filtros.tipoNeurodivergencias.length < tipoNeurodivergenciaRelatorioOptions.length &&
       !filtros.tipoNeurodivergencias.some((tipo) =>
         linha.tipoNeurodivergencias.includes(tipo),
       )
@@ -271,6 +275,7 @@ export function aplicarFiltros(
 
     if (
       filtros.tipoDeficiencias.length > 0 &&
+      filtros.tipoDeficiencias.length < tipoDeficienciaRelatorioOptions.length &&
       !filtros.tipoDeficiencias.some((tipo) =>
         linha.tipoDeficiencias.includes(tipo),
       )
@@ -280,6 +285,7 @@ export function aplicarFiltros(
 
     if (
       filtros.possuiCadunico.length > 0 &&
+      filtros.possuiCadunico.length < booleanFiltroOptions.length &&
       !filtros.possuiCadunico.includes(linha.possuiCadunico ? "SIM" : "NAO")
     ) {
       return false;
@@ -287,6 +293,7 @@ export function aplicarFiltros(
 
     if (
       filtros.possuiBolsaFamilia.length > 0 &&
+      filtros.possuiBolsaFamilia.length < booleanFiltroOptions.length &&
       !filtros.possuiBolsaFamilia.includes(
         linha.possuiBolsaFamilia ? "SIM" : "NAO",
       )

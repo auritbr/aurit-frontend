@@ -157,13 +157,13 @@ export default function RelatorioParticipantes() {
   const booleanByLabel = (label: string): BooleanFiltro => booleanFiltroOptions.find((option) => option.label === label)?.value ?? "SIM";
 
   const turmasDisponiveis = useMemo(
-    () => filtros.atividadeId === "TODOS" ? turmas : turmas.filter((turma) => turma.atividadeId === filtros.atividadeId),
+    () => filtros.atividadeId === "TODOS" || filtros.atividadeId === "SELECIONE" ? turmas : turmas.filter((turma) => turma.atividadeId === filtros.atividadeId),
     [filtros.atividadeId, turmas],
   );
 
   useEffect(() => {
-    if (filtros.turmaId !== "TODOS" && !turmasDisponiveis.some((turma) => turma.id === filtros.turmaId)) {
-      setFiltros((current) => ({ ...current, turmaId: "TODOS" }));
+    if (filtros.turmaId !== "TODOS" && filtros.turmaId !== "SELECIONE" && !turmasDisponiveis.some((turma) => turma.id === filtros.turmaId)) {
+      setFiltros((current) => ({ ...current, turmaId: "SELECIONE" }));
     }
   }, [filtros.turmaId, turmasDisponiveis]);
 
@@ -212,11 +212,11 @@ export default function RelatorioParticipantes() {
   const limpar = () => { setFiltros(filtrosIniciais); setAplicados(filtrosIniciais); setBusca(""); };
   const filtrar = () => { setAplicados(filtros); toast.success("Filtros aplicados."); };
 
-  const atividadeAplicadaLabel = aplicados.atividadeId === "TODOS" ? "Todas" : atividades.find((item) => item.id === aplicados.atividadeId)?.nomeAtividade ?? aplicados.atividadeId;
-  const turmaAplicadaLabel = aplicados.turmaId === "TODOS" ? "Todas" : turmas.find((item) => item.id === aplicados.turmaId)?.nomeTurma ?? aplicados.turmaId;
+  const atividadeAplicadaLabel = aplicados.atividadeId === "TODOS" ? "Todas" : aplicados.atividadeId === "SELECIONE" ? "Não selecionada" : atividades.find((item) => item.id === aplicados.atividadeId)?.nomeAtividade ?? aplicados.atividadeId;
+  const turmaAplicadaLabel = aplicados.turmaId === "TODOS" ? "Todas" : aplicados.turmaId === "SELECIONE" ? "Não selecionada" : turmas.find((item) => item.id === aplicados.turmaId)?.nomeTurma ?? aplicados.turmaId;
   const mostrarStatus = aplicados.status.length > 0;
-  const mostrarAtividade = aplicados.atividadeId !== "TODOS";
-  const mostrarTurma = aplicados.turmaId !== "TODOS";
+  const mostrarAtividade = aplicados.atividadeId !== "SELECIONE";
+  const mostrarTurma = aplicados.turmaId !== "SELECIONE";
   const mostrarPresencas = aplicados.presencas.includes("PRESENTE");
   const mostrarAusencias = aplicados.presencas.includes("AUSENTE");
   const mostrarFeriados = aplicados.presencas.includes("FERIADO");
@@ -356,31 +356,32 @@ export default function RelatorioParticipantes() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <Label htmlFor="f-status">Status</Label>
-              <MultiSelect id="f-status" placeholder="Todos" options={statusLabels} value={filtros.status.map(statusToLabel)} onChange={(values) => setFiltros((current) => ({ ...current, status: values.map(statusByLabel) }))} />
+              <MultiSelect id="f-status" placeholder="Selecione" selectAllLabel="Todos" options={statusLabels} value={filtros.status.map(statusToLabel)} onChange={(values) => setFiltros((current) => ({ ...current, status: values.map(statusByLabel) }))} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="f-ativ">Atividade</Label>
-              <Select value={filtros.atividadeId} onValueChange={(value) => setFiltros((current) => ({ ...current, atividadeId: value, turmaId: "TODOS" }))}>
-                <SelectTrigger id="f-ativ"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="TODOS">Todas</SelectItem>{atividades.map((item) => <SelectItem key={item.id} value={item.id}>{item.nomeAtividade}</SelectItem>)}</SelectContent>
+              <Select value={filtros.atividadeId} onValueChange={(value) => setFiltros((current) => ({ ...current, atividadeId: value, turmaId: "SELECIONE" }))}>
+                <SelectTrigger id="f-ativ"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent><SelectItem value="SELECIONE" disabled>Selecione</SelectItem><SelectItem value="TODOS">Todas</SelectItem>{atividades.map((item) => <SelectItem key={item.id} value={item.id}>{item.nomeAtividade}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="f-turma">Turma</Label>
               <Select value={filtros.turmaId} onValueChange={(value) => setFiltros((current) => ({ ...current, turmaId: value }))}>
-                <SelectTrigger id="f-turma"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="TODOS">Todas</SelectItem>{turmasDisponiveis.map((item) => <SelectItem key={item.id} value={item.id}>{item.nomeTurma}</SelectItem>)}</SelectContent>
+                <SelectTrigger id="f-turma"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent><SelectItem value="SELECIONE" disabled>Selecione</SelectItem><SelectItem value="TODOS">Todas</SelectItem>{turmasDisponiveis.map((item) => <SelectItem key={item.id} value={item.id}>{item.nomeTurma}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="f-presenca">Presença</Label>
-              <MultiSelect id="f-presenca" placeholder="Todas" options={presencaLabels} value={filtros.presencas.map(presencaToLabel)} onChange={(values) => setFiltros((current) => ({ ...current, presencas: values.map(presencaByLabel) }))} />
+              <MultiSelect id="f-presenca" placeholder="Selecione" selectAllLabel="Todas" options={presencaLabels} value={filtros.presencas.map(presencaToLabel)} onChange={(values) => setFiltros((current) => ({ ...current, presencas: values.map(presencaByLabel) }))} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="f-neurodivergencias">Tipos de Neurodivergências</Label>
               <MultiSelect
                 id="f-neurodivergencias"
-                placeholder="Todas"
+                placeholder="Selecione"
+                selectAllLabel="Todas"
                 options={tipoNeurodivergenciaRelatorioOptions.map(neurodivergenciaToLabel)}
                 value={filtros.tipoNeurodivergencias.map(neurodivergenciaToLabel)}
                 onChange={(values) =>
@@ -395,7 +396,8 @@ export default function RelatorioParticipantes() {
               <Label htmlFor="f-deficiencias">Tipo de Deficiência</Label>
               <MultiSelect
                 id="f-deficiencias"
-                placeholder="Todos"
+                placeholder="Selecione"
+                selectAllLabel="Todos"
                 options={tipoDeficienciaRelatorioOptions.map(deficienciaToLabel)}
                 value={filtros.tipoDeficiencias.map(deficienciaToLabel)}
                 onChange={(values) =>
@@ -410,7 +412,8 @@ export default function RelatorioParticipantes() {
               <Label htmlFor="f-cadunico">CadÚnico</Label>
               <MultiSelect
                 id="f-cadunico"
-                placeholder="Todos"
+                placeholder="Selecione"
+                selectAllLabel="Todos"
                 options={cadunicoLabels}
                 value={filtros.possuiCadunico.map(booleanFiltroLabel)}
                 onChange={(values) =>
@@ -425,7 +428,8 @@ export default function RelatorioParticipantes() {
               <Label htmlFor="f-bolsa-familia">Bolsa Família</Label>
               <MultiSelect
                 id="f-bolsa-familia"
-                placeholder="Todos"
+                placeholder="Selecione"
+                selectAllLabel="Todos"
                 options={bolsaFamiliaLabels}
                 value={filtros.possuiBolsaFamilia.map(booleanFiltroLabel)}
                 onChange={(values) =>

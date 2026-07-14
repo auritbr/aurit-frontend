@@ -11,6 +11,7 @@ interface MultiSelectProps {
   placeholder?: string;
   id?: string;
   getOptionLabel?: (option: string) => string;
+  selectAllLabel?: string;
 }
 
 export function MultiSelect({
@@ -20,6 +21,7 @@ export function MultiSelect({
   placeholder = "",
   id,
   getOptionLabel,
+  selectAllLabel,
 }: MultiSelectProps) {
   const [open, setOpen] = useState(false);
 
@@ -33,6 +35,12 @@ export function MultiSelect({
   const remove = (opt: string, e: React.MouseEvent) => {
     e.stopPropagation();
     onChange(value.filter((v) => v !== opt));
+  };
+
+  const allSelected = options.length > 0 && options.every((option) => value.includes(option));
+
+  const toggleAll = () => {
+    onChange(allSelected ? [] : [...options]);
   };
 
   return (
@@ -50,6 +58,10 @@ export function MultiSelect({
           <div className="flex flex-wrap gap-1.5 flex-1 text-left">
             {value.length === 0 ? (
               <span className="text-muted-foreground py-1">{placeholder}</span>
+            ) : allSelected && selectAllLabel ? (
+              <Badge variant="secondary" className="bg-primary-soft text-primary hover:bg-primary-soft">
+                {selectAllLabel}
+              </Badge>
             ) : (
               value.map((v) => (
                 <Badge
@@ -77,6 +89,23 @@ export function MultiSelect({
 
       <PopoverContent className="w-[--radix-popover-trigger-width] p-1" align="start">
         <div className="max-h-64 overflow-y-auto">
+          {selectAllLabel && (
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-muted text-left transition-colors"
+            >
+              <div
+                className={cn(
+                  "h-4 w-4 rounded border flex items-center justify-center transition-colors",
+                  allSelected ? "bg-primary border-primary" : "border-input"
+                )}
+              >
+                {allSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+              </div>
+              <span>{selectAllLabel}</span>
+            </button>
+          )}
           {options.map((opt) => {
             const selected = value.includes(opt);
 
