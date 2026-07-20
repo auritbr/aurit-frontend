@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
@@ -167,6 +168,8 @@ export default function HabilitacaoForm() {
 
   const agenteSelectValue =
     form.agente || normalizeId(existingHabilitacao?.agente);
+
+  useImportFormFill("habilitacoes-proposta", setForm);
 
   useEffect(() => {
     let active = true;

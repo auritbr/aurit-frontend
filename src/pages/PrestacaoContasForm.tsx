@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ import { MultiSelect } from "@/components/MultiSelect";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { HelpTooltip } from "@/components/HelpTooltip";
+import { ImportDataTitleAction } from "@/components/PageTitle";
 import {
   getPrestacaoContasById,
   createPrestacaoContas,
@@ -152,6 +154,8 @@ export default function PrestacaoContasForm() {
   >([]);
 
   const bloqueado = loading || saving || visualizando;
+
+  useImportFormFill("prestacoes-contas", setForm);
 
   useEffect(() => {
     let active = true;
@@ -525,6 +529,7 @@ export default function PrestacaoContasForm() {
               side="bottom"
               align="start"
             />
+            <ImportDataTitleAction show={!visualizando} />
           </div>
         </div>
 

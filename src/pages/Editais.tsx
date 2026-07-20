@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
+import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { PageTitle } from "@/components/PageTitle";
@@ -277,6 +279,8 @@ export default function Editais() {
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
+
+  useImportFormFill("editais", setForm);
 
   useEffect(() => {
     let active = true;
@@ -613,6 +617,7 @@ export default function Editais() {
         setNextStepCard(criarProximaAcaoEdital());
         toast.success("Edital cadastrado com sucesso.");
       }
+      notifyImportReviewSaveSuccess("editais");
 
       await carregarDados();
       handleCancel();
@@ -720,6 +725,7 @@ export default function Editais() {
         <PageTitle
           title="Editais"
           tooltip="Cadastre e acompanhe editais, chamadas públicas e oportunidades mapeadas pela organização. Registre órgão responsável, ano, datas, valores, status, número de inscrição, agente responsável e observações para manter o histórico institucional e orientar futuras propostas."
+          showImport={showForm && !readOnly}
         />
 
         {!showForm && nextStepCard && (

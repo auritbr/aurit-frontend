@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, User, FileText } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { AccessDenied } from "@/components/AccessDenied";
@@ -138,6 +139,8 @@ export default function TrajetoriaCulturalForm() {
     form.colaboradorNome,
     existingTrajetoria,
   ]);
+
+  useImportFormFill("trajetorias-culturais", setForm);
 
   useEffect(() => {
     let active = true;

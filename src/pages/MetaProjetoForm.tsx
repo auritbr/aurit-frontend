@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Target, ClipboardCheck, Link2 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +19,7 @@ import { FieldLabel } from "@/components/FieldLabel";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { FormLegend } from "@/components/FormLegend";
 import { HelpTooltip } from "@/components/HelpTooltip";
+import { ImportDataTitleAction } from "@/components/PageTitle";
 import {
   buildMetaProjetoPayload,
   createMetaProjeto,
@@ -193,6 +195,8 @@ export default function MetaProjetoForm() {
 
     return options;
   }, [propostasFiltradas, propostas, propostaSelectValue, projetoSelectValue]);
+
+  useImportFormFill("metas-projeto", setForm);
 
   useEffect(() => {
     let active = true;
@@ -380,6 +384,7 @@ export default function MetaProjetoForm() {
               side="bottom"
               align="start"
             />
+            <ImportDataTitleAction show={!visualizando} />
           </div>
         </div>
 

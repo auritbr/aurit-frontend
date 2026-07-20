@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
 import { FieldLabel } from "@/components/FieldLabel";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
@@ -147,6 +148,8 @@ export default function DocumentoForm() {
         statusDocumento === "NAO_SE_APLICA" ? "" : form.mensagemVencimento,
     });
   };
+
+  useImportFormFill("documentos", setForm);
 
   useEffect(() => {
     let active = true;

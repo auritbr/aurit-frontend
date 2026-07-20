@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
@@ -258,6 +259,8 @@ export default function EmprestimoForm() {
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  useImportFormFill("emprestimos", setForm);
 
   useEffect(() => {
     let active = true;

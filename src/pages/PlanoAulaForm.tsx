@@ -9,6 +9,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ClipboardList, FileText } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { AccessDenied } from "@/components/AccessDenied";
@@ -486,6 +487,8 @@ export default function PlanoAulaForm() {
   const turmaLabel = (turmaId: string) =>
     turmasOptions.find((turma) => String(turma.id) === String(turmaId))
       ?.nomeTurma ?? turmaId;
+
+  useImportFormFill("planos-aula", setForm);
 
   useEffect(() => {
     let active = true;

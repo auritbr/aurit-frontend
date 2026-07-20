@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, User, GraduationCap, Sparkles, Info } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
@@ -85,6 +86,8 @@ export default function CurriculoForm() {
     k: K,
     v: CurriculoFormData[K],
   ) => setForm((p) => ({ ...p, [k]: v }));
+
+  useImportFormFill("curriculos", setForm);
 
   useEffect(() => {
     let active = true;

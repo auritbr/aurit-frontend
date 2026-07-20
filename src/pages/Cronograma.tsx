@@ -19,6 +19,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
+import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
 import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
@@ -206,6 +208,8 @@ export default function Cronograma() {
     !!form.dataInicioEtapa &&
     !!form.dataFimEtapa &&
     form.dataFimEtapa < form.dataInicioEtapa;
+
+  useImportFormFill("cronogramas", setForm);
 
   useEffect(() => {
     let active = true;
@@ -623,6 +627,7 @@ export default function Cronograma() {
 
         return [saved, ...prev];
       });
+      notifyImportReviewSaveSuccess("cronogramas");
 
       if (mode === "create") {
         salvarProximaAcaoCronograma();
@@ -732,6 +737,7 @@ export default function Cronograma() {
         <PageTitle
           title="Cronograma do Projeto"
           tooltip={cronogramaTitleTooltip}
+          showImport={showForm && !readOnly}
         />
 
         {showForm ? (

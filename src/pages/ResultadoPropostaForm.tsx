@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { HelpTooltip } from "@/components/HelpTooltip";
+import { ImportDataTitleAction } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
@@ -250,6 +252,8 @@ export default function ResultadoPropostaForm() {
 
   const propostaSelectValue =
     form.propostaEdital || normalizeId(existingResultado?.propostaEdital);
+
+  useImportFormFill("resultados-proposta", setForm);
 
   useEffect(() => {
     let active = true;
@@ -707,6 +711,7 @@ export default function ResultadoPropostaForm() {
               side="bottom"
               align="start"
             />
+            <ImportDataTitleAction show={!visualizando} />
           </div>
 
           <p className="text-sm text-muted-foreground">

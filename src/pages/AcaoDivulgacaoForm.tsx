@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -179,6 +180,8 @@ export default function AcaoDivulgacaoForm() {
 
   const propostaSelectValue =
     form.propostaEditalId || normalizeId(existingAcao?.propostaEditalId);
+
+  useImportFormFill("acoes-divulgacao", setForm);
 
   useEffect(() => {
     let active = true;

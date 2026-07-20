@@ -16,6 +16,8 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
+import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { EmailInput } from "@/components/EmailInput";
 import { PageTitle } from "@/components/PageTitle";
@@ -327,6 +329,8 @@ export default function Diretoria() {
 
   const statusEncerrado = isStatusEncerrado(form.statusDiretoria);
   const statusAfastado = isStatusAfastado(form.statusDiretoria);
+
+  useImportFormFill("diretoria", setForm);
 
   useEffect(() => {
     let active = true;
@@ -807,6 +811,7 @@ export default function Diretoria() {
 
         return [mapped, ...prev];
       });
+      notifyImportReviewSaveSuccess("diretoria");
 
       if (isCreating) {
         salvarProximaAcaoDiretoria();
@@ -876,6 +881,7 @@ export default function Diretoria() {
         <PageTitle
           title="Diretoria"
           tooltip="Cadastre e acompanhe os membros da diretoria da organização, informando cargo, período de mandato e situação atual. Esses dados ajudam a manter a representação institucional atualizada e podem ser utilizados em documentos oficiais, editais, contratos, relatórios e prestações de contas."
+          showImport={showForm && !readOnly}
         />
 
         {!showForm && nextStepCard && (

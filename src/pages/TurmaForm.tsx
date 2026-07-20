@@ -9,6 +9,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, BookOpen, CalendarClock, Users } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { AccessDenied } from "@/components/AccessDenied";
@@ -172,6 +173,8 @@ export default function TurmaForm() {
       })),
     ];
   }, [colaboradores, form.colaboradores]);
+
+  useImportFormFill("turmas", setForm);
 
   useEffect(() => {
     let active = true;

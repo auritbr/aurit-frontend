@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { EmailInput } from "@/components/EmailInput";
 import { PageTitle } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
@@ -622,6 +623,8 @@ export default function ParticipanteForm() {
         }),
     [form.vinculos],
   );
+
+  useImportFormFill("participantes", setForm);
 
   useEffect(() => {
     let active = true;

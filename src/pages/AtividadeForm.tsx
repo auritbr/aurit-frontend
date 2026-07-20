@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ClipboardList, Users2, Tags, Link2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -186,6 +187,8 @@ export default function AtividadeForm() {
 
     return options;
   }, [projetos, form.projeto, form.projetoNome, existingAtividade]);
+
+  useImportFormFill("atividades", setForm);
 
   useEffect(() => {
     let active = true;

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { HelpTooltip } from "@/components/HelpTooltip";
+import { ImportDataTitleAction } from "@/components/PageTitle";
 import {
   getPropostaEditalById,
   createPropostaEdital,
@@ -286,6 +288,8 @@ export default function PropostaEditalForm() {
     );
   }, [agentes, agenteSelectValue]);
 
+  useImportFormFill("propostas-editais", setForm);
+
   useEffect(() => {
     let active = true;
 
@@ -517,6 +521,7 @@ export default function PropostaEditalForm() {
               side="bottom"
               align="start"
             />
+            <ImportDataTitleAction show={!visualizando} />
           </div>
         </div>
 

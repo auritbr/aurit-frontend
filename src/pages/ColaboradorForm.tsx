@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { EmailInput } from "@/components/EmailInput";
 import { PageTitle } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
@@ -245,6 +246,8 @@ export default function ColaboradorForm() {
 
   const set = <K extends keyof Colaborador>(key: K, value: Colaborador[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  useImportFormFill("colaboradores", setForm);
 
   useEffect(() => {
     void carregarTudo();

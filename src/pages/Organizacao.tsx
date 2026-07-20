@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
+import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
 import { EmailInput } from "@/components/EmailInput";
 import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
@@ -1042,6 +1044,8 @@ export default function Organizacao() {
   const mostrarTerritorioHistorico =
     deveMostrarTerritorioHistorico(tipoAgenteSelecionado);
 
+  useImportFormFill("organizacoes", setForm);
+
   useEffect(() => {
     let active = true;
 
@@ -1480,6 +1484,7 @@ export default function Organizacao() {
 
       const savedDto: OrganizacaoDTO = await response.json();
       const saved = mapOrganizacao(savedDto);
+      notifyImportReviewSaveSuccess("organizacoes");
 
       if (isCreating) {
         salvarProximaAcaoOrganizacao();
@@ -1567,6 +1572,7 @@ export default function Organizacao() {
         <PageTitle
           title="Dados Institucionais"
           tooltip="Cadastre as informações oficiais do agente, organização, coletivo ou iniciativa cultural. Esses dados serão utilizados em documentos, relatórios, editais, prestações de contas e demais registros institucionais do sistema."
+          showImport={showForm && !visualizando}
         />
 
         {!showForm && nextStepCard && (

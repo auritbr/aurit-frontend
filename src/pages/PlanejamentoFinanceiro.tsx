@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
+import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
@@ -44,6 +46,7 @@ import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { HelpTooltip } from "@/components/HelpTooltip";
+import { ImportDataTitleAction } from "@/components/PageTitle";
 import { TablePagination } from "@/components/TablePagination";
 import { SortableHeader } from "@/components/SortableHeader";
 import { NextStepCard } from "@/components/NextStepCard";
@@ -210,6 +213,8 @@ export default function PlanejamentoFinanceiro() {
 
   const invalidPeriodo =
     !!form.dataInicio && !!form.dataFim && form.dataFim < form.dataInicio;
+
+  useImportFormFill("planejamentos-financeiros", setForm);
 
   useEffect(() => {
     let active = true;
@@ -548,6 +553,7 @@ export default function PlanejamentoFinanceiro() {
 
         return [saved, ...prev];
       });
+      notifyImportReviewSaveSuccess("planejamentos-financeiros");
 
       handleCancel();
       setSelectedId(saved.id);
@@ -702,6 +708,7 @@ export default function PlanejamentoFinanceiro() {
               side="bottom"
               align="start"
             />
+            <ImportDataTitleAction show={showForm && !readOnly} />
           </div>
         </div>
 

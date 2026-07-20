@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
@@ -260,6 +261,8 @@ export default function PatrimonioForm() {
     form.projetoId ||
     String(existingPatrimonio?.projetoId ?? "") ||
     SEM_PROJETO_VALUE;
+
+  useImportFormFill("patrimonios", setForm);
 
   useEffect(() => {
     let active = true;

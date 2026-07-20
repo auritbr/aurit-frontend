@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
@@ -318,6 +319,8 @@ export default function ProjetoForm() {
 
     return options;
   }, [organizacoes, form.organizacaoId, existingProjeto]);
+
+  useImportFormFill("projetos", setForm);
 
   useEffect(() => {
     let active = true;
