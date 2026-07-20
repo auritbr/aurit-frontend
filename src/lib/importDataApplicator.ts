@@ -3,7 +3,7 @@ export type ImportFieldKind = "enum" | "enum-array" | "relationship" | "relation
 export interface ImportFieldRule {
   targetField?: string;
   kind: ImportFieldKind;
-  options?: Array<{ value: string; label?: string }>;
+  options?: ReadonlyArray<{ value: string; label?: string }>;
 }
 
 export interface ImportApplyWarning {
