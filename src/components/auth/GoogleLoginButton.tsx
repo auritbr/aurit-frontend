@@ -99,8 +99,7 @@ interface Props {
   onErro?: (mensagem: string) => void;
   onCancelado?: () => void;
   tenant?: string;
-  abrirAutomaticamente?: boolean;
-  tecnico?: boolean;
+  exibirSeparador?: boolean;
 }
 
 export function GoogleLoginButton({
@@ -111,8 +110,7 @@ export function GoogleLoginButton({
   onErro,
   onCancelado,
   tenant,
-  abrirAutomaticamente = false,
-  tecnico = false,
+  exibirSeparador = true,
 }: Props) {
   const central =
     (isAuthCentralHost() || isLocalhost()) && Boolean(onAuthorizationCode);
@@ -121,7 +119,6 @@ export function GoogleLoginButton({
   const [aguardando, setAguardando] = useState(false);
   const popupRef = useRef<Window | null>(null);
   const codigoEmUso = useRef(false);
-  const fluxoAutomaticoIniciado = useRef(false);
   const codeClientRef = useRef<GoogleCodeClient | null>(null);
   const abrirPopupRef = useRef<(() => void) | undefined>(undefined);
   const authorizationCodeRef = useRef(onAuthorizationCode);
@@ -301,29 +298,18 @@ export function GoogleLoginButton({
     codeClientRef.current.requestCode();
   }, [central, desabilitado, processando, pronto]);
 
-  useEffect(() => {
-    if (
-      !abrirAutomaticamente ||
-      !central ||
-      !pronto ||
-      fluxoAutomaticoIniciado.current
-    )
-      return;
-    fluxoAutomaticoIniciado.current = true;
-    abrir();
-  }, [abrir, abrirAutomaticamente, central, pronto]);
-
   const semConfiguracao = central && !CLIENT_ID;
   const ocupado = processando || aguardando;
-  if (tecnico) return null;
 
   return (
     <>
-      <div className="mt-4 flex items-center gap-3" aria-hidden>
-        <span className="h-px flex-1 bg-border/70" />
-        <span className="text-[11px] text-muted-foreground">ou</span>
-        <span className="h-px flex-1 bg-border/70" />
-      </div>
+      {exibirSeparador ? (
+        <div className="mt-4 flex items-center gap-3" aria-hidden>
+          <span className="h-px flex-1 bg-border/70" />
+          <span className="text-[11px] text-muted-foreground">ou</span>
+          <span className="h-px flex-1 bg-border/70" />
+        </div>
+      ) : null}
       <button
         type="button"
         onClick={abrir}
@@ -336,7 +322,9 @@ export function GoogleLoginButton({
             ? "Login com Google aguardando configuração."
             : undefined
         }
-        className="login-google-button mt-3 inline-flex h-[44px] w-full items-center justify-center gap-2.5 rounded-[8px] text-[13px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
+        className={`login-google-button inline-flex h-[44px] w-full items-center justify-center gap-2.5 rounded-[8px] text-[13px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed ${
+          exibirSeparador ? "mt-3" : ""
+        }`}
       >
         {processando ? (
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />

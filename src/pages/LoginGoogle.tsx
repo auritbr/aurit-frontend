@@ -13,9 +13,8 @@ import {
 } from "@/lib/auth";
 
 /**
- * Superfície técnica do domínio auth. Não contém branding ou um segundo botão:
- * o Google Identity Services é iniciado automaticamente pelo gesto que abriu
- * este popup a partir do tenant.
+ * Superfície técnica do domínio auth. O clique neste botão é necessário para
+ * que o navegador autorize o popup OAuth oficial do Google nessa origem.
  */
 export default function LoginGoogle() {
   const [params] = useSearchParams();
@@ -63,25 +62,26 @@ export default function LoginGoogle() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6 text-center">
-      <GoogleLoginButton
-        processando={carregando}
-        tenant={tenant}
-        onAuthorizationCode={receberCodigoAutorizacao}
-        onErro={setErro}
-        onCancelado={cancelar}
-        abrirAutomaticamente
-        tecnico
-      />
-      {erro ? (
-        <p role="alert" className="text-sm font-medium text-destructive">
-          {erro}
-        </p>
-      ) : (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          {carregando ? "Entrando com Google..." : "Conectando ao Google..."}
-        </div>
-      )}
+      <div className="w-full max-w-[320px]">
+        <GoogleLoginButton
+          processando={carregando}
+          tenant={tenant}
+          onAuthorizationCode={receberCodigoAutorizacao}
+          onErro={setErro}
+          onCancelado={cancelar}
+          exibirSeparador={false}
+        />
+        {erro ? (
+          <p role="alert" className="mt-3 text-sm font-medium text-destructive">
+            {erro}
+          </p>
+        ) : carregando ? (
+          <div className="mt-3 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            Entrando com Google...
+          </div>
+        ) : null}
+      </div>
     </main>
   );
 }
