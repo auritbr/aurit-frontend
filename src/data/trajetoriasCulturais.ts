@@ -22,11 +22,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -118,9 +114,7 @@ interface ColaboradorApi {
   nome?: string | null;
 }
 
-export function mapTrajetoria(
-  dto: TrajetoriaCulturalDTO,
-): TrajetoriaCultural {
+export function mapTrajetoria(dto: TrajetoriaCulturalDTO): TrajetoriaCultural {
   const colaboradorId =
     normalizeId(dto.colaboradorId) ??
     normalizeId(dto.idColaborador) ??
@@ -155,9 +149,7 @@ export function getColaboradorNome(item: TrajetoriaCultural): string {
   );
 }
 
-export async function getTrajetoriasCulturais(): Promise<
-  TrajetoriaCultural[]
-> {
+export async function getTrajetoriasCulturais(): Promise<TrajetoriaCultural[]> {
   const response = await fetch(`${API_URL}/trajetorias-culturais`, {
     method: "GET",
     headers: getJsonHeaders(),
@@ -251,8 +243,7 @@ export async function getColaboradoresOptions(): Promise<ColaboradorOption[]> {
 
   return (Array.isArray(data) ? data : [])
     .filter(
-      (colaborador) =>
-        colaborador.id !== null && colaborador.id !== undefined,
+      (colaborador) => colaborador.id !== null && colaborador.id !== undefined,
     )
     .map((colaborador) => ({
       id: String(colaborador.id),

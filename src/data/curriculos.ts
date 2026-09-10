@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { isPlanoGratuitoAtual } from "@/lib/plano";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -339,6 +340,10 @@ export function dtoToListItem(dto: CurriculoDTO): CurriculoListItem {
 }
 
 export async function getCurriculos(): Promise<CurriculoListItem[]> {
+  // O guard de rota já bloqueia o módulo. Esta verificação protege também
+  // montagens transitórias e evita uma requisição 400/403 desnecessária.
+  if (await isPlanoGratuitoAtual()) return [];
+
   const response = await fetch(`${API_URL}/curriculos`, {
     method: "GET",
     headers: getJsonHeaders(),

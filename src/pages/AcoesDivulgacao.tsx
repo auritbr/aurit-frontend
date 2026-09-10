@@ -1,33 +1,48 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Search,
-  Plus,
-  Eye,
-  Pencil,
-  Trash2,
-  Megaphone,
-  FileDown,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-} from "lucide-react";
-import { exportAcaoDivulgacaoPdf } from "@/lib/pdfExporters";
+import { FileDown, Loader2, Plus, RotateCcw, Search } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
-import { PageTitle } from "@/components/PageTitle";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+  useSessionBoolean,
+} from "@/components/AdvancedSearchPanel";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { DocumentActionButton } from "@/components/DocumentActionButton";
+import { FieldLabel } from "@/components/FieldLabel";
+import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
+import { StatusPill } from "@/components/StatusPill";
+import { TableCellText } from "@/components/TableCellText";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableEmptyState } from "@/components/list/DataTableEmptyState";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { SortableTh } from "@/components/list/SortableTh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TableActionIcon } from "@/components/TableActionIcon";
-import { TableCellText } from "@/components/TableCellText";
-import { StatusPill, type Status } from "@/components/StatusPill";
-import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { TablePagination } from "@/components/TablePagination";
-import { NextStepCard } from "@/components/NextStepCard";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { usePagination } from "@/hooks/usePagination";
-import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
+import { downloadAcaoDivulgacaoReport as exportAcaoDivulgacaoPdf } from "@/lib/individualReportDownload";
+import {
+  getPermissoesUsuarioLogadoPorModulo,
+  permissoesVazias,
+  type PermissoesModulo,
+} from "@/lib/permissoes";
 import {
   deleteAcaoDivulgacao,
   editalNomeAcao,
@@ -35,15 +50,12 @@ import {
   getPropostasEditaisOptions,
   projetoNomeAcao,
   propostaNomeAcao,
+  statusAcao,
   statusValueToLabel,
   type AcaoDivulgacao,
   type PropostaEditalOption,
 } from "@/data/acoesDivulgacao";
-import {
-  getPermissoesUsuarioLogadoPorModulo,
-  permissoesVazias,
-  type PermissoesModulo,
-} from "@/lib/permissoes";
+import { getProjetosOptions, type SimpleOption } from "@/data/propostasEdital";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,46 +68,64 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
-const ACAO_DIVULGACAO_NEXT_STEP_KEY =
-  "aurit:acoes-divulgacao:next-step-card";
-const NEXT_STEP_DURATION_MS = 60_000;
-
-type SortKey = "nomeAcao" | "propostaEdital" | "status";
-type SortDirection = "asc" | "desc";
-
-interface SortConfig {
-  key: SortKey;
-  direction: SortDirection;
+const NEXT_STEP_KEY = "aurit:acoes-divulgacao:next-step-card";
+type SortBy = "nome" | "proposta" | "edital" | "projeto" | "status";
+type SortDir = "asc" | "desc";
+interface Filtros {
+  nome: string;
+  propostas: string[];
+  projetos: string[];
+  status: string[];
+  sortBy: SortBy;
+  sortDir: SortDir;
 }
-
-interface AcaoDivulgacaoNextStepCardData {
+interface NextStepData {
   titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+  acaoLabel?: string;
+  acaoUrl?: string;
+  variante?: "pendente" | "atencao" | "concluido";
 }
+const emptyFiltros: Filtros = {
+  nome: "",
+  propostas: [],
+  projetos: [],
+  status: [],
+  sortBy: "nome",
+  sortDir: "asc",
+};
+const sortOptions: Array<{ value: SortBy; label: string }> = [
+  { value: "nome", label: "Nome da ação" },
+  { value: "proposta", label: "Proposta de edital" },
+  { value: "edital", label: "Edital" },
+  { value: "projeto", label: "Projeto" },
+  { value: "status", label: "Status" },
+];
+const normalize = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
 export default function AcoesDivulgacao() {
   const navigate = useNavigate();
-  const tableRef = useRef<HTMLTableElement>(null);
-
-  const [search, setSearch] = useState("");
   const [items, setItems] = useState<AcaoDivulgacao[]>([]);
   const [propostas, setPropostas] = useState<PropostaEditalOption[]>([]);
+  const [projetos, setProjetos] = useState<SimpleOption[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
-  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
-    null,
-  );
-  const [nextStepCard, setNextStepCard] =
-    useState<AcaoDivulgacaoNextStepCardData | null>(null);
+  const [accessDenied, setAccessDenied] = useState<string | null>(null);
+  const [nextStep, setNextStep] = useState<NextStepData | null>(null);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [panelOpen, setPanelOpen] = useSessionBoolean(
+    "acoes-divulgacao:pesquisa-avancada",
+    false,
+  );
+  const [draft, setDraft] = useState<Filtros>(emptyFiltros);
+  const [filtros, setFiltros] = useState<Filtros>(emptyFiltros);
+  const [searching, setSearching] = useState(false);
 
   const podeVisualizar = permissoes.VISUALIZAR;
   const podeCriar = permissoes.CRIAR;
@@ -103,219 +133,196 @@ export default function AcoesDivulgacao() {
   const podeExcluir = permissoes.EXCLUIR;
   const podeGerarPdf = permissoes.GERAR_PDF || permissoes.BAIXAR;
 
+  const propostaNome = useCallback(
+    (item: AcaoDivulgacao) =>
+      propostaNomeAcao(item.propostaEditalId, propostas, item),
+    [propostas],
+  );
+  const editalNome = useCallback(
+    (item: AcaoDivulgacao) =>
+      editalNomeAcao(item.propostaEditalId, propostas, item),
+    [propostas],
+  );
+  const projetoNome = useCallback(
+    (item: AcaoDivulgacao) =>
+      item.nomeProjeto ||
+      projetos.find((projeto) => String(projeto.id) === item.projetoId)?.nome ||
+      projetoNomeAcao(item.propostaEditalId, propostas, item),
+    [projetos, propostas],
+  );
+
   useEffect(() => {
     let active = true;
-
-    async function carregarPermissoes() {
-      try {
-        setLoadingPermissoes(true);
-
-        const data = await getPermissoesUsuarioLogadoPorModulo(
-          "ACOES_DIVULGACAO",
-        );
-
-        if (!active) return;
-
-        setPermissoes(data);
-      } catch (error) {
-        console.error(error);
-
-        if (!active) return;
-
-        setPermissoes(permissoesVazias);
-      } finally {
-        if (active) setLoadingPermissoes(false);
-      }
-    }
-
-    void carregarPermissoes();
-
+    void getPermissoesUsuarioLogadoPorModulo("ACOES_DIVULGACAO")
+      .then((data) => active && setPermissoes(data))
+      .catch(() => active && setPermissoes(permissoesVazias))
+      .finally(() => active && setLoadingPermissoes(false));
     return () => {
       active = false;
     };
   }, []);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem(ACAO_DIVULGACAO_NEXT_STEP_KEY);
-
+    const raw = sessionStorage.getItem(NEXT_STEP_KEY);
     if (!raw) return;
-
     try {
-      const parsed = JSON.parse(raw) as AcaoDivulgacaoNextStepCardData;
-      setNextStepCard(parsed);
+      setNextStep(JSON.parse(raw) as NextStepData);
     } catch {
-      setNextStepCard(null);
+      setNextStep(null);
     }
-
-    sessionStorage.removeItem(ACAO_DIVULGACAO_NEXT_STEP_KEY);
-
-    const timer = window.setTimeout(() => {
-      setNextStepCard(null);
-    }, NEXT_STEP_DURATION_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
+    sessionStorage.removeItem(NEXT_STEP_KEY);
+    const timer = window.setTimeout(() => setNextStep(null), 60_000);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (loadingPermissoes) return;
-
     if (!podeVisualizar) {
       setLoading(false);
       return;
     }
-
-    void carregarDados();
+    let active = true;
+    async function load() {
+      try {
+        setLoading(true);
+        setAccessDenied(null);
+        const [acoes, propostasData, projetosData] = await Promise.all([
+          getAcoesDivulgacao(),
+          getPropostasEditaisOptions(),
+          getProjetosOptions(),
+        ]);
+        if (active) {
+          setItems(acoes);
+          setPropostas(propostasData);
+          setProjetos(projetosData);
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar as ações de divulgação.";
+        if (isPlanoAccessDenied(message)) setAccessDenied(message);
+        else toast.error(message);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      active = false;
+    };
   }, [loadingPermissoes, podeVisualizar]);
 
-  async function carregarDados() {
-    try {
-      setLoading(true);
-      setAccessDeniedMessage(null);
+  const setDraftField = <K extends keyof Filtros>(key: K, value: Filtros[K]) =>
+    setDraft((prev) => ({ ...prev, [key]: value }));
 
-      const [acoesData, propostasData] = await Promise.all([
-        getAcoesDivulgacao(),
-        getPropostasEditaisOptions(),
-      ]);
-
-      setItems(acoesData);
-      setPropostas(propostasData);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível carregar as ações de divulgação.";
-
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        return;
-      }
-
-      console.error(error);
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const propostaNome = (item: AcaoDivulgacao) =>
-    propostaNomeAcao(item.propostaEditalId, propostas, item);
-
-  const editalNome = (item: AcaoDivulgacao) =>
-    editalNomeAcao(item.propostaEditalId, propostas, item);
-
-  const projetoNome = (item: AcaoDivulgacao) =>
-    projetoNomeAcao(item.propostaEditalId, propostas, item);
+  const applyFiltros = (next: Filtros) => {
+    setDraft(next);
+    setFiltros(next);
+    setSearching(true);
+    setCurrentPage(1);
+    window.setTimeout(() => setSearching(false), 180);
+  };
 
   const filtered = useMemo(() => {
-    const term = search.toLowerCase().trim();
-
-    if (!term) return items;
-
-    return items.filter((item) => {
-      const proposta = propostaNome(item).toLowerCase();
-      const edital = editalNome(item).toLowerCase();
-      const projeto = projetoNome(item).toLowerCase();
-      const status = statusValueToLabel(item.status).toLowerCase();
-
-      return [
-        item.nomeAcao,
-        item.descricaoAcao,
-        item.realizacaoAcao,
-        item.objetivoAcao,
-        item.acoesAcessibilidade,
-        item.resultadoEsperado,
-        item.produtosGerados,
-        proposta,
-        edital,
-        projeto,
-        status,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(term);
+    const nome = normalize(filtros.nome);
+    const result = items.filter((item) => {
+      if (
+        nome &&
+        !normalize(
+          `${item.nomeAcao} ${item.descricaoAcao} ${item.objetivoAcao}`,
+        ).includes(nome)
+      )
+        return false;
+      if (
+        filtros.propostas.length &&
+        !filtros.propostas.includes(item.propostaEditalId)
+      )
+        return false;
+      if (filtros.projetos.length && !filtros.projetos.includes(item.projetoId))
+        return false;
+      if (filtros.status.length && !filtros.status.includes(item.status))
+        return false;
+      return true;
     });
-  }, [search, items, propostas]);
-
-  const sorted = useMemo(() => {
-    if (!sortConfig) return filtered;
-
-    const getSortableValue = (item: AcaoDivulgacao, key: SortKey) => {
-      switch (key) {
-        case "nomeAcao":
-          return item.nomeAcao ?? "";
-
-        case "propostaEdital":
-          return propostaNomeAcao(item.propostaEditalId, propostas, item);
-
-        case "status":
-          return statusValueToLabel(item.status);
-
-        default:
-          return "";
-      }
+    const value = (item: AcaoDivulgacao) => {
+      if (filtros.sortBy === "proposta") return propostaNome(item);
+      if (filtros.sortBy === "edital") return editalNome(item);
+      if (filtros.sortBy === "projeto") return projetoNome(item);
+      if (filtros.sortBy === "status") return statusValueToLabel(item.status);
+      return item.nomeAcao;
     };
-
-    const direction = sortConfig.direction === "asc" ? 1 : -1;
-
-    return [...filtered].sort((a, b) => {
-      const valueA = getSortableValue(a, sortConfig.key);
-      const valueB = getSortableValue(b, sortConfig.key);
-
-      return (
-        valueA.localeCompare(valueB, "pt-BR", {
-          sensitivity: "base",
-          numeric: true,
-        }) * direction
-      );
+    return [...result].sort((a, b) => {
+      const compared = value(a).localeCompare(value(b), "pt-BR", {
+        sensitivity: "base",
+      });
+      return filtros.sortDir === "asc" ? compared : -compared;
     });
-  }, [filtered, propostas, sortConfig]);
+  }, [items, filtros, propostaNome, editalNome, projetoNome]);
 
+  const activeFilters: ActiveFilterItem[] = [];
+  if (filtros.nome.trim())
+    activeFilters.push({
+      id: "nome",
+      label: "Nome da ação",
+      value: filtros.nome.trim(),
+      onRemove: () => applyFiltros({ ...filtros, nome: "" }),
+    });
+  const pushList = (
+    key: "propostas" | "projetos" | "status",
+    label: string,
+    values: string[],
+    getLabel: (value: string) => string,
+  ) =>
+    values.forEach((value) =>
+      activeFilters.push({
+        id: `${key}-${value}`,
+        label,
+        value: getLabel(value),
+        onRemove: () =>
+          applyFiltros({
+            ...filtros,
+            [key]: filtros[key].filter((item) => item !== value),
+          }),
+      }),
+    );
+  pushList(
+    "propostas",
+    "Proposta",
+    filtros.propostas,
+    (id) => propostas.find((p) => p.id === id)?.nome ?? id,
+  );
+  pushList(
+    "projetos",
+    "Projeto",
+    filtros.projetos,
+    (id) => projetos.find((projeto) => String(projeto.id) === id)?.nome ?? id,
+  );
+  pushList("status", "Status", filtros.status, (value) =>
+    statusValueToLabel(value),
+  );
+
+  const filtrosKey = JSON.stringify(filtros);
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sorted, 25, search);
+    usePagination(filtered, 25, filtrosKey);
 
-  function handleSort(key: SortKey) {
-    setSortConfig((prev) => {
-      if (prev?.key === key) {
-        return {
-          key,
-          direction: prev.direction === "asc" ? "desc" : "asc",
-        };
-      }
-
-      return {
-        key,
-        direction: "asc",
-      };
-    });
-
-    setCurrentPage(1);
-  }
-
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
-
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
-    }
-
-    toast.success("Dados copiados com sucesso.");
+  const handleSearch = (event?: React.FormEvent) => {
+    event?.preventDefault();
+    if (!searching) applyFiltros(draft);
   };
+  const clear = () => applyFiltros(emptyFiltros);
+  const sort = (key: SortBy) =>
+    applyFiltros({
+      ...filtros,
+      sortBy: key,
+      sortDir:
+        filtros.sortBy === key && filtros.sortDir === "asc" ? "desc" : "asc",
+    });
 
   async function handleDelete() {
     if (!confirmDelete) return;
-
-    if (!podeExcluir) {
-      toast.error("Você não possui permissão para excluir ações de divulgação.");
-      setConfirmDelete(null);
-      return;
-    }
-
     try {
       await deleteAcaoDivulgacao(Number(confirmDelete));
-
       setItems((prev) => prev.filter((item) => item.id !== confirmDelete));
       toast.success("Ação de divulgação excluída com sucesso.");
     } catch (error) {
@@ -323,338 +330,369 @@ export default function AcoesDivulgacao() {
         error instanceof Error
           ? error.message
           : "Erro ao excluir ação de divulgação.";
-
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        setConfirmDelete(null);
-        return;
-      }
-
-      toast.error(message);
+      if (isPlanoAccessDenied(message)) setAccessDenied(message);
+      else toast.error(message);
     } finally {
       setConfirmDelete(null);
     }
   }
 
-  function handleExportPdf(item: AcaoDivulgacao) {
-    if (!podeGerarPdf) {
-      toast.error("Você não possui permissão para gerar PDF.");
-      return;
-    }
-
-    exportAcaoDivulgacaoPdf({
+  function exportPdf(item: AcaoDivulgacao) {
+    if (!podeGerarPdf)
+      return toast.error("Você não possui permissão para gerar PDF.");
+    void exportAcaoDivulgacaoPdf({
       ...item,
       propostaEdital: propostaNome(item),
       edital: editalNome(item),
       projeto: projetoNome(item),
-      registroDocumentacao: [],
-    } as any);
+    });
   }
 
-  if (loadingPermissoes) {
-    return (
-      <AppLayout>
-        <div className="container max-w-7xl py-6 sm:py-8">
-          <p className="text-sm text-muted-foreground">
-            Carregando permissões...
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
+  const propostaOptions = propostas.map((p) => ({
+    value: p.id,
+    label: p.nome,
+  }));
+  const projetoOptions = projetos.map((projeto) => ({
+    value: String(projeto.id),
+    label: projeto.nome,
+  }));
+  const exportColumns = [
+    { header: "Nome da ação", key: "nomeAcao" },
+    { header: "Proposta", key: "proposta" },
+    { header: "Edital", key: "edital" },
+    { header: "Projeto", key: "projeto" },
+    { header: "Status", key: "statusLabel" },
+  ];
+  const getExportData = () =>
+    filtered.map((item) => ({
+      ...item,
+      proposta: propostaNome(item),
+      edital: editalNome(item),
+      projeto: projetoNome(item),
+      statusLabel: statusValueToLabel(item.status),
+    }));
 
-  if (!podeVisualizar) {
+  if (!podeVisualizar)
     return (
       <AppLayout>
         <AccessNotPermitted />
       </AppLayout>
     );
-  }
-
-  if (accessDeniedMessage) {
+  if (accessDenied)
     return (
       <AppLayout>
-        <AccessDenied />
+        <AccessDenied message={accessDenied} />
       </AppLayout>
     );
-  }
 
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
-        <PageTitle
+        <ListPageHeader
           title="Ações de Divulgação"
-          tooltip="Cadastre as ações de divulgação da proposta de edital, detalhando como serão realizadas, quais objetivos serão alcançados e quais registros e resultados serão gerados. Essas informações são essenciais para visibilidade e prestação de contas."
-        />
-
-        {nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
-        )}
-
-        <div className="rounded border border-border bg-card">
-          <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-            <div className="relative max-w-md flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className="h-9 pl-9"
-                aria-label="Buscar ação de divulgação"
-              />
-            </div>
-
-            {podeCriar && (
+          tooltip="Nesta página são registradas e acompanhadas as ações de divulgação do projeto apresentado ao edital, com informações sobre sua finalidade, forma de realização, acessibilidade, resultados esperados, produtos previstos e situação atual."
+          objective="Planeje e acompanhe as ações utilizadas para divulgar o projeto apresentado ao edital e alcançar seu público, registrando como cada ação será realizada, quais medidas de acessibilidade serão adotadas, os resultados esperados e os materiais ou conteúdos previstos."
+          actions={
+            podeCriar ? (
               <Button
+                variant="glassPrimary"
                 onClick={() => navigate("/acoes-divulgacao/novo")}
-                className="h-9 gap-2"
+                className="h-9 gap-2 px-4"
               >
                 <Plus className="h-4 w-4" />
-                Cadastrar Ação
+                Cadastrar ação
               </Button>
-            )}
-          </div>
+            ) : undefined
+          }
+        />
 
-          <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[1180px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    data-no-copy
+        <div className="space-y-4">
+          <AdvancedSearchPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            activeCount={activeFilters.length}
+          >
+            <form onSubmit={handleSearch} noValidate>
+              <SearchFilterGrid>
+                <FilterText
+                  id="filtroNome"
+                  label="Nome da ação"
+                  value={draft.nome}
+                  onChange={(v) => setDraftField("nome", v)}
+                />
+                <FilterField label="Proposta de edital">
+                  <FilterMultiSelect
+                    id="filtroProposta"
+                    options={propostaOptions}
+                    value={draft.propostas}
+                    onChange={(v) => setDraftField("propostas", v)}
+                    placeholder="Todas as propostas"
+                    searchable
+                    summaryNoun="propostas selecionadas"
+                  />
+                </FilterField>
+                <FilterField label="Projeto">
+                  <FilterMultiSelect
+                    id="filtroProjeto"
+                    options={projetoOptions}
+                    value={draft.projetos}
+                    onChange={(v) => setDraftField("projetos", v)}
+                    placeholder="Todos os projetos"
+                    searchable
+                    summaryNoun="projetos selecionados"
+                  />
+                </FilterField>
+                <FilterField label="Status">
+                  <FilterMultiSelect
+                    id="filtroStatus"
+                    options={statusAcao}
+                    value={draft.status}
+                    onChange={(v) => setDraftField("status", v)}
+                    placeholder="Todos os status"
+                    summaryNoun="status selecionados"
+                  />
+                </FilterField>
+                <FilterField label="Ordenar por">
+                  <Select
+                    value={draft.sortBy}
+                    onValueChange={(v) => setDraftField("sortBy", v as SortBy)}
                   >
-                    Ações
-                  </th>
-
-                  <SortableHeader
-                    label="Nome da ação"
-                    sortKey="nomeAcao"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                  />
-
-                  <SortableHeader
-                    label="Proposta de edital"
-                    sortKey="propostaEdital"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                  />
-
-                  <SortableHeader
-                    label="Status"
-                    sortKey="status"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                  />
-
-                  {podeGerarPdf && (
-                    <th
-                      className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy
-                    >
-                      Documento
-                    </th>
+                    <SelectTrigger className="h-9 rounded-[10px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortOptions.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FilterField>
+                <FilterField label="Ordem">
+                  <Select
+                    value={draft.sortDir}
+                    onValueChange={(v) =>
+                      setDraftField("sortDir", v as SortDir)
+                    }
+                  >
+                    <SelectTrigger className="h-9 rounded-[10px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">A–Z</SelectItem>
+                      <SelectItem value="desc">Z–A</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FilterField>
+              </SearchFilterGrid>
+              <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 gap-2 px-4"
+                  onClick={clear}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Limpar filtros
+                </Button>
+                <Button
+                  type="submit"
+                  variant="glassPrimary"
+                  className="h-9 gap-2 px-5"
+                  disabled={searching}
+                >
+                  {searching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
                   )}
-                </tr>
-              </thead>
-
-              <tbody>
-                {loading ? (
-                  <LoadingRow colSpan={podeGerarPdf ? 5 : 4} />
-                ) : (
-                  paginated.map((item) => {
-                    const proposta = propostaNome(item);
-                    const status = statusValueToLabel(item.status) as Status;
-
-                    return (
-                      <tr
-                        key={item.id}
-                        className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                      >
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <div className="flex items-center gap-1">
-                            <TableActionIcon
-                              icon={Eye}
-                              label="Visualizar"
-                              onClick={() =>
-                                navigate(`/acoes-divulgacao/${item.id}`)
+                  {searching ? "Pesquisando..." : "Pesquisar"}
+                </Button>
+              </div>
+            </form>
+          </AdvancedSearchPanel>
+          <ActiveFilters items={activeFilters} onClearAll={clear} />
+          <DataTableCard>
+            <DataTableToolbar
+              total={filtered.length}
+              reportTo="/relatorios/acoes-divulgacao"
+              exportColumns={exportColumns}
+              getExportData={getExportData}
+              exportFilename="acoes-divulgacao"
+              canExport={podeGerarPdf}
+            />
+            {loading ? (
+              <div className="flex justify-center gap-2 py-16 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando ações...
+              </div>
+            ) : filtered.length === 0 ? (
+              <DataTableEmptyState
+                emptyTitle="Nenhuma ação de divulgação cadastrada."
+                createLabel="Cadastrar ação"
+                onCreate={
+                  podeCriar
+                    ? () => navigate("/acoes-divulgacao/novo")
+                    : undefined
+                }
+                activeCount={activeFilters.length}
+                onReviewSearch={() => setPanelOpen(true)}
+                onClearFilters={clear}
+              />
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[1100px]">
+                    <thead>
+                      <tr className="border-b border-border/60 bg-muted/45">
+                        <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase text-muted-foreground">
+                          Ações
+                        </th>
+                        <SortableTh
+                          sortKey="nome"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={sort}
+                        >
+                          Nome da ação
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="proposta"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={sort}
+                        >
+                          Proposta de edital
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="projeto"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={sort}
+                        >
+                          Projeto
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="status"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={sort}
+                        >
+                          Status
+                        </SortableTh>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginated.map((item) => (
+                        <tr
+                          key={item.id}
+                          className="border-b border-border/50 hover:bg-muted/25"
+                        >
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <RowActionsDropdown
+                              reportEndpoint={
+                                podeGerarPdf
+                                  ? `/acoes-divulgacao/${item.id}/relatorio`
+                                  : undefined
+                              }
+                              reportFilename={`acao-divulgacao-${item.id}.pdf`}
+                              viewTo={`/acoes-divulgacao/${item.id}`}
+                              editTo={
+                                podeEditar
+                                  ? `/acoes-divulgacao/${item.id}/editar`
+                                  : undefined
+                              }
+                              onDelete={
+                                podeExcluir
+                                  ? () => setConfirmDelete(item.id)
+                                  : undefined
                               }
                             />
-
-                            {podeEditar && (
-                              <TableActionIcon
-                                icon={Pencil}
-                                label="Editar"
-                                onClick={() =>
-                                  navigate(
-                                    `/acoes-divulgacao/${item.id}/editar`,
-                                  )
-                                }
-                              />
-                            )}
-
-                            {podeExcluir && (
-                              <TableActionIcon
-                                icon={Trash2}
-                                label="Excluir"
-                                variant="danger"
-                                onClick={() => setConfirmDelete(item.id)}
-                              />
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="px-6 py-2.5">
-                          <TableCellText text={item.nomeAcao} bold>
-                            {item.nomeAcao}
-                          </TableCellText>
-                        </td>
-
-                        <td className="px-6 py-2.5">
-                          <TableCellText text={proposta}>
-                            {proposta}
-                          </TableCellText>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <StatusPill status={status} />
-                        </td>
-
-                        {podeGerarPdf && (
-                          <td className="whitespace-nowrap px-6 py-2.5">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleExportPdf(item)}
-                              className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                            >
-                              <FileDown className="h-3.5 w-3.5" />
-                              Gerar ficha
-                            </Button>
                           </td>
-                        )}
-                      </tr>
-                    );
-                  })
-                )}
-
-                {!loading && paginated.length === 0 && (
-                  <EmptyRow colSpan={podeGerarPdf ? 5 : 4} />
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="divide-y divide-border md:hidden">
-            {loading ? (
-              <div className="p-10 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Carregando ações de divulgação...
-                </p>
-              </div>
-            ) : paginated.length === 0 ? (
-              <div className="p-10 text-center">
-                <Megaphone className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nenhuma ação de divulgação encontrada.
-                </p>
-              </div>
-            ) : (
-              paginated.map((item) => {
-                const proposta = propostaNome(item);
-                const edital = editalNome(item);
-                const projeto = projetoNome(item);
-                const status = statusValueToLabel(item.status) as Status;
-
-                return (
-                  <div key={item.id} className="p-4">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1">
-                        <TableActionIcon
-                          icon={Eye}
-                          label="Visualizar"
-                          onClick={() =>
-                            navigate(`/acoes-divulgacao/${item.id}`)
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <TableCellText text={item.nomeAcao} bold>
+                              {item.nomeAcao}
+                            </TableCellText>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <TableCellText text={propostaNome(item)}>
+                              {propostaNome(item)}
+                            </TableCellText>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <TableCellText text={projetoNome(item)}>
+                              {projetoNome(item)}
+                            </TableCellText>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <StatusPill
+                              status={statusValueToLabel(item.status)}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="divide-y divide-border md:hidden">
+                  {paginated.map((item) => (
+                    <div key={item.id} className="p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <RowActionsDropdown
+                          reportEndpoint={
+                            podeGerarPdf
+                              ? `/acoes-divulgacao/${item.id}/relatorio`
+                              : undefined
+                          }
+                          reportFilename={`acao-divulgacao-${item.id}.pdf`}
+                          viewTo={`/acoes-divulgacao/${item.id}`}
+                          editTo={
+                            podeEditar
+                              ? `/acoes-divulgacao/${item.id}/editar`
+                              : undefined
+                          }
+                          onDelete={
+                            podeExcluir
+                              ? () => setConfirmDelete(item.id)
+                              : undefined
                           }
                         />
-
-                        {podeEditar && (
-                          <TableActionIcon
-                            icon={Pencil}
-                            label="Editar"
-                            onClick={() =>
-                              navigate(`/acoes-divulgacao/${item.id}/editar`)
-                            }
-                          />
-                        )}
-
-                        {podeExcluir && (
-                          <TableActionIcon
-                            icon={Trash2}
-                            label="Excluir"
-                            variant="danger"
-                            onClick={() => setConfirmDelete(item.id)}
+                        {podeGerarPdf && (
+                          <DocumentActionButton
+                            label="Gerar PDF"
+                            icon={FileDown}
+                            aria-label={`Gerar PDF da ação ${item.nomeAcao}`}
+                            onClick={() => exportPdf(item)}
                           />
                         )}
                       </div>
-
-                      {podeGerarPdf && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleExportPdf(item)}
-                          className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                        >
-                          <FileDown className="h-3.5 w-3.5" />
-                          PDF
-                        </Button>
-                      )}
+                      <p className="font-medium">{item.nomeAcao}</p>
+                      <p className="mt-1 text-sm">{propostaNome(item)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {editalNome(item)} · {projetoNome(item)}
+                      </p>
+                      <div className="mt-2">
+                        <StatusPill status={statusValueToLabel(item.status)} />
+                      </div>
                     </div>
-
-                    <p className="font-medium text-foreground">
-                      {item.nomeAcao}
-                    </p>
-
-                    <p className="mt-1 text-sm text-foreground">{proposta}</p>
-
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {edital}
-                    </p>
-
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {projeto}
-                    </p>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <StatusPill status={status} />
-                    </div>
-                  </div>
-                );
-              })
+                  ))}
+                </div>
+                <DataTablePagination
+                  totalItems={filtered.length}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  entityLabel="registro"
+                  entityLabelPlural="registros"
+                  pageSizeLabel="Registros por página"
+                />
+              </>
             )}
-          </div>
-
-          <TablePagination
-            totalItems={sorted.length}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            onCopy={handleCopy}
-          />
+          </DataTableCard>
         </div>
       </div>
-
       <AlertDialog
         open={!!confirmDelete}
         onOpenChange={(open) => !open && setConfirmDelete(null)}
@@ -662,15 +700,12 @@ export default function AcoesDivulgacao() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir ação de divulgação?</AlertDialogTitle>
-
             <AlertDialogDescription>
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
-
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive hover:bg-destructive/90"
@@ -680,82 +715,49 @@ export default function AcoesDivulgacao() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       <WikiFloatingButton
         pageTitle="Ações de Divulgação"
-        href="https://www.aurit.com.br/wiki/acoes-culturais/acoes-de-divulgacao"
+        href="https://www.aurit.com.br/wiki/editais/acoes-de-divulgacao"
       />
     </AppLayout>
   );
 }
 
-interface SortableHeaderProps {
-  label: string;
-  sortKey: SortKey;
-  sortConfig: SortConfig | null;
-  onSort: (key: SortKey) => void;
-}
-
-function SortableHeader({
+function FilterField({
   label,
-  sortKey,
-  sortConfig,
-  onSort,
-}: SortableHeaderProps) {
-  const active = sortConfig?.key === sortKey;
-  const direction = sortConfig?.direction;
-
-  const Icon = !active ? ArrowUpDown : direction === "asc" ? ArrowUp : ArrowDown;
-
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
-    <th
-      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-      aria-sort={
-        active ? (direction === "asc" ? "ascending" : "descending") : "none"
-      }
-    >
-      <button
-        type="button"
-        onClick={() => onSort(sortKey)}
-        className="-ml-2 inline-flex items-center gap-1.5 rounded px-2 py-1 text-left uppercase tracking-wider transition-colors hover:bg-muted hover:text-foreground"
-        aria-label={`Ordenar por ${label}`}
-      >
-        <span>{label}</span>
-
-        <Icon
-          className={
-            active
-              ? "h-3.5 w-3.5 text-foreground"
-              : "h-3.5 w-3.5 text-muted-foreground/70"
-          }
-        />
-      </button>
-    </th>
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      {children}
+    </div>
   );
 }
-
-function LoadingRow({ colSpan }: { colSpan: number }) {
+function FilterText({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
-    <tr>
-      <td colSpan={colSpan} className="px-5 py-16 text-center">
-        <p className="text-sm text-muted-foreground">
-          Carregando ações de divulgação...
-        </p>
-      </td>
-    </tr>
-  );
-}
-
-function EmptyRow({ colSpan }: { colSpan: number }) {
-  return (
-    <tr>
-      <td colSpan={colSpan} className="px-5 py-16 text-center">
-        <Megaphone className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-        <p className="mt-3 text-sm text-muted-foreground">
-          Nenhuma ação de divulgação encontrada.
-        </p>
-      </td>
-    </tr>
+    <div>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Digite o nome da ação"
+        className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+      />
+    </div>
   );
 }

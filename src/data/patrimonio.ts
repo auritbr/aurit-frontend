@@ -1,8 +1,9 @@
 import { getJsonHeaders, getMultipartHeaders } from "@/lib/apiHeaders";
+import { sortOptionsByLabel } from "@/lib/sortOptions";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
-export const tipoPatrimonioOptions = [
+export const tipoPatrimonioOptions = sortOptionsByLabel([
   { value: "INSTRUMENTO_MUSICAL", label: "Instrumento Musical" },
   { value: "EQUIPAMENTO_SOM", label: "Equipamento de Som" },
   { value: "EQUIPAMENTO_ILUMINACAO", label: "Equipamento de Iluminação" },
@@ -15,7 +16,7 @@ export const tipoPatrimonioOptions = [
   { value: "MATERIAL_ESCRITORIO", label: "Material de Escritório" },
   { value: "VEICULO", label: "Veículo" },
   { value: "OUTRO", label: "Outro" },
-] as const;
+] as const);
 
 export const estadoConservacaoOptions = [
   { value: "NOVO", label: "Novo" },
@@ -182,11 +183,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -413,7 +410,9 @@ export async function deletePatrimonio(id: number): Promise<void> {
   }
 }
 
-export async function getOrganizacoesPatrimonio(): Promise<OrganizacaoOption[]> {
+export async function getOrganizacoesPatrimonio(): Promise<
+  OrganizacaoOption[]
+> {
   const response = await fetch(`${API_URL}/organizacoes`, {
     method: "GET",
     headers: getJsonHeaders(),

@@ -1,21 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   User,
   MapPin,
-  Building2,
+  Landmark,
   UserCog,
-  Info,
   Users2,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { EmailInput } from "@/components/EmailInput";
 import { PageTitle } from "@/components/PageTitle";
+import { BackButton } from "@/components/BackButton";
+import { PageObjective } from "@/components/PageObjective";
+import { FormSectionCard } from "@/components/FormSectionCard";
 import { Button } from "@/components/ui/button";
+import { ImportDataButton } from "@/components/ImportDataButton";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -26,7 +28,14 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { maskCPF, maskPhone, maskCEP, maskDate } from "@/lib/masks";
+import {
+  maskCNPJ,
+  maskCPF,
+  maskPhone,
+  maskCEP,
+  maskDate,
+  maskRGFlex,
+} from "@/lib/masks";
 import { estadosBrasil } from "@/data/colaboradores";
 import {
   TipoAgente,
@@ -34,20 +43,13 @@ import {
   tipoAgenteDescricoes,
 } from "@/data/agentes";
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { getImportConfigForPath } from "@/config/importacoes";
+import { applyImportedData } from "@/lib/importDataApplicator";
+import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
 import { toast } from "sonner";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-const AGENTE_NEXT_STEP_KEY = "aurit:agentes:next-step-card";
-
-const maskCNPJ = (v: string) =>
-  v
-    .replace(/\D/g, "")
-    .slice(0, 14)
-    .replace(/(\d{2})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1/$2")
-    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
 
 interface PessoaFisica {
   nomeCompleto: string;
@@ -289,11 +291,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -349,33 +347,6 @@ function toIsoDate(value: string): string {
   const [, day, month, year] = match;
 
   return `${year}-${month}-${day}`;
-}
-
-function maskRGFlex(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-
-  if (!digits) return "";
-
-  if (digits.length <= 7) {
-    if (digits.length <= 1) return digits;
-    if (digits.length <= 4) return `${digits.slice(0, 1)}-${digits.slice(1)}`;
-
-    return `${digits.slice(0, 1)}-${digits.slice(1, 4)}.${digits.slice(4)}`;
-  }
-
-  if (digits.length <= 8) {
-    return digits.replace(/^(\d{2})(\d{3})(\d{0,3})$/, (_, a, b, c) =>
-      c ? `${a}.${b}.${c}` : `${a}.${b}`,
-    );
-  }
-
-  if (digits.length === 9) {
-    return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d)$/, "$1.$2.$3-$4");
-  }
-
-  return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, (_, a, b, c, d) =>
-    d ? `${a}.${b}.${c}-${d}` : `${a}.${b}.${c}`,
-  );
 }
 
 function isValidEmail(value: string) {
@@ -459,18 +430,7 @@ function buildPayload(
 }
 
 function salvarProximaAcaoAgente() {
-  const card = {
-    titulo: "Após cadastrar o agente cultural, cadastre os colaboradores",
-    descricao:
-      "Com o agente cultural registrado, você pode avançar para o cadastro dos colaboradores que atuam na organização, organizando a equipe responsável por atividades, projetos, ações culturais e registros institucionais.",
-    acaoLabel: "Cadastrar colaborador",
-    acaoUrl: "/colaboradores/novo",
-    acaoSecundariaLabel: "Ver agentes",
-    acaoSecundariaUrl: "/agentes",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(AGENTE_NEXT_STEP_KEY, JSON.stringify(card));
+  emitJourneyNextStep();
 }
 
 export default function AgenteForm() {
@@ -496,26 +456,91 @@ export default function AgenteForm() {
 
   const bloqueado = visualizando || loading || loadingInitialData;
 
-  const setPF = <K extends keyof PessoaFisica>(
-    k: K,
-    v: PessoaFisica[K],
-  ) => setPf((p) => ({ ...p, [k]: v }));
+  const setPF = <K extends keyof PessoaFisica>(k: K, v: PessoaFisica[K]) =>
+    setPf((p) => ({ ...p, [k]: v }));
 
-  const setPJ = <K extends keyof PessoaJuridica>(
-    k: K,
-    v: PessoaJuridica[K],
-  ) => setPj((p) => ({ ...p, [k]: v }));
+  const setPJ = <K extends keyof PessoaJuridica>(k: K, v: PessoaJuridica[K]) =>
+    setPj((p) => ({ ...p, [k]: v }));
 
   const setCol = <K extends keyof Coletivo>(k: K, v: Coletivo[K]) =>
     setColetivo((p) => ({ ...p, [k]: v }));
 
-  const setRep = <K extends keyof PessoaFisica>(
-    k: K,
-    v: PessoaFisica[K],
-  ) => setRepresentante((p) => ({ ...p, [k]: v }));
+  const setRep = <K extends keyof PessoaFisica>(k: K, v: PessoaFisica[K]) =>
+    setRepresentante((p) => ({ ...p, [k]: v }));
 
   const setEnd = <K extends keyof Endereco>(k: K, v: Endereco[K]) =>
     setEndereco((p) => ({ ...p, [k]: v }));
+
+  useEffect(() => {
+    const handleImportFill = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          module?: string;
+          data?: Record<string, unknown>;
+        }>
+      ).detail;
+
+      if (detail?.module !== "agentes" || !detail.data) return;
+
+      const data = detail.data;
+      const record = (value: unknown) =>
+        value && typeof value === "object" && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : undefined;
+
+      const pessoaFisicaData = record(data.pessoaFisica) ?? data;
+      const pessoaJuridicaData = record(data.pessoaJuridica) ?? data;
+      const enderecoData = record(data.endereco) ?? data;
+      const coletivoData = record(data.coletivo) ?? {
+        nome: data.nomeColetivo,
+        dataCriacao: data.dataCriacaoColetivo,
+      };
+      const representanteData = record(data.representante) ?? {
+        nomeCompleto: data.nomeRepresentante,
+        dataNascimento: data.dataNascimentoRepresentante,
+        cpf: data.cpfRepresentante,
+        rg: data.rgRepresentante,
+        telefone: data.telefoneRepresentante,
+        email: data.emailRepresentante,
+      };
+
+      if (!tipo && typeof data.tipoAgente === "string") {
+        setTipo(data.tipoAgente as TipoAgente);
+      }
+
+      setPf(
+        (current) =>
+          applyImportedData(current, pessoaFisicaData)
+            .data as unknown as PessoaFisica,
+      );
+      setPj(
+        (current) =>
+          applyImportedData(current, pessoaJuridicaData)
+            .data as unknown as PessoaJuridica,
+      );
+      setColetivo(
+        (current) =>
+          applyImportedData(current, coletivoData).data as unknown as Coletivo,
+      );
+      setRepresentante(
+        (current) =>
+          applyImportedData(current, representanteData)
+            .data as unknown as PessoaFisica,
+      );
+      setEndereco((current) => {
+        const applied = applyImportedData(current, enderecoData)
+          .data as unknown as Endereco;
+        return {
+          ...applied,
+          estado: resolverEstadoParaSelect(applied.estado),
+        };
+      });
+    };
+
+    window.addEventListener("aurit:import-fill-form", handleImportFill);
+    return () =>
+      window.removeEventListener("aurit:import-fill-form", handleImportFill);
+  }, [tipo]);
 
   const isPJ =
     tipo === "MEI" ||
@@ -626,7 +651,9 @@ export default function AgenteForm() {
       setLoadingCep(true);
       ultimoCepConsultadoRef.current = cepLimpo;
 
-      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const response = await fetch(
+        `https://viacep.com.br/ws/${cepLimpo}/json/`,
+      );
 
       if (!response.ok) {
         throw new Error("Não foi possível consultar o CEP.");
@@ -811,6 +838,8 @@ export default function AgenteForm() {
         throw new Error(await parseError(response));
       }
 
+      notifyImportReviewSaveSuccess("agentes");
+
       toast.success(
         editando
           ? "Agente atualizado com sucesso."
@@ -835,48 +864,41 @@ export default function AgenteForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/agentes")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </button>
+        <BackButton to="/agentes" />
 
         <PageTitle
-          title="Agente Cultural"
-          tooltip="Cadastre o agente cultural responsável pela iniciativa. O agente é quem responde pelas informações, execução do projeto e prestação de contas."
+          title="Agentes Culturais"
+          tooltip="Nesta página é cadastrado o agente cultural responsável pela iniciativa ou atuação cultural. O agente pode ser uma pessoa, grupo ou organização e pode representar a iniciativa, participar da execução de projetos e responder pelas informações e prestações de contas."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/agentes")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
+          showImport={false}
         />
 
-        <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-          <Info
-            className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"
-            strokeWidth={2.2}
-          />
+        <PageObjective
+          className="mb-5"
+          variant="primary"
+          label="Agente cultural"
+          icon={Users2}
+          text-justify
+          description="é a pessoa, grupo ou organização responsável pelo desenvolvimento de atividades culturais e pelas informações relacionadas à sua atuação. Pode participar de projetos e editais, executar ações culturais e responder por informações e prestações de contas."
+        />
 
-          <p className="text-[13px] leading-relaxed text-foreground">
-            <span className="font-semibold">Agente cultural</span> é a pessoa
-            responsável pela iniciativa cultural. É quem responde pelas
-            informações, execução do projeto e prestação de contas, mesmo
-            quando a atividade está vinculada a uma organização, coletivo ou
-            empresa.
-          </p>
-        </div>
-
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={UserCog} title="Tipo de agente">
-            <div className="grid sm:grid-cols-2 gap-4">
+          <Section
+            icon={UserCog}
+            title="Tipo de agente"
+            description="Selecione o tipo de agente cultural que será cadastrado. Os campos do formulário serão ajustados de acordo com a opção selecionada."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="tipoAgente"
@@ -901,7 +923,7 @@ export default function AgenteForm() {
                   <SelectContent>
                     {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map(
                       (k) => (
-                        <SelectItem key={k} value={k}>
+                        <SelectItem key={k} value={k} text-justofy>
                           {tipoAgenteLabels[k]}
                         </SelectItem>
                       ),
@@ -911,36 +933,35 @@ export default function AgenteForm() {
               </Field>
             </div>
 
-            <div className="mt-5 grid sm:grid-cols-2 gap-2.5">
+            <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
               {(Object.keys(tipoAgenteLabels) as TipoAgente[]).map((k) => (
-                <button
-                  type="button"
+                <div
                   key={k}
-                  disabled={bloqueado}
-                  onClick={() => {
-                    if (visualizando) return;
-                    setTipo(k);
-                  }}
-                  className={`rounded border px-3 py-2.5 text-left text-[12px] leading-relaxed transition-colors disabled:cursor-default ${tipo === k
-                      ? "border-primary/40 bg-primary-soft"
-                      : "border-border bg-muted/30"
-                    }`}
+                  className={`flex h-full flex-col rounded-[12px] border px-3 py-2.5 text-left text-[12px] leading-relaxed backdrop-blur-md transition-all duration-200 motion-reduce:transition-none ${
+                    tipo === k
+                      ? "border-primary/45 bg-primary/[0.07] shadow-[inset_0_1px_0_hsl(0_0%_100%_/_0.55),0_2px_8px_-6px_hsl(215_28%_17%_/_0.22)] supports-[backdrop-filter]:bg-primary/[0.06]"
+                      : "border-border/70 bg-background/60 shadow-[inset_0_1px_0_hsl(0_0%_100%_/_0.45),0_1px_3px_-2px_hsl(215_28%_17%_/_0.12)] supports-[backdrop-filter]:bg-background/50"
+                  }`}
                 >
-                  <p className="font-semibold text-foreground text-[12.5px] mb-0.5">
+                  <span className="mb-0.5 text-[12.5px] font-semibold text-foreground">
                     {tipoAgenteLabels[k]}
-                  </p>
+                  </span>
 
-                  <p className="text-muted-foreground">
+                  <span className="text-muted-foreground" text-justify>
                     {tipoAgenteDescricoes[k]}
-                  </p>
-                </button>
+                  </span>
+                </div>
               ))}
             </div>
           </Section>
 
           {isPF && (
             <>
-              <Section icon={User} title="Dados pessoais">
+              <Section
+                icon={User}
+                title="Dados pessoais"
+                description="Informe os principais dados pessoais e de identificação do agente cultural."
+              >
                 <PessoaFisicaFields
                   data={pf}
                   set={setPF}
@@ -949,7 +970,11 @@ export default function AgenteForm() {
                 />
               </Section>
 
-              <Section icon={MapPin} title="Endereço">
+              <Section
+                icon={MapPin}
+                title="Endereço"
+                description="Informe o endereço principal de residência do agente cultural. Ao preencher o CEP, os dados disponíveis serão preenchidos automaticamente."
+              >
                 <EnderecoFields
                   data={endereco}
                   set={setEnd}
@@ -965,14 +990,15 @@ export default function AgenteForm() {
           {isPJ && (
             <>
               <Section
-                icon={Building2}
+                icon={Landmark}
                 title={
                   tipo === "MEI"
                     ? "Dados da pessoa jurídica"
                     : "Dados da organização"
                 }
+                description="Informe os principais dados utilizados para identificar oficialmente a empresa ou organização."
               >
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="razaoSocial" required>
                       Razão Social
@@ -1035,7 +1061,11 @@ export default function AgenteForm() {
                 </div>
               </Section>
 
-              <Section icon={MapPin} title="Endereço">
+              <Section
+                icon={MapPin}
+                title="Endereço"
+                description="Informe o endereço principal da empresa ou organização. Ao preencher o CEP, os dados disponíveis serão preenchidos automaticamente."
+              >
                 <EnderecoFields
                   data={endereco}
                   set={setEnd}
@@ -1046,7 +1076,11 @@ export default function AgenteForm() {
                 />
               </Section>
 
-              <Section icon={User} title="Dados do representante">
+              <Section
+                icon={User}
+                title="Dados do representante"
+                description="Informe os dados da pessoa responsável por representar a empresa ou organização."
+              >
                 <PessoaFisicaFields
                   data={representante}
                   set={setRep}
@@ -1060,8 +1094,12 @@ export default function AgenteForm() {
 
           {isColetivo && (
             <>
-              <Section icon={Users2} title="Dados do coletivo">
-                <div className="grid sm:grid-cols-2 gap-4">
+              <Section
+                icon={Users2}
+                title="Dados do coletivo"
+                description="Informe os principais dados utilizados para identificar o grupo ou coletivo cultural."
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="nomeColetivo" required>
                       Nome do Coletivo
@@ -1095,7 +1133,11 @@ export default function AgenteForm() {
                 </div>
               </Section>
 
-              <Section icon={MapPin} title="Endereço">
+              <Section
+                icon={MapPin}
+                title="Endereço"
+                description="Informe o endereço principal do grupo ou coletivo cultural. Ao preencher o CEP, os dados disponíveis serão preenchidos automaticamente."
+              >
                 <EnderecoFields
                   data={endereco}
                   set={setEnd}
@@ -1106,7 +1148,11 @@ export default function AgenteForm() {
                 />
               </Section>
 
-              <Section icon={User} title="Dados do representante">
+              <Section
+                icon={User}
+                title="Dados do representante"
+                description="Informe os dados da pessoa responsável por representar o grupo ou coletivo cultural."
+              >
                 <PessoaFisicaFields
                   data={representante}
                   set={setRep}
@@ -1118,10 +1164,11 @@ export default function AgenteForm() {
             </>
           )}
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-2.5 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/agentes")}
               disabled={loading}
             >
@@ -1131,8 +1178,10 @@ export default function AgenteForm() {
             {!visualizando && (
               <Button
                 type="submit"
-                className="sm:min-w-32"
+                variant="glassPrimary"
+                className="h-9 px-5"
                 disabled={loading || loadingInitialData || loadingCep}
+                aria-busy={loading}
               >
                 {loading ? "Salvando..." : "Salvar"}
               </Button>
@@ -1142,29 +1191,8 @@ export default function AgenteForm() {
       </div>
 
       <WikiFloatingButton
-        pageTitle="Cadastro de Agente Cultural"
-        sections={[
-          {
-            title: "O que é um agente cultural?",
-            content:
-              "É a pessoa responsável pela iniciativa cultural — quem responde pelas informações, execução e prestação de contas.",
-          },
-          {
-            title: "Como escolher o tipo?",
-            content:
-              "Selecione o tipo que melhor representa o responsável: pessoa física, MEI, pessoa jurídica com fins lucrativos, pessoa jurídica sem fins lucrativos ou coletivo.",
-          },
-          {
-            title: "Quem é o representante?",
-            content:
-              "Para empresas, organizações ou coletivos, o representante é a pessoa física que responde pela iniciativa.",
-          },
-          {
-            title: "Salvando",
-            content:
-              "Após preencher os campos obrigatórios, clique em Salvar no final da página.",
-          },
-        ]}
+        pageTitle="Agentes Culturais"
+        href="/wiki/institucional/agentes-culturais"
       />
     </AppLayout>
   );
@@ -1187,7 +1215,7 @@ function PessoaFisicaFields({
 
   return (
     <div className="grid sm:grid-cols-2 gap-4">
-      <Field full>
+      <Field>
         <FieldLabel htmlFor={id("nomeCompleto")} required>
           Nome Completo
         </FieldLabel>
@@ -1232,11 +1260,7 @@ function PessoaFisicaFields({
       </Field>
 
       <Field>
-        <FieldLabel
-          htmlFor={id("rg")}
-        >
-          RG
-        </FieldLabel>
+        <FieldLabel htmlFor={id("rg")}>RG</FieldLabel>
 
         <Input
           id={id("rg")}
@@ -1264,9 +1288,7 @@ function PessoaFisicaFields({
       </Field>
 
       <Field>
-        <FieldLabel
-          htmlFor={id("email")}
-        >
+        <FieldLabel htmlFor={id("email")} required>
           E-mail
         </FieldLabel>
 
@@ -1300,11 +1322,7 @@ function EnderecoFields({
   return (
     <div className="grid sm:grid-cols-6 gap-4">
       <Field className="sm:col-span-2">
-        <FieldLabel
-          htmlFor="cep"
-          required
-          tooltip="Digite o CEP para preencher automaticamente logradouro, bairro, cidade e estado quando a informação estiver disponível."
-        >
+        <FieldLabel htmlFor="cep" required>
           CEP
         </FieldLabel>
 
@@ -1351,9 +1369,7 @@ function EnderecoFields({
       </Field>
 
       <Field className="sm:col-span-2">
-        <FieldLabel htmlFor="numero" required
-          tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
-        >
+        <FieldLabel htmlFor="numero" required>
           Número
         </FieldLabel>
 
@@ -1439,24 +1455,18 @@ function EnderecoFields({
 function Section({
   icon: Icon,
   title,
+  description,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
-      <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
-          {title}
-        </h2>
-      </div>
-
+    <FormSectionCard icon={Icon} title={title} description={description}>
       {children}
-    </Card>
+    </FormSectionCard>
   );
 }
 

@@ -8,6 +8,7 @@ import {
   PackageOpen,
   UserRoundX,
 } from "lucide-react";
+import { NotificationButton } from "@/components/NotificationButton";
 import {
   Popover,
   PopoverContent,
@@ -132,8 +133,9 @@ function buildAlertasPrazo(data: AlertasPrazoCarregados): AlertaItem[] {
       itemLabel: "Participante",
       itemValue: item.participanteNome,
       dataLabel: "Atividade",
-      dataValue: `${item.atividadeNome}${item.turmaNome ? ` · Turma: ${item.turmaNome}` : ""
-        } · ${item.quantidade} ausências consecutivas`,
+      dataValue: `${item.atividadeNome}${
+        item.turmaNome ? ` · Turma: ${item.turmaNome}` : ""
+      } · ${item.quantidade} ausências consecutivas`,
       severidade: "atencao",
       to: "/presencas",
       icon: UserRoundX,
@@ -260,26 +262,16 @@ export function AlertasPopover() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label="Alertas pendentes"
-          className="relative flex h-9 w-9 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-        >
-          <Bell className="h-4 w-4" strokeWidth={2} />
-          {total > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
-              {total > 9 ? "9+" : total}
-            </span>
-          )}
-        </button>
+        <NotificationButton count={total} open={open} />
       </PopoverTrigger>
 
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[min(360px,calc(100vw-1.5rem))] overflow-hidden p-0"
+        collisionPadding={12}
+        className="w-[min(360px,calc(100vw-1.5rem))] overflow-hidden rounded-[16px] border-border/70 bg-popover/95 p-0 shadow-[0_18px_44px_-20px_hsl(215_28%_17%_/_0.38)] backdrop-blur-xl"
       >
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
           <div>
             <p className="text-sm font-semibold text-foreground">
               Alertas pendentes
@@ -296,7 +288,7 @@ export function AlertasPopover() {
             <button
               type="button"
               onClick={handleLimparAlertas}
-              className="rounded px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="rounded-[8px] px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               Limpar
             </button>
@@ -323,7 +315,7 @@ export function AlertasPopover() {
           </div>
         ) : (
           <div className="max-h-[360px] w-full overflow-y-auto overscroll-contain">
-            <ul className="w-full min-w-0 divide-y divide-border overflow-hidden">
+            <ul className="w-full min-w-0 divide-y divide-border/60 overflow-hidden">
               {alertas.map((alerta) => {
                 const Icon = alerta.icon;
 

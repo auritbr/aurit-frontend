@@ -372,9 +372,9 @@ function expandirRegistroPresenca(item: unknown): RegistroPresenca[] {
 
     const participanteObj = getRecord(
       participanteRegistro.participante ??
-      participanteRegistro.aluno ??
-      participanteRegistro.pessoa ??
-      participanteRegistro.integrante,
+        participanteRegistro.aluno ??
+        participanteRegistro.pessoa ??
+        participanteRegistro.integrante,
     );
 
     const atividadeObj = getRecord(
@@ -855,36 +855,36 @@ async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
     participanteNomePorId:
       participantesPresenca.status === "fulfilled"
         ? Object.fromEntries(
-          participantesPresenca.value.flatMap((participante) => {
-            const id = normalizarId(participante.id);
-            const nome = pickText(
-              participante.nomeCompleto,
-              participante.nome,
-            );
+            participantesPresenca.value.flatMap((participante) => {
+              const id = normalizarId(participante.id);
+              const nome = pickText(
+                participante.nomeCompleto,
+                participante.nome,
+              );
 
-            return id && nome ? [[id, nome]] : [];
-          }),
-        )
+              return id && nome ? [[id, nome]] : [];
+            }),
+          )
         : {},
 
     atividadeNomePorId:
       atividadesPresenca.status === "fulfilled"
         ? Object.fromEntries(
-          atividadesPresenca.value.flatMap((atividade) =>
-            atividade.id && atividade.nomeAtividade
-              ? [[atividade.id, atividade.nomeAtividade]]
-              : [],
-          ),
-        )
+            atividadesPresenca.value.flatMap((atividade) =>
+              atividade.id && atividade.nomeAtividade
+                ? [[atividade.id, atividade.nomeAtividade]]
+                : [],
+            ),
+          )
         : {},
 
     turmaNomePorId:
       turmasPresenca.status === "fulfilled"
         ? Object.fromEntries(
-          turmasPresenca.value.flatMap((turma) =>
-            turma.id && turma.nomeTurma ? [[turma.id, turma.nomeTurma]] : [],
-          ),
-        )
+            turmasPresenca.value.flatMap((turma) =>
+              turma.id && turma.nomeTurma ? [[turma.id, turma.nomeTurma]] : [],
+            ),
+          )
         : {},
   };
 
@@ -910,8 +910,8 @@ async function buscarAlertasPrazo(): Promise<AlertasPrazoCarregados> {
     patrimonioNomePorId:
       patrimonios.status === "fulfilled"
         ? Object.fromEntries(
-          patrimonios.value.map((item) => [item.id, item.nomePatrimonio]),
-        )
+            patrimonios.value.map((item) => [item.id, item.nomePatrimonio]),
+          )
         : {},
 
     editais:

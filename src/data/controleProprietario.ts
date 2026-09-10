@@ -1,10 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth";
 
-export type TipoPlano =
-  | "PLANO_GRATUITO"
-  | "PLANO_PAGO"
-  | "PLANO_CORTESIA";
+export type TipoPlano = "PLANO_GRATUITO" | "PLANO_PAGO" | "PLANO_CORTESIA";
 
 export type TipoPlanoVisual = TipoPlano;
 
@@ -87,6 +84,75 @@ export interface PagamentoEmpresa {
   observacao: string | null;
   dataCriacao?: string;
   dataAtualizacao?: string;
+  /** Identificador da cobrança criada na Cora, quando já emitida. */
+  coraInvoiceId?: string | null;
+}
+
+export interface ConfiguracaoCobranca {
+  provedorPagamento: "CORA";
+  integracaoPagamentoHabilitada: boolean;
+  cobrancaHabilitada: boolean;
+  geracaoAutomaticaHabilitada: boolean;
+  diaVencimentoPadrao: number;
+  diasGeracaoAntesVencimento: number;
+  atualizacaoVencidosHabilitada: boolean;
+  conciliacaoAutomaticaHabilitada: boolean;
+  permitirPix: boolean;
+  permitirBoleto: boolean;
+  dataAtualizacao: string | null;
+}
+
+export interface StatusIntegracaoCora {
+  provider: "CORA";
+  enabled: boolean;
+  environment: string;
+  clientIdConfigured: boolean;
+  certificateConfigured: boolean;
+  privateKeyConfigured: boolean;
+  webhookConfigured: boolean;
+  integrationStatus: string;
+  lastWebhookAt: string | null;
+  lastWebhookEvent: string | null;
+  lastSyncAt: string | null;
+}
+
+export interface TesteConexaoCora {
+  success: boolean;
+  provider: "CORA";
+  environment: string;
+  message: string;
+}
+
+export interface DadosPagamentoCora {
+  invoiceId: number;
+  referenceMonth: string;
+  amount: number;
+  dueDate: string;
+  status: StatusPagamento;
+  pix: { copyPaste: string | null; qrCode: string | null } | null;
+  boleto: {
+    digitableLine: string | null;
+    barcode: string | null;
+    url: string | null;
+  } | null;
+}
+
+export interface AssinaturaCobranca {
+  id: number;
+  configuracaoEmpresaId: number;
+  empresa: string;
+  tipoPlano: TipoPlano;
+  status: StatusControleProprietario;
+  valorMensalidade: number | null;
+  dataInicio: string | null;
+  diaVencimento: number | null;
+  proximaCobranca: string | null;
+  cobrancaAutomatica: boolean;
+  isentoCobranca: boolean;
+  motivoIsencao: string | null;
+  dataEncerramento: string | null;
+  observacaoInterna: string | null;
+  dataCriacao: string | null;
 }
 
 export interface SalvarPagamentoPayload {
@@ -143,10 +209,11 @@ export const STATUS_USUARIO_LABELS: Record<StatusUsuarioPlataforma, string> = {
   INATIVO: "Inativo",
 };
 
-export const STATUS_EMPRESA_LABELS: Record<StatusControleProprietario, string> = {
-  ATIVO: "Ativo",
-  INATIVO: "Inativo",
-};
+export const STATUS_EMPRESA_LABELS: Record<StatusControleProprietario, string> =
+  {
+    ATIVO: "Ativo",
+    INATIVO: "Inativo",
+  };
 
 export const STATUS_PAGAMENTO_LABELS: Record<StatusPagamento, string> = {
   PENDENTE: "Pendente",
@@ -252,12 +319,26 @@ export async function alterarPlanoEmpresa(
     });
   }
 
+  return apiFetch<EmpresaControle>(path, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Atualiza o plano pela configuração da empresa, usando a mesma regra do controle proprietário. */
+export async function alterarPlanoEmpresaPorConfiguracao(
+  configuracaoEmpresaId: number,
+  tipoPlano: TipoPlano,
+  limiteUsuarios?: number,
+) {
+  const payload =
+    tipoPlano === "PLANO_CORTESIA"
+      ? { tipoPlano }
+      : { tipoPlano, limiteUsuarios };
+
   return apiFetch<EmpresaControle>(
-    path,
-    {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    },
+    `/controle-proprietario/empresas/configuracao/${configuracaoEmpresaId}/plano`,
+    { method: "PATCH", body: JSON.stringify(payload) },
   );
 }
 
@@ -336,6 +417,146 @@ export async function excluirPagamentoEmpresa(
     {
       method: "DELETE",
     },
+  );
+}
+
+/** Configuração global da Cora: disponível exclusivamente ao proprietário Aurit. */
+export async function consultarConfiguracaoCobranca() {
+  return apiFetch<ConfiguracaoCobranca>(
+    "/controle-proprietario/configuracoes/cobranca",
+  );
+}
+
+export async function atualizarConfiguracaoCobranca(
+  payload: Partial<
+    Omit<ConfiguracaoCobranca, "provedorPagamento" | "dataAtualizacao">
+  >,
+) {
+  return apiFetch<ConfiguracaoCobranca>(
+    "/controle-proprietario/configuracoes/cobranca",
+    { method: "PUT", body: JSON.stringify(payload) },
+  );
+}
+
+export async function consultarStatusIntegracaoCora() {
+  return apiFetch<StatusIntegracaoCora>(
+    "/controle-proprietario/integracao-cora",
+  );
+}
+
+export async function testarIntegracaoCora() {
+  return apiFetch<TesteConexaoCora>(
+    "/controle-proprietario/integracao-cora/testar",
+    {
+      method: "POST",
+    },
+  );
+}
+
+export async function listarMensalidadesCora(controleId: number) {
+  const mensalidades = await apiFetch<
+    Array<{
+      id: number;
+      competencia: string;
+      valor: number;
+      dataVencimento: string;
+      dataPagamento: string | null;
+      status: StatusPagamento;
+      formaPagamento: FormaPagamento | null;
+      coraInvoiceId: string | null;
+      dataCriacao: string | null;
+    }>
+  >(`/controle-proprietario/cobrancas/mensalidades?controleId=${controleId}`);
+
+  return mensalidades.map<PagamentoEmpresa>((mensalidade) => ({
+    id: mensalidade.id,
+    valor: mensalidade.valor,
+    competencia: mensalidade.competencia,
+    dataVencimento: mensalidade.dataVencimento,
+    dataPagamento: mensalidade.dataPagamento,
+    statusPagamento: mensalidade.status,
+    formaPagamento: mensalidade.formaPagamento,
+    referenciaExterna: null,
+    observacao: null,
+    dataCriacao: mensalidade.dataCriacao ?? undefined,
+    coraInvoiceId: mensalidade.coraInvoiceId,
+  }));
+}
+
+export async function emitirCobrancaCora(pagamentoId: number) {
+  return apiFetch<DadosPagamentoCora>(
+    `/controle-proprietario/cobrancas/mensalidades/${pagamentoId}/pagamento`,
+    { method: "POST" },
+  );
+}
+
+export async function conciliarMensalidadeCora(pagamentoId: number) {
+  const mensalidade = await apiFetch<{
+    id: number;
+    competencia: string;
+    valor: number;
+    dataVencimento: string;
+    dataPagamento: string | null;
+    status: StatusPagamento;
+    formaPagamento: FormaPagamento | null;
+    coraInvoiceId: string | null;
+    dataCriacao: string | null;
+  }>(`/controle-proprietario/cobrancas/mensalidades/${pagamentoId}/conciliar`, {
+    method: "POST",
+  });
+
+  return {
+    id: mensalidade.id,
+    valor: mensalidade.valor,
+    competencia: mensalidade.competencia,
+    dataVencimento: mensalidade.dataVencimento,
+    dataPagamento: mensalidade.dataPagamento,
+    statusPagamento: mensalidade.status,
+    formaPagamento: mensalidade.formaPagamento,
+    referenciaExterna: null,
+    observacao: null,
+    dataCriacao: mensalidade.dataCriacao ?? undefined,
+    coraInvoiceId: mensalidade.coraInvoiceId,
+  } satisfies PagamentoEmpresa;
+}
+
+export async function cancelarMensalidadeCora(pagamentoId: number) {
+  return apiFetch<void>(
+    `/controle-proprietario/cobrancas/mensalidades/${pagamentoId}/cancelar`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+export async function consultarAssinaturaCobranca(controleId: number) {
+  return apiFetch<AssinaturaCobranca>(
+    `/controle-proprietario/cobrancas/assinaturas/${controleId}`,
+  );
+}
+
+export async function atualizarAssinaturaCobranca(
+  controleId: number,
+  payload: Partial<
+    Pick<
+      AssinaturaCobranca,
+      | "tipoPlano"
+      | "status"
+      | "valorMensalidade"
+      | "dataInicio"
+      | "diaVencimento"
+      | "proximaCobranca"
+      | "cobrancaAutomatica"
+      | "isentoCobranca"
+      | "motivoIsencao"
+      | "dataEncerramento"
+      | "observacaoInterna"
+    >
+  >,
+) {
+  return apiFetch<AssinaturaCobranca>(
+    `/controle-proprietario/cobrancas/assinaturas/${controleId}`,
+    { method: "PUT", body: JSON.stringify(payload) },
   );
 }
 

@@ -1,32 +1,40 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+import { apiFetch } from "@/lib/api";
 
-function getAuthHeaders() {
-  const token =
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken");
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+export interface DashboardDistribuicaoDTO {
+  label: string;
+  valor: number;
 }
 
-async function parseError(response: Response): Promise<string> {
-  try {
-    const text = await response.text();
-    return text || `Erro ${response.status} ao processar requisição.`;
-  } catch {
-    return `Erro ${response.status} ao processar requisição.`;
-  }
+export interface DashboardPessoasDTO {
+  totalParticipantes: number;
+  totalColaboradores: number;
+  totalIntegrantes: number;
+  pessoasPorTipo: DashboardDistribuicaoDTO[];
+}
+
+export interface DashboardProjetosDTO {
+  totalProjetos: number;
+  totalAtividades: number;
+  totalTurmas: number;
+  totalEventosCulturais: number;
+  totalAcoesDivulgacao: number;
+  totalEvidencias: number;
+  projetosPorStatus: DashboardDistribuicaoDTO[];
+  atividadesPorStatus: DashboardDistribuicaoDTO[];
+  eventosPorStatus: DashboardDistribuicaoDTO[];
+}
+
+export interface DashboardFinanceiroDTO {
+  totalMovimentacoesFinanceiras: number;
+  totalEntradas: number;
+  totalSaidas: number;
+  saldo: number;
+  movimentacoesPorStatus: DashboardDistribuicaoDTO[];
+  movimentacoesPorFormaPagamento: DashboardDistribuicaoDTO[];
 }
 
 export interface DashboardResumoDTO {
   nomeOrganizacao: string;
-
   possuiOrganizacao: boolean;
   possuiEquipe: boolean;
   possuiProjetos: boolean;
@@ -35,7 +43,6 @@ export interface DashboardResumoDTO {
   possuiFinanceiro: boolean;
   prontoParaEdital: boolean;
   prontoParaPrestacao: boolean;
-
   totalParticipantes: number;
   totalColaboradores: number;
   totalIntegrantes: number;
@@ -48,15 +55,16 @@ export interface DashboardResumoDTO {
   totalDocumentosVencidos: number;
 }
 
-export async function getDashboardResumo(): Promise<DashboardResumoDTO> {
-  const response = await fetch(`${API_URL}/dashboard/resumo`, {
-    method: "GET",
-    headers: getAuthHeaders(),
+export const getDashboardPessoas = () =>
+  apiFetch<DashboardPessoasDTO>("/dashboard/pessoas", { cache: "no-store" });
+
+export const getDashboardProjetos = () =>
+  apiFetch<DashboardProjetosDTO>("/dashboard/projetos", { cache: "no-store" });
+
+export const getDashboardFinanceiro = () =>
+  apiFetch<DashboardFinanceiroDTO>("/dashboard/financeiro", {
+    cache: "no-store",
   });
 
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  return response.json();
-}
+export const getDashboardResumo = () =>
+  apiFetch<DashboardResumoDTO>("/dashboard/resumo", { cache: "no-store" });

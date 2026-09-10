@@ -1,4 +1,6 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { sortOptionsByLabel } from "@/lib/sortOptions";
+import { maskCNPJ, maskCPF, maskPhone, maskRGFlex } from "@/lib/masks";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -62,7 +64,7 @@ export const generosIntegrante = [
   { value: "PREFERE_NAO_INFORMAR", label: "Prefere não informar" },
 ] as const;
 
-export const tiposDeficienciaIntegrante = [
+export const tiposDeficienciaIntegrante = sortOptionsByLabel([
   { value: "NAO_POSSUI", label: "Não possui" },
   { value: "FISICA", label: "Física" },
   { value: "AUDITIVA", label: "Auditiva" },
@@ -70,10 +72,13 @@ export const tiposDeficienciaIntegrante = [
   { value: "INTELECTUAL", label: "Intelectual" },
   { value: "PSICOSSOCIAL", label: "Psicossocial" },
   { value: "MULTIPLA", label: "Múltipla" },
-  { value: "TRANSTORNO_ESPECTRO_AUTISTA", label: "Transtorno do Espectro Autista" },
+  {
+    value: "TRANSTORNO_ESPECTRO_AUTISTA",
+    label: "Transtorno do Espectro Autista",
+  },
   { value: "OUTRA", label: "Outra" },
   { value: "NAO_INFORMADO", label: "Não informado" },
-] as const;
+] as const);
 
 export const tiposVinculoIntegrante = [
   { value: "PARECERISTA", label: "Parecerista" },
@@ -328,12 +333,12 @@ export function mapIntegrante(dto: IntegranteDTO): Integrante {
     tipoPessoaIntegrante,
     nomeCompleto: normalizeText(dto.nomeCompleto),
     dataNascimento: normalizeText(dto.dataNascimento),
-    cpf: normalizeText(dto.cpf),
-    rg: normalizeText(dto.rg),
-    cnpj: normalizeText(dto.cnpj),
+    cpf: maskCPF(normalizeText(dto.cpf)),
+    rg: maskRGFlex(normalizeText(dto.rg)),
+    cnpj: maskCNPJ(normalizeText(dto.cnpj)),
     nomeSocial: normalizeText(dto.nomeSocial),
     nomeFantasia: normalizeText(dto.nomeFantasia),
-    telefone: normalizeText(dto.telefone),
+    telefone: maskPhone(normalizeText(dto.telefone)),
     email: normalizeText(dto.email),
 
     funcaoIntegrante: normalizeText(dto.funcaoIntegrante),
@@ -380,11 +385,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;

@@ -22,7 +22,6 @@ export function ProprietarioLayout({
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 h-14 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 flex items-center justify-between px-5">
         <div className="flex items-center gap-2 min-w-0">
-
           <div className="flex items-center">
             <AuritLogo size="md" withBackground={false} />
           </div>
@@ -38,7 +37,12 @@ export function ProprietarioLayout({
             </p>
           </div>
 
-          <Button variant="outline" size="sm" onClick={handleLogout}>
+          <Button
+            variant="glassSecondary"
+            size="sm"
+            className="rounded-full px-4"
+            onClick={handleLogout}
+          >
             <LogOut className="h-4 w-4 mr-2" />
             Sair
           </Button>

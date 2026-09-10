@@ -22,11 +22,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -182,22 +178,20 @@ export interface PrestacaoMetaDTO {
 
   evidenciasIds?: Array<number | string> | null;
   evidenciasExecucaoIds?: Array<number | string> | null;
-  evidencias?:
-    | Array<
-        | number
-        | string
-        | {
-            id?: number | string | null;
-            evidenciaId?: number | string | null;
-            evidenciaExecucaoId?: number | string | null;
-            tituloEvidencia?: string | null;
-            titulo?: string | null;
-            descricaoEvidencia?: string | null;
-            observacaoEvidencia?: string | null;
-            nomeEvidencia?: string | null;
-          }
-      >
-    | null;
+  evidencias?: Array<
+    | number
+    | string
+    | {
+        id?: number | string | null;
+        evidenciaId?: number | string | null;
+        evidenciaExecucaoId?: number | string | null;
+        tituloEvidencia?: string | null;
+        titulo?: string | null;
+        descricaoEvidencia?: string | null;
+        observacaoEvidencia?: string | null;
+        nomeEvidencia?: string | null;
+      }
+  > | null;
 }
 
 export interface PrestacaoMeta {
@@ -214,6 +208,7 @@ export interface PrestacaoMeta {
 export interface MetaProjetoOption {
   id: string;
   tituloMeta: string;
+  quantidadePrevista?: number;
 }
 
 export interface EvidenciaOption {
@@ -226,6 +221,7 @@ interface MetaProjetoApiItem {
   tituloMeta?: string | null;
   descricaoMeta?: string | null;
   nome?: string | null;
+  quantidadePrevista?: number | string | null;
 }
 
 interface EvidenciaApiItem {
@@ -248,6 +244,22 @@ export function createEmptyPrestacaoMeta(): PrestacaoMeta {
     justificativaNaoCumprimentoIntegral: "",
     evidencias: [],
   };
+}
+
+/** Exibição uniforme do percentual de execução nas telas de metas. */
+export function formatPercentualExecutado(value?: number | string | null) {
+  if (value === null || value === undefined || value === "") return "—";
+  const numberValue =
+    typeof value === "number" ? value : Number(String(value).replace(",", "."));
+  if (!Number.isFinite(numberValue)) return "—";
+  return (
+    numberValue.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + "%"
+  );
+}
+
+/** Status que exigem contextualização do não cumprimento integral da meta. */
+export function exigeJustificativaNaoCumprimento(status?: string | null) {
+  return status === "CUMPRIDA_PARCIALMENTE" || status === "NAO_CUMPRIDA";
 }
 
 export function formatQuantidadeExecutada(value?: string | number | null) {
@@ -333,9 +345,7 @@ export async function getPrestacaoMetas(): Promise<PrestacaoMeta[]> {
   return (Array.isArray(data) ? data : []).map(mapPrestacaoMeta);
 }
 
-export async function getPrestacaoMetaById(
-  id: number,
-): Promise<PrestacaoMeta> {
+export async function getPrestacaoMetaById(id: number): Promise<PrestacaoMeta> {
   const response = await fetch(`${API_URL}/prestacao-metas/${id}`, {
     method: "GET",
     headers: getJsonHeaders(),
@@ -419,6 +429,7 @@ export async function getMetasProjetoOptions(): Promise<MetaProjetoOption[]> {
         tituloMeta:
           pickFirstText(item.tituloMeta, item.descricaoMeta, item.nome) ||
           `Meta ${id || item.id}`,
+        quantidadePrevista: normalizeNumber(item.quantidadePrevista),
       };
     })
     .filter((item) => item.id);

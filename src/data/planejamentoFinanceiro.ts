@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { invalidateFinancialData } from "@/lib/financialDataInvalidation";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -14,11 +15,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -56,6 +53,32 @@ export const unidadeMedidaOptions = [
 
 export const unidadeMedidaLabel = (value?: string) =>
   unidadeMedidaOptions.find((u) => u.value === value)?.label ?? value ?? "—";
+
+export const classificacaoPlanejamentoOptions = [
+  { value: "ACESSIBILIDADE", label: "Acessibilidade" },
+  { value: "ALIMENTACAO", label: "Alimentação" },
+  { value: "CACHES", label: "Cachês" },
+  { value: "DIVULGACAO", label: "Divulgação" },
+  { value: "ENCARGOS", label: "Encargos" },
+  { value: "EQUIPAMENTOS", label: "Equipamentos" },
+  { value: "HOSPEDAGEM", label: "Hospedagem" },
+  { value: "LOCACAO", label: "Locação" },
+  { value: "MATERIAL_DE_CONSUMO", label: "Material de consumo" },
+  { value: "MATERIAL_GRAFICO", label: "Material gráfico" },
+  { value: "OUTROS", label: "Outros" },
+  { value: "RECURSOS_HUMANOS", label: "Recursos humanos" },
+  { value: "SERVICOS_DE_TERCEIROS", label: "Serviços de terceiros" },
+  { value: "TRANSPORTE", label: "Transporte" },
+] as const;
+
+export type ClassificacaoPlanejamentoFinanceiro =
+  (typeof classificacaoPlanejamentoOptions)[number]["value"];
+
+export const classificacaoPlanejamentoLabel = (value?: string) =>
+  classificacaoPlanejamentoOptions.find((option) => option.value === value)
+    ?.label ??
+  value ??
+  "—";
 
 export function parseCurrencyInput(value: string | number | null | undefined) {
   if (value == null || value === "") return 0;
@@ -113,6 +136,7 @@ export interface PlanejamentoFinanceiroDTO {
   id?: number;
   nomePlanejamento: string;
   justificativaPlanejamento: string;
+  classificacaoPlanejamentoFinanceiro: ClassificacaoPlanejamentoFinanceiro | null;
   quantidade: number | null;
   unidadeMedida: string;
   valorUnitario: number | null;
@@ -127,6 +151,7 @@ export interface PlanejamentoFinanceiroData {
   id: string;
   nomePlanejamento: string;
   justificativaPlanejamento: string;
+  classificacaoPlanejamentoFinanceiro: ClassificacaoPlanejamentoFinanceiro | "";
   quantidade: string;
   unidadeMedida: string;
   valorUnitario: string;
@@ -201,6 +226,7 @@ export function createEmptyPlanejamentoFinanceiro(): PlanejamentoFinanceiroData 
     id: "",
     nomePlanejamento: "",
     justificativaPlanejamento: "",
+    classificacaoPlanejamentoFinanceiro: "",
     quantidade: "",
     unidadeMedida: "",
     valorUnitario: "",
@@ -219,6 +245,8 @@ export function mapPlanejamentoFinanceiro(
     id: String(dto.id ?? ""),
     nomePlanejamento: dto.nomePlanejamento ?? "",
     justificativaPlanejamento: dto.justificativaPlanejamento ?? "",
+    classificacaoPlanejamentoFinanceiro:
+      dto.classificacaoPlanejamentoFinanceiro ?? "",
     quantidade: dto.quantidade != null ? String(dto.quantidade) : "",
     unidadeMedida: dto.unidadeMedida ?? "",
     valorUnitario:
@@ -241,6 +269,8 @@ export function buildPlanejamentoFinanceiroPayload(
     id: form.id ? Number(form.id) : undefined,
     nomePlanejamento: form.nomePlanejamento.trim(),
     justificativaPlanejamento: form.justificativaPlanejamento.trim(),
+    classificacaoPlanejamentoFinanceiro:
+      form.classificacaoPlanejamentoFinanceiro || null,
     quantidade: form.quantidade ? Number(form.quantidade) : null,
     unidadeMedida: form.unidadeMedida,
     valorUnitario: form.valorUnitario
@@ -305,7 +335,9 @@ export async function createPlanejamentoFinanceiro(
 
   const data: PlanejamentoFinanceiroDTO = await response.json();
 
-  return mapPlanejamentoFinanceiro(data);
+  const planejamento = mapPlanejamentoFinanceiro(data);
+  invalidateFinancialData("planejamento-financeiro");
+  return planejamento;
 }
 
 export async function updatePlanejamentoFinanceiro(
@@ -324,7 +356,9 @@ export async function updatePlanejamentoFinanceiro(
 
   const data: PlanejamentoFinanceiroDTO = await response.json();
 
-  return mapPlanejamentoFinanceiro(data);
+  const planejamento = mapPlanejamentoFinanceiro(data);
+  invalidateFinancialData("planejamento-financeiro");
+  return planejamento;
 }
 
 export async function deletePlanejamentoFinanceiro(id: number): Promise<void> {
@@ -336,6 +370,7 @@ export async function deletePlanejamentoFinanceiro(id: number): Promise<void> {
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
+  invalidateFinancialData("planejamento-financeiro");
 }
 
 export async function getPropostasEditalOptions(): Promise<

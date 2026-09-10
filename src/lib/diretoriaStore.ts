@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { sortOptionsByLabel } from "@/lib/sortOptions";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -22,11 +23,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -36,7 +33,7 @@ async function parseError(response: Response): Promise<string> {
   }
 }
 
-export const cargosDiretoria = [
+export const cargosDiretoria = sortOptionsByLabel([
   { value: "PRESIDENTE", label: "Presidente" },
   { value: "VICE_PRESIDENTE", label: "Vice-presidente" },
 
@@ -123,7 +120,7 @@ export const cargosDiretoria = [
   { value: "SUPLENTE", label: "Suplente" },
 
   { value: "OUTRO", label: "Outro" },
-] as const;
+] as const);
 
 export const statusDiretoriaOptions = [
   { value: "ATIVO", label: "Ativo" },

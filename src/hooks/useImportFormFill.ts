@@ -1,6 +1,13 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
-import { advanceImportReviewQueue, getImportReviewQueue } from "@/lib/importReviewQueue";
-import { applyImportedData, isImportValueEmpty, type ImportFieldRule } from "@/lib/importDataApplicator";
+import {
+  advanceImportReviewQueue,
+  getImportReviewQueue,
+} from "@/lib/importReviewQueue";
+import {
+  applyImportedData,
+  isImportValueEmpty,
+  type ImportFieldRule,
+} from "@/lib/importDataApplicator";
 
 interface ImportFillDetail {
   module: string;
@@ -20,17 +27,32 @@ export function useImportFormFill<T extends object>(
       const detail = (event as CustomEvent<ImportFillDetail>).detail;
       if (detail?.module !== module || !detail.data) return;
       setForm((current) => {
-        const result = applyImportedData(current, detail.data, detail.fieldRules);
+        const result = applyImportedData(
+          current,
+          detail.data,
+          detail.fieldRules,
+        );
         const next = result.data as Record<string, unknown>;
-        window.dispatchEvent(new CustomEvent("aurit:import-apply-result", {
-          detail: { module, warnings: result.warnings, appliedFields: result.appliedFields, preservedFields: result.preservedFields },
-        }));
+        window.dispatchEvent(
+          new CustomEvent("aurit:import-apply-result", {
+            detail: {
+              module,
+              warnings: result.warnings,
+              appliedFields: result.appliedFields,
+              preservedFields: result.preservedFields,
+            },
+          }),
+        );
         window.setTimeout(() => {
           for (const field of detail.requiredFields ?? []) {
             const element = document.getElementById(field);
             if (!element || !isImportValueEmpty(next[field])) continue;
             element.setAttribute("aria-invalid", "true");
-            element.classList.add("border-amber-500", "ring-1", "ring-amber-300");
+            element.classList.add(
+              "border-amber-500",
+              "ring-1",
+              "ring-amber-300",
+            );
           }
         }, 0);
         return next as T;
@@ -46,11 +68,17 @@ export function useImportFormFill<T extends object>(
       submitted.current = false;
     };
     window.addEventListener("aurit:import-fill-form", handleFill);
-    window.addEventListener("aurit:import-review-save-success", handleSaveSuccess);
+    window.addEventListener(
+      "aurit:import-review-save-success",
+      handleSaveSuccess,
+    );
     document.addEventListener("submit", handleSubmit, true);
     return () => {
       window.removeEventListener("aurit:import-fill-form", handleFill);
-      window.removeEventListener("aurit:import-review-save-success", handleSaveSuccess);
+      window.removeEventListener(
+        "aurit:import-review-save-success",
+        handleSaveSuccess,
+      );
       document.removeEventListener("submit", handleSubmit, true);
       if (submitted.current) advanceImportReviewQueue(module);
     };

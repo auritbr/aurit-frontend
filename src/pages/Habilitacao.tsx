@@ -1,51 +1,50 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search,
+  FileCheck2,
+  FileWarning,
+  Loader2,
   Plus,
-  Pencil,
-  Trash2,
-  FileSignature,
-  Eye,
-  FileDown,
+  RotateCcw,
+  Search,
+  Send,
+  ShieldCheck,
 } from "lucide-react";
 
-import { AppLayout } from "@/components/AppLayout";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { HelpTooltip } from "@/components/HelpTooltip";
-import { TableActionIcon } from "@/components/TableActionIcon";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+  useSessionBoolean,
+} from "@/components/AdvancedSearchPanel";
+import { AppLayout } from "@/components/AppLayout";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { FieldLabel } from "@/components/FieldLabel";
+import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
+import { StatusPill } from "@/components/StatusPill";
+import { SummaryStatCard } from "@/components/SummaryStatCard";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { TablePagination } from "@/components/TablePagination";
-import { SortableHeader } from "@/components/SortableHeader";
-import { NextStepCard } from "@/components/NextStepCard";
-import { usePagination } from "@/hooks/usePagination";
-import { useSortableData } from "@/hooks/useSortableData";
-import { copyTableFromRef } from "@/lib/copyTableDom";
-import { isPlanoAccessDenied } from "@/lib/access";
-import { exportHabilitacaoPdf } from "@/lib/pdfExporters";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableEmptyState } from "@/components/list/DataTableEmptyState";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { SortableTh } from "@/components/list/SortableTh";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  getPermissoesUsuarioLogadoPorModulo,
-  permissoesVazias,
-  type PermissoesModulo,
-} from "@/lib/permissoes";
-import {
-  agenteNomeHabilitacao,
-  deleteHabilitacao,
-  formatDateBr,
-  getAgentesOptions,
-  getHabilitacoes,
-  getPropostasEditalOptions,
-  propostaNomeHabilitacao,
-  statusHabilitacaoLabel,
-  statusHabilitacaoTone,
-  type AgenteOption,
-  type Habilitacao,
-  type PropostaOption,
-} from "@/data/habilitacao";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,15 +55,79 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  agenteNomeHabilitacao,
+  deleteHabilitacao,
+  formatDateBr,
+  getAgentesOptions,
+  getDocumentosDisponiveis,
+  getHabilitacoes,
+  getPropostasEditalOptions,
+  propostaNomeHabilitacao,
+  statusHabilitacaoLabel,
+  statusHabilitacaoOptions,
+  type AgenteOption,
+  type DocumentoOption,
+  type Habilitacao,
+  type PropostaOption,
+} from "@/data/habilitacao";
+import { usePagination } from "@/hooks/usePagination";
+import { isPlanoAccessDenied } from "@/lib/access";
+import {
+  getPermissoesUsuarioLogadoPorModulo,
+  permissoesVazias,
+  type PermissoesModulo,
+} from "@/lib/permissoes";
+import type { ExportColumn } from "@/utils/exportUtils";
 import { toast } from "sonner";
 
-type SortKey = "proposta" | "agente" | "dataLimite" | "envio" | "retorno" | "regularizacao" | "conclusao" | "status";
+const sortByOptions = [
+  { value: "proposta", label: "Proposta de edital" },
+  { value: "responsavel", label: "Responsável" },
+  { value: "documentos", label: "Documentos vinculados" },
+  { value: "dataEnvio", label: "Data de envio" },
+  { value: "situacao", label: "Situação" },
+] as const;
+type SortBy = (typeof sortByOptions)[number]["value"];
+type SortDir = "asc" | "desc";
+const sortDirLabels: Record<SortDir, string> = { asc: "A–Z", desc: "Z–A" };
+const inputClass =
+  "h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm";
 
-const HABILITACAO_NEXT_STEP_KEY =
-  "aurit:habilitacoes-propostas:next-step-card";
-const NEXT_STEP_DURATION_MS = 60_000;
+interface Filtros {
+  busca: string;
+  proposta: string[];
+  responsavel: string[];
+  situacao: string[];
+  envioInicio: string;
+  envioFim: string;
+  sortBy: SortBy;
+  sortDir: SortDir;
+}
 
-interface HabilitacaoNextStepCardData {
+const emptyFiltros: Filtros = {
+  busca: "",
+  proposta: [],
+  responsavel: [],
+  situacao: [],
+  envioInicio: "",
+  envioFim: "",
+  sortBy: "proposta",
+  sortDir: "asc",
+};
+const normalize = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+const labelOf = (
+  options: readonly { value: string; label: string }[],
+  value: string,
+) => options.find((item) => item.value === value)?.label ?? value;
+
+const HABILITACAO_NEXT_STEP_KEY = "aurit:habilitacoes-propostas:next-step-card";
+interface NextStepData {
   titulo: string;
   descricao: string;
   acaoLabel: string;
@@ -74,81 +137,47 @@ interface HabilitacaoNextStepCardData {
   variante?: "pendente" | "atencao" | "concluido" | "prioridade";
 }
 
-const toneClass: Record<string, string> = {
-  neutral: "bg-muted text-muted-foreground border-border",
-  info: "bg-primary/10 text-primary border-primary/20",
-  warning:
-    "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  success:
-    "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-  danger: "bg-destructive/10 text-destructive border-destructive/20",
-};
-
-function StatusBadge({ value }: { value: string }) {
-  const tone = statusHabilitacaoTone(value);
-
-  return (
-    <span
-      className={`inline-flex items-center whitespace-nowrap rounded border px-2 py-0.5 text-[11px] font-medium ${toneClass[tone] ?? toneClass.neutral
-        }`}
-    >
-      {statusHabilitacaoLabel(value)}
-    </span>
-  );
-}
-
 export default function HabilitacaoPage() {
   const navigate = useNavigate();
-  const tableRef = useRef<HTMLTableElement>(null);
-
-  const [search, setSearch] = useState("");
   const [items, setItems] = useState<Habilitacao[]>([]);
   const [propostas, setPropostas] = useState<PropostaOption[]>([]);
   const [agentes, setAgentes] = useState<AgenteOption[]>([]);
+  const [documentos, setDocumentos] = useState<DocumentoOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
     null,
   );
-  const [nextStepCard, setNextStepCard] =
-    useState<HabilitacaoNextStepCardData | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [nextStepCard, setNextStepCard] = useState<NextStepData | null>(null);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
+  const [panelOpen, setPanelOpen] = useSessionBoolean(
+    "habilitacao:pesquisa-avancada",
+    false,
+  );
+  const [draft, setDraft] = useState<Filtros>(emptyFiltros);
+  const [filtros, setFiltros] = useState<Filtros>(emptyFiltros);
+  const [searching, setSearching] = useState(false);
 
   const podeVisualizar = permissoes.VISUALIZAR;
   const podeCriar = permissoes.CRIAR;
   const podeEditar = permissoes.EDITAR;
   const podeExcluir = permissoes.EXCLUIR;
-  const podeGerarPdf = permissoes.GERAR_PDF || permissoes.BAIXAR;
+  const podeExportar = permissoes.GERAR_PDF || permissoes.BAIXAR;
 
   useEffect(() => {
     let active = true;
-
-    async function carregarPermissoes() {
-      try {
-        setLoadingPermissoes(true);
-
-        const data = await getPermissoesUsuarioLogadoPorModulo(
-          "HABILITACOES_PROPOSTAS",
-        );
-
-        if (!active) return;
-
-        setPermissoes(data);
-      } catch (error) {
-        console.error(error);
-
-        if (!active) return;
-
-        setPermissoes(permissoesVazias);
-      } finally {
+    void getPermissoesUsuarioLogadoPorModulo("HABILITACAO")
+      .then((data) => {
+        if (active) setPermissoes(data);
+      })
+      .catch(() => {
+        if (active) setPermissoes(permissoesVazias);
+      })
+      .finally(() => {
         if (active) setLoadingPermissoes(false);
-      }
-    }
-
-    void carregarPermissoes();
-
+      });
     return () => {
       active = false;
     };
@@ -156,35 +185,20 @@ export default function HabilitacaoPage() {
 
   useEffect(() => {
     const raw = sessionStorage.getItem(HABILITACAO_NEXT_STEP_KEY);
-
     if (!raw) return;
-
     try {
-      const parsed = JSON.parse(raw) as HabilitacaoNextStepCardData;
-      setNextStepCard(parsed);
+      setNextStepCard(JSON.parse(raw) as NextStepData);
     } catch {
       setNextStepCard(null);
     }
-
     sessionStorage.removeItem(HABILITACAO_NEXT_STEP_KEY);
-
-    const timer = window.setTimeout(() => {
-      setNextStepCard(null);
-    }, NEXT_STEP_DURATION_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
   }, []);
 
   useEffect(() => {
-    if (loadingPermissoes) return;
-
-    if (!podeVisualizar) {
-      setLoading(false);
+    if (loadingPermissoes || !podeVisualizar) {
+      if (!loadingPermissoes) setLoading(false);
       return;
     }
-
     void carregarDados();
   }, [loadingPermissoes, podeVisualizar]);
 
@@ -192,599 +206,709 @@ export default function HabilitacaoPage() {
     try {
       setLoading(true);
       setAccessDeniedMessage(null);
-
-      const [habilitacoesData, propostasData, agentesData] = await Promise.all([
-        getHabilitacoes(),
-        getPropostasEditalOptions(),
-        getAgentesOptions(),
-      ]);
-
+      const [habilitacoesData, propostasData, agentesData, documentosData] =
+        await Promise.all([
+          getHabilitacoes(),
+          getPropostasEditalOptions(),
+          getAgentesOptions(),
+          getDocumentosDisponiveis(),
+        ]);
       setItems(habilitacoesData);
       setPropostas(propostasData);
       setAgentes(agentesData);
+      setDocumentos(documentosData);
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : "Erro ao carregar habilitações documentais.";
-
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        return;
-      }
-
-      toast.error(message);
+      if (isPlanoAccessDenied(message)) setAccessDeniedMessage(message);
+      else toast.error(message);
     } finally {
       setLoading(false);
     }
   }
 
-  const filtered = useMemo(() => {
-    const term = search.toLowerCase().trim();
-
-    if (!term) return items;
-
-    return items.filter((habilitacao) =>
-      [
-        propostaNomeHabilitacao(
-          habilitacao.propostaEdital,
-          propostas,
-          habilitacao.nomePropostaEdital,
-        ),
-        agenteNomeHabilitacao(
-          habilitacao.agente,
-          agentes,
-          habilitacao.nomeAgente,
-        ),
-        statusHabilitacaoLabel(habilitacao.statusHabilitacao),
-        formatDateBr(habilitacao.dataInicioHabilitacao),
-        formatDateBr(habilitacao.dataLimiteHabilitacao),
-        formatDateBr(habilitacao.dataEnvioDocumentacao),
-        formatDateBr(habilitacao.dataRetornoAnalise),
-        formatDateBr(habilitacao.dataRegularizacao),
-        formatDateBr(habilitacao.dataConclusaoHabilitacao),
-        habilitacao.exigenciaOuPendencia,
-        habilitacao.providenciaTomada,
-        habilitacao.motivoInabilitacao,
-        habilitacao.observacoes,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(term),
-    );
-  }, [search, items, propostas, agentes]);
-
-
-  const { sortConfig, sortedItems, handleSort } = useSortableData(
-    filtered,
-    (item, key: SortKey) => {
-      switch (key) {
-        case "proposta":
-          return propostaNomeHabilitacao(
-            item.propostaEdital,
-            propostas,
-            item.nomePropostaEdital,
-          );
-        case "agente":
-          return agenteNomeHabilitacao(item.agente, agentes, item.nomeAgente);
-        case "dataLimite":
-          return item.dataLimiteHabilitacao ?? "";
-        case "envio":
-          return item.dataEnvioDocumentacao ?? "";
-        case "retorno":
-          return item.dataRetornoAnalise ?? "";
-        case "regularizacao":
-          return item.dataRegularizacao ?? "";
-        case "conclusao":
-          return item.dataConclusaoHabilitacao ?? "";
-        case "status":
-          return statusHabilitacaoLabel(item.statusHabilitacao);
-        default:
-          return "";
-      }
-    },
+  const propostaOptions = useMemo(
+    () => propostas.map((item) => ({ value: item.id, label: item.nome })),
+    [propostas],
   );
+  const responsavelOptions = useMemo(
+    () => agentes.map((item) => ({ value: item.id, label: item.nome })),
+    [agentes],
+  );
+  const situacaoOptions = useMemo(
+    () =>
+      statusHabilitacaoOptions.map((item) => ({
+        value: item.value,
+        label: item.label,
+      })),
+    [],
+  );
+  const setDraftField = <K extends keyof Filtros>(key: K, value: Filtros[K]) =>
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  const propostaNome = (item: Habilitacao) =>
+    propostaNomeHabilitacao(
+      item.propostaEdital,
+      propostas,
+      item.nomePropostaEdital,
+    );
+  const agenteNome = (item: Habilitacao) =>
+    agenteNomeHabilitacao(item.agente, agentes, item.nomeAgente);
+  const documentosTexto = (item: Habilitacao) => {
+    const nomes = item.documentoIds
+      .map((id) => documentos.find((doc) => doc.id === id)?.nome)
+      .filter(Boolean);
+    return nomes.length
+      ? `${nomes.length} ${nomes.length === 1 ? "documento" : "documentos"}`
+      : "—";
+  };
+  const documentosExportacao = (item: Habilitacao) => {
+    const nomes = item.documentoIds
+      .map((id) => documentos.find((doc) => doc.id === id)?.nome?.trim())
+      .filter((nome): nome is string => Boolean(nome));
+    return nomes.length ? nomes.join(" | ") : "—";
+  };
+
+  const applyFiltros = (next: Filtros) => {
+    setDraft(next);
+    setFiltros(next);
+    setCurrentPage(1);
+    setSearching(true);
+    window.setTimeout(() => setSearching(false), 180);
+  };
+  const handleSearch = (event?: FormEvent) => {
+    event?.preventDefault();
+    if (!searching) applyFiltros(draft);
+  };
+  const handleClearFiltros = () => applyFiltros(emptyFiltros);
+
+  const filtered = useMemo(() => {
+    const busca = normalize(filtros.busca);
+    const nomeProposta = (item: Habilitacao) =>
+      propostaNomeHabilitacao(
+        item.propostaEdital,
+        propostas,
+        item.nomePropostaEdital,
+      );
+    const nomeAgente = (item: Habilitacao) =>
+      agenteNomeHabilitacao(item.agente, agentes, item.nomeAgente);
+    const result = items.filter((item) => {
+      if (
+        busca &&
+        !normalize(`${nomeProposta(item)} ${nomeAgente(item)}`).includes(busca)
+      )
+        return false;
+      if (
+        filtros.proposta.length &&
+        !filtros.proposta.includes(item.propostaEdital)
+      )
+        return false;
+      if (
+        filtros.responsavel.length &&
+        !filtros.responsavel.includes(item.agente)
+      )
+        return false;
+      if (
+        filtros.situacao.length &&
+        !filtros.situacao.includes(item.statusHabilitacao)
+      )
+        return false;
+      if (
+        filtros.envioInicio &&
+        (!item.dataEnvioDocumentacao ||
+          item.dataEnvioDocumentacao < filtros.envioInicio)
+      )
+        return false;
+      if (
+        filtros.envioFim &&
+        (!item.dataEnvioDocumentacao ||
+          item.dataEnvioDocumentacao > filtros.envioFim)
+      )
+        return false;
+      return true;
+    });
+    const value = (item: Habilitacao) =>
+      filtros.sortBy === "responsavel"
+        ? nomeAgente(item)
+        : filtros.sortBy === "documentos"
+          ? item.documentoIds.length
+          : filtros.sortBy === "dataEnvio"
+            ? item.dataEnvioDocumentacao
+            : filtros.sortBy === "situacao"
+              ? statusHabilitacaoLabel(item.statusHabilitacao)
+              : nomeProposta(item);
+    return [...result].sort(
+      (a, b) =>
+        String(value(a)).localeCompare(String(value(b)), "pt-BR", {
+          sensitivity: "base",
+        }) * (filtros.sortDir === "asc" ? 1 : -1),
+    );
+  }, [agentes, filtros, items, propostas]);
+
+  const activeFilters: ActiveFilterItem[] = (() => {
+    const list: ActiveFilterItem[] = [];
+    const remove = (
+      key: "proposta" | "responsavel" | "situacao",
+      value: string,
+    ) =>
+      applyFiltros({
+        ...filtros,
+        [key]: filtros[key].filter((item) => item !== value),
+      });
+    if (filtros.busca.trim())
+      list.push({
+        id: "busca",
+        label: "Pesquisa",
+        value: filtros.busca.trim(),
+        onRemove: () => applyFiltros({ ...filtros, busca: "" }),
+      });
+    filtros.proposta.forEach((value) =>
+      list.push({
+        id: `p-${value}`,
+        label: "Proposta",
+        value: labelOf(propostaOptions, value),
+        onRemove: () => remove("proposta", value),
+      }),
+    );
+    filtros.responsavel.forEach((value) =>
+      list.push({
+        id: `r-${value}`,
+        label: "Responsável",
+        value: labelOf(responsavelOptions, value),
+        onRemove: () => remove("responsavel", value),
+      }),
+    );
+    filtros.situacao.forEach((value) =>
+      list.push({
+        id: `s-${value}`,
+        label: "Situação",
+        value: labelOf(situacaoOptions, value),
+        onRemove: () => remove("situacao", value),
+      }),
+    );
+    if (filtros.envioInicio)
+      list.push({
+        id: "inicio",
+        label: "Envio a partir de",
+        value: formatDateBr(filtros.envioInicio),
+        onRemove: () => applyFiltros({ ...filtros, envioInicio: "" }),
+      });
+    if (filtros.envioFim)
+      list.push({
+        id: "fim",
+        label: "Envio até",
+        value: formatDateBr(filtros.envioFim),
+        onRemove: () => applyFiltros({ ...filtros, envioFim: "" }),
+      });
+    if (
+      filtros.sortBy !== emptyFiltros.sortBy ||
+      filtros.sortDir !== emptyFiltros.sortDir
+    ) {
+      list.push({
+        id: "ordenacao",
+        label: "Ordenação",
+        value: `${labelOf(sortByOptions, filtros.sortBy)} · ${sortDirLabels[filtros.sortDir]}`,
+        onRemove: () =>
+          applyFiltros({
+            ...filtros,
+            sortBy: emptyFiltros.sortBy,
+            sortDir: emptyFiltros.sortDir,
+          }),
+      });
+    }
+    return list;
+  })();
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sortedItems, 25, search);
+    usePagination(filtered, 25, JSON.stringify(filtros));
+  const toggleSort = (key: SortBy) =>
+    applyFiltros({
+      ...filtros,
+      sortBy: key,
+      sortDir:
+        filtros.sortBy === key && filtros.sortDir === "asc" ? "desc" : "asc",
+    });
 
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
+  const indicadores = useMemo(
+    () => ({
+      total: items.length,
+      enviadas: items.filter((item) => !!item.dataEnvioDocumentacao).length,
+      atualizadas: items.filter(
+        (item) => item.statusHabilitacao === "ATUALIZADO",
+      ).length,
+      comPendencia: items.filter((item) =>
+        ["VENCIDO", "NECESSITA_REVISAO", "PENDENTE"].includes(
+          item.statusHabilitacao,
+        ),
+      ).length,
+    }),
+    [items],
+  );
 
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
-    }
-
-    toast.success("Dados copiados com sucesso.");
-  };
-
-  const handleDelete = async () => {
-    if (!confirmDelete) return;
-
-    if (!podeExcluir) {
-      toast.error(
-        "Você não possui permissão para remover habilitações documentais.",
-      );
-      setConfirmDelete(null);
-      return;
-    }
-
+  async function handleDelete() {
+    if (!confirmDelete || !podeExcluir) return;
     try {
       await deleteHabilitacao(Number(confirmDelete));
-
-      setItems((prev) =>
-        prev.filter((habilitacao) => habilitacao.id !== confirmDelete),
-      );
-
-      toast.success("Habilitação Documental removida com sucesso.");
-      setConfirmDelete(null);
+      setItems((prev) => prev.filter((item) => item.id !== confirmDelete));
+      toast.success("Habilitação documental excluída com sucesso.");
     } catch (error) {
-      const message =
+      toast.error(
         error instanceof Error
           ? error.message
-          : "Erro ao remover Habilitação Documental.";
-
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        setConfirmDelete(null);
-        return;
-      }
-
-      toast.error(message);
+          : "Não foi possível excluir a habilitação.",
+      );
+    } finally {
+      setConfirmDelete(null);
     }
-  };
-
-  async function handleExportPdf(habilitacao: Habilitacao) {
-    if (!podeGerarPdf) {
-      toast.error("Você não possui permissão para gerar PDF.");
-      return;
-    }
-
-    const proposta = propostaNomeHabilitacao(
-      habilitacao.propostaEdital,
-      propostas,
-      habilitacao.nomePropostaEdital,
-    );
-
-    const agente = agenteNomeHabilitacao(
-      habilitacao.agente,
-      agentes,
-      habilitacao.nomeAgente,
-    );
-
-    await exportHabilitacaoPdf({
-      id: habilitacao.id,
-      propostaEdital: proposta,
-      agenteResponsavel: agente,
-
-      dataInicioHabilitacao: habilitacao.dataInicioHabilitacao,
-      dataFinalEnvio: habilitacao.dataLimiteHabilitacao,
-      dataLimiteHabilitacao: habilitacao.dataLimiteHabilitacao,
-      dataEnvioDocumentacao: habilitacao.dataEnvioDocumentacao,
-
-      statusHabilitacao: statusHabilitacaoLabel(
-        habilitacao.statusHabilitacao,
-      ),
-
-      dataRetornoAnalise: habilitacao.dataRetornoAnalise,
-      exigenciaOuPendencia: habilitacao.exigenciaOuPendencia,
-      providenciaTomada: habilitacao.providenciaTomada,
-      dataRegularizacao: habilitacao.dataRegularizacao,
-      dataConclusaoHabilitacao: habilitacao.dataConclusaoHabilitacao,
-
-      motivoInabilitacao: habilitacao.motivoInabilitacao,
-      observacoes: habilitacao.observacoes,
-    } as any);
   }
 
-  if (!podeVisualizar) {
+  const exportColumns: ExportColumn[] = [
+    { header: "Proposta", key: "proposta" },
+    { header: "Responsável", key: "responsavel" },
+    { header: "Documentos", key: "documentos" },
+    { header: "Data de envio", key: "envio" },
+    { header: "Situação", key: "situacao" },
+    { header: "Data de início", key: "inicio" },
+    { header: "Observações", key: "observacoes" },
+  ];
+  const getExportData = () =>
+    filtered.map((item) => ({
+      proposta: propostaNome(item),
+      responsavel: agenteNome(item),
+      documentos: documentosExportacao(item),
+      inicio: formatDateBr(item.dataInicioHabilitacao),
+      envio: formatDateBr(item.dataEnvioDocumentacao),
+      situacao: statusHabilitacaoLabel(item.statusHabilitacao),
+      observacoes: item.observacoes || "—",
+    }));
+
+  if (!podeVisualizar)
     return (
       <AppLayout>
         <AccessNotPermitted />
       </AppLayout>
     );
-  }
-
-  if (accessDeniedMessage) {
+  if (accessDeniedMessage)
     return (
       <AppLayout>
         <AccessDenied />
       </AppLayout>
     );
-  }
 
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                Habilitação Documental
-              </h1>
-
-              <HelpTooltip
-                text="Acompanhe a fase de habilitação documental das propostas inscritas em editais. Registre prazos, envio da documentação, exigências, regularizações e resultado da análise. Os documentos devem ser cadastrados e atualizados na página Documentos."
-                label="Habilitação Documental"
-                size="md"
-                side="bottom"
-                align="start"
-              />
-            </div>
-          </div>
-        </div>
-
-        {nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
-        )}
-
-        <div className="rounded border border-border bg-card">
-          <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-            <div className="relative max-w-md flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-9 pl-9"
-                aria-label="Buscar Habilitação Documental"
-              />
-            </div>
-
-            {podeCriar && (
+        <ListPageHeader
+          title="Habilitação Documental"
+          tooltip="Nesta página são organizados e acompanhados os documentos exigidos para a habilitação do projeto apresentado ao edital. Vincule os documentos já cadastrados no sistema, acompanhe a situação de cada um e registre o andamento da preparação, do envio e da análise da documentação."
+          objective="Organize e acompanhe a documentação necessária para a habilitação do projeto apresentado ao edital, identificando pendências antes do envio e mantendo atualizado o andamento do processo até sua análise."
+          actions={
+            podeCriar ? (
               <Button
+                variant="glassPrimary"
+                className="h-9 gap-2 px-4"
                 onClick={() => navigate("/habilitacoes-propostas/novo")}
-                className="h-9 gap-2 self-start"
-                disabled={loading}
               >
                 <Plus className="h-4 w-4" />
-                Cadastrar Habilitação
+                Cadastrar habilitação
               </Button>
-            )}
-          </div>
+            ) : undefined
+          }
+        />
 
-          <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[1380px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    data-no-copy
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <SummaryStatCard
+            title="Habilitações"
+            value={indicadores.total}
+            icon={FileCheck2}
+          />
+          <SummaryStatCard
+            title="Documentação enviada"
+            value={indicadores.enviadas}
+            icon={Send}
+            variant="info"
+          />
+          <SummaryStatCard
+            title="Documentação atualizada"
+            value={indicadores.atualizadas}
+            icon={ShieldCheck}
+            variant="success"
+          />
+          <SummaryStatCard
+            title="Com pendências"
+            value={indicadores.comPendencia}
+            icon={FileWarning}
+            variant="warning"
+          />
+        </div>
+
+        <div className="space-y-4">
+          <AdvancedSearchPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            activeCount={activeFilters.length}
+          >
+            <form onSubmit={handleSearch} noValidate>
+              <SearchFilterGrid>
+                <div>
+                  <FieldLabel
+                    htmlFor="filtroBusca"
+                    tooltip="Pesquise pela proposta de edital ou pela pessoa responsável pelo acompanhamento."
                   >
-                    Ações
-                  </th>
-
-                  <SortableHeader
-                    label="Proposta de edital"
-                    sortKey="proposta"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    Pesquisa
+                  </FieldLabel>
+                  <Input
+                    id="filtroBusca"
+                    value={draft.busca}
+                    onChange={(e) => setDraftField("busca", e.target.value)}
+                    placeholder="Proposta ou responsável"
+                    className={inputClass}
                   />
-
-                  <SortableHeader
-                    label="Agente responsável"
-                    sortKey="agente"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </div>
+                <div>
+                  <FieldLabel
+                    htmlFor="filtroProposta"
+                    tooltip="Selecione as propostas de edital cujas habilitações deseja visualizar."
+                  >
+                    Proposta de edital
+                  </FieldLabel>
+                  <FilterMultiSelect
+                    id="filtroProposta"
+                    options={propostaOptions}
+                    value={draft.proposta}
+                    onChange={(value) => setDraftField("proposta", value)}
+                    placeholder="Todas as propostas"
+                    summaryNoun="propostas selecionadas"
+                    searchable
                   />
-
-                  <SortableHeader
-                    label="Data limite"
-                    sortKey="dataLimite"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </div>
+                <div>
+                  <FieldLabel
+                    htmlFor="filtroResponsavel"
+                    tooltip="Selecione quem acompanha a preparação e o envio da documentação."
+                  >
+                    Responsável
+                  </FieldLabel>
+                  <FilterMultiSelect
+                    id="filtroResponsavel"
+                    options={responsavelOptions}
+                    value={draft.responsavel}
+                    onChange={(value) => setDraftField("responsavel", value)}
+                    placeholder="Todos os responsáveis"
+                    summaryNoun="responsáveis selecionados"
+                    searchable
                   />
-
-                  <SortableHeader
-                    label="Envio"
-                    sortKey="envio"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </div>
+                <div>
+                  <FieldLabel
+                    htmlFor="filtroSituacao"
+                    tooltip="Selecione a situação atual calculada para a habilitação documental."
+                  >
+                    Situação da habilitação
+                  </FieldLabel>
+                  <FilterMultiSelect
+                    id="filtroSituacao"
+                    options={situacaoOptions}
+                    value={draft.situacao}
+                    onChange={(value) => setDraftField("situacao", value)}
+                    placeholder="Todas as situações"
+                    summaryNoun="situações selecionadas"
                   />
-
-                  <SortableHeader
-                    label="Retorno"
-                    sortKey="retorno"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </div>
+                <div>
+                  <FieldLabel
+                    htmlFor="filtroEnvioInicio"
+                    tooltip="Mostra habilitações cuja documentação foi enviada a partir desta data."
+                  >
+                    Envio a partir de
+                  </FieldLabel>
+                  <Input
+                    id="filtroEnvioInicio"
+                    type="date"
+                    value={draft.envioInicio}
+                    onChange={(e) =>
+                      setDraftField("envioInicio", e.target.value)
+                    }
+                    className={inputClass}
                   />
-
-                  <SortableHeader
-                    label="Regularização"
-                    sortKey="regularizacao"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </div>
+                <div>
+                  <FieldLabel
+                    htmlFor="filtroEnvioFim"
+                    tooltip="Mostra habilitações cuja documentação foi enviada até esta data."
+                  >
+                    Envio até
+                  </FieldLabel>
+                  <Input
+                    id="filtroEnvioFim"
+                    type="date"
+                    value={draft.envioFim}
+                    onChange={(e) => setDraftField("envioFim", e.target.value)}
+                    className={inputClass}
                   />
+                </div>
+                <div>
+                  <FieldLabel
+                    htmlFor="filtroSortBy"
+                    tooltip="Escolha o campo utilizado para ordenar a lista de resultados."
+                  >
+                    Ordenar por
+                  </FieldLabel>
+                  <Select
+                    value={draft.sortBy}
+                    onValueChange={(value) =>
+                      setDraftField("sortBy", value as SortBy)
+                    }
+                  >
+                    <SelectTrigger id="filtroSortBy" className={inputClass}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortByOptions.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <FieldLabel
+                    htmlFor="filtroSortDir"
+                    tooltip="Escolha a direção da ordenação dos resultados."
+                  >
+                    Ordem
+                  </FieldLabel>
+                  <Select
+                    value={draft.sortDir}
+                    onValueChange={(value) =>
+                      setDraftField("sortDir", value as SortDir)
+                    }
+                  >
+                    <SelectTrigger id="filtroSortDir" className={inputClass}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">{sortDirLabels.asc}</SelectItem>
+                      <SelectItem value="desc">{sortDirLabels.desc}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </SearchFilterGrid>
+              <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 gap-2 px-4"
+                  onClick={handleClearFiltros}
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden /> Limpar filtros
+                </Button>
+                <Button
+                  type="submit"
+                  variant="glassPrimary"
+                  className="h-9 gap-2 px-5"
+                  disabled={searching}
+                  aria-busy={searching}
+                >
+                  <Search className="h-4 w-4" aria-hidden />{" "}
+                  {searching ? "Pesquisando..." : "Pesquisar"}
+                </Button>
+              </div>
+            </form>
+          </AdvancedSearchPanel>
+          <ActiveFilters
+            items={activeFilters}
+            onClearAll={handleClearFiltros}
+          />
 
-                  <SortableHeader
-                    label="Conclusão"
-                    sortKey="conclusao"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Status"
-                    sortKey="status"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  {podeGerarPdf && (
-                    <th
-                      className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy
-                    >
-                      Documento
-                    </th>
-                  )}
-                </tr>
-              </thead>
-
-              <tbody>
-                {paginated.map((habilitacao) => {
-                  const proposta = propostaNomeHabilitacao(
-                    habilitacao.propostaEdital,
-                    propostas,
-                    habilitacao.nomePropostaEdital,
-                  );
-
-                  const agente = agenteNomeHabilitacao(
-                    habilitacao.agente,
-                    agentes,
-                    habilitacao.nomeAgente,
-                  );
-
-                  return (
-                    <tr
-                      key={habilitacao.id}
-                      className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                    >
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <div className="flex items-center gap-1">
-                          <TableActionIcon
-                            icon={Eye}
-                            label="Visualizar"
-                            onClick={() =>
-                              navigate(
-                                `/habilitacoes-propostas/${habilitacao.id}`,
-                              )
-                            }
-                          />
-
-                          {podeEditar && (
-                            <TableActionIcon
-                              icon={Pencil}
-                              label="Editar"
-                              onClick={() =>
-                                navigate(
-                                  `/habilitacoes-propostas/${habilitacao.id}/editar`,
-                                )
+          <DataTableCard>
+            <DataTableToolbar
+              total={filtered.length}
+              reportTo="/relatorios/habilitacoes-propostas"
+              exportColumns={exportColumns}
+              getExportData={getExportData}
+              exportFilename="habilitacao-documental"
+              canExport={podeExportar}
+            />
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 px-6 py-12 text-[13px] text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando habilitações...
+              </div>
+            ) : filtered.length === 0 ? (
+              <DataTableEmptyState
+                emptyTitle="Nenhuma habilitação documental cadastrada."
+                emptyDescription="Cadastre a primeira habilitação para vincular os documentos exigidos pelo edital."
+                activeCount={activeFilters.length}
+              />
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border/60 bg-muted/45">
+                        <th className="w-[120px] px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Ações
+                        </th>
+                        <SortableTh
+                          sortKey="proposta"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Proposta
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="responsavel"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Responsável
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="documentos"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Documentos
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="dataEnvio"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Data de envio
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="situacao"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Situação
+                        </SortableTh>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginated.map((item) => (
+                        <tr
+                          key={item.id}
+                          className="border-b border-border/50 last:border-0 hover:bg-muted/25"
+                        >
+                          <td className="px-6 py-2.5">
+                            <RowActionsDropdown
+                              reportEndpoint={
+                                podeExportar
+                                  ? `/habilitacoes-propostas/${item.id}/relatorio`
+                                  : undefined
+                              }
+                              reportFilename={`habilitacao-${item.id}.pdf`}
+                              viewTo={`/habilitacoes-propostas/${item.id}`}
+                              editTo={
+                                podeEditar
+                                  ? `/habilitacoes-propostas/${item.id}/editar`
+                                  : undefined
+                              }
+                              onDelete={
+                                podeExcluir
+                                  ? () => setConfirmDelete(item.id)
+                                  : undefined
                               }
                             />
-                          )}
-
-                          {podeExcluir && (
-                            <TableActionIcon
-                              icon={Trash2}
-                              label="Excluir"
-                              variant="danger"
-                              onClick={() => setConfirmDelete(habilitacao.id)}
+                          </td>
+                          <td className="px-6 py-2.5">
+                            <TableCellText text={propostaNome(item)} bold>
+                              {propostaNome(item)}
+                            </TableCellText>
+                          </td>
+                          <td className="px-6 py-2.5">
+                            <TableCellText text={agenteNome(item)} muted>
+                              {agenteNome(item)}
+                            </TableCellText>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
+                            {documentosTexto(item)}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
+                            {formatDateBr(item.dataEnvioDocumentacao)}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <StatusPill
+                              status={item.statusHabilitacao}
+                              context="habilitacao"
+                              ariaLabelPrefix="Situação da habilitação"
                             />
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={proposta} bold>
-                          {proposta}
-                        </TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={agente} muted>
-                          {agente}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <span className="text-sm font-medium text-foreground">
-                          {formatDateBr(habilitacao.dataLimiteHabilitacao)}
-                        </span>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                        {formatDateBr(habilitacao.dataEnvioDocumentacao)}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                        {formatDateBr(habilitacao.dataRetornoAnalise)}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                        {formatDateBr(habilitacao.dataRegularizacao)}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                        {formatDateBr(
-                          habilitacao.dataConclusaoHabilitacao,
-                        )}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <StatusBadge value={habilitacao.statusHabilitacao} />
-                      </td>
-
-                      {podeGerarPdf && (
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void handleExportPdf(habilitacao)}
-                            className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                          >
-                            <FileDown className="h-3.5 w-3.5" />
-                            Gerar ficha
-                          </Button>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-
-                {paginated.length === 0 && (
-                  <EmptyRow
-                    message="Nenhuma Habilitação Documental cadastrada."
-                    colspan={podeGerarPdf ? 10 : 9}
-                  />
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="divide-y divide-border md:hidden">
-            {paginated.length === 0 ? (
-              <MobileEmptyState message="Nenhuma Habilitação Documental encontrada." />
-            ) : (
-              paginated.map((habilitacao) => (
-                <div key={habilitacao.id} className="p-4">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1">
-                      <TableActionIcon
-                        icon={Eye}
-                        label="Visualizar"
-                        onClick={() =>
-                          navigate(
-                            `/habilitacoes-propostas/${habilitacao.id}`,
-                          )
-                        }
-                      />
-
-                      {podeEditar && (
-                        <TableActionIcon
-                          icon={Pencil}
-                          label="Editar"
-                          onClick={() =>
-                            navigate(
-                              `/habilitacoes-propostas/${habilitacao.id}/editar`,
-                            )
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="divide-y divide-border md:hidden">
+                  {paginated.map((item) => (
+                    <div key={item.id} className="p-4">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <RowActionsDropdown
+                          reportEndpoint={
+                            podeExportar
+                              ? `/habilitacoes-propostas/${item.id}/relatorio`
+                              : undefined
+                          }
+                          reportFilename={`habilitacao-${item.id}.pdf`}
+                          viewTo={`/habilitacoes-propostas/${item.id}`}
+                          editTo={
+                            podeEditar
+                              ? `/habilitacoes-propostas/${item.id}/editar`
+                              : undefined
+                          }
+                          onDelete={
+                            podeExcluir
+                              ? () => setConfirmDelete(item.id)
+                              : undefined
                           }
                         />
-                      )}
-
-                      {podeExcluir && (
-                        <TableActionIcon
-                          icon={Trash2}
-                          label="Excluir"
-                          variant="danger"
-                          onClick={() => setConfirmDelete(habilitacao.id)}
+                        <StatusPill
+                          status={item.statusHabilitacao}
+                          context="habilitacao"
+                          ariaLabelPrefix="Situação da habilitação"
                         />
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <StatusBadge value={habilitacao.statusHabilitacao} />
-
-                      {podeGerarPdf && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleExportPdf(habilitacao)}
-                          className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                        >
-                          <FileDown className="h-3.5 w-3.5" />
-                          PDF
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  <p className="font-medium text-foreground">
-                    {propostaNomeHabilitacao(
-                      habilitacao.propostaEdital,
-                      propostas,
-                      habilitacao.nomePropostaEdital,
-                    )}
-                  </p>
-
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {agenteNomeHabilitacao(
-                      habilitacao.agente,
-                      agentes,
-                      habilitacao.nomeAgente,
-                    )}
-                  </p>
-
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
-                    <div>
-                      <p className="text-muted-foreground">Limite</p>
+                      </div>
                       <p className="font-medium text-foreground">
-                        {formatDateBr(habilitacao.dataLimiteHabilitacao)}
+                        {propostaNome(item)}
                       </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {agenteNome(item)}
+                      </p>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-[12px]">
+                        <div>
+                          <p className="text-muted-foreground">Documentos</p>
+                          <p>{documentosTexto(item)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Data de envio</p>
+                          <p>{formatDateBr(item.dataEnvioDocumentacao)}</p>
+                        </div>
+                      </div>
                     </div>
-
-                    <div>
-                      <p className="text-muted-foreground">Envio</p>
-                      <p className="text-foreground">
-                        {formatDateBr(habilitacao.dataEnvioDocumentacao)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-muted-foreground">Retorno</p>
-                      <p className="text-foreground">
-                        {formatDateBr(habilitacao.dataRetornoAnalise)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-muted-foreground">Conclusão</p>
-                      <p className="text-foreground">
-                        {formatDateBr(
-                          habilitacao.dataConclusaoHabilitacao,
-                        )}
-                      </p>
-                    </div>
-                  </div>
-
-                  {(habilitacao.exigenciaOuPendencia ||
-                    habilitacao.motivoInabilitacao) && (
-                      <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
-                        {habilitacao.exigenciaOuPendencia ||
-                          habilitacao.motivoInabilitacao}
-                      </p>
-                    )}
+                  ))}
                 </div>
-              ))
+                <DataTablePagination
+                  totalItems={filtered.length}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  entityLabel="habilitação"
+                  entityLabelPlural="habilitações"
+                />
+              </>
             )}
-          </div>
-
-          <TablePagination
-            totalItems={sortedItems.length}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            onCopy={handleCopy}
-          />
+          </DataTableCard>
         </div>
       </div>
 
@@ -794,60 +918,24 @@ export default function HabilitacaoPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              Remover Habilitação Documental?
-            </AlertDialogTitle>
-
+            <AlertDialogTitle>Excluir habilitação documental?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita.
+              O registro será removido. Os documentos permanecem cadastrados no
+              módulo Documentos.
             </AlertDialogDescription>
           </AlertDialogHeader>
-
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Sim, remover
+            <AlertDialogAction onClick={() => void handleDelete()}>
+              Sim, excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       <WikiFloatingButton
-        pageTitle="Habilitação Documental"
+        pageTitle="Habilitação documental"
         href="https://www.aurit.com.br/wiki/editais/habilitacao-documental"
       />
     </AppLayout>
-  );
-}
-
-function EmptyRow({
-  message,
-  colspan,
-}: {
-  message: string;
-  colspan: number;
-}) {
-  return (
-    <tr>
-      <td colSpan={colspan} className="px-5 py-16 text-center">
-        <FileSignature className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-        <p className="mt-3 text-sm text-muted-foreground">{message}</p>
-      </td>
-    </tr>
-  );
-}
-
-function MobileEmptyState({ message }: { message: string }) {
-  return (
-    <div className="p-10 text-center">
-      <FileSignature className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-      <p className="mt-3 text-sm text-muted-foreground">{message}</p>
-    </div>
   );
 }

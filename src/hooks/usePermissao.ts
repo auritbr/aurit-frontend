@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
 import { usuarioTemPermissaoFrontend } from "@/data/permissoes";
-import {
-  type AcaoPermissao,
-  type ModuloPermissao,
-} from "@/data/usuarios";
+import { type AcaoPermissao, type ModuloPermissao } from "@/data/usuarios";
 
 export function usePermissao(
   modulo: ModuloPermissao,

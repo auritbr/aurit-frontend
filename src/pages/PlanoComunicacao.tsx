@@ -1,47 +1,46 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
-  Search,
-  Plus,
-  Pencil,
-  Trash2,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  CalendarClock,
+  CheckCircle2,
+  Loader2,
   Megaphone,
-  Eye,
-  FileDown,
+  PlayCircle,
+  Plus,
+  RotateCcw,
+  Search,
 } from "lucide-react";
-import { PageTitle } from "@/components/PageTitle";
 import { AppLayout } from "@/components/AppLayout";
-import { AccessDenied } from "@/components/AccessDenied";
-import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TableActionIcon } from "@/components/TableActionIcon";
+import { FieldLabel } from "@/components/FieldLabel";
 import { TableCellText } from "@/components/TableCellText";
-import { StatusPill, type Status } from "@/components/StatusPill";
+import { StatusPill } from "@/components/StatusPill";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { TablePagination } from "@/components/TablePagination";
-import { SortableHeader } from "@/components/SortableHeader";
-import { NextStepCard } from "@/components/NextStepCard";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { DataTableEmptyState } from "@/components/list/DataTableEmptyState";
+import { SortableTh } from "@/components/list/SortableTh";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+} from "@/components/AdvancedSearchPanel";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import { SummaryStatCard } from "@/components/SummaryStatCard";
+import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+import { DataTablePagination } from "@/components/DataTablePagination";
 import { usePagination } from "@/hooks/usePagination";
-import { useSortableData } from "@/hooks/useSortableData";
-import { copyTableFromRef } from "@/lib/copyTableDom";
-import { isPlanoAccessDenied } from "@/lib/access";
-import { exportPlanoComunicacaoPdf } from "@/lib/pdfExporters";
-import {
-  getPermissoesUsuarioLogadoPorModulo,
-  permissoesVazias,
-  type PermissoesModulo,
-} from "@/lib/permissoes";
-import {
-  deletePlanoComunicacao,
-  estrategiasPlanoComunicacaoTexto,
-  formatDateBr,
-  getPlanosComunicacao,
-  getPropostasEditalOptions,
-  statusPlanoComunicacaoLabel,
-  type PlanoComunicacao,
-  type PropostaEditalOption,
-} from "@/data/planoComunicacao";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,672 +52,875 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  deletePlanoComunicacao,
+  estrategiaLabel,
+  estrategiasDivulgacao,
+  getPlanosComunicacao,
+  getPropostasEditalOptions,
+  statusPlanoComunicacaoLabel,
+  statusPlanoComunicacaoOptions,
+  type EstrategiaDivulgacao,
+  type PlanoComunicacao as PlanoComunicacaoData,
+} from "@/data/planoComunicacao";
 
-type SortKey = "nome" | "quantidade" | "formato" | "estrategias" | "dataInicio" | "dataFim" | "status" | "proposta";
-
-const PLANO_COMUNICACAO_NEXT_STEP_KEY =
-  "aurit:plano-comunicacao:next-step-card";
-const NEXT_STEP_DURATION_MS = 60_000;
-
-interface PlanoComunicacaoNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+interface Referencia {
+  id: string;
+  nome?: string;
+  organizacao?: Referencia;
 }
+interface PlanoComunicacao {
+  id: string;
+  nomePlano: string;
+  objetivoComunicacao: string;
+  publicoAlvoComunicacao: string;
+  quantidade: string;
+  localCirculacaoComunicacao: string;
+  formatoPlanoComunicacao: string;
+  dataInicio: string;
+  dataFim: string;
+  statusPlanoComunicacao: PlanoComunicacaoData["status"];
+  estrategiasDivulgacao: EstrategiaDivulgacao[];
+  propostaEdital?: Referencia;
+  organizacao?: Referencia;
+}
+const estrategiaDivulgacaoOpcoes = estrategiasDivulgacao.map((item) => ({
+  value: item.value,
+  label: item.label,
+}));
+const statusPlanoComunicacaoOpcoes = statusPlanoComunicacaoOptions.map(
+  (item) => ({
+    value: item.value,
+    label: item.label,
+  }),
+);
+const planoComunicacaoTooltip =
+  "Nesta página é elaborado o plano de comunicação do projeto apresentado ao edital, definindo o que se pretende alcançar com a comunicação, o público a ser atingido, os formatos e estratégias de divulgação, a quantidade prevista, os canais e locais de divulgação, o período de execução e a situação atual do plano.";
+const planoComunicacaoObjetivo =
+  "Planeje como o projeto apresentado ao edital será divulgado ao público, definindo o que a comunicação pretende alcançar, quem deverá ser atingido, quais estratégias e formatos serão utilizados, onde a divulgação acontecerá e em que período as ações serão realizadas.";
+const textoOuTraco = (value?: string | null) => value?.trim() || "—";
+const estrategiaDivulgacaoLabel = (value: string) => estrategiaLabel(value);
+const propostaEditalLabel = (value?: Referencia) =>
+  value?.nome || (value?.id ? `Proposta ${value.id}` : "—");
+const organizacaoLabel = (value?: Referencia) =>
+  value?.nome || (value?.id ? `Organização ${value.id}` : "—");
+const situacaoPlano = (plano: PlanoComunicacao) => plano.statusPlanoComunicacao;
+const situacaoPlanoLabel = (plano: PlanoComunicacao) =>
+  statusPlanoComunicacaoLabel(plano.statusPlanoComunicacao);
+const periodoPlano = (plano: PlanoComunicacao) => {
+  const formatar = (data: string) =>
+    data ? data.split("-").reverse().join("/") : "—";
+  return `${formatar(plano.dataInicio)} a ${formatar(plano.dataFim)}`;
+};
+const listarPlanosComunicacao = async (): Promise<PlanoComunicacao[]> =>
+  (await getPlanosComunicacao()).map((plano) => ({
+    id: plano.id,
+    nomePlano: plano.nomePlano,
+    objetivoComunicacao: plano.objetivoComunicacao,
+    publicoAlvoComunicacao: plano.publicoAlvoComunicacao,
+    quantidade: plano.quantidade,
+    localCirculacaoComunicacao: plano.localCirculacaoComunicacao,
+    formatoPlanoComunicacao: plano.formatoPlanoComunicacao,
+    dataInicio: plano.dataInicio,
+    dataFim: plano.dataFim,
+    statusPlanoComunicacao: plano.status,
+    estrategiasDivulgacao: plano.estrategiasDivulgacao,
+    propostaEdital: plano.propostaEdital
+      ? { id: plano.propostaEdital, nome: plano.nomePropostaEdital }
+      : undefined,
+    organizacao: plano.organizacao ? { id: plano.organizacao } : undefined,
+  }));
+const excluirPlanoComunicacao = (id: string | number) =>
+  deletePlanoComunicacao(Number(id));
+const listarPropostasEdital = async () =>
+  (await getPropostasEditalOptions()).map((item) => ({
+    id: item.id,
+    nome: item.nome,
+  }));
+
+const fieldClass = "h-9";
+
+const normalize = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+const sortByOptions = [
+  { value: "plano", label: "Plano" },
+  { value: "proposta", label: "Proposta de edital" },
+  { value: "periodo", label: "Período" },
+  { value: "situacao", label: "Situação" },
+] as const;
+
+type SortBy = (typeof sortByOptions)[number]["value"];
+type SortDir = "asc" | "desc";
+
+interface Filtros {
+  termo: string;
+  propostas: string[];
+  estrategias: string[];
+  situacoes: string[];
+  dataInicial: string;
+  dataFinal: string;
+  sortBy: SortBy;
+  sortDir: SortDir;
+}
+
+const filtrosIniciais: Filtros = {
+  termo: "",
+  propostas: [],
+  estrategias: [],
+  situacoes: [],
+  dataInicial: "",
+  dataFinal: "",
+  sortBy: "plano",
+  sortDir: "asc",
+};
 
 export default function PlanoComunicacaoPage() {
   const navigate = useNavigate();
-  const tableRef = useRef<HTMLTableElement>(null);
+  const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const propostaContexto = searchParams.get("proposta") ?? "";
 
-  const [search, setSearch] = useState("");
-  const [items, setItems] = useState<PlanoComunicacao[]>([]);
-  const [propostas, setPropostas] = useState<PropostaEditalOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingPermissoes, setLoadingPermissoes] = useState(true);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [draft, setDraft] = useState<Filtros>(filtrosIniciais);
+  const [filtros, setFiltros] = useState<Filtros>(filtrosIniciais);
+  const [confirmDelete, setConfirmDelete] = useState<PlanoComunicacao | null>(
     null,
   );
-  const [nextStepCard, setNextStepCard] =
-    useState<PlanoComunicacaoNextStepCardData | null>(null);
-  const [permissoes, setPermissoes] =
-    useState<PermissoesModulo>(permissoesVazias);
 
-  const podeVisualizar = permissoes.VISUALIZAR;
-  const podeCriar = permissoes.CRIAR;
-  const podeEditar = permissoes.EDITAR;
-  const podeExcluir = permissoes.EXCLUIR;
-  const podeGerarPdf = permissoes.GERAR_PDF || permissoes.BAIXAR;
+  const {
+    data: planos = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery<PlanoComunicacao[]>({
+    queryKey: ["planos-comunicacao"],
+    queryFn: listarPlanosComunicacao,
+  });
 
-  useEffect(() => {
-    let active = true;
-
-    async function carregarPermissoes() {
-      try {
-        setLoadingPermissoes(true);
-
-        const data =
-          await getPermissoesUsuarioLogadoPorModulo("PLANO_COMUNICACAO");
-
-        if (!active) return;
-
-        setPermissoes(data);
-      } catch (error) {
-        console.error(error);
-
-        if (!active) return;
-
-        setPermissoes(permissoesVazias);
-      } finally {
-        if (active) setLoadingPermissoes(false);
-      }
-    }
-
-    void carregarPermissoes();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  const { data: propostas = [] } = useQuery({
+    queryKey: ["propostas-edital"],
+    queryFn: listarPropostasEdital,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
   useEffect(() => {
-    const raw = sessionStorage.getItem(PLANO_COMUNICACAO_NEXT_STEP_KEY);
+    if (isError)
+      toast.error("Não foi possível carregar os planos de comunicação.");
+  }, [isError]);
 
-    if (!raw) return;
-
-    try {
-      const parsed = JSON.parse(raw) as PlanoComunicacaoNextStepCardData;
-      setNextStepCard(parsed);
-    } catch {
-      setNextStepCard(null);
-    }
-
-    sessionStorage.removeItem(PLANO_COMUNICACAO_NEXT_STEP_KEY);
-
-    const timer = window.setTimeout(() => {
-      setNextStepCard(null);
-    }, NEXT_STEP_DURATION_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (loadingPermissoes) return;
-
-    if (!podeVisualizar) {
-      setLoading(false);
-      return;
-    }
-
-    void carregarDados();
-  }, [loadingPermissoes, podeVisualizar]);
-
-  async function carregarDados() {
-    try {
-      setLoading(true);
-      setAccessDeniedMessage(null);
-
-      const [planosData, propostasData] = await Promise.all([
-        getPlanosComunicacao(),
-        getPropostasEditalOptions(),
-      ]);
-
-      setItems(planosData);
-      setPropostas(propostasData);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Erro ao carregar planos de comunicação.";
-
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        return;
-      }
-
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const propostaNome = (item: PlanoComunicacao) => {
-    if (item.nomePropostaEdital) return item.nomePropostaEdital;
-
-    return item.propostaEdital
-      ? propostas.find((proposta) => proposta.id === item.propostaEdital)
-        ?.nome ?? "—"
-      : "—";
-  };
-
-  const statusLabel = (status?: PlanoComunicacao["status"]) => {
-    if (!status) return null;
-
-    const label = statusPlanoComunicacaoLabel(status);
-
-    return label === "—" ? null : label;
-  };
-
-  const filtered = useMemo(() => {
-    const term = search.toLowerCase().trim();
-
-    if (!term) return items;
-
-    return items.filter((item) =>
-      [
-        item.nomePlano,
-        item.quantidade,
-        item.formatoPlanoComunicacao,
-        item.localCirculacaoComunicacao,
-        estrategiasPlanoComunicacaoTexto(item.estrategiasDivulgacao),
-        propostaNome(item),
-        item.nomeEdital,
-        statusPlanoComunicacaoLabel(item.status),
-        formatDateBr(item.dataInicio),
-        formatDateBr(item.dataFim),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(term),
-    );
-  }, [search, items, propostas]);
-
-
-  const { sortConfig, sortedItems, handleSort } = useSortableData(
-    filtered,
-    (item, key: SortKey) => {
-      switch (key) {
-        case "nome":
-          return item.nomePlano ?? "";
-        case "quantidade":
-          return item.quantidade ?? "";
-        case "formato":
-          return item.formatoPlanoComunicacao ?? "";
-        case "estrategias":
-          return estrategiasPlanoComunicacaoTexto(item.estrategiasDivulgacao);
-        case "dataInicio":
-          return item.dataInicio ?? "";
-        case "dataFim":
-          return item.dataFim ?? "";
-        case "status":
-          return statusPlanoComunicacaoLabel(item.status);
-        case "proposta":
-          return propostaNome(item);
-        default:
-          return "";
-      }
+  const deleteMutation = useMutation({
+    mutationFn: excluirPlanoComunicacao,
+    onSuccess: () => {
+      toast.success("Plano de comunicação excluído com sucesso.");
+      queryClient.invalidateQueries({ queryKey: ["planos-comunicacao"] });
+      setConfirmDelete(null);
     },
+    onError: (e: Error) =>
+      toast.error(
+        e.message || "Não foi possível excluir o plano de comunicação.",
+      ),
+  });
+
+  const setDraftField = <K extends keyof Filtros>(key: K, value: Filtros[K]) =>
+    setDraft((prev) => ({ ...prev, [key]: value }));
+
+  const propostaFilterOptions = useMemo(
+    () =>
+      propostas.map((p) => ({
+        value: String(p.id),
+        label: propostaEditalLabel(p),
+      })),
+    [propostas],
   );
 
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sortedItems, 25, search);
+  const propostaNomeById = useCallback(
+    (id?: string) => {
+      if (!id) return "—";
+      const encontrada = propostas.find((p) => String(p.id) === String(id));
+      if (encontrada) return propostaEditalLabel(encontrada);
+      const noPlano = planos.find(
+        (p) => String(p.propostaEdital?.id) === String(id),
+      );
+      return noPlano
+        ? propostaEditalLabel(noPlano.propostaEdital)
+        : `Proposta ${id}`;
+    },
+    [planos, propostas],
+  );
 
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
+  const propostaNomeDoPlano = useCallback(
+    (item: PlanoComunicacao) => propostaNomeById(item.propostaEdital?.id),
+    [propostaNomeById],
+  );
 
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
-    }
+  const novoPlanoUrl = propostaContexto
+    ? `/plano-comunicacao/novo?proposta=${propostaContexto}`
+    : "/plano-comunicacao/novo";
 
-    toast.success("Dados copiados com sucesso.");
-  };
+  const filtered = useMemo(() => {
+    const termo = normalize(filtros.termo);
 
-  const handleDelete = async () => {
-    if (!confirmDelete) return;
-
-    if (!podeExcluir) {
-      toast.error("Você não possui permissão para excluir plano de comunicação.");
-      setConfirmDelete(null);
-      return;
-    }
-
-    try {
-      await deletePlanoComunicacao(Number(confirmDelete));
-
-      setItems((prev) => prev.filter((item) => item.id !== confirmDelete));
-      toast.success("Plano de comunicação excluído com sucesso.");
-      setConfirmDelete(null);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Erro ao excluir plano de comunicação.";
-
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        setConfirmDelete(null);
-        return;
+    const list = planos.filter((item) => {
+      if (
+        propostaContexto &&
+        String(item.propostaEdital?.id) !== propostaContexto
+      )
+        return false;
+      if (termo) {
+        const haystack = normalize(
+          [
+            item.nomePlano,
+            propostaNomeDoPlano(item),
+            item.quantidade,
+            item.formatoPlanoComunicacao,
+            item.localCirculacaoComunicacao,
+            item.objetivoComunicacao,
+            item.publicoAlvoComunicacao,
+          ]
+            .filter(Boolean)
+            .join(" "),
+        );
+        if (!haystack.includes(termo)) return false;
       }
+      if (
+        filtros.propostas.length &&
+        !filtros.propostas.includes(String(item.propostaEdital?.id))
+      )
+        return false;
+      if (
+        filtros.estrategias.length &&
+        !(item.estrategiasDivulgacao || []).some((e) =>
+          filtros.estrategias.includes(e),
+        )
+      )
+        return false;
+      if (filtros.situacoes.length) {
+        const s = situacaoPlano(item);
+        if (!s || !filtros.situacoes.includes(s)) return false;
+      }
+      if (
+        filtros.dataInicial &&
+        (item.dataFim || item.dataInicio) < filtros.dataInicial
+      )
+        return false;
+      if (
+        filtros.dataFinal &&
+        (item.dataInicio || item.dataFim) > filtros.dataFinal
+      )
+        return false;
+      return true;
+    });
 
-      toast.error(message);
-    }
-  };
+    const dir = filtros.sortDir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      switch (filtros.sortBy) {
+        case "proposta":
+          return (
+            propostaNomeDoPlano(a).localeCompare(
+              propostaNomeDoPlano(b),
+              "pt-BR",
+            ) * dir
+          );
+        case "periodo":
+          return (a.dataInicio || "").localeCompare(b.dataInicio || "") * dir;
+        case "situacao":
+          return (
+            situacaoPlanoLabel(a).localeCompare(
+              situacaoPlanoLabel(b),
+              "pt-BR",
+            ) * dir
+          );
+        default:
+          return (
+            (a.nomePlano || "").localeCompare(b.nomePlano || "", "pt-BR") * dir
+          );
+      }
+    });
+  }, [planos, filtros, propostaContexto, propostaNomeDoPlano]);
 
-  async function handleExportPdf(item: PlanoComunicacao) {
-    if (!podeGerarPdf) {
-      toast.error("Você não possui permissão para gerar PDF.");
-      return;
-    }
+  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
+    usePagination(filtered, 25, JSON.stringify({ filtros, propostaContexto }));
 
-    await exportPlanoComunicacaoPdf({
-      id: item.id,
-      nomePlano: item.nomePlano,
-      quantidade: item.quantidade,
-      formatoPlanoComunicacao: item.formatoPlanoComunicacao,
-      localCirculacaoComunicacao: item.localCirculacaoComunicacao,
-      estrategiasDivulgacao: estrategiasPlanoComunicacaoTexto(
-        item.estrategiasDivulgacao,
-      ),
-      dataInicio: item.dataInicio,
-      dataFim: item.dataFim,
-      propostaEdital: propostaNome(item),
-      status: statusLabel(item.status) ?? "—",
+  const activeCount =
+    (filtros.termo.trim() ? 1 : 0) +
+    (filtros.propostas.length ? 1 : 0) +
+    (filtros.estrategias.length ? 1 : 0) +
+    (filtros.situacoes.length ? 1 : 0) +
+    (filtros.dataInicial ? 1 : 0) +
+    (filtros.dataFinal ? 1 : 0);
+
+  const activeFilters: ActiveFilterItem[] = [];
+  if (filtros.termo.trim()) {
+    activeFilters.push({
+      id: "termo",
+      label: "Pesquisa",
+      value: filtros.termo.trim(),
+      onRemove: () => {
+        setDraftField("termo", "");
+        setFiltros((prev) => ({ ...prev, termo: "" }));
+      },
+    });
+  }
+  filtros.propostas.forEach((propostaId) => {
+    activeFilters.push({
+      id: `proposta-${propostaId}`,
+      label: "Proposta de edital",
+      value: propostaNomeById(propostaId),
+      onRemove: () => {
+        const next = filtros.propostas.filter((p) => p !== propostaId);
+        setDraftField("propostas", next);
+        setFiltros((prev) => ({ ...prev, propostas: next }));
+      },
+    });
+  });
+  filtros.estrategias.forEach((estrategia) => {
+    activeFilters.push({
+      id: `estrategia-${estrategia}`,
+      label: "Estratégia de divulgação",
+      value: estrategiaDivulgacaoLabel(estrategia),
+      onRemove: () => {
+        const next = filtros.estrategias.filter((e) => e !== estrategia);
+        setDraftField("estrategias", next);
+        setFiltros((prev) => ({ ...prev, estrategias: next }));
+      },
+    });
+  });
+  filtros.situacoes.forEach((situacao) => {
+    activeFilters.push({
+      id: `situacao-${situacao}`,
+      label: "Situação do plano",
+      value:
+        statusPlanoComunicacaoOpcoes.find((s) => s.value === situacao)?.label ??
+        situacao,
+      onRemove: () => {
+        const next = filtros.situacoes.filter((s) => s !== situacao);
+        setDraftField("situacoes", next);
+        setFiltros((prev) => ({ ...prev, situacoes: next }));
+      },
+    });
+  });
+  if (filtros.dataInicial) {
+    activeFilters.push({
+      id: "dataInicial",
+      label: "Período a partir de",
+      value: filtros.dataInicial.split("-").reverse().join("/"),
+      onRemove: () => {
+        setDraftField("dataInicial", "");
+        setFiltros((prev) => ({ ...prev, dataInicial: "" }));
+      },
+    });
+  }
+  if (filtros.dataFinal) {
+    activeFilters.push({
+      id: "dataFinal",
+      label: "Período até",
+      value: filtros.dataFinal.split("-").reverse().join("/"),
+      onRemove: () => {
+        setDraftField("dataFinal", "");
+        setFiltros((prev) => ({ ...prev, dataFinal: "" }));
+      },
     });
   }
 
-  if (loadingPermissoes) {
-    return (
-      <AppLayout>
-        <div className="container max-w-7xl py-6 sm:py-8">
-          <p className="text-sm text-muted-foreground">Carregando...</p>
-        </div>
-      </AppLayout>
-    );
-  }
+  const handleSearch = (event: FormEvent) => {
+    event.preventDefault();
+    setSearching(true);
+    window.setTimeout(() => {
+      setFiltros((prev) => ({
+        ...draft,
+        sortBy: prev.sortBy,
+        sortDir: prev.sortDir,
+      }));
+      setSearching(false);
+    }, 350);
+  };
 
-  if (!podeVisualizar) {
-    return (
-      <AppLayout>
-        <AccessNotPermitted />
-      </AppLayout>
-    );
-  }
+  const handleClearFiltros = () => {
+    setDraft(filtrosIniciais);
+    setFiltros((prev) => ({
+      ...filtrosIniciais,
+      sortBy: prev.sortBy,
+      sortDir: prev.sortDir,
+    }));
+  };
 
-  if (accessDeniedMessage) {
+  const toggleSort = (key: string) => {
+    setFiltros((prev) => ({
+      ...prev,
+      sortBy: key as SortBy,
+      sortDir: prev.sortBy === key && prev.sortDir === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const exportColumns = [
+    { header: "Plano", key: "plano" },
+    ...(!propostaContexto
+      ? [{ header: "Proposta de edital", key: "proposta" }]
+      : []),
+    { header: "Estratégias", key: "estrategias" },
+    { header: "Quantidade prevista", key: "quantidade" },
+    { header: "Período", key: "periodo" },
+    { header: "Situação", key: "situacao" },
+  ];
+
+  const getExportData = () =>
+    filtered.map((item) => ({
+      plano: textoOuTraco(item.nomePlano),
+      quantidade: textoOuTraco(item.quantidade),
+      estrategias:
+        (item.estrategiasDivulgacao || [])
+          .map(estrategiaDivulgacaoLabel)
+          .join(", ") || "—",
+      periodo: periodoPlano(item),
+      situacao: situacaoPlanoLabel(item),
+      proposta: propostaNomeDoPlano(item),
+    }));
+
+  const propostaTituloContexto = propostaContexto
+    ? propostaNomeById(propostaContexto)
+    : "";
+
+  const indicadores = {
+    total: filtered.length,
+    planejados: filtered.filter(
+      (item) => item.statusPlanoComunicacao === "PLANEJADO",
+    ).length,
+    emExecucao: filtered.filter(
+      (item) => item.statusPlanoComunicacao === "EM_EXECUCAO",
+    ).length,
+    concluidos: filtered.filter(
+      (item) => item.statusPlanoComunicacao === "CONCLUIDO",
+    ).length,
+  };
+
+  const renderEstrategias = (item: PlanoComunicacao) => {
+    const lista = item.estrategiasDivulgacao || [];
+    if (!lista.length)
+      return <span className="text-[13px] text-muted-foreground">—</span>;
+
     return (
-      <AppLayout>
-        <AccessDenied />
-      </AppLayout>
+      <div className="flex min-w-[220px] max-w-[360px] flex-nowrap gap-1.5">
+        {lista.slice(0, 2).map((estrategia) => (
+          <StatusPill
+            key={estrategia}
+            status={estrategia}
+            ariaLabelPrefix="Estratégia de divulgação"
+          />
+        ))}
+        {lista.length > 2 && (
+          <span
+            className="status-pill status-na"
+            title={lista.slice(2).map(estrategiaDivulgacaoLabel).join(", ")}
+          >
+            +{lista.length - 2}
+          </span>
+        )}
+      </div>
     );
-  }
+  };
 
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
-        <PageTitle
+        <ListPageHeader
           title="Plano de Comunicação"
-          tooltip="Registre o plano de comunicação vinculado à proposta de edital, informando formato, quantidade, estratégias de divulgação, período, local de circulação e situação atual."
+          tooltip={planoComunicacaoTooltip}
+          objective={planoComunicacaoObjetivo}
+          actions={
+            <>
+              <Button
+                variant="glassPrimary"
+                className="h-9 gap-2 px-4"
+                onClick={() => navigate(novoPlanoUrl)}
+              >
+                <Plus className="h-4 w-4" aria-hidden /> Cadastrar plano
+              </Button>
+            </>
+          }
         />
 
-        {nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
+        {propostaContexto && (
+          <div className="mb-5 flex flex-col gap-2 rounded-[14px] border border-border/70 bg-card/70 px-4 py-3 backdrop-blur-md supports-[backdrop-filter]:bg-card/55 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[13px] text-muted-foreground">
+              Exibindo apenas os planos da proposta{" "}
+              <span className="font-medium text-foreground">
+                {propostaTituloContexto}
+              </span>
+              .
+            </p>
+            <Button
+              type="button"
+              variant="glassSecondary"
+              className="h-8 self-start px-3 text-[12px] sm:self-auto"
+              onClick={() => navigate("/plano-comunicacao")}
+            >
+              Ver planos de todas as propostas
+            </Button>
+          </div>
         )}
 
-        <div className="rounded border border-border bg-card">
-          <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-            <div className="relative max-w-md flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-9 pl-9"
-                aria-label="Buscar plano de comunicação"
-              />
-            </div>
-
-            {podeCriar && (
-              <Button
-                onClick={() => navigate("/plano-comunicacao/novo")}
-                className="h-9 gap-2 self-start"
-                disabled={loading}
-              >
-                <Plus className="h-4 w-4" />
-                Cadastrar plano
-              </Button>
-            )}
-          </div>
-
-          <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[1420px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    data-no-copy
-                  >
-                    Ações
-                  </th>
-
-                  <SortableHeader
-                    label="Nome do plano"
-                    sortKey="nome"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Quantidade"
-                    sortKey="quantidade"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Formato"
-                    sortKey="formato"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Estratégias"
-                    sortKey="estrategias"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Data início"
-                    sortKey="dataInicio"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Data fim"
-                    sortKey="dataFim"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Status"
-                    sortKey="status"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Proposta de edital"
-                    sortKey="proposta"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  {podeGerarPdf && (
-                    <th
-                      className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy
-                    >
-                      Documento
-                    </th>
-                  )}
-                </tr>
-              </thead>
-
-              <tbody>
-                {paginated.map((item) => {
-                  const proposta = propostaNome(item);
-                  const status = statusLabel(item.status);
-                  const estrategias = estrategiasPlanoComunicacaoTexto(
-                    item.estrategiasDivulgacao,
-                  );
-
-                  return (
-                    <tr
-                      key={item.id}
-                      className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                    >
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <div className="flex items-center gap-1">
-                          <TableActionIcon
-                            icon={Eye}
-                            label="Visualizar"
-                            onClick={() =>
-                              navigate(`/plano-comunicacao/${item.id}`)
-                            }
-                          />
-
-                          {podeEditar && (
-                            <TableActionIcon
-                              icon={Pencil}
-                              label="Editar"
-                              onClick={() =>
-                                navigate(
-                                  `/plano-comunicacao/${item.id}/editar`,
-                                )
-                              }
-                            />
-                          )}
-
-                          {podeExcluir && (
-                            <TableActionIcon
-                              icon={Trash2}
-                              label="Excluir"
-                              variant="danger"
-                              onClick={() => setConfirmDelete(item.id)}
-                            />
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={item.nomePlano} bold>
-                          {item.nomePlano}
-                        </TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={item.quantidade} muted>
-                          {item.quantidade}
-                        </TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={item.formatoPlanoComunicacao}>
-                          {item.formatoPlanoComunicacao}
-                        </TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={estrategias} muted>
-                          {estrategias || "—"}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText text={formatDateBr(item.dataInicio)}>
-                          {formatDateBr(item.dataInicio)}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText text={formatDateBr(item.dataFim)}>
-                          {formatDateBr(item.dataFim)}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        {status ? (
-                          <StatusPill status={status as Status} />
-                        ) : (
-                          <span className="text-[13px] text-muted-foreground">
-                            —
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={proposta} muted>
-                          {proposta}
-                        </TableCellText>
-                      </td>
-
-                      {podeGerarPdf && (
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void handleExportPdf(item)}
-                            className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                          >
-                            <FileDown className="h-3.5 w-3.5" />
-                            Gerar ficha
-                          </Button>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-
-                {paginated.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={podeGerarPdf ? 10 : 9}
-                      className="px-5 py-16 text-center"
-                    >
-                      <Megaphone className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                      <p className="mt-3 text-sm text-muted-foreground">
-                        Nenhum plano de comunicação encontrado.
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="divide-y divide-border md:hidden">
-            {paginated.length === 0 ? (
-              <div className="p-10 text-center">
-                <Megaphone className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nenhum plano de comunicação encontrado.
-                </p>
-              </div>
-            ) : (
-              paginated.map((item) => {
-                const status = statusLabel(item.status);
-                const estrategias = estrategiasPlanoComunicacaoTexto(
-                  item.estrategiasDivulgacao,
-                );
-
-                return (
-                  <div key={item.id} className="p-4">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1">
-                        <TableActionIcon
-                          icon={Eye}
-                          label="Visualizar"
-                          onClick={() =>
-                            navigate(`/plano-comunicacao/${item.id}`)
-                          }
-                        />
-
-                        {podeEditar && (
-                          <TableActionIcon
-                            icon={Pencil}
-                            label="Editar"
-                            onClick={() =>
-                              navigate(`/plano-comunicacao/${item.id}/editar`)
-                            }
-                          />
-                        )}
-
-                        {podeExcluir && (
-                          <TableActionIcon
-                            icon={Trash2}
-                            label="Excluir"
-                            variant="danger"
-                            onClick={() => setConfirmDelete(item.id)}
-                          />
-                        )}
-                      </div>
-
-                      {podeGerarPdf && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleExportPdf(item)}
-                          className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                        >
-                          <FileDown className="h-3.5 w-3.5" />
-                          PDF
-                        </Button>
-                      )}
-                    </div>
-
-                    <p className="font-medium text-foreground">
-                      {item.nomePlano}
-                    </p>
-
-                    <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                      {item.formatoPlanoComunicacao} · {item.quantidade}
-                    </p>
-
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {estrategias || "Estratégias não informadas"}
-                    </p>
-
-                    <p className="mt-2 text-sm text-foreground">
-                      {propostaNome(item)}
-                    </p>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      {status ? (
-                        <StatusPill status={status as Status} />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          Status não informado
-                        </span>
-                      )}
-
-                      <span className="text-xs text-muted-foreground">
-                        {formatDateBr(item.dataInicio)} →{" "}
-                        {formatDateBr(item.dataFim)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          <TablePagination
-            totalItems={sortedItems.length}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            onCopy={handleCopy}
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <SummaryStatCard
+            title="Planos de comunicação"
+            value={indicadores.total}
+            icon={Megaphone}
+            variant="neutral"
           />
+          <SummaryStatCard
+            title="Planejados"
+            value={indicadores.planejados}
+            icon={CalendarClock}
+            variant="info"
+          />
+          <SummaryStatCard
+            title="Em execução"
+            value={indicadores.emExecucao}
+            icon={PlayCircle}
+            variant="warning"
+          />
+          <SummaryStatCard
+            title="Concluídos"
+            value={indicadores.concluidos}
+            icon={CheckCircle2}
+            variant="success"
+          />
+        </div>
+
+        <div className="space-y-4">
+          <AdvancedSearchPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            activeCount={activeCount}
+          >
+            <form onSubmit={handleSearch} noValidate>
+              <SearchFilterGrid>
+                <div>
+                  <FieldLabel htmlFor="filtroTermo">Pesquisa</FieldLabel>
+                  <Input
+                    id="filtroTermo"
+                    value={draft.termo}
+                    onChange={(e) => setDraftField("termo", e.target.value)}
+                    placeholder="Digite um termo"
+                    className={fieldClass}
+                  />
+                </div>
+                {!propostaContexto && (
+                  <div>
+                    <FieldLabel htmlFor="filtroPropostas">
+                      Proposta de edital
+                    </FieldLabel>
+                    <FilterMultiSelect
+                      id="filtroPropostas"
+                      options={propostaFilterOptions}
+                      value={draft.propostas}
+                      onChange={(value) => setDraftField("propostas", value)}
+                      placeholder="Todas as propostas"
+                      summaryNoun="propostas selecionadas"
+                      searchable
+                    />
+                  </div>
+                )}
+                <div>
+                  <FieldLabel htmlFor="filtroEstrategias">
+                    Estratégia de divulgação
+                  </FieldLabel>
+                  <FilterMultiSelect
+                    id="filtroEstrategias"
+                    options={estrategiaDivulgacaoOpcoes}
+                    value={draft.estrategias}
+                    onChange={(value) => setDraftField("estrategias", value)}
+                    placeholder="Todas as estratégias"
+                    summaryNoun="estratégias selecionadas"
+                    searchable
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroSituacoes">
+                    Situação do plano
+                  </FieldLabel>
+                  <FilterMultiSelect
+                    id="filtroSituacoes"
+                    options={statusPlanoComunicacaoOpcoes}
+                    value={draft.situacoes}
+                    onChange={(value) => setDraftField("situacoes", value)}
+                    placeholder="Todas as situações"
+                    summaryNoun="situações selecionadas"
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroDataInicial">
+                    Período a partir de
+                  </FieldLabel>
+                  <Input
+                    id="filtroDataInicial"
+                    type="date"
+                    value={draft.dataInicial}
+                    onChange={(e) =>
+                      setDraftField("dataInicial", e.target.value)
+                    }
+                    className={fieldClass}
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroDataFinal">Período até</FieldLabel>
+                  <Input
+                    id="filtroDataFinal"
+                    type="date"
+                    value={draft.dataFinal}
+                    onChange={(e) => setDraftField("dataFinal", e.target.value)}
+                    className={fieldClass}
+                  />
+                </div>
+              </SearchFilterGrid>
+              <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 gap-2 px-4"
+                  onClick={handleClearFiltros}
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden /> Limpar filtros
+                </Button>
+                <Button
+                  type="submit"
+                  variant="glassPrimary"
+                  className="h-9 gap-2 px-5"
+                  disabled={searching}
+                  aria-busy={searching}
+                >
+                  {searching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Search className="h-4 w-4" aria-hidden />
+                  )}
+                  {searching ? "Pesquisando..." : "Pesquisar"}
+                </Button>
+              </div>
+            </form>
+          </AdvancedSearchPanel>
+
+          <ActiveFilters
+            items={activeFilters}
+            onClearAll={handleClearFiltros}
+          />
+
+          <DataTableCard>
+            <DataTableToolbar
+              total={filtered.length}
+              reportTo="/relatorios/planos-comunicacao"
+              exportColumns={exportColumns}
+              getExportData={getExportData}
+              exportFilename="plano-de-comunicacao"
+            />
+
+            {isLoading ? (
+              <div className="flex items-center justify-center gap-2 px-6 py-12 text-[13px] text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Carregando os planos de comunicação...
+              </div>
+            ) : isError ? (
+              <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
+                <p className="text-sm font-semibold text-foreground">
+                  Não foi possível carregar os planos de comunicação.
+                </p>
+                <p className="max-w-md text-[13px] text-muted-foreground">
+                  Verifique sua conexão com a internet e tente novamente.
+                </p>
+                <Button
+                  variant="glassSecondary"
+                  className="h-9 px-4"
+                  onClick={() => refetch()}
+                >
+                  Tentar novamente
+                </Button>
+              </div>
+            ) : filtered.length === 0 ? (
+              <DataTableEmptyState
+                emptyTitle="Nenhum plano de comunicação cadastrado."
+                emptyDescription="Cadastre um plano para organizar os objetivos, o público, as estratégias e os canais de comunicação previstos para a proposta."
+                noResultsTitle="Nenhum plano encontrado com os filtros selecionados."
+                createLabel="Cadastrar plano"
+                onCreate={() => navigate(novoPlanoUrl)}
+                activeCount={activeCount}
+                onReviewSearch={() => setPanelOpen(true)}
+                onClearFilters={handleClearFiltros}
+              />
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto md:block">
+                  <table
+                    className={`w-full table-fixed ${propostaContexto ? "min-w-[1080px]" : "min-w-[1320px]"}`}
+                  >
+                    <thead>
+                      <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
+                        <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Ações
+                        </th>
+                        <SortableTh
+                          className="w-[270px]"
+                          sortKey="plano"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Plano
+                        </SortableTh>
+                        {!propostaContexto && (
+                          <SortableTh
+                            className="w-[280px]"
+                            sortKey="proposta"
+                            activeKey={filtros.sortBy}
+                            dir={filtros.sortDir}
+                            onSort={toggleSort}
+                          >
+                            Proposta de edital
+                          </SortableTh>
+                        )}
+                        <th className="w-[220px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Estratégias
+                        </th>
+                        <th className="w-[180px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Quantidade prevista
+                        </th>
+                        <SortableTh
+                          className="w-[170px]"
+                          sortKey="periodo"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Período
+                        </SortableTh>
+                        <SortableTh
+                          className="w-[150px]"
+                          sortKey="situacao"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Situação
+                        </SortableTh>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginated.map((item) => (
+                        <tr
+                          key={item.id}
+                          className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
+                        >
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <RowActionsDropdown
+                              viewTo={`/plano-comunicacao/${item.id}`}
+                              reportEndpoint={`/planos-comunicacao/${item.id}/relatorio`}
+                              editTo={`/plano-comunicacao/${item.id}/editar`}
+                              onDelete={() => setConfirmDelete(item)}
+                            />
+                          </td>
+                          <td className="w-[270px] overflow-hidden px-6 py-2.5">
+                            <TableCellText text={item.nomePlano || "—"} bold>
+                              {textoOuTraco(item.nomePlano)}
+                            </TableCellText>
+                          </td>
+                          {!propostaContexto && (
+                            <td className="w-[280px] overflow-hidden px-6 py-2.5">
+                              <TableCellText
+                                text={propostaNomeDoPlano(item)}
+                                muted
+                              >
+                                {propostaNomeDoPlano(item)}
+                              </TableCellText>
+                            </td>
+                          )}
+                          <td className="w-[220px] overflow-hidden px-6 py-2.5">
+                            {renderEstrategias(item)}
+                          </td>
+                          <td className="w-[180px] overflow-hidden px-6 py-2.5">
+                            <TableCellText
+                              text={textoOuTraco(item.quantidade)}
+                              muted
+                            >
+                              {textoOuTraco(item.quantidade)}
+                            </TableCellText>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5 text-[13px] tabular-nums text-muted-foreground">
+                            {periodoPlano(item)}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <StatusPill status={situacaoPlanoLabel(item)} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="divide-y divide-border md:hidden">
+                  {paginated.map((item) => (
+                    <div key={item.id} className="p-4">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <RowActionsDropdown
+                          viewTo={`/plano-comunicacao/${item.id}`}
+                          reportEndpoint={`/planos-comunicacao/${item.id}/relatorio`}
+                          editTo={`/plano-comunicacao/${item.id}/editar`}
+                          onDelete={() => setConfirmDelete(item)}
+                        />
+                        <StatusPill status={situacaoPlanoLabel(item)} />
+                      </div>
+                      <p className="font-medium text-foreground">
+                        {textoOuTraco(item.nomePlano)}
+                      </p>
+                      {!propostaContexto && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {propostaNomeDoPlano(item)}
+                        </p>
+                      )}
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                          <p className="text-muted-foreground">
+                            Quantidade prevista
+                          </p>
+                          <p className="text-foreground">
+                            {textoOuTraco(item.quantidade)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Período</p>
+                          <p className="tabular-nums text-foreground">
+                            {periodoPlano(item)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {(item.estrategiasDivulgacao || []).map((e) => (
+                          <StatusPill
+                            key={e}
+                            status={e}
+                            ariaLabelPrefix="Estratégia de divulgação"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <DataTablePagination
+                  totalItems={filtered.length}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                />
+              </>
+            )}
+          </DataTableCard>
         </div>
       </div>
 
@@ -729,22 +931,26 @@ export default function PlanoComunicacaoPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir plano de comunicação?</AlertDialogTitle>
-
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Caso este registro esteja
-              vinculado a outros módulos, o backend pode impedir a exclusão para
-              preservar o histórico.
+              O plano{" "}
+              <span className="font-medium text-foreground">
+                {confirmDelete?.nomePlano}
+              </span>{" "}
+              será removido definitivamente. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
-
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
+              onClick={() =>
+                confirmDelete && deleteMutation.mutate(confirmDelete.id)
+              }
+              disabled={deleteMutation.isPending}
               className="bg-destructive hover:bg-destructive/90"
             >
-              Sim, excluir
+              {deleteMutation.isPending ? "Excluindo..." : "Sim, excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

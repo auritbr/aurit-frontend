@@ -5,7 +5,7 @@ import { AccessDenied } from "@/components/AccessDenied";
 import {
   RelatorioHeader,
   GrupoIndicadores,
-  SecaoLinhasRelatorio,
+  TabelaLinhasRelatorio,
   RelatorioLoading,
 } from "@/components/relatorios/RelatorioComponents";
 import {
@@ -75,11 +75,26 @@ export default function RelatorioParticipacaoPresencaPage() {
           <div>
             {data.resumo?.map((g, i) => <GrupoIndicadores key={i} grupo={g} />)}
 
-            <SecaoLinhasRelatorio titulo="Atividades" items={data.atividades} />
+            <TabelaLinhasRelatorio
+              titulo="Atividades"
+              items={data.atividades}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
+            />
 
-            <SecaoLinhasRelatorio titulo="Turmas" items={data.turmas} />
+            <TabelaLinhasRelatorio
+              titulo="Turmas"
+              items={data.turmas}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
+            />
 
-            <SecaoLinhasRelatorio titulo="Presenças" items={data.presencas} />
+            <TabelaLinhasRelatorio
+              titulo="Presenças"
+              items={data.presencas}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
+            />
           </div>
         )}
       </div>

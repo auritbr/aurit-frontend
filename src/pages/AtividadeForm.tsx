@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ClipboardList, Users2, Tags, Link2 } from "lucide-react";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import { ClipboardList, Users2, Tags, Link2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
-import { PageTitle } from "@/components/PageTitle";
+import { BackButton } from "@/components/BackButton";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -19,6 +26,7 @@ import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { MultiSelect } from "@/components/MultiSelect";
+import { getImportConfigForPath } from "@/config/importacoes";
 import {
   buildAtividadePayload,
   createAtividade,
@@ -33,32 +41,10 @@ import {
   type ProjetoOption,
 } from "@/data/atividades";
 import { toast } from "sonner";
-
-const ATIVIDADE_NEXT_STEP_KEY = "aurit:atividades:next-step-card";
-
-interface AtividadeNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
-}
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 function salvarProximaAcaoAtividade() {
-  const card: AtividadeNextStepCardData = {
-    titulo: "Após cadastrar a atividade, organize o plano de aula",
-    descricao:
-      "O plano de aula ajuda a detalhar como a atividade será realizada, registrando conteúdos e formas de acompanhamento, facilitando a preparação da equipe e a execução das oficinas, encontros ou ações.",
-    acaoLabel: "Cadastrar plano de aula",
-    acaoUrl: "/planos-aula/novo",
-    acaoSecundariaLabel: "Ver atividades",
-    acaoSecundariaUrl: "/atividades",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(ATIVIDADE_NEXT_STEP_KEY, JSON.stringify(card));
+  emitJourneyNextStep();
 }
 
 interface FormState {
@@ -119,8 +105,7 @@ function mapAtividadeToForm(atividade: Atividade): FormState {
     id: atividade.id ?? "",
     nomeAtividade: atividade.nomeAtividade ?? "",
     descricaoAtividade: atividade.descricaoAtividade ?? "",
-    publicoBeneficiadoAtividade:
-      atividade.publicoBeneficiadoAtividade ?? "",
+    publicoBeneficiadoAtividade: atividade.publicoBeneficiadoAtividade ?? "",
     localAtividade: atividade.localAtividade ?? "",
     dataInicio: atividade.dataInicio ?? "",
     dataFim: atividade.dataFim ?? "",
@@ -144,13 +129,16 @@ export default function AtividadeForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const duplicarId = !id ? searchParams.get("duplicar") : null;
 
   const visualizando = !!id && !location.pathname.endsWith("/editar");
   const isEdit = !!id && location.pathname.endsWith("/editar");
 
   const [form, setForm] = useState<FormState>(initial);
-  const [existingAtividade, setExistingAtividade] =
-    useState<Atividade | null>(null);
+  const [existingAtividade, setExistingAtividade] = useState<Atividade | null>(
+    null,
+  );
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
   const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -201,7 +189,9 @@ export default function AtividadeForm() {
           await Promise.all([
             getProjetosOptions(),
             getColaboradoresOptions(),
-            id ? getAtividadeById(Number(id)) : Promise.resolve(null),
+            id || duplicarId
+              ? getAtividadeById(Number(id ?? duplicarId))
+              : Promise.resolve(null),
           ]);
 
         if (!active) return;
@@ -233,6 +223,13 @@ export default function AtividadeForm() {
 
           setForm({
             ...mapped,
+            id: duplicarId ? "" : mapped.id,
+            nomeAtividade: duplicarId
+              ? `Cópia de ${mapped.nomeAtividade}`
+              : mapped.nomeAtividade,
+            dataInicio: duplicarId ? "" : mapped.dataInicio,
+            dataFim: duplicarId ? "" : mapped.dataFim,
+            status: duplicarId ? "PENDENTE" : mapped.status,
             projeto: projetoId,
             projetoNome,
           });
@@ -258,7 +255,7 @@ export default function AtividadeForm() {
     return () => {
       active = false;
     };
-  }, [id, navigate]);
+  }, [id, duplicarId, navigate]);
 
   const colaboradoresOptions = colaboradores.map((c) => c.id);
 
@@ -410,298 +407,337 @@ export default function AtividadeForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/atividades")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" /> Voltar
-        </button>
+        <BackButton to="/atividades" />
 
-        <PageTitle
-          title="Atividade"
-          tooltip="Cadastre e acompanhe as atividades vinculadas aos projetos da organização. Informe nome, descrição, público atendido, local, período, vagas e equipe envolvida para organizar a execução, registrar presenças, gerar evidências e apoiar relatórios e prestações de contas."
+        <ListPageHeader
+          title="Atividades"
+          tooltip="Nesta página são cadastradas e acompanhadas as atividades vinculadas aos projetos da organização, com informações sobre identificação, tipo, descrição, público atendido, local, período de realização, quantidade de vagas, situação atual e equipe envolvida. Esses dados ajudam a organizar a execução das atividades e apoiam o registro de participantes, presenças, evidências, relatórios e prestações de contas."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/atividades")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
         />
 
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={ClipboardList} title="Dados principais">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel
-                  htmlFor="nomeAtividade"
-                  required
-                  tooltip="Informe um nome claro para identificar a atividade dentro do projeto. Ex.: oficina de violão para iniciantes."
-                >
-                  Nome da Atividade
-                </FieldLabel>
-                <Input
-                  id="nomeAtividade"
-                  value={form.nomeAtividade}
-                  onChange={(e) => set("nomeAtividade", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+          <fieldset
+            disabled={visualizando}
+            className="space-y-5 border-0 p-0 disabled:opacity-100"
+          >
+            <FormSectionCard
+              icon={Link2}
+              title="Vínculo da atividade"
+              description="Defina a qual projeto esta atividade pertence. Esse vínculo permite organizar a atividade dentro do planejamento e do acompanhamento do projeto."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="projeto"
+                    required
+                    tooltip="Informe o projeto ao qual esta atividade pertence."
+                  >
+                    Projeto
+                  </FieldLabel>
 
-              <Field full>
-                <FieldLabel
-                  htmlFor="descricaoAtividade"
-                  required
-                  tooltip="Descreva o que será realizado na atividade, explicando seu objetivo, metodologia, principais ações, conteúdos trabalhados e relação com o projeto. Ex.: Oficina semanal de violão voltada à iniciação musical, com atividades práticas de ritmo, acordes, escuta musical e preparação para apresentação coletiva."
-                >
-                  Descrição da Atividade
-                </FieldLabel>
-                <Textarea
-                  id="descricaoAtividade"
-                  value={form.descricaoAtividade}
-                  onChange={(e) => set("descricaoAtividade", e.target.value)}
-                  rows={4}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Users2} title="Público, período e vagas">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel
-                  htmlFor="publico"
-                  required
-                  tooltip="Descreva quem será diretamente atendido pela atividade, informando faixa etária, perfil, comunidade, território, grupo prioritário ou vínculo com o projeto. Ex.: Crianças e adolescentes de 8 a 16 anos, moradores do bairro Santa Rita, participantes das oficinas culturais do projeto."
-                >
-                  Público Beneficiado
-                </FieldLabel>
-                <Textarea
-                  id="publico"
-                  value={form.publicoBeneficiadoAtividade}
-                  onChange={(e) =>
-                    set("publicoBeneficiadoAtividade", e.target.value)
-                  }
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="localAtividade"
-                  tooltip="Informe onde a atividade será realizada. Pode ser um espaço físico, ambiente digital, instituição parceira, comunidade, bairro ou cidade. Ex.: Ponto de Cultura Viva Vida, Escola Municipal João XXIII, Praça Central ou atividade online."
-                >
-                  Local da Atividade
-                </FieldLabel>
-                <Textarea
-                  id="localAtividade"
-                  value={form.localAtividade}
-                  onChange={(e) => set("localAtividade", e.target.value)}
-                  rows={2}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="dataInicio"
-                  required
-                  tooltip="Informe a data prevista ou efetiva de início da atividade."
-                >
-                  Data de Início da Atividade
-                </FieldLabel>
-                <Input
-                  id="dataInicio"
-                  type="date"
-                  value={form.dataInicio}
-                  onChange={(e) => set("dataInicio", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="dataFim"
-                  tooltip="Informe a data prevista ou efetiva de término da atividade, quando houver. Este campo deve ser preenchido quando o status estiver como “Concluído”."
-                >
-                  Data de Término da Atividade
-                </FieldLabel>
-                <Input
-                  id="dataFim"
-                  type="date"
-                  value={form.dataFim}
-                  onChange={(e) => set("dataFim", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="vagas"
-                  tooltip="Informe a quantidade máxima de participantes que poderão ser atendidos nesta atividade, quando houver limite definido. Ex.: 25."
-                >
-                  Quantidade de Vagas
-                </FieldLabel>
-                <Input
-                  id="vagas"
-                  value={form.quantidadeVagas}
-                  onChange={(e) =>
-                    set("quantidadeVagas", onlyDigits(e.target.value, 5))
-                  }
-                  inputMode="numeric"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Tags} title="Classificação da atividade">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel
-                  htmlFor="tipoAtividade"
-                  required
-                  tooltip="Selecione o tipo que melhor representa a atividade realizada. Ex.: oficina, curso, palestra, seminário, formação continuada ou atividade educativa."
-                >
-                  Tipo de Atividade
-                </FieldLabel>
-                <Select
-                  value={form.tipoAtividade}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-                    set("tipoAtividade", v);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="tipoAtividade">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {tiposAtividade.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="status"
-                  required
-                  tooltip="Indique a situação atual da atividade no sistema. Use “Ativo” para atividades em execução ou acompanhamento, “Pendente” para atividades em organização ou conferência, “Concluído” para atividades finalizadas conforme previsto e “Inativo” para atividades que não devem mais ser consideradas ativas."
-                >
-                  Status da Atividade
-                </FieldLabel>
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-                    set("status", v);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusAtividade.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Link2} title="Vínculos e equipe">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel
-                  htmlFor="projeto"
-                  required
-                  tooltip="Selecione o projeto ao qual esta atividade pertence. Esse vínculo organiza a execução e permite relacionar a atividade a metas, cronograma, presenças, evidências, relatórios e prestação de contas."
-                >
-                  Projeto
-                </FieldLabel>
-                <Select
-                  value={projetoSelectValue}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-
-                    const projetoSelecionado = projetosOptions.find(
-                      (projeto) => String(projeto.id) === String(v),
-                    );
-
-                    setForm((prev) => ({
-                      ...prev,
-                      projeto: String(v),
-                      projetoNome:
-                        projetoSelecionado?.nome ?? prev.projetoNome,
-                    }));
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="projeto">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projetosOptions.map((p) => (
-                      <SelectItem key={String(p.id)} value={String(p.id)}>
-                        {p.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="colaboradores"
-                  tooltip="Selecione os colaboradores responsáveis pela execução, coordenação, apoio, registro ou acompanhamento da atividade, quando houver. Se a equipe ainda não estiver definida, este campo pode ser preenchido depois."
-                >
-                  Colaboradores
-                </FieldLabel>
-                <div
-                  className={
-                    visualizando ? "pointer-events-none opacity-80" : ""
-                  }
-                >
-                  <MultiSelect
-                    id="colaboradores"
-                    options={colaboradoresOptions}
-                    value={form.colaboradores}
-                    onChange={(v) => {
+                  <Select
+                    value={projetoSelectValue}
+                    onValueChange={(v) => {
                       if (visualizando) return;
-                      set("colaboradores", v);
-                    }}
-                    getOptionLabel={colaboradorLabel}
-                  />
-                </div>
-              </Field>
-            </div>
-          </Section>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+                      const projetoSelecionado = projetosOptions.find(
+                        (projeto) => String(projeto.id) === String(v),
+                      );
+
+                      setForm((prev) => ({
+                        ...prev,
+                        projeto: String(v),
+                        projetoNome:
+                          projetoSelecionado?.nome ?? prev.projetoNome,
+                      }));
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="projeto">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {projetosOptions.map((p) => (
+                        <SelectItem key={String(p.id)} value={String(p.id)}>
+                          {p.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={ClipboardList}
+              title="Identificação da atividade"
+              description="Identifique a atividade e explique de forma clara o que será realizado, para que ela possa ser compreendida e diferenciada das demais ações do projeto."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="nomeAtividade"
+                    required
+                    tooltip="Informe um nome curto e claro que permita identificar facilmente a atividade dentro do projeto."
+                  >
+                    Nome da Atividade
+                  </FieldLabel>
+
+                  <Input
+                    id="nomeAtividade"
+                    value={form.nomeAtividade}
+                    onChange={(e) => set("nomeAtividade", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="tipoAtividade"
+                    required
+                    tooltip="Informe a opção que melhor representa o formato ou natureza da atividade, como oficina, curso, palestra, seminário ou atividade educativa."
+                  >
+                    Tipo de Atividade
+                  </FieldLabel>
+
+                  <Select
+                    value={form.tipoAtividade}
+                    onValueChange={(v) => {
+                      if (visualizando) return;
+                      set("tipoAtividade", v);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="tipoAtividade">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent className="max-h-72">
+                      {tiposAtividade.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field full>
+                  <FieldLabel
+                    htmlFor="descricaoAtividade"
+                    required
+                    tooltip="Descreva o que será realizado na atividade, explicando seu objetivo, como será desenvolvida e quais ações, conteúdos ou etapas estão previstas."
+                  >
+                    Descrição da Atividade
+                  </FieldLabel>
+
+                  <Textarea
+                    id="descricaoAtividade"
+                    value={form.descricaoAtividade}
+                    onChange={(e) => set("descricaoAtividade", e.target.value)}
+                    rows={4}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={Users2}
+              title="Público e realização"
+              description="Defina quem participará da atividade e organize as principais condições para sua realização, incluindo local, período e disponibilidade de vagas."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field full>
+                  <FieldLabel
+                    htmlFor="publico"
+                    required
+                    tooltip="Informe quem será diretamente atendido pela atividade, considerando características como faixa etária, território, comunidade ou grupo específico."
+                  >
+                    Público Beneficiado
+                  </FieldLabel>
+
+                  <Textarea
+                    id="publico"
+                    value={form.publicoBeneficiadoAtividade}
+                    onChange={(e) =>
+                      set("publicoBeneficiadoAtividade", e.target.value)
+                    }
+                    rows={3}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field full>
+                  <FieldLabel
+                    htmlFor="localAtividade"
+                    tooltip="Informe o local, espaço ou território onde a atividade será realizada. Pode ser um espaço físico ou ambiente virtual."
+                  >
+                    Local da Atividade
+                  </FieldLabel>
+
+                  <Textarea
+                    id="localAtividade"
+                    value={form.localAtividade}
+                    onChange={(e) => set("localAtividade", e.target.value)}
+                    rows={2}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataInicio"
+                    required
+                    tooltip="Informe a data prevista ou efetiva de início da atividade."
+                  >
+                    Data de Início
+                  </FieldLabel>
+
+                  <Input
+                    id="dataInicio"
+                    type="date"
+                    value={form.dataInicio}
+                    onChange={(e) => set("dataInicio", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataFim"
+                    tooltip="Informe a data prevista ou efetiva de término da atividade, quando houver."
+                  >
+                    Data de Término
+                  </FieldLabel>
+
+                  <Input
+                    id="dataFim"
+                    type="date"
+                    value={form.dataFim}
+                    onChange={(e) => set("dataFim", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="vagas"
+                    tooltip="Informe a quantidade máxima de participantes que poderão ser atendidos, quando houver limite de vagas."
+                  >
+                    Quantidade de Vagas
+                  </FieldLabel>
+
+                  <Input
+                    id="vagas"
+                    value={form.quantidadeVagas}
+                    onChange={(e) =>
+                      set("quantidadeVagas", onlyDigits(e.target.value, 5))
+                    }
+                    inputMode="numeric"
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={Tags}
+              title="Situação da atividade"
+              description="Indique em que momento do seu ciclo de realização a atividade se encontra, considerando se ainda está sendo preparada, está em andamento, foi concluída ou deixou de ser executada."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="status"
+                    required
+                    tooltip="Informe a situação atual da atividade. Ativo indica atividade em andamento; Pendente, atividade ainda em preparação ou aguardando início; Concluído, atividade finalizada; e Inativo, atividade que não está mais em execução ou acompanhamento."
+                  >
+                    Situação da Atividade
+                  </FieldLabel>
+
+                  <Select
+                    value={form.status}
+                    onValueChange={(v) => {
+                      if (visualizando) return;
+                      set("status", v);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {statusAtividade.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={Users2}
+              title="Equipe"
+              description="Identifique os colaboradores que estarão envolvidos na realização da atividade e que poderão atuar em sua coordenação, execução, apoio, registro ou acompanhamento."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="colaboradores"
+                    tooltip="Informe os colaboradores que participam da coordenação, execução, apoio, registro ou acompanhamento da atividade."
+                  >
+                    Colaboradores
+                  </FieldLabel>
+
+                  <div
+                    className={
+                      visualizando ? "pointer-events-none opacity-80" : ""
+                    }
+                  >
+                    <MultiSelect
+                      id="colaboradores"
+                      options={colaboradoresOptions}
+                      value={form.colaboradores}
+                      onChange={(v) => {
+                        if (visualizando) return;
+                        set("colaboradores", v);
+                      }}
+                      getOptionLabel={colaboradorLabel}
+                    />
+                  </div>
+                </Field>
+              </div>
+            </FormSectionCard>
+          </fieldset>
+
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/atividades")}
               disabled={saving}
             >
@@ -709,7 +745,12 @@ export default function AtividadeForm() {
             </Button>
 
             {!visualizando && (
-              <Button type="submit" className="sm:min-w-32" disabled={saving}>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                className="h-9 px-5"
+                disabled={saving}
+              >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
             )}
@@ -721,28 +762,6 @@ export default function AtividadeForm() {
         />
       </div>
     </AppLayout>
-  );
-}
-
-function Section({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: any;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
-      <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
-          {title}
-        </h2>
-      </div>
-      {children}
-    </Card>
   );
 }
 

@@ -1,8 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
-import {
-  getUsuarioLogado,
-  type UsuarioLogado,
-} from "@/lib/usuarioService";
+import { getUsuarioLogado, type UsuarioLogado } from "@/lib/usuarioService";
 import { isPlanoGratuitoAtual } from "@/lib/plano";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
@@ -23,7 +20,7 @@ export interface InicioDados {
   totalProjetos: number;
   totalMetasProjeto: number;
   totalAtividades: number;
-  totalPlanosAula: number,
+  totalPlanosAula: number;
 
   totalTurmas: number;
   totalPresencas: number;
@@ -36,6 +33,16 @@ export interface InicioDados {
   totalEvidencias: number;
 
   totalFinanceiros: number;
+  totalContasBancarias: number;
+  totalContasPagar: number;
+  totalContasReceber: number;
+  totalTransferenciasBancarias: number;
+  totalMovimentacoesBancarias: number;
+  totalConciliacoesBancarias: number;
+  totalDoadores: number;
+  totalDoacoes: number;
+  totalFornecedores: number;
+  totalParceiros: number;
   totalPlanejamentosFinanceiros: number;
 
   totalEditais: number;
@@ -100,11 +107,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -272,10 +275,10 @@ function hasOrganizacaoValida(organizacoes: OrganizacaoLike[]) {
 
   return Boolean(
     org.razaoSocial?.trim() ||
-    org.nomeFantasia?.trim() ||
-    org.nomeOrganizacao?.trim() ||
-    org.nome?.trim() ||
-    org.cnpj?.trim(),
+      org.nomeFantasia?.trim() ||
+      org.nomeOrganizacao?.trim() ||
+      org.nome?.trim() ||
+      org.cnpj?.trim(),
   );
 }
 
@@ -334,6 +337,16 @@ export async function getInicioDados(): Promise<InicioDados> {
     planosComunicacao,
 
     financeiros,
+    contasBancarias,
+    contasPagar,
+    contasReceber,
+    transferenciasBancarias,
+    movimentacoesBancarias,
+    conciliacoesBancarias,
+    doadores,
+    doacoes,
+    fornecedores,
+    parceiros,
 
     editais,
     propostasEditais,
@@ -369,10 +382,7 @@ export async function getInicioDados(): Promise<InicioDados> {
       ["/metas-projeto", "/metas-projetos"],
       isFreePlan,
     ),
-    fetchPaidFirstAvailableList(
-      ["/cronogramas", "/cronograma"],
-      isFreePlan,
-    ),
+    fetchPaidFirstAvailableList(["/cronogramas", "/cronograma"], isFreePlan),
 
     fetchListSafe("/atividades"),
     fetchPaidListSafe("/planos-aula", isFreePlan),
@@ -387,6 +397,16 @@ export async function getInicioDados(): Promise<InicioDados> {
     ),
 
     fetchPaidFirstAvailableList(["/financeiros", "/financeiro"], isFreePlan),
+    fetchPaidListSafe("/contas-bancarias", isFreePlan),
+    fetchPaidListSafe("/contas-pagar", isFreePlan),
+    fetchPaidListSafe("/contas-receber", isFreePlan),
+    fetchPaidListSafe("/transferencias-bancarias", isFreePlan),
+    fetchPaidListSafe("/movimentacoes-bancarias", isFreePlan),
+    fetchPaidListSafe("/conciliacoes-bancarias", isFreePlan),
+    fetchPaidListSafe("/doadores", isFreePlan),
+    fetchPaidListSafe("/doacoes", isFreePlan),
+    fetchPaidListSafe("/fornecedores", isFreePlan),
+    fetchPaidListSafe("/parceiros", isFreePlan),
 
     fetchPaidListSafe("/editais", isFreePlan),
     fetchPaidFirstAvailableList(
@@ -472,6 +492,16 @@ export async function getInicioDados(): Promise<InicioDados> {
     totalEvidencias: count(evidenciasExecucao),
 
     totalFinanceiros: count(financeiros),
+    totalContasBancarias: count(contasBancarias),
+    totalContasPagar: count(contasPagar),
+    totalContasReceber: count(contasReceber),
+    totalTransferenciasBancarias: count(transferenciasBancarias),
+    totalMovimentacoesBancarias: count(movimentacoesBancarias),
+    totalConciliacoesBancarias: count(conciliacoesBancarias),
+    totalDoadores: count(doadores),
+    totalDoacoes: count(doacoes),
+    totalFornecedores: count(fornecedores),
+    totalParceiros: count(parceiros),
     totalPlanejamentosFinanceiros: count(planejamentosFinanceiros),
 
     totalEditais: count(editais),

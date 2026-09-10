@@ -28,13 +28,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { ImportModuleConfig } from "@/config/importacoes";
-import { getImportModules, getImportRelationshipOptions, previewImport } from "@/data/importacoes";
-import type { ImportApplyWarning, ImportFieldRule } from "@/lib/importDataApplicator";
+import {
+  getImportModules,
+  getImportRelationshipOptions,
+  previewImport,
+} from "@/data/importacoes";
+import type {
+  ImportApplyWarning,
+  ImportFieldRule,
+} from "@/lib/importDataApplicator";
 import {
   clearImportReviewQueue,
   getImportReviewQueue,
@@ -49,6 +60,8 @@ interface ImportDataButtonProps {
   className?: string;
   canFillForm?: boolean;
   onCompleted?: () => void;
+  /** Variante visual do botão gatilho. */
+  variant?: "outline" | "glassSecondary";
 }
 
 const ACCEPTED_MIME =
@@ -66,7 +79,12 @@ function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export function ImportDataButton({ config, className, canFillForm = false }: ImportDataButtonProps) {
+export function ImportDataButton({
+  config,
+  className,
+  canFillForm = false,
+  variant = "glassSecondary",
+}: ImportDataButtonProps) {
   const entity = config.entity;
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -74,7 +92,9 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [queue, setQueue] = useState<ImportReviewQueue | null>(() => getImportReviewQueue(config.module));
+  const [queue, setQueue] = useState<ImportReviewQueue | null>(() =>
+    getImportReviewQueue(config.module),
+  );
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const pendingFileRef = useRef<File | null>(null);
@@ -86,7 +106,8 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
   useEffect(() => {
     const refresh = () => setQueue(getImportReviewQueue(config.module));
     window.addEventListener("aurit:import-review-change", refresh);
-    return () => window.removeEventListener("aurit:import-review-change", refresh);
+    return () =>
+      window.removeEventListener("aurit:import-review-change", refresh);
   }, [config.module]);
 
   useEffect(() => {
@@ -95,13 +116,19 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
 
   useEffect(() => {
     const receiveWarnings = (event: Event) => {
-      const detail = (event as CustomEvent<{ module: string; warnings: ImportApplyWarning[] }>).detail;
+      const detail = (
+        event as CustomEvent<{ module: string; warnings: ImportApplyWarning[] }>
+      ).detail;
       if (detail?.module === config.module && detail.warnings?.length) {
-        toast({ title: "Alguns valores precisam de revisão", description: `${detail.warnings.length} valor(es) não puderam ser associados automaticamente.` });
+        toast({
+          title: "Alguns valores precisam de revisão",
+          description: `${detail.warnings.length} valor(es) não puderam ser associados automaticamente.`,
+        });
       }
     };
     window.addEventListener("aurit:import-apply-result", receiveWarnings);
-    return () => window.removeEventListener("aurit:import-apply-result", receiveWarnings);
+    return () =>
+      window.removeEventListener("aurit:import-apply-result", receiveWarnings);
   }, [config.module]);
 
   const resetSelection = useCallback(() => {
@@ -118,40 +145,70 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
       getImportModules(),
       getPermissoesUsuarioLogadoPorModulo(config.permissionModule),
     ]);
-    if (!permissions.CRIAR) throw new Error("Você não possui permissão para importar registros neste módulo.");
-    if (!modules.includes(config.module)) throw new Error(`A importação de ${config.entity} não está habilitada pelo servidor.`);
+    if (!permissions.CRIAR)
+      throw new Error(
+        "Você não possui permissão para importar registros neste módulo.",
+      );
+    if (!modules.includes(config.module))
+      throw new Error(
+        `A importação de ${config.entity} não está habilitada pelo servidor.`,
+      );
   }
 
   async function buildFieldRules() {
-    const entries = await Promise.all((config.relationships ?? []).map(async (relation) => [
-      relation.field,
-      await getImportRelationshipOptions(relation.endpoint),
-    ] as const));
+    const entries = await Promise.all(
+      (config.relationships ?? []).map(
+        async (relation) =>
+          [
+            relation.field,
+            await getImportRelationshipOptions(relation.endpoint),
+          ] as const,
+      ),
+    );
     const relationshipOptions = Object.fromEntries(entries);
-    const relationshipRules = Object.fromEntries((config.relationships ?? []).map((item) => [item.field, {
-      kind: item.field.endsWith("Ids") ? "relationship-array" : "relationship",
-      options: relationshipOptions[item.field],
-    } satisfies ImportFieldRule]));
-    const configuredRules = Object.fromEntries(Object.entries(config.fieldRules ?? {}).map(([field, rule]) => [
-      field,
-      { ...rule, options: rule.options ?? relationshipOptions[field] },
-    ]));
+    const relationshipRules = Object.fromEntries(
+      (config.relationships ?? []).map((item) => [
+        item.field,
+        {
+          kind: item.field.endsWith("Ids")
+            ? "relationship-array"
+            : "relationship",
+          options: relationshipOptions[item.field],
+        } satisfies ImportFieldRule,
+      ]),
+    );
+    const configuredRules = Object.fromEntries(
+      Object.entries(config.fieldRules ?? {}).map(([field, rule]) => [
+        field,
+        { ...rule, options: rule.options ?? relationshipOptions[field] },
+      ]),
+    );
     return { ...relationshipRules, ...configuredRules };
   }
 
-  function applyCurrent(current: ImportReviewQueue, fieldRules: Record<string, ImportFieldRule>) {
+  function applyCurrent(
+    current: ImportReviewQueue,
+    fieldRules: Record<string, ImportFieldRule>,
+  ) {
     if (!canFillForm) return;
     const row = current.rows[current.currentIndex];
     if (!row) return;
-    window.dispatchEvent(new CustomEvent("aurit:import-fill-form", {
-      detail: {
-        module: config.module,
-        data: row.dados,
-        line: row.linha,
-        requiredFields: [...config.requiredFields, ...(config.relationships ?? []).filter((item) => item.required).map((item) => item.field)],
-        fieldRules,
-      }
-    }));
+    window.dispatchEvent(
+      new CustomEvent("aurit:import-fill-form", {
+        detail: {
+          module: config.module,
+          data: row.dados,
+          line: row.linha,
+          requiredFields: [
+            ...config.requiredFields,
+            ...(config.relationships ?? [])
+              .filter((item) => item.required)
+              .map((item) => item.field),
+          ],
+          fieldRules,
+        },
+      }),
+    );
   }
 
   async function processAndEnqueue(f: File) {
@@ -161,7 +218,10 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
     setProgress(15);
     try {
       await verifyAccess();
-      const [preview, fieldRules] = await Promise.all([previewImport(config.module, f), buildFieldRules()]);
+      const [preview, fieldRules] = await Promise.all([
+        previewImport(config.module, f),
+        buildFieldRules(),
+      ]);
       setProgress(80);
       if (!preview.linhas.length) {
         setError("Não foi possível extrair registros do arquivo.");
@@ -173,7 +233,10 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
         module: config.module,
         entity: config.entity,
         fileName: f.name,
-        rows: preview.linhas.map((row) => ({ ...row, dados: { ...row.dados } })),
+        rows: preview.linhas.map((row) => ({
+          ...row,
+          dados: { ...row.dados },
+        })),
         currentIndex: 0,
         createRoute: config.createRoute,
       };
@@ -184,15 +247,26 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
       setFile(null);
       setOpen(false);
       if (config.createRoute && location.pathname !== config.createRoute) {
-        navigate(config.createRoute, { state: { applyImportQueueModule: config.module } });
+        navigate(config.createRoute, {
+          state: { applyImportQueueModule: config.module },
+        });
       } else {
         applyCurrent(state, fieldRules);
       }
-      toast({ title: `${preview.linhas.length} registro(s) identificado(s)`, description: "O primeiro registro foi aplicado ao formulário para revisão." });
+      toast({
+        title: `${preview.linhas.length} registro(s) identificado(s)`,
+        description:
+          "O primeiro registro foi aplicado ao formulário para revisão.",
+      });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Falha ao processar o arquivo.";
+      const message =
+        err instanceof Error ? err.message : "Falha ao processar o arquivo.";
       setError(message);
-      toast({ title: "Não foi possível importar", description: message, variant: "destructive" });
+      toast({
+        title: "Não foi possível importar",
+        description: message,
+        variant: "destructive",
+      });
       setProcessing(false);
       setProgress(0);
     }
@@ -245,7 +319,9 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
     setOpen(false);
     if (config.createRoute && location.pathname !== config.createRoute) {
       saveImportReviewQueue({ ...current, resumeAfterSave: true });
-      navigate(config.createRoute, { state: { applyImportQueueModule: config.module } });
+      navigate(config.createRoute, {
+        state: { applyImportQueueModule: config.module },
+      });
       return;
     }
     setProcessing(true);
@@ -254,9 +330,16 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
       const resumed = { ...current, resumeAfterSave: false };
       saveImportReviewQueue(resumed);
       applyCurrent(resumed, fieldRules);
-      toast({ title: `Registro ${resumed.currentIndex + 1} de ${resumed.rows.length} carregado`, description: "Revise os campos e salve para avançar." });
+      toast({
+        title: `Registro ${resumed.currentIndex + 1} de ${resumed.rows.length} carregado`,
+        description: "Revise os campos e salve para avançar.",
+      });
     } catch (err) {
-      toast({ title: "Não foi possível carregar o registro", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({
+        title: "Não foi possível carregar o registro",
+        description: err instanceof Error ? err.message : undefined,
+        variant: "destructive",
+      });
     } finally {
       setProcessing(false);
     }
@@ -266,10 +349,20 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
   continueRef.current = handleContinue;
   useEffect(() => {
     const state = location.state as { applyImportQueueModule?: string } | null;
-    if (state?.applyImportQueueModule !== config.module || location.pathname !== config.createRoute) return;
+    if (
+      state?.applyImportQueueModule !== config.module ||
+      location.pathname !== config.createRoute
+    )
+      return;
     navigate(location.pathname, { replace: true, state: null });
     void continueRef.current();
-  }, [config.createRoute, config.module, location.pathname, location.state, navigate]);
+  }, [
+    config.createRoute,
+    config.module,
+    location.pathname,
+    location.state,
+    navigate,
+  ]);
 
   const handleClearQueue = () => {
     clearImportReviewQueue(config.module);
@@ -290,9 +383,12 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
   const nextNumber = hasQueue ? queue!.currentIndex + 1 : 0;
   const percent = hasQueue
     ? Math.min(
-      100,
-      Math.max(0, Math.round((queue!.currentIndex / queue!.rows.length) * 100)),
-    )
+        100,
+        Math.max(
+          0,
+          Math.round((queue!.currentIndex / queue!.rows.length) * 100),
+        ),
+      )
     : 0;
 
   return (
@@ -301,12 +397,16 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
         <TooltipTrigger asChild>
           <Button
             type="button"
-            variant="outline"
+            variant={variant}
             onClick={() => setOpen(true)}
             aria-label="Importar dados"
-            className={cn("h-9 gap-2 self-start", className)}
+            size="compact"
+            className={cn(
+              "w-auto shrink-0 gap-1.5 self-start whitespace-nowrap",
+              className,
+            )}
           >
-            <FileUp className="h-4 w-4" />
+            <FileUp className="h-[15px] w-[15px]" />
             <span className="hidden sm:inline">Importar dados</span>
           </Button>
         </TooltipTrigger>
@@ -322,15 +422,15 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
           if (!o) resetSelection();
         }}
       >
-        <DialogContent className="p-0 sm:max-w-lg overflow-hidden">
+        <DialogContent className="overflow-hidden rounded-[18px] border-border/60 bg-background/90 p-0 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.5),0_18px_44px_-26px_hsl(215_28%_17%/0.35)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 sm:max-w-lg">
           {/* Cabeçalho */}
-          <DialogHeader className="border-b border-border/60 bg-muted/30 px-6 py-4">
+          <DialogHeader className="border-b border-border/60 bg-muted/25 px-5 py-3.5 sm:px-6">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
                 <FileUp className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <DialogTitle className="text-base font-semibold leading-tight">
+                <DialogTitle className="text-[15px] font-semibold leading-tight">
                   Importar dados
                 </DialogTitle>
                 <DialogDescription className="mt-0.5 text-xs">
@@ -343,8 +443,8 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
 
           {hasQueue ? (
             /* ============ ESTADO 2 — IMPORTAÇÃO EM ANDAMENTO ============ */
-            <div className="space-y-4 px-6 py-5">
-              <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <div className="space-y-4 px-5 py-4 sm:px-6 sm:py-5">
+              <div className="rounded-[13px] border border-border/60 bg-card/70 p-4 backdrop-blur-sm supports-[backdrop-filter]:bg-card/55">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <ListChecks className="h-5 w-5" />
@@ -390,43 +490,50 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
               </div>
 
               {/* Ações — hierarquia visual: verde principal, outline secundário, clear discreto */}
-              <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="glassSecondary"
+                    size="compact"
+                    onClick={() => replaceInputRef.current?.click()}
+                    className="w-full gap-1.5 sm:w-auto"
+                  >
+                    <UploadCloud className="h-[15px] w-[15px]" />
+                    Selecionar outro arquivo
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="glassDanger"
+                    size="compact"
+                    onClick={() => setConfirmClear(true)}
+                    className="w-full gap-1.5 sm:w-auto"
+                  >
+                    <Trash2 className="h-[15px] w-[15px]" />
+                    Limpar fila de importação
+                  </Button>
+                </div>
+
                 <Button
                   type="button"
+                  variant="glassPrimary"
+                  size="compact"
                   onClick={handleContinue}
-                  className="h-10 w-full gap-2 bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-600"
+                  className="w-full gap-1.5 sm:w-auto"
                 >
-                  <PlayCircle className="h-4 w-4" />
+                  <PlayCircle className="h-[15px] w-[15px]" />
                   Continuar esta importação
                 </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => replaceInputRef.current?.click()}
-                  className="h-10 w-full gap-2"
-                >
-                  <UploadCloud className="h-4 w-4" />
-                  Selecionar outro arquivo
-                </Button>
-
-                <div className="flex justify-center pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmClear(true)}
-                    className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-destructive/80 transition-colors hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Limpar fila de importação
-                  </button>
-                </div>
 
                 <input
                   ref={replaceInputRef}
                   type="file"
                   accept={ACCEPTED_MIME}
                   className="hidden"
-                  onChange={(e) => handleReplaceFileSelected(e.target.files?.[0])}
+                  onChange={(e) =>
+                    handleReplaceFileSelected(e.target.files?.[0])
+                  }
                   aria-label="Selecionar novo arquivo para importação"
                 />
               </div>
@@ -447,7 +554,7 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
             </div>
           ) : (
             /* ============ ESTADO 1 — SELEÇÃO DO ARQUIVO (design original) ============ */
-            <div className="space-y-4 px-6 py-5">
+            <div className="space-y-4 px-5 py-4 sm:px-6 sm:py-5">
               {!file ? (
                 <div
                   onDragOver={(e) => {
@@ -467,16 +574,16 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
                   tabIndex={0}
                   aria-label="Área de upload de arquivo"
                   className={cn(
-                    "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-5 py-10 text-center transition-colors",
+                    "flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[13px] border border-dashed px-5 py-7 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                     dragActive
-                      ? "border-primary bg-primary/5"
-                      : "border-border bg-muted/30 hover:border-primary/50 hover:bg-muted/50",
+                      ? "border-primary/60 bg-primary/[0.06]"
+                      : "border-border/70 bg-muted/20 hover:border-primary/45 hover:bg-muted/35",
                   )}
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-background shadow-sm ring-1 ring-border">
-                    <UploadCloud className="h-6 w-6 text-primary" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-background/80 ring-1 ring-border/70">
+                    <UploadCloud className="h-[18px] w-[18px] text-primary" />
                   </div>
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="text-[13px] font-semibold text-foreground">
                     Arraste um arquivo ou clique para selecionar
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -492,7 +599,7 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
                   />
                 </div>
               ) : (
-                <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                <div className="attachment-file-glass p-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                       <FileSpreadsheet className="h-5 w-5" />
@@ -547,8 +654,9 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
               <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 <p className="text-[11.5px] leading-relaxed text-muted-foreground">
-                  Os registros importados passarão por uma etapa de revisão antes
-                  de serem salvos definitivamente em <strong>{entity}</strong>.
+                  Os registros importados passarão por uma etapa de revisão
+                  antes de serem salvos definitivamente em{" "}
+                  <strong>{entity}</strong>.
                 </p>
               </div>
             </div>
@@ -559,7 +667,7 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
       {/* Confirmação: substituir fila existente */}
       <AlertDialog open={confirmReplace} onOpenChange={setConfirmReplace}>
         <AlertDialogContent>
-          <AlertDialogHeader>
+          <AlertDialogHeader icon={null}>
             <AlertDialogTitle>Substituir a importação atual?</AlertDialogTitle>
             <AlertDialogDescription>
               A fila atual possui registros pendentes. Ao selecionar e processar
@@ -590,10 +698,7 @@ export function ImportDataButton({ config, className, canFillForm = false }: Imp
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Manter fila</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleClearQueue}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleClearQueue}>
               Limpar fila
             </AlertDialogAction>
           </AlertDialogFooter>

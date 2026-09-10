@@ -1,23 +1,23 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   User,
   MapPin,
   Briefcase,
   CalendarClock,
   Building2,
-  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { EmailInput } from "@/components/EmailInput";
 import { PageTitle } from "@/components/PageTitle";
-import { WikiFloatingButton } from "@/components/WikiFloatingButton";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { BackButton } from "@/components/BackButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
 import { Button } from "@/components/ui/button";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -49,32 +49,11 @@ import {
   type TipoVinculoIntegranteApi,
 } from "@/data/integrantes";
 import { toast } from "sonner";
-
-const INTEGRANTE_NEXT_STEP_KEY = "aurit:integrantes:next-step-card";
-
-interface IntegranteNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
-}
+import { getImportConfigForPath } from "@/config/importacoes";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 function salvarProximaAcaoIntegrante() {
-  const card: IntegranteNextStepCardData = {
-    titulo: "Após cadastrar os integrantes, registre os participantes da organização",
-    descricao:
-      "Os participantes representam as pessoas atendidas ou acompanhadas pelas atividades da organização. Esse cadastro ajuda a organizar vínculos, responsáveis, matrículas em atividades ou turmas, presenças e comprovações de execução.",
-    acaoLabel: "Cadastrar participantes",
-    acaoUrl: "/participantes/novo",
-    acaoSecundariaLabel: "Ver integrantes",
-    acaoSecundariaUrl: "/integrantes",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(INTEGRANTE_NEXT_STEP_KEY, JSON.stringify(card));
+  emitJourneyNextStep();
 }
 
 interface FormState {
@@ -360,64 +339,81 @@ export default function IntegranteForm() {
   }, []);
 
   useEffect(() => {
+    if (!id || form.organizacaoId || organizacoes.length !== 1) return;
+    set("organizacaoId", String(organizacoes[0].id));
+  }, [id, form.organizacaoId, organizacoes]);
+
+  useEffect(() => {
     if (!id) {
       setLoading(false);
       return;
     }
 
-    void carregarIntegrante(Number(id));
-  }, [id]);
+    let active = true;
 
-  async function carregarIntegrante(integranteId: number) {
-    try {
-      setLoading(true);
+    async function carregarIntegrante() {
+      try {
+        setLoading(true);
 
-      const data = await getIntegranteById(integranteId);
+        const data = await getIntegranteById(Number(id));
 
-      setForm({
-        tipoPessoaIntegrante: data.tipoPessoaIntegrante || "PESSOA_FISICA",
-        nomeCompleto: data.nomeCompleto,
-        dataNascimento: isoToBrDate(data.dataNascimento),
-        cpf: data.cpf ? maskCPF(data.cpf) : "",
-        rg: data.rg,
-        cnpj: data.cnpj ? maskCNPJ(data.cnpj) : "",
-        nomeSocial: data.nomeSocial,
-        nomeFantasia: data.nomeFantasia,
-        telefone: data.telefone ? maskPhone(data.telefone) : "",
-        email: data.email,
+        if (!active) return;
 
-        racaCor: data.racaCor,
-        genero: data.genero,
-        tipoDeficiencia: data.tipoDeficiencia,
+        setForm({
+          tipoPessoaIntegrante: data.tipoPessoaIntegrante || "PESSOA_FISICA",
+          nomeCompleto: data.nomeCompleto,
+          dataNascimento: isoToBrDate(data.dataNascimento),
+          cpf: data.cpf ? maskCPF(data.cpf) : "",
+          rg: data.rg,
+          cnpj: data.cnpj ? maskCNPJ(data.cnpj) : "",
+          nomeSocial: data.nomeSocial,
+          nomeFantasia: data.nomeFantasia,
+          telefone: data.telefone ? maskPhone(data.telefone) : "",
+          email: data.email,
 
-        cep: data.cep ? maskCEP(data.cep) : "",
-        logradouro: data.logradouro,
-        numero: data.numero === "" ? "" : String(data.numero),
-        complemento: data.complemento,
-        bairro: data.bairro,
-        cidade: data.cidade,
-        estado: resolverEstadoParaSelect(data.estado),
+          racaCor: data.racaCor,
+          genero: data.genero,
+          tipoDeficiencia: data.tipoDeficiencia,
 
-        funcaoIntegrante: data.funcaoIntegrante,
-        tipoVinculoIntegrante: data.tipoVinculoIntegrante,
-        dataEntrada: toInputDate(data.dataEntrada),
-        dataSaida: toInputDate(data.dataSaida),
-        status: data.status,
-        organizacaoId:
-          data.organizacaoId !== "" && data.organizacaoId != null
-            ? String(data.organizacaoId)
-            : "",
-      });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Erro ao carregar integrante.";
+          cep: data.cep ? maskCEP(data.cep) : "",
+          logradouro: data.logradouro,
+          numero: data.numero === "" ? "" : String(data.numero),
+          complemento: data.complemento,
+          bairro: data.bairro,
+          cidade: data.cidade,
+          estado: resolverEstadoParaSelect(data.estado),
 
-      toast.error(message);
-      navigate("/integrantes");
-    } finally {
-      setLoading(false);
+          funcaoIntegrante: data.funcaoIntegrante,
+          tipoVinculoIntegrante: data.tipoVinculoIntegrante,
+          dataEntrada: toInputDate(data.dataEntrada),
+          dataSaida: toInputDate(data.dataSaida),
+          status: data.status,
+          organizacaoId:
+            data.organizacaoId !== "" && data.organizacaoId != null
+              ? String(data.organizacaoId)
+              : "",
+        });
+      } catch (error) {
+        if (!active) return;
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar integrante.";
+
+        toast.error(message);
+        navigate("/integrantes");
+      } finally {
+        if (active) setLoading(false);
+      }
     }
-  }
+
+    void carregarIntegrante();
+
+    return () => {
+      active = false;
+    };
+  }, [id, navigate]);
 
   async function buscarEnderecoPorCep(cepFormatado: string) {
     const cepLimpo = onlyDigits(cepFormatado);
@@ -427,7 +423,9 @@ export default function IntegranteForm() {
     try {
       setCepLoading(true);
 
-      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const response = await fetch(
+        `https://viacep.com.br/ws/${cepLimpo}/json/`,
+      );
 
       if (!response.ok) {
         throw new Error("Não foi possível consultar o CEP.");
@@ -670,587 +668,650 @@ export default function IntegranteForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/integrantes")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" /> Voltar
-        </button>
+        <BackButton to="/integrantes" />
 
         <PageTitle
-          title="Integrante"
-          tooltip="Cadastre integrantes que atuam junto à organização, mas que não fazem parte da equipe fixa nem do cadastro de participantes. Este registro pode incluir artistas, parceiros culturais ou pessoas vinculadas a ações específicas."
+          title="Integrantes"
+          tooltip="Nesta página são cadastrados os integrantes vinculados à organização, como artistas, grupos, parceiros culturais, pareceristas ou pessoas envolvidas em projetos, ações e atividades. Também podem ser registrados o tipo de vínculo, a função exercida, o período de participação e a situação atual de cada integrante."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/integrantes")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
+          showImport={false}
         />
-
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
 
         <FormLegend />
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={User} title="Dados pessoais">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field full>
-                <FieldLabel htmlFor="tipoPessoaIntegrante" required>
-                  Tipo de Pessoa
-                </FieldLabel>
-
-                <Select
-                  value={form.tipoPessoaIntegrante}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("tipoPessoaIntegrante", value as TipoPessoaIntegranteApi);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="tipoPessoaIntegrante">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {tiposPessoaIntegrante.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              {pessoaJuridica ? (
-                <>
-                  <Field>
-                    <FieldLabel htmlFor="cnpj" required>
-                      CNPJ
-                    </FieldLabel>
-
-                    <Input
-                      id="cnpj"
-                      value={form.cnpj}
-                      onChange={(e) => set("cnpj", maskCNPJ(e.target.value))}
-                      inputMode="numeric"
-                      disabled={bloqueado}
-                      readOnly={visualizando}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="nomeSocial" required>
-                      Razão Social
-                    </FieldLabel>
-
-                    <Input
-                      id="nomeSocial"
-                      value={form.nomeSocial}
-                      onChange={(e) => set("nomeSocial", e.target.value)}
-                      disabled={bloqueado}
-                      readOnly={visualizando}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="nomeFantasia" required>
-                      Nome Fantasia
-                    </FieldLabel>
-
-                    <Input
-                      id="nomeFantasia"
-                      value={form.nomeFantasia}
-                      onChange={(e) => set("nomeFantasia", e.target.value)}
-                      disabled={bloqueado}
-                      readOnly={visualizando}
-                    />
-                  </Field>
-                </>
-              ) : (
-                <>
-              <Field>
-                <FieldLabel htmlFor="nomeCompleto" required>
-                  Nome Completo
-                </FieldLabel>
-
-                <Input
-                  id="nomeCompleto"
-                  value={form.nomeCompleto}
-                  onChange={(e) => set("nomeCompleto", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="dataNascimento" required>
-                  Data de Nascimento
-                </FieldLabel>
-
-                <Input
-                  id="dataNascimento"
-                  value={form.dataNascimento}
-                  onChange={(e) =>
-                    set("dataNascimento", maskDate(e.target.value))
-                  }
-                  inputMode="numeric"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="cpf" required>
-                  CPF
-                </FieldLabel>
-
-                <Input
-                  id="cpf"
-                  value={form.cpf}
-                  onChange={(e) => set("cpf", maskCPF(e.target.value))}
-                  inputMode="numeric"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="rg">RG</FieldLabel>
-
-                <Input
-                  id="rg"
-                  value={form.rg}
-                  onChange={(e) => set("rg", maskRGFlex(e.target.value))}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="racaCor" required>
-                  Raça/Cor
-                </FieldLabel>
-
-                <Select
-                  value={form.racaCor}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-                    set("racaCor", v as RacaCorApi);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="racaCor">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {racasCoresIntegrante.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="genero" required>
-                  Gênero
-                </FieldLabel>
-
-                <Select
-                  value={form.genero}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-                    set("genero", v as GeneroApi);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="genero">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {generosIntegrante.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="tipoDeficiencia" required>
-                  Deficiência
-                </FieldLabel>
-
-                <Select
-                  value={form.tipoDeficiencia}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-                    set("tipoDeficiencia", v as TipoDeficienciaApi);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="tipoDeficiencia">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent className="max-h-72">
-                    {tiposDeficienciaIntegrante.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-                </>
-              )}
-
-              <Field>
-                <FieldLabel htmlFor="telefone" required>
-                  Telefone
-                </FieldLabel>
-
-                <Input
-                  id="telefone"
-                  value={form.telefone}
-                  onChange={(e) => set("telefone", maskPhone(e.target.value))}
-                  inputMode="tel"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="email">E-mail</FieldLabel>
-
-                <EmailInput
-                  id="email"
-                  value={form.email}
-                  onChange={(e) => set("email", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={MapPin} title="Endereço">
-            <div className="grid gap-4 sm:grid-cols-6">
-              <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="cep" required>
-                  CEP
-                </FieldLabel>
-
-                <Input
-                  id="cep"
-                  value={form.cep}
-                  onChange={(e) => {
-                    if (visualizando) return;
-
-                    const cepFormatado = maskCEP(e.target.value);
-                    set("cep", cepFormatado);
-
-                    const cepLimpo = onlyDigits(cepFormatado);
-
-                    if (cepLimpo.length === 8) {
-                      void buscarEnderecoPorCep(cepFormatado);
-                    }
-                  }}
-                  inputMode="numeric"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-
-                {cepLoading && !visualizando && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Buscando endereço...
-                  </p>
-                )}
-              </Field>
-
-              <Field className="sm:col-span-4">
-                <FieldLabel htmlFor="logradouro" required>
-                  Logradouro
-                </FieldLabel>
-
-                <Input
-                  id="logradouro"
-                  value={form.logradouro}
-                  onChange={(e) => set("logradouro", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field className="sm:col-span-2">
-                <FieldLabel
-                  htmlFor="numero"
-                  required
-                  tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
-                >
-                  Número
-                </FieldLabel>
-
-                <Input
-                  id="numero"
-                  value={form.numero}
-                  onChange={(e) => set("numero", e.target.value)}
-                  disabled={loading || saving}
-                />
-              </Field>
-
-              <Field className="sm:col-span-4">
-                <FieldLabel htmlFor="complemento">Complemento</FieldLabel>
-
-                <Input
-                  id="complemento"
-                  value={form.complemento}
-                  onChange={(e) => set("complemento", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="bairro" required>
-                  Bairro
-                </FieldLabel>
-
-                <Input
-                  id="bairro"
-                  value={form.bairro}
-                  onChange={(e) => set("bairro", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="cidade" required>
-                  Cidade
-                </FieldLabel>
-
-                <Input
-                  id="cidade"
-                  value={form.cidade}
-                  onChange={(e) => set("cidade", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="estado" required>
-                  Estado
-                </FieldLabel>
-
-                <Select
-                  value={form.estado}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-                    set("estado", v);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="estado">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent className="max-h-72">
-                    {estadosBrasil.map((e) => (
-                      <SelectItem key={e} value={e}>
-                        {e}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Building2} title="Organização">
-            <div className="grid gap-4">
-              <Field>
-                <FieldLabel
-                  htmlFor="organizacaoId"
-                  tooltip="Selecione a organização à qual este integrante está vinculado ou junto da qual atua. Quando não informado, o backend deve considerar a organização vinculada à empresa logada."
-                >
-                  Organização
-                </FieldLabel>
-
-                <Select
-                  value={form.organizacaoId}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-                    set("organizacaoId", v);
-                  }}
-                  disabled={bloqueado || organizacoes.length === 0}
-                >
-                  <SelectTrigger id="organizacaoId">
-                    <SelectValue placeholder="Selecione uma organização" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {organizacoes.length === 0 ? (
-                      <SelectItem value="sem-organizacoes" disabled>
-                        Nenhuma organização cadastrada
-                      </SelectItem>
-                    ) : (
-                      organizacoes.map((org) => (
-                        <SelectItem key={org.id} value={String(org.id)}>
-                          {org.nomeOrganizacao}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Briefcase} title="Atuação">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="funcaoIntegrante"
-                  required
-                  tooltip="Descreva como o integrante atua junto à organização, indicando seu papel, contribuição, linguagem artística, parceria ou participação nas ações culturais. Ex.: banda parceira em apresentações culturais, coletivo convidado para oficinas, artista integrante de espetáculo ou grupo de apoio em ações comunitárias."
-                >
-                  Função do Integrante
-                </FieldLabel>
-
-                <Input
-                  id="funcaoIntegrante"
-                  value={form.funcaoIntegrante}
-                  onChange={(e) => set("funcaoIntegrante", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="tipoVinculoIntegrante"
-                  tooltip="Indique o tipo de vínculo do integrante quando houver uma classificação específica para este cadastro."
-                >
-                  Tipo de Vínculo
-                </FieldLabel>
-
-                <Select
-                  value={form.tipoVinculoIntegrante}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-                    set(
-                      "tipoVinculoIntegrante",
-                      v as TipoVinculoIntegranteApi,
-                    );
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="tipoVinculoIntegrante">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {tiposVinculoIntegrante.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={CalendarClock} title="Vínculo e situação">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="dataEntrada"
-                  required
-                  tooltip="Informe a data em que o integrante passou a atuar, colaborar ou se vincular às ações da organização. Ex.: 10/03/2024."
-                >
-                  Data de Entrada
-                </FieldLabel>
-
-                <Input
-                  id="dataEntrada"
-                  type="date"
-                  value={form.dataEntrada}
-                  onChange={(e) => set("dataEntrada", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="status"
-                  required
-                  tooltip="Indique a situação atual do integrante no sistema. Use “Ativo” para integrantes em atuação, “Pendente” para cadastros ou vínculos em conferência, “Concluído” para participações finalizadas conforme previsto e “Inativo” para vínculos que não devem mais ser considerados ativos."
-                >
-                  Status do Integrante
-                </FieldLabel>
-
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
-
-                    setForm((prev) => ({
-                      ...prev,
-                      status: v as IntegranteStatusApi,
-                      dataSaida: v === "CONCLUIDO" ? prev.dataSaida : "",
-                    }));
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    <SelectItem value="ATIVO">Ativo</SelectItem>
-                    <SelectItem value="INATIVO">Inativo</SelectItem>
-                    <SelectItem value="PENDENTE">Pendente</SelectItem>
-                    <SelectItem value="CONCLUIDO">Concluído</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              {statusConcluido && (
+          <fieldset
+            disabled={visualizando}
+            className="space-y-5 border-0 p-0 disabled:opacity-100"
+          >
+            <FormSectionCard
+              icon={User}
+              title="Dados do integrante"
+              description="Informe os principais dados de identificação e contato da pessoa ou organização cadastrada como integrante."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
                   <FieldLabel
-                    htmlFor="dataSaida"
-                    required={!visualizando}
-                    tooltip="Informe a data de saída do integrante. Este campo é obrigatório quando o status estiver como Concluído."
+                    htmlFor="tipoPessoaIntegrante"
+                    required
+                    tooltip="Informe se o integrante cadastrado é uma pessoa física ou pessoa jurídica. Os campos do formulário serão ajustados de acordo com a opção selecionada."
                   >
-                    Data de Saída
+                    Tipo de Pessoa
+                  </FieldLabel>
+
+                  <Select
+                    value={form.tipoPessoaIntegrante}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+
+                      set(
+                        "tipoPessoaIntegrante",
+                        value as TipoPessoaIntegranteApi,
+                      );
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="tipoPessoaIntegrante">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {tiposPessoaIntegrante.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                {pessoaJuridica ? (
+                  <>
+                    <Field>
+                      <FieldLabel htmlFor="nomeSocial" required>
+                        Razão Social
+                      </FieldLabel>
+
+                      <Input
+                        id="nomeSocial"
+                        value={form.nomeSocial}
+                        onChange={(e) => set("nomeSocial", e.target.value)}
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="nomeFantasia">
+                        Nome Fantasia
+                      </FieldLabel>
+
+                      <Input
+                        id="nomeFantasia"
+                        value={form.nomeFantasia}
+                        onChange={(e) => set("nomeFantasia", e.target.value)}
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="cnpj" required>
+                        CNPJ
+                      </FieldLabel>
+
+                      <Input
+                        id="cnpj"
+                        value={form.cnpj}
+                        onChange={(e) => set("cnpj", maskCNPJ(e.target.value))}
+                        inputMode="numeric"
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="telefone" required>
+                        Telefone
+                      </FieldLabel>
+
+                      <Input
+                        id="telefone"
+                        value={form.telefone}
+                        onChange={(e) =>
+                          set("telefone", maskPhone(e.target.value))
+                        }
+                        inputMode="tel"
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="email">E-mail</FieldLabel>
+
+                      <EmailInput
+                        id="email"
+                        value={form.email}
+                        onChange={(e) => set("email", e.target.value)}
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+                  </>
+                ) : (
+                  <>
+                    <Field>
+                      <FieldLabel htmlFor="nomeCompleto" required>
+                        Nome Completo
+                      </FieldLabel>
+
+                      <Input
+                        id="nomeCompleto"
+                        value={form.nomeCompleto}
+                        onChange={(e) => set("nomeCompleto", e.target.value)}
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="dataNascimento" required>
+                        Data de Nascimento
+                      </FieldLabel>
+
+                      <Input
+                        id="dataNascimento"
+                        value={form.dataNascimento}
+                        onChange={(e) =>
+                          set("dataNascimento", maskDate(e.target.value))
+                        }
+                        inputMode="numeric"
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="cpf" required>
+                        CPF
+                      </FieldLabel>
+
+                      <Input
+                        id="cpf"
+                        value={form.cpf}
+                        onChange={(e) => set("cpf", maskCPF(e.target.value))}
+                        inputMode="numeric"
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="rg">RG</FieldLabel>
+
+                      <Input
+                        id="rg"
+                        value={form.rg}
+                        onChange={(e) => set("rg", maskRGFlex(e.target.value))}
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="racaCor" required>
+                        Raça/cor
+                      </FieldLabel>
+
+                      <Select
+                        value={form.racaCor}
+                        onValueChange={(v) => {
+                          if (visualizando) return;
+                          set("racaCor", v as RacaCorApi);
+                        }}
+                        disabled={bloqueado}
+                      >
+                        <SelectTrigger id="racaCor">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                          {racasCoresIntegrante.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="genero" required>
+                        Gênero
+                      </FieldLabel>
+
+                      <Select
+                        value={form.genero}
+                        onValueChange={(v) => {
+                          if (visualizando) return;
+                          set("genero", v as GeneroApi);
+                        }}
+                        disabled={bloqueado}
+                      >
+                        <SelectTrigger id="genero">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                          {generosIntegrante.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel
+                        htmlFor="tipoDeficiencia"
+                        required
+                        tooltip="Informe se o integrante possui alguma deficiência e, em caso positivo, selecione o tipo correspondente. Se não possuir, selecione Não possui. Caso essa informação não tenha sido fornecida ou não seja conhecida, selecione Não informado."
+                      >
+                        Deficiência
+                      </FieldLabel>
+
+                      <Select
+                        value={form.tipoDeficiencia}
+                        onValueChange={(v) => {
+                          if (visualizando) return;
+
+                          set("tipoDeficiencia", v as TipoDeficienciaApi);
+                        }}
+                        disabled={bloqueado}
+                      >
+                        <SelectTrigger id="tipoDeficiencia">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+
+                        <SelectContent className="max-h-72">
+                          {tiposDeficienciaIntegrante.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="telefone" required>
+                        Telefone
+                      </FieldLabel>
+
+                      <Input
+                        id="telefone"
+                        value={form.telefone}
+                        onChange={(e) =>
+                          set("telefone", maskPhone(e.target.value))
+                        }
+                        inputMode="tel"
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="email">E-mail</FieldLabel>
+
+                      <EmailInput
+                        id="email"
+                        value={form.email}
+                        onChange={(e) => set("email", e.target.value)}
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+                  </>
+                )}
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={MapPin}
+              title="Endereço"
+              description="Informe o endereço principal do integrante. Ao preencher o CEP, os dados disponíveis serão preenchidos automaticamente."
+            >
+              <div className="grid gap-4 sm:grid-cols-6">
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="cep" required>
+                    CEP
                   </FieldLabel>
 
                   <Input
-                    id="dataSaida"
-                    type="date"
-                    value={form.dataSaida}
-                    onChange={(e) => set("dataSaida", e.target.value)}
+                    id="cep"
+                    value={form.cep}
+                    onChange={(e) => {
+                      if (visualizando) return;
+
+                      const cepFormatado = maskCEP(e.target.value);
+                      set("cep", cepFormatado);
+
+                      const cepLimpo = onlyDigits(cepFormatado);
+
+                      if (cepLimpo.length === 8) {
+                        void buscarEnderecoPorCep(cepFormatado);
+                      }
+                    }}
+                    inputMode="numeric"
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+
+                  {cepLoading && !visualizando && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Buscando endereço...
+                    </p>
+                  )}
+                </Field>
+
+                <Field className="sm:col-span-4">
+                  <FieldLabel htmlFor="logradouro" required>
+                    Logradouro
+                  </FieldLabel>
+
+                  <Input
+                    id="logradouro"
+                    value={form.logradouro}
+                    onChange={(e) => set("logradouro", e.target.value)}
                     disabled={bloqueado}
                     readOnly={visualizando}
                   />
                 </Field>
-              )}
-            </div>
-          </Section>
 
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="numero" required>
+                    Número
+                  </FieldLabel>
+
+                  <Input
+                    id="numero"
+                    value={form.numero}
+                    onChange={(e) => set("numero", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-4">
+                  <FieldLabel htmlFor="complemento">Complemento</FieldLabel>
+
+                  <Input
+                    id="complemento"
+                    value={form.complemento}
+                    onChange={(e) => set("complemento", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="bairro" required>
+                    Bairro
+                  </FieldLabel>
+
+                  <Input
+                    id="bairro"
+                    value={form.bairro}
+                    onChange={(e) => set("bairro", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="cidade" required>
+                    Cidade
+                  </FieldLabel>
+
+                  <Input
+                    id="cidade"
+                    value={form.cidade}
+                    onChange={(e) => set("cidade", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="estado" required>
+                    Estado
+                  </FieldLabel>
+
+                  <Select
+                    value={form.estado}
+                    onValueChange={(v) => {
+                      if (visualizando) return;
+                      set("estado", v);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="estado">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent className="max-h-72">
+                      {estadosBrasil.map((e) => (
+                        <SelectItem key={e} value={e}>
+                          {e}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={Building2}
+              title="Vínculo institucional"
+              description="Informe a organização à qual o integrante está vinculado, o tipo de vínculo e a função exercida."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="organizacaoId"
+                    tooltip="Informe a organização junto à qual o integrante atua ou mantém vínculo."
+                  >
+                    Organização
+                  </FieldLabel>
+
+                  <Select
+                    value={form.organizacaoId}
+                    onValueChange={(v) => {
+                      if (visualizando) return;
+                      set("organizacaoId", v);
+                    }}
+                    disabled={bloqueado || organizacoes.length === 0}
+                  >
+                    <SelectTrigger id="organizacaoId">
+                      <SelectValue placeholder="Selecione uma organização" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {organizacoes.length === 0 ? (
+                        <SelectItem value="sem-organizacoes" disabled>
+                          Nenhuma organização cadastrada
+                        </SelectItem>
+                      ) : (
+                        organizacoes.map((org) => (
+                          <SelectItem key={org.id} value={String(org.id)}>
+                            {org.nomeOrganizacao}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="tipoVinculoIntegrante"
+                    tooltip="Informe a forma de vínculo ou participação do integrante junto à organização, quando aplicável."
+                  >
+                    Tipo de Vínculo
+                  </FieldLabel>
+
+                  <Select
+                    value={form.tipoVinculoIntegrante || "__SELECIONE__"}
+                    onValueChange={(v) => {
+                      if (visualizando) return;
+
+                      set(
+                        "tipoVinculoIntegrante",
+                        v === "__SELECIONE__"
+                          ? ""
+                          : (v as TipoVinculoIntegranteApi),
+                      );
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="tipoVinculoIntegrante">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="__SELECIONE__">Selecione</SelectItem>
+
+                      {tiposVinculoIntegrante.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="funcaoIntegrante"
+                    required
+                    tooltip="Informe a principal função, papel ou forma de atuação do integrante junto à organização e às suas atividades."
+                  >
+                    Função do Integrante
+                  </FieldLabel>
+
+                  <Input
+                    id="funcaoIntegrante"
+                    value={form.funcaoIntegrante}
+                    onChange={(e) => set("funcaoIntegrante", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={CalendarClock}
+              title="Período e situação"
+              description="Informe quando o vínculo teve início e a situação atual do integrante na organização."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataEntrada"
+                    required
+                    tooltip="Informe a data em que o integrante iniciou sua atuação, participação ou vínculo com a organização."
+                  >
+                    Data de Entrada
+                  </FieldLabel>
+
+                  <Input
+                    id="dataEntrada"
+                    type="date"
+                    value={form.dataEntrada}
+                    onChange={(e) => set("dataEntrada", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="status"
+                    required
+                    tooltip="Informe a situação atual do integrante. Ativo indica participação em andamento; Pendente, vínculo ou cadastro em conferência; Concluído, participação finalizada; e Inativo, vínculo que não está mais em exercício."
+                  >
+                    Situação do Integrante
+                  </FieldLabel>
+
+                  <Select
+                    value={form.status}
+                    onValueChange={(v) => {
+                      if (visualizando) return;
+
+                      setForm((prev) => ({
+                        ...prev,
+                        status: v as IntegranteStatusApi,
+                        dataSaida: v === "CONCLUIDO" ? prev.dataSaida : "",
+                      }));
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="ATIVO">Ativo</SelectItem>
+
+                      <SelectItem value="INATIVO">Inativo</SelectItem>
+
+                      <SelectItem value="PENDENTE">Pendente</SelectItem>
+
+                      <SelectItem value="CONCLUIDO">Concluído</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                {statusConcluido && (
+                  <Field>
+                    <FieldLabel
+                      htmlFor="dataSaida"
+                      required={!visualizando}
+                      tooltip="Informe a data em que a participação ou o vínculo do integrante foi encerrado."
+                    >
+                      Data de Saída
+                    </FieldLabel>
+
+                    <Input
+                      id="dataSaida"
+                      type="date"
+                      value={form.dataSaida}
+                      onChange={(e) => set("dataSaida", e.target.value)}
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
+                )}
+              </div>
+            </FormSectionCard>
+          </fieldset>
+
+          <div className="flex flex-col-reverse gap-2.5 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/integrantes")}
               disabled={saving}
             >
@@ -1258,42 +1319,25 @@ export default function IntegranteForm() {
             </Button>
 
             {!visualizando && (
-              <Button type="submit" className="sm:min-w-32" disabled={saving}>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                className="h-9 px-5"
+                disabled={saving}
+                aria-busy={saving}
+              >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
             )}
           </div>
         </form>
+
         <WikiFloatingButton
           pageTitle="Integrantes"
-          href="https://www.aurit.com.br/wiki/pessoas/integrantes"
+          href="/wiki/pessoas/integrantes"
         />
       </div>
     </AppLayout>
-  );
-}
-
-function Section({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: LucideIcon;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
-
-      {children}
-    </Card>
   );
 }
 

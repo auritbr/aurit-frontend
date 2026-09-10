@@ -26,11 +26,7 @@ async function parseError(response: Response): Promise<string> {
       }
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -41,7 +37,7 @@ async function parseError(response: Response): Promise<string> {
 }
 
 export const cronogramaTitleTooltip =
-  "Estruture o cronograma do projeto detalhando etapas, períodos e vínculos com atividades, eventos culturais ou ações de divulgação. Um cronograma bem preenchido facilita o planejamento, o acompanhamento da execução, a organização de evidências e a prestação de contas.";
+  "Nesta página é estruturado o cronograma dos projetos, com o registro das fases, etapas, períodos de execução, situações e vínculos com atividades, eventos culturais ou ações de divulgação. Essas informações ajudam a planejar e acompanhar a execução do projeto, organizar as ações previstas e apoiar a prestação de contas.";
 
 export const cronogramaDateError =
   "A data de término deve ser posterior à data de início.";

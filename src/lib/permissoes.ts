@@ -2,6 +2,7 @@ import {
   getAuthHeaders,
   getUsuarioLogado,
   limparSessaoUsuario,
+  usuarioLogadoEhAdmin,
   type UsuarioLogado,
 } from "@/lib/auth";
 
@@ -21,12 +22,12 @@ export type ModuloPermissao =
   | "CRONOGRAMA"
   | "ATIVIDADES"
   | "TURMAS"
+  | "PLANOS_AULA"
   | "PRESENCAS"
   | "EDITAIS"
   | "PROPOSTAS_EDITAL"
   | "EQUIPE_EDITAL"
   | "RESULTADO_PROPOSTA"
-  | "HABILITACOES_PROPOSTAS"
   | "HABILITACAO"
   | "EVENTOS_CULTURAIS"
   | "ACOES_DIVULGACAO"
@@ -34,6 +35,18 @@ export type ModuloPermissao =
   | "EVIDENCIAS"
   | "PLANEJAMENTO_FINANCEIRO"
   | "FINANCEIRO"
+  | "PAINEL_FINANCEIRO"
+  | "CONTAS_BANCARIAS"
+  | "CONTAS_PAGAR"
+  | "CONTAS_RECEBER"
+  | "TRANSFERENCIAS_BANCARIAS"
+  | "MOVIMENTACOES_BANCARIAS"
+  | "CONCILIACOES_BANCARIAS"
+  | "FLUXO_CAIXA"
+  | "DOACOES"
+  | "DOADORES"
+  | "FORNECEDORES"
+  | "PARCEIROS"
   | "PRESTACAO_CONTAS"
   | "PRESTACAO_METAS"
   | "PATRIMONIO"
@@ -195,14 +208,11 @@ export async function usuarioTemPermissao(
     return false;
   }
 
-  if (
-    usuario.userRole === "ADMIN" ||
-    usuario.userRole === "ADMIN_PROPRIETARIO"
-  ) {
+  if (usuarioLogadoEhAdmin()) {
     return true;
   }
 
-  return verificarPermissaoUsuario(usuario.id, modulo, acao);
+  return verificarPermissaoUsuarioLogado(modulo, acao);
 }
 
 export async function getPermissoesUsuarioLogadoPorModulo(
@@ -219,39 +229,34 @@ export async function getPermissoesUsuarioLogadoPorModulo(
     return permissoesVazias;
   }
 
-  if (
-    usuario.userRole === "ADMIN" ||
-    usuario.userRole === "ADMIN_PROPRIETARIO"
-  ) {
+  if (usuarioLogadoEhAdmin()) {
     return permissoesTotais;
   }
 
-  const [
-    VISUALIZAR,
-    CRIAR,
-    EDITAR,
-    EXCLUIR,
-    BAIXAR,
-    GERAR_PDF,
-    ALTERAR_STATUS,
-  ] = await Promise.all([
-    verificarPermissaoUsuario(usuario.id, modulo, "VISUALIZAR"),
-    verificarPermissaoUsuario(usuario.id, modulo, "CRIAR"),
-    verificarPermissaoUsuario(usuario.id, modulo, "EDITAR"),
-    verificarPermissaoUsuario(usuario.id, modulo, "EXCLUIR"),
-    verificarPermissaoUsuario(usuario.id, modulo, "BAIXAR"),
-    verificarPermissaoUsuario(usuario.id, modulo, "GERAR_PDF"),
-    verificarPermissaoUsuario(usuario.id, modulo, "ALTERAR_STATUS"),
-  ]);
+  const params = new URLSearchParams({ modulo });
+  const response = await fetch(
+    `${API_URL}/usuarios-permissoes/me/permissoes?${params.toString()}`,
+    { method: "GET", headers: getAuthHeaders() },
+  );
 
+  if (response.status === 401) {
+    limparSessaoUsuario();
+    throw new Error("Sessão expirada. Faça login novamente.");
+  }
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data = (await response.json()) as Partial<PermissoesModulo>;
   return {
-    VISUALIZAR,
-    CRIAR,
-    EDITAR,
-    EXCLUIR,
-    BAIXAR,
-    GERAR_PDF,
-    ALTERAR_STATUS,
+    VISUALIZAR: data.VISUALIZAR === true,
+    CRIAR: data.CRIAR === true,
+    EDITAR: data.EDITAR === true,
+    EXCLUIR: data.EXCLUIR === true,
+    BAIXAR: data.BAIXAR === true,
+    GERAR_PDF: data.GERAR_PDF === true,
+    ALTERAR_STATUS: data.ALTERAR_STATUS === true,
   };
 }
 

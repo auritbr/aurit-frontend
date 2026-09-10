@@ -1,22 +1,26 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
-  AlertTriangle,
   CalendarRange,
   ClipboardList,
   Link2,
   Share2,
+  Target,
   type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BackButton } from "@/components/BackButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { StatusPill } from "@/components/StatusPill";
+import { getImportConfigForPath } from "@/config/importacoes";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
-import { PageTitle } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -26,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { MultiSelect } from "@/components/MultiSelect";
+import { FormMultiSelect } from "@/components/FormMultiSelect";
 import { toast } from "sonner";
 import {
   buildPlanoComunicacaoPayload,
@@ -34,6 +38,7 @@ import {
   createPlanoComunicacao,
   formatosComunicacaoOptions,
   getPlanoComunicacaoById,
+  getOrganizacoesOptions,
   getPropostasEditalOptions,
   statusPlanoComunicacaoOptions,
   updatePlanoComunicacao,
@@ -41,6 +46,7 @@ import {
   estrategiaLabel,
   type PlanoComunicacao,
   type PropostaEditalOption,
+  type OrganizacaoOption,
   type StatusPlanoComunicacao,
 } from "@/data/planoComunicacao";
 
@@ -70,10 +76,7 @@ function salvarProximaAcaoPlanoComunicacao() {
     variante: "pendente",
   };
 
-  sessionStorage.setItem(
-    PLANO_COMUNICACAO_NEXT_STEP_KEY,
-    JSON.stringify(card),
-  );
+  sessionStorage.setItem(PLANO_COMUNICACAO_NEXT_STEP_KEY, JSON.stringify(card));
 }
 
 function normalizeId(value: unknown): string {
@@ -108,17 +111,23 @@ export default function PlanoComunicacaoForm() {
   const [form, setForm] = useState<PlanoComunicacao>(() =>
     createEmptyPlanoComunicacao(),
   );
-  const [existingPlano, setExistingPlano] =
-    useState<PlanoComunicacao | null>(null);
+  const [existingPlano, setExistingPlano] = useState<PlanoComunicacao | null>(
+    null,
+  );
   const [loading, setLoading] = useState<boolean>(!!id);
   const [saving, setSaving] = useState(false);
   const [propostas, setPropostas] = useState<PropostaEditalOption[]>([]);
+  const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
 
   const bloqueado = visualizando || loading || saving;
 
   const propostaSelectValue =
     normalizeId(form.propostaEdital) ||
     normalizeId(existingPlano?.propostaEdital);
+  const organizacaoSelectValue =
+    normalizeId(form.organizacao) ||
+    normalizeId(existingPlano?.organizacao) ||
+    normalizeId(organizacoes[0]?.id);
 
   useImportFormFill("planos-comunicacao", setForm);
 
@@ -129,18 +138,24 @@ export default function PlanoComunicacaoForm() {
       try {
         setLoading(true);
 
-        const [propostasData, registroData] = await Promise.all([
-          getPropostasEditalOptions(),
-          id ? getPlanoComunicacaoById(Number(id)) : Promise.resolve(null),
-        ]);
+        const [propostasData, organizacoesData, registroData] =
+          await Promise.all([
+            getPropostasEditalOptions(),
+            getOrganizacoesOptions(),
+            id ? getPlanoComunicacaoById(Number(id)) : Promise.resolve(null),
+          ]);
 
         if (!active) return;
 
         setPropostas(propostasData);
+        setOrganizacoes(organizacoesData);
 
         if (registroData) {
           const registroNormalizado: PlanoComunicacao = {
             ...registroData,
+            organizacao:
+              normalizeId(registroData.organizacao) ||
+              (organizacoesData.length === 1 ? organizacoesData[0].id : ""),
             propostaEdital: normalizeId(registroData.propostaEdital),
             estrategiasDivulgacao: registroData.estrategiasDivulgacao ?? [],
           };
@@ -219,6 +234,7 @@ export default function PlanoComunicacaoForm() {
   function getFormComVinculos(): PlanoComunicacao {
     return {
       ...form,
+      organizacao: organizacaoSelectValue,
       propostaEdital: propostaSelectValue,
     };
   }
@@ -237,6 +253,16 @@ export default function PlanoComunicacaoForm() {
 
     if (!formComVinculos.quantidade.trim()) {
       toast.error("Informe a quantidade.");
+      return;
+    }
+
+    if (!formComVinculos.objetivoComunicacao.trim()) {
+      toast.error("Descreva o objetivo da comunicação.");
+      return;
+    }
+
+    if (!formComVinculos.publicoAlvoComunicacao.trim()) {
+      toast.error("Informe o público-alvo da comunicação.");
       return;
     }
 
@@ -275,6 +301,11 @@ export default function PlanoComunicacaoForm() {
       return;
     }
 
+    if (!formComVinculos.organizacao) {
+      toast.error("Selecione a organização responsável.");
+      return;
+    }
+
     if (!formComVinculos.status) {
       toast.error("Selecione o status do plano.");
       return;
@@ -306,309 +337,420 @@ export default function PlanoComunicacaoForm() {
     }
   };
 
+  const tituloPagina = visualizando
+    ? "Plano de Comunicação"
+    : editando
+      ? "Plano de Comunicação"
+      : "Plano de Comunicação";
+
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/plano-comunicacao")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </button>
-
-        <PageTitle
-          title="Plano de Comunicação"
-          tooltip="Registre o plano de comunicação vinculado à proposta de edital, informando formato, quantidade, estratégias de divulgação, período, local de circulação e situação atual."
+        <BackButton to="/plano-comunicacao" />
+        <ListPageHeader
+          title={tituloPagina}
+          tooltip="Nesta página é elaborado o plano de comunicação do projeto apresentado ao edital, definindo o que se pretende alcançar com a comunicação, o público a ser atingido, os formatos e estratégias de divulgação, a quantidade prevista, os canais e locais de divulgação, o período de execução e a situação atual do plano."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/plano-comunicacao")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
         />
 
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        <div
-          className="mb-5 flex items-start gap-3 rounded-lg border px-4 py-3.5"
-          style={{
-            backgroundColor: "hsl(40 90% 96%)",
-            borderColor: "hsl(38 80% 70%)",
-          }}
-        >
-          <AlertTriangle
-            className="mt-0.5 h-5 w-5 flex-shrink-0"
-            strokeWidth={2.2}
-            style={{ color: "hsl(28 80% 42%)" }}
-          />
-
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Use esta página para detalhar o plano de comunicação da proposta:
-            quais materiais serão produzidos, em que quantidade, por quais
-            estratégias, onde circularão e em qual período.
-          </p>
-        </div>
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={ClipboardList} title="Item, formato e quantidade">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field full>
-                <FieldLabel
-                  htmlFor="nomePlano"
-                  required={!visualizando}
-                  tooltip="Informe um nome para identificar este plano de comunicação. Ex.: Divulgação das oficinas, Campanha de lançamento, Comunicação do evento de encerramento."
-                >
-                  Nome do Plano
-                </FieldLabel>
-
-                <Input
-                  id="nomePlano"
-                  value={form.nomePlano}
-                  onChange={(e) => set("nomePlano", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="formatoPlanoComunicacao"
-                  required={!visualizando}
-                  tooltip="Selecione o formato principal da comunicação. Ex.: material gráfico, redes sociais, vídeo, rádio, site institucional, WhatsApp ou imprensa local."
-                >
-                  Formato da Comunicação
-                </FieldLabel>
-
-                <Select
-                  value={form.formatoPlanoComunicacao}
-                  onValueChange={(value) =>
-                    set("formatoPlanoComunicacao", value)
-                  }
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="formatoPlanoComunicacao">
-                    <SelectValue placeholder="Selecione um formato" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {formatosComunicacaoOptions.map((formato) => (
-                      <SelectItem key={formato} value={formato}>
-                        {formato}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="quantidade"
-                  required={!visualizando}
-                  tooltip="Informe a quantidade prevista ou realizada para este formato de comunicação. Ex.: 10 cartazes, 5 publicações, 2 vídeos, 100 panfletos ou 3 chamadas de rádio."
-                >
-                  Quantidade
-                </FieldLabel>
-
-                <Input
-                  id="quantidade"
-                  value={form.quantidade}
-                  onChange={(e) => set("quantidade", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={CalendarRange} title="Período e circulação">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="dataInicio"
-                  required={!visualizando}
-                  tooltip="Informe a data prevista ou efetiva de início da execução deste plano de comunicação."
-                >
-                  Data de Início
-                </FieldLabel>
-
-                <Input
-                  id="dataInicio"
-                  type="date"
-                  value={form.dataInicio}
-                  onChange={(e) => set("dataInicio", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="dataFim"
-                  required={!visualizando}
-                  tooltip="Informe a data prevista ou efetiva de encerramento deste plano de comunicação."
-                >
-                  Data de Fim
-                </FieldLabel>
-
-                <Input
-                  id="dataFim"
-                  type="date"
-                  value={form.dataFim}
-                  onChange={(e) => set("dataFim", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="localCirculacaoComunicacao"
-                  required={!visualizando}
-                  tooltip="Informe onde esta comunicação será divulgada ou distribuída. Pode ser canal digital, espaço físico, território, instituição, mídia ou local de circulação do público."
-                >
-                  Local de Circulação
-                </FieldLabel>
-
-                <Input
-                  id="localCirculacaoComunicacao"
-                  value={form.localCirculacaoComunicacao}
-                  onChange={(e) =>
-                    set("localCirculacaoComunicacao", e.target.value)
-                  }
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Share2} title="Estratégia de divulgação">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field full>
-                <FieldLabel
-                  htmlFor="estrategiasDivulgacao"
-                  required={!visualizando}
-                  tooltip="Selecione um ou mais meios utilizados para divulgação da comunicação. Ex.: redes sociais, cartazes, mídia local, rádio, parcerias, site ou mobilização comunitária."
-                >
-                  Estratégias de Divulgação
-                </FieldLabel>
-
-                <div
-                  className={visualizando ? "pointer-events-none opacity-80" : ""}
-                >
-                  <MultiSelect
-                    id="estrategiasDivulgacao"
-                    options={estrategiaOptions}
-                    value={estrategiasSelecionadasLabels}
-                    onChange={handleEstrategiasChange}
-                  />
-                </div>
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Link2} title="Vínculo e status">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="propostaEdital"
-                  required={!visualizando}
-                  tooltip="Selecione a proposta de edital à qual este plano de comunicação está vinculado."
-                >
-                  Proposta de Edital
-                </FieldLabel>
-
-                <Select
-                  value={propostaSelectValue}
-                  onValueChange={(value) =>
-                    set("propostaEdital", normalizeId(value))
-                  }
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="propostaEdital">
-                    <SelectValue placeholder="Selecione a proposta vinculada" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {propostasComFallback.length === 0 ? (
-                      <SelectItem value="sem-proposta" disabled>
-                        Nenhuma proposta de edital cadastrada
-                      </SelectItem>
-                    ) : (
-                      propostasComFallback.map((proposta) => (
-                        <SelectItem
-                          key={normalizeId(proposta.id)}
-                          value={normalizeId(proposta.id)}
-                        >
-                          {proposta.nome}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="status"
-                  required={!visualizando}
-                  tooltip="Indique a situação atual deste plano. Use Ativo para registros em execução, Pendente para registros não iniciados ou em conferência, Concluído para finalizados e Inativo para registros que não devem mais ser considerados ativos."
-                >
-                  Status do Plano
-                </FieldLabel>
-
-                <Select
-                  value={form.status}
-                  onValueChange={(value) =>
-                    set("status", value as StatusPlanoComunicacao)
-                  }
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {statusPlanoComunicacaoOptions.map((status) => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
-
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/plano-comunicacao")}
-              disabled={saving}
+          <fieldset
+            disabled={visualizando}
+            className="space-y-5 border-0 p-0 disabled:opacity-100"
+          >
+            {/* 1 — Vínculos institucionais */}
+            <Section
+              icon={Link2}
+              title="Vínculos institucionais"
+              description="Defina a organização responsável pelo plano e o projeto apresentado ao edital ao qual as ações de comunicação estarão relacionadas."
             >
-              {visualizando ? "Voltar" : "Cancelar"}
-            </Button>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="organizacao"
+                    required
+                    tooltip="Selecione a organização responsável pelo planejamento e pela realização das ações previstas neste plano de comunicação."
+                  >
+                    Organização
+                  </FieldLabel>
 
-            {!visualizando && (
-              <Button type="submit" className="sm:min-w-40" disabled={saving}>
-                {saving ? "Salvando..." : "Salvar plano"}
-              </Button>
-            )}
+                  <Select
+                    value={organizacaoSelectValue}
+                    onValueChange={(value) =>
+                      set("organizacao", normalizeId(value))
+                    }
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="organizacao">
+                      <SelectValue placeholder="Selecione a organização" />
+                    </SelectTrigger>
 
-            {visualizando && id && (
+                    <SelectContent>
+                      {organizacoes.map((organizacao) => (
+                        <SelectItem key={organizacao.id} value={organizacao.id}>
+                          {organizacao.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="propostaEdital"
+                    required
+                    tooltip="Selecione o projeto apresentado ao edital para o qual este plano de comunicação será utilizado."
+                  >
+                    Proposta de Edital
+                  </FieldLabel>
+
+                  <Select
+                    value={propostaSelectValue}
+                    onValueChange={(value) =>
+                      set("propostaEdital", normalizeId(value))
+                    }
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="propostaEdital">
+                      <SelectValue placeholder="Selecione a proposta" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {propostasComFallback.length === 0 ? (
+                        <SelectItem value="sem-proposta" disabled>
+                          Nenhuma proposta de edital cadastrada
+                        </SelectItem>
+                      ) : (
+                        propostasComFallback.map((proposta) => (
+                          <SelectItem
+                            key={normalizeId(proposta.id)}
+                            value={normalizeId(proposta.id)}
+                          >
+                            {proposta.nome}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </Section>
+
+            {/* 2 — Identificação do plano */}
+            <Section
+              icon={ClipboardList}
+              title="Identificação do plano"
+              description="Registre um nome que permita reconhecer este planejamento de comunicação."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="nomePlano"
+                    required
+                    tooltip="Informe um nome curto e objetivo que permita identificar facilmente este plano de comunicação."
+                  >
+                    Nome do Plano
+                  </FieldLabel>
+
+                  <Input
+                    id="nomePlano"
+                    value={form.nomePlano}
+                    onChange={(e) => set("nomePlano", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            {/* 3 — Objetivo e público-alvo */}
+            <Section
+              icon={Target}
+              title="Objetivo e público-alvo"
+              description="Defina o que este plano de comunicação pretende alcançar e identifique o público ao qual suas ações serão direcionadas."
+            >
+              <div className="space-y-4">
+                <Field>
+                  <FieldLabel
+                    htmlFor="objetivoComunicacao"
+                    required
+                    tooltip="Descreva o que se pretende alcançar com este plano de comunicação, como divulgar as atividades, ampliar o alcance do projeto, mobilizar participantes ou fortalecer sua visibilidade."
+                  >
+                    Objetivo da Comunicação
+                  </FieldLabel>
+
+                  <Textarea
+                    id="objetivoComunicacao"
+                    value={form.objetivoComunicacao}
+                    onChange={(e) => set("objetivoComunicacao", e.target.value)}
+                    rows={3}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="publicoAlvoComunicacao"
+                    required
+                    tooltip="Informe quais pessoas ou grupos se pretende alcançar com a comunicação, como participantes do projeto, moradores da comunidade, estudantes, famílias, artistas ou público em geral."
+                  >
+                    Público-alvo
+                  </FieldLabel>
+
+                  <Textarea
+                    id="publicoAlvoComunicacao"
+                    value={form.publicoAlvoComunicacao}
+                    onChange={(e) =>
+                      set("publicoAlvoComunicacao", e.target.value)
+                    }
+                    rows={3}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            {/* 4 — Estratégias e divulgação */}
+            <Section
+              icon={Share2}
+              title="Estratégias e divulgação"
+              description="Planeje como a comunicação chegará ao público, definindo os formatos, as estratégias, os espaços de divulgação e a quantidade de materiais, conteúdos ou ações previstos."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="formatoPlanoComunicacao"
+                    required
+                    tooltip="Selecione o formato principal previsto para a comunicação, como material gráfico, publicação em rede social, vídeo, rádio, site ou outro formato disponível."
+                  >
+                    Formato da Comunicação
+                  </FieldLabel>
+
+                  <Select
+                    value={form.formatoPlanoComunicacao}
+                    onValueChange={(value) =>
+                      set("formatoPlanoComunicacao", value)
+                    }
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="formatoPlanoComunicacao">
+                      <SelectValue placeholder="Selecione o formato" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {formatosComunicacaoOptions.map((formato) => (
+                        <SelectItem key={formato} value={formato}>
+                          {formato}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="estrategiasDivulgacao"
+                    required
+                    tooltip="Selecione uma ou mais estratégias que serão utilizadas para divulgar o projeto, como redes sociais, cartazes, rádio, imprensa, parcerias ou mobilização comunitária."
+                  >
+                    Estratégias de Divulgação
+                  </FieldLabel>
+
+                  <div
+                    className={
+                      visualizando ? "pointer-events-none opacity-80" : ""
+                    }
+                  >
+                    <FormMultiSelect
+                      id="estrategiasDivulgacao"
+                      options={estrategiasDivulgacao.map((item) => ({
+                        value: item.value,
+                        label: item.label,
+                      }))}
+                      value={form.estrategiasDivulgacao}
+                      onChange={(value) =>
+                        set(
+                          "estrategiasDivulgacao",
+                          value as PlanoComunicacao["estrategiasDivulgacao"],
+                        )
+                      }
+                      placeholder="Selecione uma ou mais estratégias"
+                      searchPlaceholder="Pesquisar estratégia..."
+                      disabled={bloqueado}
+                    />
+                  </div>
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="localCirculacaoComunicacao"
+                    required
+                    tooltip="Informe onde os materiais ou conteúdos serão divulgados ou distribuídos, como redes sociais, sites, escolas, equipamentos culturais, bairros, comunidades, eventos ou outros espaços."
+                  >
+                    Canais e locais de divulgação
+                  </FieldLabel>
+
+                  <Input
+                    id="localCirculacaoComunicacao"
+                    value={form.localCirculacaoComunicacao}
+                    onChange={(e) =>
+                      set("localCirculacaoComunicacao", e.target.value)
+                    }
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                    placeholder="Informe os canais e locais previstos"
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="quantidade"
+                    required
+                    tooltip="Informe a quantidade total prevista de materiais, conteúdos ou ações de comunicação que serão produzidos ou realizados neste plano. Ex.: 10 cartazes, 5 publicações ou 2 vídeos."
+                  >
+                    Quantidade Prevista
+                  </FieldLabel>
+
+                  <Input
+                    id="quantidade"
+                    value={form.quantidade}
+                    onChange={(e) => set("quantidade", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            {/* 5 — Período e situação */}
+            <Section
+              icon={CalendarRange}
+              title="Período e situação"
+              description="Organize quando as ações de comunicação deverão acontecer e acompanhe o andamento do plano durante sua execução."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataInicio"
+                    required
+                    tooltip="Informe a data prevista para o início das ações deste plano de comunicação."
+                  >
+                    Data de Início
+                  </FieldLabel>
+
+                  <Input
+                    id="dataInicio"
+                    type="date"
+                    value={form.dataInicio}
+                    onChange={(e) => set("dataInicio", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataFim"
+                    required
+                    tooltip="Informe a data prevista para o encerramento das ações deste plano de comunicação."
+                  >
+                    Data de Término
+                  </FieldLabel>
+
+                  <Input
+                    id="dataFim"
+                    type="date"
+                    value={form.dataFim}
+                    onChange={(e) => set("dataFim", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="status"
+                    required
+                    tooltip="Selecione a situação que melhor representa o momento atual deste plano de comunicação."
+                  >
+                    Situação do Plano
+                  </FieldLabel>
+
+                  <Select
+                    value={form.status}
+                    onValueChange={(value) =>
+                      set("status", value as StatusPlanoComunicacao)
+                    }
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="Selecione a situação" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {statusPlanoComunicacaoOptions.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {form.status && (
+                    <div className="mt-2">
+                      <StatusPill status={form.status} size="md" />
+                    </div>
+                  )}
+                </Field>
+              </div>
+            </Section>
+          </fieldset>
+
+          {visualizando ? (
+            <div className="flex pt-2 sm:justify-end">
               <Button
                 type="button"
-                onClick={() => navigate(`/plano-comunicacao/${id}/editar`)}
+                variant="glassSecondary"
+                className="h-9 px-4"
+                onClick={() => navigate("/plano-comunicacao")}
+                disabled={saving}
               >
-                Editar
+                Voltar
               </Button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="glassSecondary"
+                className="h-9 px-4"
+                onClick={() => navigate("/plano-comunicacao")}
+                disabled={saving}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                disabled={saving}
+                className="h-9 px-5"
+              >
+                {saving ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
+          )}
         </form>
         <WikiFloatingButton
           pageTitle="Plano de Comunicação"
@@ -622,24 +764,18 @@ export default function PlanoComunicacaoForm() {
 function Section({
   icon: Icon,
   title,
+  description,
   children,
 }: {
   icon: LucideIcon;
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
-
+    <FormSectionCard icon={Icon} title={title} description={description}>
       {children}
-    </Card>
+    </FormSectionCard>
   );
 }
 

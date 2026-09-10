@@ -1,32 +1,41 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Search,
-  Plus,
-  Eye,
-  Pencil,
-  Trash2,
-  CalendarRange,
-  FileDown,
-} from "lucide-react";
+import { Copy, Loader2, Plus, RotateCcw, Search } from "lucide-react";
 
-import { exportEventoCulturalPdf } from "@/lib/pdfExporters";
-import { AppLayout } from "@/components/AppLayout";
-import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
-import { NextStepCard } from "@/components/NextStepCard";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+  useSessionBoolean,
+} from "@/components/AdvancedSearchPanel";
+import { AppLayout } from "@/components/AppLayout";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { FieldLabel } from "@/components/FieldLabel";
+import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
+import { StatusPill } from "@/components/StatusPill";
+import { TableCellText } from "@/components/TableCellText";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableEmptyState } from "@/components/list/DataTableEmptyState";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { SortableTh } from "@/components/list/SortableTh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TableActionIcon } from "@/components/TableActionIcon";
-import { TableCellText } from "@/components/TableCellText";
-import { StatusPill } from "@/components/StatusPill";
-import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { TablePagination } from "@/components/TablePagination";
-import { SortableHeader } from "@/components/SortableHeader";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { usePagination } from "@/hooks/usePagination";
-import { useSortableData } from "@/hooks/useSortableData";
-import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
   getPermissoesUsuarioLogadoPorModulo,
@@ -40,9 +49,10 @@ import {
   getColaboradoresOptions,
   getEventosCulturais,
   getProjetosOptions,
+  statusEvento,
   statusValueToLabel,
   tipoEventoLabel,
-  type ColaboradorOption,
+  tiposEvento,
   type EventoCulturalView,
   type ProjetoOption,
 } from "@/data/eventosCulturais";
@@ -58,29 +68,73 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
-type SortKey = "nome" | "tipo" | "periodo" | "status" | "projeto" | "colaboradores";
-
 const EVENTO_CULTURAL_NEXT_STEP_KEY = "aurit:eventos-culturais:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
 
+type SortBy =
+  | "nome"
+  | "tipo"
+  | "periodo"
+  | "status"
+  | "projeto"
+  | "colaboradores";
+type SortDir = "asc" | "desc";
+
+interface EventosFiltros {
+  nome: string;
+  projetos: string[];
+  tipos: string[];
+  status: string[];
+  sortBy: SortBy;
+  sortDir: SortDir;
+}
+
 interface EventoNextStepCardData {
   titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+  acaoLabel?: string;
+  acaoUrl?: string;
+  variante?: "pendente" | "atencao" | "concluido";
 }
+
+const emptyFiltros: EventosFiltros = {
+  nome: "",
+  projetos: [],
+  tipos: [],
+  status: [],
+  sortBy: "nome",
+  sortDir: "asc",
+};
+
+const sortByOptions: Array<{ value: SortBy; label: string }> = [
+  { value: "nome", label: "Nome do evento" },
+  { value: "projeto", label: "Projeto" },
+  { value: "tipo", label: "Tipo de evento" },
+  { value: "status", label: "Status" },
+  { value: "periodo", label: "Data do evento" },
+  { value: "colaboradores", label: "Colaboradores" },
+];
+
+const normalize = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+const labelOf = (
+  options: readonly { value: string; label: string }[],
+  value: string,
+) => options.find((option) => option.value === value)?.label ?? value;
+
+const sortDirLabels: Record<SortDir, string> = {
+  asc: "A–Z",
+  desc: "Z–A",
+};
 
 export default function EventosCulturais() {
   const navigate = useNavigate();
-  const tableRef = useRef<HTMLTableElement>(null);
-
-  const [search, setSearch] = useState("");
   const [items, setItems] = useState<EventoCulturalView[]>([]);
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
-  const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
@@ -91,6 +145,14 @@ export default function EventosCulturais() {
     useState<EventoNextStepCardData | null>(null);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
+
+  const [panelOpen, setPanelOpen] = useSessionBoolean(
+    "eventos-culturais:pesquisa-avancada",
+    false,
+  );
+  const [draft, setDraft] = useState<EventosFiltros>(emptyFiltros);
+  const [filtros, setFiltros] = useState<EventosFiltros>(emptyFiltros);
+  const [searching, setSearching] = useState(false);
 
   const podeVisualizar = permissoes.VISUALIZAR;
   const podeCriar = permissoes.CRIAR;
@@ -104,27 +166,18 @@ export default function EventosCulturais() {
     async function carregarPermissoes() {
       try {
         setLoadingPermissoes(true);
-
-        const data = await getPermissoesUsuarioLogadoPorModulo(
-          "EVENTOS_CULTURAIS",
-        );
-
-        if (!active) return;
-
-        setPermissoes(data);
+        const data =
+          await getPermissoesUsuarioLogadoPorModulo("EVENTOS_CULTURAIS");
+        if (active) setPermissoes(data);
       } catch (error) {
         console.error(error);
-
-        if (!active) return;
-
-        setPermissoes(permissoesVazias);
+        if (active) setPermissoes(permissoesVazias);
       } finally {
         if (active) setLoadingPermissoes(false);
       }
     }
 
     void carregarPermissoes();
-
     return () => {
       active = false;
     };
@@ -132,137 +185,221 @@ export default function EventosCulturais() {
 
   useEffect(() => {
     const raw = sessionStorage.getItem(EVENTO_CULTURAL_NEXT_STEP_KEY);
-
     if (!raw) return;
 
     try {
-      const parsed = JSON.parse(raw) as EventoNextStepCardData;
-      setNextStepCard(parsed);
+      setNextStepCard(JSON.parse(raw) as EventoNextStepCardData);
     } catch {
       setNextStepCard(null);
     }
 
     sessionStorage.removeItem(EVENTO_CULTURAL_NEXT_STEP_KEY);
-
-    const timer = window.setTimeout(() => {
-      setNextStepCard(null);
-    }, NEXT_STEP_DURATION_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
+    const timer = window.setTimeout(
+      () => setNextStepCard(null),
+      NEXT_STEP_DURATION_MS,
+    );
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (loadingPermissoes) return;
-
     if (!podeVisualizar) {
       setLoading(false);
       return;
     }
 
+    let active = true;
+
+    async function carregarDados() {
+      try {
+        setLoading(true);
+        setAccessDeniedMessage(null);
+        const [eventosData, projetosData, colaboradoresData] =
+          await Promise.all([
+            getEventosCulturais(),
+            getProjetosOptions(),
+            getColaboradoresOptions(),
+          ]);
+
+        if (!active) return;
+        setProjetos(projetosData);
+        setItems(
+          eventosData.map((evento) =>
+            enrichEventoCultural(evento, projetosData, colaboradoresData),
+          ),
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar eventos culturais.";
+
+        if (isPlanoAccessDenied(message)) {
+          setAccessDeniedMessage(message);
+          return;
+        }
+        toast.error(message);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
     void carregarDados();
+    return () => {
+      active = false;
+    };
   }, [loadingPermissoes, podeVisualizar]);
 
-  async function carregarDados() {
-    try {
-      setLoading(true);
-      setAccessDeniedMessage(null);
+  const setDraftField = <K extends keyof EventosFiltros>(
+    key: K,
+    value: EventosFiltros[K],
+  ) => setDraft((prev) => ({ ...prev, [key]: value }));
 
-      const [eventosData, projetosData, colaboradoresData] = await Promise.all([
-        getEventosCulturais(),
-        getProjetosOptions(),
-        getColaboradoresOptions(),
-      ]);
-
-      setProjetos(projetosData);
-      setColaboradores(colaboradoresData);
-
-      setItems(
-        eventosData.map((evento) =>
-          enrichEventoCultural(evento, projetosData, colaboradoresData),
-        ),
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Erro ao carregar eventos culturais.";
-
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        return;
-      }
-
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const applyFiltros = (next: EventosFiltros) => {
+    setDraft(next);
+    setSearching(true);
+    setFiltros(next);
+    setCurrentPage(1);
+    window.setTimeout(() => setSearching(false), 180);
+  };
 
   const filtered = useMemo(() => {
-    const term = search.toLowerCase().trim();
-
-    if (!term) return items;
-
-    return items.filter((evento) => {
-      const texto = [
-        evento.nomeEvento,
-        evento.descricaoEvento,
-        evento.localEvento,
-        evento.projetoNome,
-        tipoEventoLabel(evento.tipoEvento),
-        statusValueToLabel(evento.status),
-        evento.colaboradoresNomes.join(" "),
-        formatPeriodo(evento.dataEvento, evento.dataFim),
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return texto.includes(term);
+    const nome = normalize(filtros.nome);
+    const result = items.filter((evento) => {
+      if (
+        nome &&
+        !normalize(
+          `${evento.nomeEvento} ${evento.descricaoEvento} ${evento.localEvento}`,
+        ).includes(nome)
+      )
+        return false;
+      if (
+        filtros.projetos.length &&
+        !evento.projetosIds.some((id) => filtros.projetos.includes(String(id)))
+      )
+        return false;
+      if (filtros.tipos.length && !filtros.tipos.includes(evento.tipoEvento))
+        return false;
+      if (filtros.status.length && !filtros.status.includes(evento.status))
+        return false;
+      return true;
     });
-  }, [search, items]);
 
-
-  const { sortConfig, sortedItems, handleSort } = useSortableData(
-    filtered,
-    (item, key: SortKey) => {
-      switch (key) {
-        case "nome":
-          return item.nomeEvento;
-        case "tipo":
-          return tipoEventoLabel(item.tipoEvento);
-        case "periodo":
-          return item.dataEvento ?? "";
-        case "status":
-          return statusValueToLabel(item.status);
+    const sortValue = (evento: EventoCulturalView) => {
+      switch (filtros.sortBy) {
         case "projeto":
-          return item.projetoNome ?? "";
+          return evento.projetoNome;
+        case "tipo":
+          return tipoEventoLabel(evento.tipoEvento);
+        case "status":
+          return statusValueToLabel(evento.status);
+        case "periodo":
+          return evento.dataEvento;
         case "colaboradores":
-          return item.colaboradoresNomes.join(", ");
+          return evento.colaboradoresNomes.join(", ");
         default:
-          return "";
+          return evento.nomeEvento;
       }
-    },
-  );
+    };
 
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sortedItems, 25, search);
+    return [...result].sort((a, b) => {
+      const compare = String(sortValue(a)).localeCompare(
+        String(sortValue(b)),
+        "pt-BR",
+        { sensitivity: "base" },
+      );
+      return filtros.sortDir === "asc" ? compare : -compare;
+    });
+  }, [items, filtros]);
 
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
-
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
+  const activeFilters: ActiveFilterItem[] = (() => {
+    const list: ActiveFilterItem[] = [];
+    if (filtros.nome.trim()) {
+      list.push({
+        id: "nome",
+        label: "Nome do evento",
+        value: filtros.nome.trim(),
+        onRemove: () => applyFiltros({ ...filtros, nome: "" }),
+      });
     }
+    filtros.projetos.forEach((value) =>
+      list.push({
+        id: `projeto-${value}`,
+        label: "Projeto",
+        value:
+          projetos.find((projeto) => String(projeto.id) === value)?.nome ??
+          value,
+        onRemove: () =>
+          applyFiltros({
+            ...filtros,
+            projetos: filtros.projetos.filter((item) => item !== value),
+          }),
+      }),
+    );
+    filtros.tipos.forEach((value) =>
+      list.push({
+        id: `tipo-${value}`,
+        label: "Tipo de evento",
+        value: labelOf(tiposEvento, value),
+        onRemove: () =>
+          applyFiltros({
+            ...filtros,
+            tipos: filtros.tipos.filter((item) => item !== value),
+          }),
+      }),
+    );
+    filtros.status.forEach((value) =>
+      list.push({
+        id: `status-${value}`,
+        label: "Status",
+        value: labelOf(statusEvento, value),
+        onRemove: () =>
+          applyFiltros({
+            ...filtros,
+            status: filtros.status.filter((item) => item !== value),
+          }),
+      }),
+    );
+    if (
+      filtros.sortBy !== emptyFiltros.sortBy ||
+      filtros.sortDir !== emptyFiltros.sortDir
+    ) {
+      list.push({
+        id: "ordenacao",
+        label: "Ordenação",
+        value: `${labelOf(sortByOptions, filtros.sortBy)} · ${sortDirLabels[filtros.sortDir]}`,
+        onRemove: () =>
+          applyFiltros({
+            ...filtros,
+            sortBy: emptyFiltros.sortBy,
+            sortDir: emptyFiltros.sortDir,
+          }),
+      });
+    }
+    return list;
+  })();
 
-    toast.success("Dados copiados com sucesso.");
+  const filtrosKey = JSON.stringify(filtros);
+  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
+    usePagination(filtered, 25, filtrosKey);
+
+  const handleSearch = (event?: React.FormEvent) => {
+    event?.preventDefault();
+    if (!searching) applyFiltros(draft);
   };
+
+  const handleClearFiltros = () => applyFiltros(emptyFiltros);
+
+  const toggleSort = (key: SortBy) =>
+    applyFiltros({
+      ...filtros,
+      sortBy: key,
+      sortDir:
+        filtros.sortBy === key && filtros.sortDir === "asc" ? "desc" : "asc",
+    });
 
   async function handleDelete() {
     if (!confirmDelete) return;
-
     if (!podeExcluir) {
       toast.error("Você não possui permissão para excluir eventos culturais.");
       setConfirmDelete(null);
@@ -271,380 +408,474 @@ export default function EventosCulturais() {
 
     try {
       await deleteEventoCultural(Number(confirmDelete));
-
       setItems((prev) => prev.filter((evento) => evento.id !== confirmDelete));
       toast.success("Evento cultural excluído com sucesso.");
-      setConfirmDelete(null);
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : "Erro ao excluir evento cultural.";
-
       if (isPlanoAccessDenied(message)) {
         setAccessDeniedMessage(message);
-        setConfirmDelete(null);
         return;
       }
-
       toast.error(message);
+    } finally {
+      setConfirmDelete(null);
     }
   }
 
-  function handleExportPdf(evento: EventoCulturalView) {
-    if (!podeGerarPdf) {
-      toast.error("Você não possui permissão para gerar PDF.");
-      return;
-    }
+  const projetoOptions = projetos.map((projeto) => ({
+    value: String(projeto.id),
+    label: projeto.nome,
+  }));
+  const exportColumns = [
+    { header: "Nome do evento", key: "nomeEvento" },
+    { header: "Tipo de evento", key: "tipoLabel" },
+    { header: "Status", key: "statusLabel" },
+    { header: "Projetos", key: "projetoNome" },
+    { header: "Período", key: "periodo" },
+    { header: "Colaboradores", key: "colaboradoresLabel" },
+  ];
+  const getExportData = () =>
+    filtered.map((evento) => ({
+      ...evento,
+      tipoLabel: tipoEventoLabel(evento.tipoEvento),
+      statusLabel: statusValueToLabel(evento.status),
+      periodo: formatPeriodo(evento.dataEvento, evento.dataFim),
+      colaboradoresLabel: evento.colaboradoresNomes.join(", "),
+    }));
 
-    exportEventoCulturalPdf({
-      id: evento.id,
-      nomeEvento: evento.nomeEvento,
-      descricaoEvento: evento.descricaoEvento,
-      localEvento: evento.localEvento,
-      dataEvento: evento.dataEvento,
-      dataFim: evento.dataFim,
-      tipoEvento: tipoEventoLabel(evento.tipoEvento),
-      status: statusValueToLabel(evento.status),
-      projeto: evento.projetoNome,
-      colaboradores: evento.colaboradoresNomes,
-    } as any);
-  }
-
-  if (!podeVisualizar) {
+  if (!podeVisualizar)
     return (
       <AppLayout>
         <AccessNotPermitted />
       </AppLayout>
     );
-  }
 
-  if (accessDeniedMessage) {
+  if (accessDeniedMessage)
     return (
       <AppLayout>
         <AccessDenied />
       </AppLayout>
     );
-  }
 
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
-        <PageTitle
+        <ListPageHeader
           title="Eventos Culturais"
-          tooltip="Cadastre eventos culturais vinculados ao projeto, como apresentações, mostras, festivais, exposições, encontros ou ações públicas. Informe descrição, local, período, tipo, status, projeto e equipe responsável para organizar a execução, gerar evidências e apoiar relatórios e prestações de contas."
-        />
-
-        {nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
-        )}
-
-        <div className="rounded border border-border bg-card">
-          <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-            <div className="relative max-w-md flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className="h-9 pl-9"
-                aria-label="Buscar evento cultural"
-              />
-            </div>
-
-            {podeCriar && (
+          tooltip="Nesta página são cadastrados e acompanhados os eventos culturais realizados pela organização, como apresentações, mostras, festivais, exposições, encontros e outras ações públicas. Os registros permitem organizar informações sobre realização, período, situação, projetos relacionados e equipe envolvida, apoiando o acompanhamento dos eventos, a produção de evidências, os relatórios e as prestações de contas."
+          objective="Cadastre e acompanhe os eventos culturais da organização, mantendo organizadas as informações necessárias para sua realização e acompanhamento. Esses registros ajudam a relacionar os eventos aos projetos, organizar a equipe envolvida, reunir evidências e apoiar relatórios e prestações de contas."
+          actions={
+            podeCriar ? (
               <Button
+                type="button"
+                variant="glassPrimary"
                 onClick={() => navigate("/eventos-culturais/novo")}
-                className="h-9 gap-2"
+                className="h-9 gap-2 px-4"
                 disabled={loading}
               >
                 <Plus className="h-4 w-4" />
-                Cadastrar Evento
+                Cadastrar evento
               </Button>
-            )}
-          </div>
+            ) : undefined
+          }
+        />
 
-          <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[1100px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    data-no-copy
+        <div className="space-y-4">
+          <AdvancedSearchPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            activeCount={activeFilters.length}
+          >
+            <form onSubmit={handleSearch} noValidate>
+              <SearchFilterGrid>
+                <div>
+                  <FieldLabel htmlFor="filtroNomeEvento">
+                    Nome do evento
+                  </FieldLabel>
+                  <Input
+                    id="filtroNomeEvento"
+                    value={draft.nome}
+                    onChange={(event) =>
+                      setDraftField("nome", event.target.value)
+                    }
+                    placeholder="Digite o nome do evento"
+                    className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroProjeto">Projeto</FieldLabel>
+                  <FilterMultiSelect
+                    id="filtroProjeto"
+                    options={projetoOptions}
+                    value={draft.projetos}
+                    onChange={(value) => setDraftField("projetos", value)}
+                    placeholder="Todos os projetos"
+                    searchable
+                    summaryNoun="projetos selecionados"
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroTipoEvento">
+                    Tipo de evento
+                  </FieldLabel>
+                  <FilterMultiSelect
+                    id="filtroTipoEvento"
+                    options={tiposEvento}
+                    value={draft.tipos}
+                    onChange={(value) => setDraftField("tipos", value)}
+                    placeholder="Todos os tipos"
+                    summaryNoun="tipos selecionados"
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroStatus">Status</FieldLabel>
+                  <FilterMultiSelect
+                    id="filtroStatus"
+                    options={statusEvento}
+                    value={draft.status}
+                    onChange={(value) => setDraftField("status", value)}
+                    placeholder="Todos os status"
+                    summaryNoun="status selecionados"
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroSortBy">Ordenar por</FieldLabel>
+                  <Select
+                    value={draft.sortBy}
+                    onValueChange={(value) =>
+                      setDraftField("sortBy", value as SortBy)
+                    }
                   >
-                    Ações
-                  </th>
-
-                  <SortableHeader
-                    label="Nome do evento"
-                    sortKey="nome"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Tipo de evento"
-                    sortKey="tipo"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Período"
-                    sortKey="periodo"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Status"
-                    sortKey="status"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Projetos"
-                    sortKey="projeto"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Colaboradores"
-                    sortKey="colaboradores"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  {podeGerarPdf && (
-                    <th
-                      className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy
+                    <SelectTrigger
+                      id="filtroSortBy"
+                      className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
                     >
-                      Documento
-                    </th>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortByOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroSortDir">Ordem</FieldLabel>
+                  <Select
+                    value={draft.sortDir}
+                    onValueChange={(value) =>
+                      setDraftField("sortDir", value as SortDir)
+                    }
+                  >
+                    <SelectTrigger
+                      id="filtroSortDir"
+                      className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">A–Z</SelectItem>
+                      <SelectItem value="desc">Z–A</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </SearchFilterGrid>
+
+              <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 gap-2 px-4"
+                  onClick={handleClearFiltros}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Limpar filtros
+                </Button>
+                <Button
+                  type="submit"
+                  variant="glassPrimary"
+                  className="h-9 gap-2 px-5"
+                  disabled={searching}
+                  aria-busy={searching}
+                >
+                  {searching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
                   )}
-                </tr>
-              </thead>
-
-              <tbody>
-                {paginated.map((evento) => {
-                  const colaboradoresTexto =
-                    evento.colaboradoresNomes.join(", ");
-                  const tipoTexto = tipoEventoLabel(evento.tipoEvento);
-                  const periodo = formatPeriodo(
-                    evento.dataEvento,
-                    evento.dataFim,
-                  );
-
-                  return (
-                    <tr
-                      key={evento.id}
-                      className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                    >
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <div className="flex items-center gap-1">
-                          <TableActionIcon
-                            icon={Eye}
-                            label="Visualizar"
-                            onClick={() =>
-                              navigate(`/eventos-culturais/${evento.id}`)
-                            }
-                          />
-
-                          {podeEditar && (
-                            <TableActionIcon
-                              icon={Pencil}
-                              label="Editar"
-                              onClick={() =>
-                                navigate(
-                                  `/eventos-culturais/${evento.id}/editar`,
-                                )
-                              }
-                            />
-                          )}
-
-                          {podeExcluir && (
-                            <TableActionIcon
-                              icon={Trash2}
-                              label="Excluir"
-                              variant="danger"
-                              onClick={() => setConfirmDelete(evento.id)}
-                            />
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={evento.nomeEvento} bold>
-                          {evento.nomeEvento}
-                        </TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={tipoTexto}>
-                          {tipoTexto}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                        {periodo}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <StatusPill status={statusValueToLabel(evento.status)} />
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={evento.projetoNome}>
-                          {evento.projetoNome}
-                        </TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        {colaboradoresTexto ? (
-                          <TableCellText text={colaboradoresTexto} muted>
-                            {colaboradoresTexto}
-                          </TableCellText>
-                        ) : (
-                          <span className="text-[13px] text-muted-foreground/60">
-                            —
-                          </span>
-                        )}
-                      </td>
-
-                      {podeGerarPdf && (
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleExportPdf(evento)}
-                            className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                          >
-                            <FileDown className="h-3.5 w-3.5" />
-                            Gerar ficha
-                          </Button>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-
-                {paginated.length === 0 && (
-                  <EmptyRow colSpan={podeGerarPdf ? 8 : 7} />
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="divide-y divide-border md:hidden">
-            {paginated.length === 0 ? (
-              <div className="p-10 text-center">
-                <CalendarRange className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nenhum evento cultural encontrado.
-                </p>
+                  {searching ? "Pesquisando..." : "Pesquisar"}
+                </Button>
               </div>
-            ) : (
-              paginated.map((evento) => (
-                <div key={evento.id} className="p-4">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1">
-                      <TableActionIcon
-                        icon={Eye}
-                        label="Visualizar"
-                        onClick={() =>
-                          navigate(`/eventos-culturais/${evento.id}`)
-                        }
-                      />
+            </form>
+          </AdvancedSearchPanel>
 
-                      {podeEditar && (
-                        <TableActionIcon
-                          icon={Pencil}
-                          label="Editar"
-                          onClick={() =>
-                            navigate(
-                              `/eventos-culturais/${evento.id}/editar`,
-                            )
+          <ActiveFilters
+            items={activeFilters}
+            onClearAll={handleClearFiltros}
+          />
+
+          <DataTableCard>
+            <DataTableToolbar
+              total={filtered.length}
+              reportTo="/relatorios/eventos-culturais"
+              exportColumns={exportColumns}
+              getExportData={getExportData}
+              exportFilename="eventos-culturais"
+              canExport={podeGerarPdf}
+            />
+
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando eventos...
+              </div>
+            ) : filtered.length === 0 ? (
+              <DataTableEmptyState
+                emptyTitle="Nenhum evento cultural cadastrado."
+                createLabel="Cadastrar evento"
+                onCreate={
+                  podeCriar
+                    ? () => navigate("/eventos-culturais/novo")
+                    : undefined
+                }
+                activeCount={activeFilters.length}
+                onReviewSearch={() => setPanelOpen(true)}
+                onClearFilters={handleClearFiltros}
+              />
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[1180px]">
+                    <thead>
+                      <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
+                        <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Ações
+                        </th>
+                        <SortableTh
+                          sortKey="nome"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Nome do evento
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="tipo"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Tipo de evento
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="projeto"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Projetos
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="periodo"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Período
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="status"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Status
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="colaboradores"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Colaboradores
+                        </SortableTh>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginated.map((evento) => {
+                        const periodo = formatPeriodo(
+                          evento.dataEvento,
+                          evento.dataFim,
+                        );
+                        const colaboradores =
+                          evento.colaboradoresNomes.join(", ");
+                        return (
+                          <tr
+                            key={evento.id}
+                            className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
+                          >
+                            <td className="whitespace-nowrap px-6 py-2.5">
+                              <RowActionsDropdown
+                                reportEndpoint={
+                                  podeGerarPdf
+                                    ? `/eventos-culturais/${evento.id}/relatorio`
+                                    : undefined
+                                }
+                                reportFilename={`evento-cultural-${evento.id}.pdf`}
+                                viewTo={`/eventos-culturais/${evento.id}`}
+                                editTo={
+                                  podeEditar
+                                    ? `/eventos-culturais/${evento.id}/editar`
+                                    : undefined
+                                }
+                                onDelete={
+                                  podeExcluir
+                                    ? () => setConfirmDelete(evento.id)
+                                    : undefined
+                                }
+                                extraItems={
+                                  podeCriar
+                                    ? [
+                                        {
+                                          label: "Duplicar",
+                                          icon: Copy,
+                                          onClick: () =>
+                                            navigate(
+                                              `/eventos-culturais/novo?duplicar=${evento.id}`,
+                                            ),
+                                        },
+                                      ]
+                                    : undefined
+                                }
+                              />
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-2.5">
+                              <TableCellText text={evento.nomeEvento} bold>
+                                {evento.nomeEvento}
+                              </TableCellText>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-2.5">
+                              <StatusPill
+                                status={evento.tipoEvento}
+                                ariaLabelPrefix="Tipo de evento"
+                              />
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-2.5">
+                              <TableCellText text={evento.projetoNome}>
+                                {evento.projetoNome}
+                              </TableCellText>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
+                              {periodo}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-2.5">
+                              <StatusPill
+                                status={statusValueToLabel(evento.status)}
+                              />
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-2.5">
+                              {colaboradores ? (
+                                <TableCellText text={colaboradores} muted>
+                                  {colaboradores}
+                                </TableCellText>
+                              ) : (
+                                <span className="text-[13px] text-muted-foreground/60">
+                                  —
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="divide-y divide-border md:hidden">
+                  {paginated.map((evento) => (
+                    <div key={evento.id} className="p-4">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <RowActionsDropdown
+                          reportEndpoint={
+                            podeGerarPdf
+                              ? `/eventos-culturais/${evento.id}/relatorio`
+                              : undefined
+                          }
+                          reportFilename={`evento-cultural-${evento.id}.pdf`}
+                          viewTo={`/eventos-culturais/${evento.id}`}
+                          editTo={
+                            podeEditar
+                              ? `/eventos-culturais/${evento.id}/editar`
+                              : undefined
+                          }
+                          onDelete={
+                            podeExcluir
+                              ? () => setConfirmDelete(evento.id)
+                              : undefined
+                          }
+                          extraItems={
+                            podeCriar
+                              ? [
+                                  {
+                                    label: "Duplicar",
+                                    icon: Copy,
+                                    onClick: () =>
+                                      navigate(
+                                        `/eventos-culturais/novo?duplicar=${evento.id}`,
+                                      ),
+                                  },
+                                ]
+                              : undefined
                           }
                         />
-                      )}
-
-                      {podeExcluir && (
-                        <TableActionIcon
-                          icon={Trash2}
-                          label="Excluir"
-                          variant="danger"
-                          onClick={() => setConfirmDelete(evento.id)}
+                      </div>
+                      <p className="font-medium text-foreground">
+                        {evento.nomeEvento}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <StatusPill
+                          status={evento.tipoEvento}
+                          ariaLabelPrefix="Tipo de evento"
                         />
-                      )}
+                        <span className="text-xs text-muted-foreground">
+                          {formatPeriodo(evento.dataEvento, evento.dataFim)}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-foreground">
+                        {evento.projetoNome}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <StatusPill
+                          status={statusValueToLabel(evento.status)}
+                        />
+                        <span className="line-clamp-1 text-xs text-muted-foreground">
+                          •{" "}
+                          {evento.colaboradoresNomes.join(", ") ||
+                            "Sem colaboradores"}
+                        </span>
+                      </div>
                     </div>
-
-                    {podeGerarPdf && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleExportPdf(evento)}
-                        className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                      >
-                        <FileDown className="h-3.5 w-3.5" />
-                        PDF
-                      </Button>
-                    )}
-                  </div>
-
-                  <p className="font-medium text-foreground">
-                    {evento.nomeEvento}
-                  </p>
-
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {tipoEventoLabel(evento.tipoEvento)} ·{" "}
-                    {formatPeriodo(evento.dataEvento, evento.dataFim)}
-                  </p>
-
-                  <p className="mt-2 text-sm text-foreground">
-                    {evento.projetoNome}
-                  </p>
-
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <StatusPill status={statusValueToLabel(evento.status)} />
-
-                    <span className="line-clamp-1 text-xs text-muted-foreground">
-                      •{" "}
-                      {evento.colaboradoresNomes.join(", ") ||
-                        "Sem colaboradores"}
-                    </span>
-                  </div>
+                  ))}
                 </div>
-              ))
-            )}
-          </div>
 
-          <TablePagination
-            totalItems={sortedItems.length}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            onCopy={handleCopy}
-          />
+                <DataTablePagination
+                  totalItems={filtered.length}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  entityLabel="registro"
+                  entityLabelPlural="registros"
+                  pageSizeLabel="Registros por página"
+                />
+              </>
+            )}
+          </DataTableCard>
         </div>
       </div>
 
@@ -655,15 +886,12 @@ export default function EventosCulturais() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir evento cultural?</AlertDialogTitle>
-
             <AlertDialogDescription>
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
-
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive hover:bg-destructive/90"
@@ -676,22 +904,8 @@ export default function EventosCulturais() {
 
       <WikiFloatingButton
         pageTitle="Eventos Culturais"
-        href="https://www.aurit.com.br/wiki/acoes-culturais/eventos-culturais"
+        href="/wiki/execucao/eventos-culturais"
       />
     </AppLayout>
-  );
-}
-
-function EmptyRow({ colSpan }: { colSpan: number }) {
-  return (
-    <tr>
-      <td colSpan={colSpan} className="px-5 py-16 text-center">
-        <CalendarRange className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-        <p className="mt-3 text-sm text-muted-foreground">
-          Nenhum evento cultural encontrado.
-        </p>
-      </td>
-    </tr>
   );
 }

@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Target, ClipboardCheck, Link2 } from "lucide-react";
+import { Target, ClipboardCheck, Link2 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
+import { BackButton } from "@/components/BackButton";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -18,8 +21,7 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { FormLegend } from "@/components/FormLegend";
-import { HelpTooltip } from "@/components/HelpTooltip";
-import { ImportDataTitleAction } from "@/components/PageTitle";
+import { getImportConfigForPath } from "@/config/importacoes";
 import {
   buildMetaProjetoPayload,
   createMetaProjeto,
@@ -33,32 +35,10 @@ import {
   type PropostaEditalOption,
 } from "@/data/metasProjeto";
 import { toast } from "sonner";
-
-const META_PROJETO_NEXT_STEP_KEY = "aurit:metas-projeto:next-step-card";
-
-interface MetaProjetoNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
-}
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 function salvarProximaAcaoMetaProjeto() {
-  const card: MetaProjetoNextStepCardData = {
-    titulo: "Após definir as metas, organize o cronograma do projeto",
-    descricao:
-      "O cronograma ajuda a transformar as metas em etapas de execução, definindo períodos, responsáveis e vínculos com atividades, eventos culturais ou ações de divulgação.",
-    acaoLabel: "Cadastrar cronograma",
-    acaoUrl: "/cronograma",
-    acaoSecundariaLabel: "Ver metas",
-    acaoSecundariaUrl: "/metas-projeto",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(META_PROJETO_NEXT_STEP_KEY, JSON.stringify(card));
+  emitJourneyNextStep();
 }
 
 interface FormState {
@@ -113,7 +93,10 @@ function getProjetoNome(projetos: ProjetoOption[], projetoId: string) {
   );
 }
 
-function getPropostaNome(propostas: PropostaEditalOption[], propostaId: string) {
+function getPropostaNome(
+  propostas: PropostaEditalOption[],
+  propostaId: string,
+) {
   return (
     propostas.find((proposta) => String(proposta.id) === String(propostaId))
       ?.nome || `Proposta ${propostaId}`
@@ -172,8 +155,7 @@ export default function MetaProjetoForm() {
 
     return propostas.filter(
       (proposta) =>
-        !proposta.projetoId ||
-        String(proposta.projetoId) === String(projetoId),
+        !proposta.projetoId || String(proposta.projetoId) === String(projetoId),
     );
   }, [propostas, projetoSelectValue]);
 
@@ -362,231 +344,251 @@ export default function MetaProjetoForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/metas-projeto")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </button>
+        <BackButton to="/metas-projeto" />
 
-        <div className="mb-5 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-              Meta do Projeto
-            </h1>
+        <PageTitle
+          title={
+            visualizando
+              ? "Metas do Projeto"
+              : editando
+                ? "Metas do Projeto"
+                : "Metas do Projeto"
+          }
+          tooltip="Nesta página são cadastradas e acompanhadas as metas dos projetos, com a definição do resultado ou entrega esperada, da quantidade prevista e da forma de comprovação. Cada meta fica vinculada ao projeto correspondente e, quando aplicável, a uma proposta de edital."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/metas-projeto")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
+          showImport={false}
+        />
 
-            <HelpTooltip
-              text="Cadastre as metas previstas para o projeto, definindo entregas concretas, quantidades esperadas e formas de comprovação. Essas informações ajudam a acompanhar a execução, organizar evidências e preparar relatórios e prestações de contas."
-              label="Metas do Projeto"
-              size="md"
-              side="bottom"
-              align="start"
-            />
-            <ImportDataTitleAction show={!visualizando} />
-          </div>
-        </div>
-
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={Target} title="Dados da meta">
-            <div className="space-y-4">
+          <fieldset
+            disabled={visualizando}
+            className="space-y-5 border-0 p-0 disabled:opacity-100"
+          >
+            <FormSectionCard
+              icon={Link2}
+              title="Vínculo da meta"
+              description="Informe o projeto ao qual esta meta pertence. Se a meta também estiver vinculada a uma proposta de edital, informe a proposta correspondente."
+            >
+              <p className="mb-4 text-xs leading-5 text-muted-foreground">
+                O vínculo com um projeto é obrigatório. A proposta de edital
+                deve ser informada apenas quando esta meta também fizer parte de
+                uma proposta.
+              </p>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="projeto"
+                    required={!visualizando}
+                    tooltip="Informe o projeto no qual esta meta será planejada e acompanhada."
+                  >
+                    Projeto
+                  </FieldLabel>
+
+                  <Select
+                    value={projetoSelectValue}
+                    onValueChange={handleProjetoChange}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="projeto">
+                      <SelectValue placeholder="Selecione o projeto" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {projetosComFallback.length === 0 ? (
+                        <SelectItem value="sem-projeto" disabled>
+                          Nenhum projeto disponível
+                        </SelectItem>
+                      ) : (
+                        projetosComFallback.map((projeto) => (
+                          <SelectItem
+                            key={String(projeto.id)}
+                            value={String(projeto.id)}
+                          >
+                            {projeto.nome}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="propostaEdital"
+                    tooltip="Informe a proposta de edital quando esta meta também fizer parte dos compromissos ou resultados previstos nessa proposta."
+                  >
+                    Proposta de Edital
+                  </FieldLabel>
+
+                  <Select
+                    value={propostaSelectValue}
+                    onValueChange={handlePropostaChange}
+                    disabled={bloqueado || !projetoSelectValue}
+                  >
+                    <SelectTrigger id="propostaEdital">
+                      <SelectValue placeholder="Opcional" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {propostasComFallback.length === 0 ? (
+                        <SelectItem value="sem-proposta" disabled>
+                          Nenhuma proposta disponível
+                        </SelectItem>
+                      ) : (
+                        propostasComFallback.map((proposta) => (
+                          <SelectItem
+                            key={String(proposta.id)}
+                            value={String(proposta.id)}
+                          >
+                            {proposta.nome}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={Target}
+              title="Definição da meta"
+              description="Informe o resultado ou entrega que deverá ser alcançado e a quantidade prevista para o cumprimento desta meta."
+            >
+              <div className="space-y-4">
+                <Field>
+                  <FieldLabel
+                    htmlFor="tituloMeta"
+                    required={!visualizando}
+                    tooltip="Informe um título curto que permita identificar facilmente o resultado ou entrega prevista nesta meta."
+                  >
+                    Título da Meta
+                  </FieldLabel>
+
+                  <Input
+                    id="tituloMeta"
+                    value={form.tituloMeta}
+                    onChange={(e) => set("tituloMeta", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="descricaoMeta"
+                    required={!visualizando}
+                    tooltip="Descreva de forma objetiva o que deverá ser realizado ou alcançado, deixando claro o resultado esperado da meta."
+                  >
+                    Descrição da Meta
+                  </FieldLabel>
+
+                  <Textarea
+                    id="descricaoMeta"
+                    value={form.descricaoMeta}
+                    onChange={(e) => set("descricaoMeta", e.target.value)}
+                    rows={3}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="quantidadePrevista"
+                    required={!visualizando}
+                    tooltip="Informe a quantidade prevista para o resultado ou entrega descrita na meta, como número de participantes, oficinas, apresentações, produtos ou outras unidades previstas."
+                  >
+                    Quantidade Prevista
+                  </FieldLabel>
+
+                  <Input
+                    id="quantidadePrevista"
+                    inputMode="decimal"
+                    value={form.quantidadePrevista}
+                    onChange={(e) =>
+                      set(
+                        "quantidadePrevista",
+                        sanitizeQuantidade(e.target.value),
+                      )
+                    }
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={ClipboardCheck}
+              title="Comprovação da meta"
+              description="Informe quais registros, documentos ou evidências poderão ser utilizados para demonstrar o cumprimento da meta."
+            >
               <Field>
                 <FieldLabel
-                  htmlFor="tituloMeta"
-                  required={!visualizando}
-                  tooltip="Informe um título curto e claro para identificar a meta. Ex.: realização de oficinas culturais."
+                  htmlFor="formaComprovacao"
+                  tooltip="Informe quais registros ou documentos poderão demonstrar que a meta foi cumprida, como listas de presença, fotografias, vídeos, relatórios, certificados ou materiais produzidos."
                 >
-                  Título da Meta
-                </FieldLabel>
-
-                <Input
-                  id="tituloMeta"
-                  value={form.tituloMeta}
-                  onChange={(e) => set("tituloMeta", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="descricaoMeta"
-                  required={!visualizando}
-                  tooltip="Descreva a entrega prevista de forma objetiva, explicando o que será realizado e qual resultado mensurável se espera alcançar. Ex.: Realizar 24 oficinas de música para crianças e adolescentes ao longo de 6 meses."
-                >
-                  Descrição da Meta
+                  Forma de Comprovação
                 </FieldLabel>
 
                 <Textarea
-                  id="descricaoMeta"
-                  value={form.descricaoMeta}
-                  onChange={(e) => set("descricaoMeta", e.target.value)}
+                  id="formaComprovacao"
+                  value={form.formaComprovacao}
+                  onChange={(e) => set("formaComprovacao", e.target.value)}
                   rows={3}
                   disabled={bloqueado}
                   readOnly={visualizando}
                 />
               </Field>
+            </FormSectionCard>
+          </fieldset>
 
-              <Field>
-                <FieldLabel
-                  htmlFor="quantidadePrevista"
-                  required={!visualizando}
-                  tooltip="Informe apenas o número previsto para esta meta. A unidade deve estar clara na descrição da meta ou em campo próprio. Ex.: 24, 3, 50 ou 1."
-                >
-                  Quantidade Prevista
-                </FieldLabel>
-
-                <Input
-                  id="quantidadePrevista"
-                  inputMode="decimal"
-                  value={form.quantidadePrevista}
-                  onChange={(e) =>
-                    set(
-                      "quantidadePrevista",
-                      sanitizeQuantidade(e.target.value),
-                    )
-                  }
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={ClipboardCheck} title="Comprovação prevista">
-            <Field>
-              <FieldLabel
-                htmlFor="formaComprovacao"
-                tooltip="Descreva quais evidências poderão comprovar o cumprimento da meta, como listas de presença, fotos, vídeos, relatórios, certificados, materiais produzidos ou registros de divulgação."
+          {!visualizando && (
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
+              <Button
+                type="button"
+                variant="glassSecondary"
+                className="h-9 px-4"
+                onClick={() => navigate("/metas-projeto")}
+                disabled={loading || saving}
               >
-                Forma de Comprovação
-              </FieldLabel>
-
-              <Textarea
-                id="formaComprovacao"
-                value={form.formaComprovacao}
-                onChange={(e) => set("formaComprovacao", e.target.value)}
-                rows={3}
-                disabled={bloqueado}
-                readOnly={visualizando}
-              />
-            </Field>
-          </Section>
-
-          <Section icon={Link2} title="Vínculos">
-            <p className="mb-4 text-xs leading-5 text-muted-foreground">
-              Toda meta deve estar vinculada a um projeto. A proposta de edital
-              é opcional e deve ser selecionada apenas quando a meta também
-              fizer parte de uma candidatura específica.
-            </p>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="projeto"
-                  required={!visualizando}
-                  tooltip="Selecione o projeto ao qual esta meta pertence. Esse vínculo é obrigatório e permite acompanhar a meta dentro da execução geral do projeto."
-                >
-                  Projeto
-                </FieldLabel>
-
-                <Select
-                  value={projetoSelectValue}
-                  onValueChange={handleProjetoChange}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="projeto">
-                    <SelectValue placeholder="Selecione o projeto" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {projetosComFallback.length === 0 ? (
-                      <SelectItem value="sem-projeto" disabled>
-                        Nenhum projeto disponível
-                      </SelectItem>
-                    ) : (
-                      projetosComFallback.map((projeto) => (
-                        <SelectItem
-                          key={String(projeto.id)}
-                          value={String(projeto.id)}
-                        >
-                          {projeto.nome}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="propostaEdital"
-                  tooltip="Selecione uma proposta de edital somente se esta meta também estiver vinculada a uma candidatura específica."
-                >
-                  Proposta de Edital
-                </FieldLabel>
-
-                <Select
-                  value={propostaSelectValue}
-                  onValueChange={handlePropostaChange}
-                  disabled={bloqueado || !projetoSelectValue}
-                >
-                  <SelectTrigger id="propostaEdital">
-                    <SelectValue placeholder="Opcional" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {propostasComFallback.length === 0 ? (
-                      <SelectItem value="sem-proposta" disabled>
-                        Nenhuma proposta disponível
-                      </SelectItem>
-                    ) : (
-                      propostasComFallback.map((proposta) => (
-                        <SelectItem
-                          key={String(proposta.id)}
-                          value={String(proposta.id)}
-                        >
-                          {proposta.nome}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
-
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/metas-projeto")}
-              disabled={loading || saving}
-            >
-              {visualizando ? "Voltar" : "Cancelar"}
-            </Button>
-
-            {!visualizando && (
+                Cancelar
+              </Button>
               <Button
                 type="submit"
-                className="sm:min-w-40"
+                variant="glassPrimary"
+                className="h-9 px-5"
                 disabled={loading || saving}
               >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {visualizando && (
+            <div className="flex pt-2 sm:justify-end">
+              <Button
+                type="button"
+                variant="glassSecondary"
+                className="h-9 px-4"
+                onClick={() => navigate("/metas-projeto")}
+              >
+                Voltar
+              </Button>
+            </div>
+          )}
         </form>
         <WikiFloatingButton
           pageTitle="Metas do Projeto"
@@ -594,30 +596,6 @@ export default function MetaProjetoForm() {
         />
       </div>
     </AppLayout>
-  );
-}
-
-function Section({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: any;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
-
-      {children}
-    </Card>
   );
 }
 

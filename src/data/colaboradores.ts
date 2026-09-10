@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { maskCEP, maskCPF, maskPhone, maskRGFlex } from "@/lib/masks";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -278,17 +279,13 @@ export function tipoVinculoValueToLabel(
 
 export function racaCorValueToLabel(value?: string): string {
   return (
-    racaCorOptions.find((item) => item.value === value)?.label ??
-    value ??
-    "—"
+    racaCorOptions.find((item) => item.value === value)?.label ?? value ?? "—"
   );
 }
 
 export function generoValueToLabel(value?: string): string {
   return (
-    generoOptions.find((item) => item.value === value)?.label ??
-    value ??
-    "—"
+    generoOptions.find((item) => item.value === value)?.label ?? value ?? "—"
   );
 }
 
@@ -315,16 +312,16 @@ export function mapColaborador(dto: ColaboradorDTO): Colaborador {
     id: toIdString(dto.id),
     nomeCompleto: dto.nomeCompleto ?? "",
     dataNascimento: dto.dataNascimento ?? "",
-    cpf: dto.cpf ?? "",
-    rg: dto.rg ?? "",
-    telefone: dto.telefone ?? "",
+    cpf: maskCPF(dto.cpf ?? ""),
+    rg: maskRGFlex(dto.rg ?? ""),
+    telefone: maskPhone(dto.telefone ?? ""),
     email: dto.email ?? "",
 
     racaCor: dto.racaCor ?? "",
     genero: dto.genero ?? "",
     tipoDeficiencia: dto.tipoDeficiencia ?? "",
 
-    cep: dto.cep ?? "",
+    cep: maskCEP(dto.cep ?? ""),
     logradouro: dto.logradouro ?? "",
     numero: dto.numero ?? "",
     complemento: dto.complemento ?? "",

@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { sortOptionsByLabel } from "@/lib/sortOptions";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -56,57 +57,58 @@ export const statusProjetoOptions: { value: StatusProjeto; label: string }[] = [
   { value: "CONCLUIDO", label: "Concluído" },
 ];
 
-export const areaAtuacaoOptions: { value: AreaAtuacao; label: string }[] = [
-  { value: "CULTURA_ARTE", label: "Cultura e Arte" },
-  { value: "EDUCACAO", label: "Educação" },
-  { value: "ASSISTENCIA_SOCIAL", label: "Assistência Social" },
-  { value: "ESPORTE", label: "Esporte" },
-  { value: "MEIO_AMBIENTE", label: "Meio Ambiente" },
-  { value: "SAUDE", label: "Saúde" },
-  { value: "TECNOLOGIA", label: "Tecnologia" },
-  { value: "ECONOMIA", label: "Economia" },
-  { value: "EMPREENDEDORISMO", label: "Empreendedorismo" },
-  { value: "GERACAO_DE_RENDA", label: "Geração de Renda" },
+export const areaAtuacaoOptions: { value: AreaAtuacao; label: string }[] =
+  sortOptionsByLabel([
+    { value: "CULTURA_ARTE", label: "Cultura e Arte" },
+    { value: "EDUCACAO", label: "Educação" },
+    { value: "ASSISTENCIA_SOCIAL", label: "Assistência Social" },
+    { value: "ESPORTE", label: "Esporte" },
+    { value: "MEIO_AMBIENTE", label: "Meio Ambiente" },
+    { value: "SAUDE", label: "Saúde" },
+    { value: "TECNOLOGIA", label: "Tecnologia" },
+    { value: "ECONOMIA", label: "Economia" },
+    { value: "EMPREENDEDORISMO", label: "Empreendedorismo" },
+    { value: "GERACAO_DE_RENDA", label: "Geração de Renda" },
 
-  {
-    value: "RELIGIOSIDADE_E_ESPIRITUALIDADE",
-    label: "Religiosidade e Espiritualidade",
-  },
-  {
-    value: "POVOS_E_COMUNIDADES_TRADICIONAIS",
-    label: "Povos e Comunidades Tradicionais",
-  },
-  { value: "PATRIMONIO_CULTURAL", label: "Patrimônio Cultural" },
-  { value: "CULTURA_POPULAR", label: "Cultura Popular" },
-  {
-    value: "TRADICOES_DE_MATRIZ_AFRICANA",
-    label: "Tradições de Matriz Africana",
-  },
+    {
+      value: "RELIGIOSIDADE_E_ESPIRITUALIDADE",
+      label: "Religiosidade e Espiritualidade",
+    },
+    {
+      value: "POVOS_E_COMUNIDADES_TRADICIONAIS",
+      label: "Povos e Comunidades Tradicionais",
+    },
+    { value: "PATRIMONIO_CULTURAL", label: "Patrimônio Cultural" },
+    { value: "CULTURA_POPULAR", label: "Cultura Popular" },
+    {
+      value: "TRADICOES_DE_MATRIZ_AFRICANA",
+      label: "Tradições de Matriz Africana",
+    },
 
-  { value: "DIREITOS_HUMANOS", label: "Direitos Humanos" },
-  { value: "IGUALDADE_RACIAL", label: "Igualdade Racial" },
-  { value: "MULHERES", label: "Mulheres" },
-  { value: "JUVENTUDE", label: "Juventude" },
-  { value: "CRIANCA_E_ADOLESCENTE", label: "Criança e Adolescente" },
-  { value: "IDOSOS", label: "Idosos" },
-  { value: "PESSOAS_COM_DEFICIENCIA", label: "Pessoas com Deficiência" },
-  { value: "LGBTQIAPN", label: "LGBTQIAPN+" },
+    { value: "DIREITOS_HUMANOS", label: "Direitos Humanos" },
+    { value: "IGUALDADE_RACIAL", label: "Igualdade Racial" },
+    { value: "MULHERES", label: "Mulheres" },
+    { value: "JUVENTUDE", label: "Juventude" },
+    { value: "CRIANCA_E_ADOLESCENTE", label: "Criança e Adolescente" },
+    { value: "IDOSOS", label: "Idosos" },
+    { value: "PESSOAS_COM_DEFICIENCIA", label: "Pessoas com Deficiência" },
+    { value: "LGBTQIAPN", label: "LGBTQIAPN+" },
 
-  { value: "SEGURANCA_ALIMENTAR", label: "Segurança Alimentar" },
-  { value: "HABITACAO", label: "Habitação" },
-  { value: "PROTECAO_ANIMAL", label: "Proteção Animal" },
-  { value: "COMUNICACAO", label: "Comunicação" },
-  { value: "TURISMO", label: "Turismo" },
-  { value: "PESQUISA", label: "Pesquisa" },
-  {
-    value: "DESENVOLVIMENTO_COMUNITARIO",
-    label: "Desenvolvimento Comunitário",
-  },
-  { value: "CIDADANIA", label: "Cidadania" },
-  { value: "POLITICAS_PUBLICAS", label: "Políticas Públicas" },
+    { value: "SEGURANCA_ALIMENTAR", label: "Segurança Alimentar" },
+    { value: "HABITACAO", label: "Habitação" },
+    { value: "PROTECAO_ANIMAL", label: "Proteção Animal" },
+    { value: "COMUNICACAO", label: "Comunicação" },
+    { value: "TURISMO", label: "Turismo" },
+    { value: "PESQUISA", label: "Pesquisa" },
+    {
+      value: "DESENVOLVIMENTO_COMUNITARIO",
+      label: "Desenvolvimento Comunitário",
+    },
+    { value: "CIDADANIA", label: "Cidadania" },
+    { value: "POLITICAS_PUBLICAS", label: "Políticas Públicas" },
 
-  { value: "OUTRO", label: "Outro" },
-];
+    { value: "OUTRO", label: "Outro" },
+  ]);
 
 export const origemProjetoOptions: { value: OrigemProjeto; label: string }[] = [
   { value: "EDITAL", label: "Edital" },
@@ -232,12 +234,12 @@ function pickText(...values: Array<unknown>) {
 function resolveOrganizacaoId(dto: ProjetoApiResponse): number | null {
   return normalizeId(
     dto.organizacaoId ??
-    dto.idOrganizacao ??
-    dto.organizacao_id ??
-    dto.organizacaoID ??
-    dto.organizacao ??
-    dto.empresaId ??
-    dto.configuracaoEmpresaId,
+      dto.idOrganizacao ??
+      dto.organizacao_id ??
+      dto.organizacaoID ??
+      dto.organizacao ??
+      dto.empresaId ??
+      dto.configuracaoEmpresaId,
   );
 }
 
@@ -448,7 +450,9 @@ export function buildProjetoPayload(projeto: Projeto): ProjetoDTO {
     dataInicio: brToIso(projeto.dataInicio),
     dataFim: brToIso(projeto.dataFim),
     status: projeto.status,
-    areasAtuacao: Array.from(new Set(projeto.areasAtuacao ?? [])).filter(Boolean),
+    areasAtuacao: Array.from(new Set(projeto.areasAtuacao ?? [])).filter(
+      Boolean,
+    ),
     origemProjeto: projeto.origemProjeto,
     organizacaoId: Number(projeto.organizacaoId),
     objetivos: (projeto.objetivos ?? [])

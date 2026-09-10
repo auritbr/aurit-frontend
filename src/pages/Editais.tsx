@@ -1,27 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
-  ArrowLeft,
+  CalendarRange,
+  CheckCircle2,
   CircleDollarSign,
-  Eye,
+  ClipboardList,
   FileStack,
   Landmark,
-  Pencil,
+  Link2,
+  Loader2,
   Plus,
+  RotateCcw,
   Search,
-  Trash2,
-  Info,
-  FileDown,
-  UserRound,
+  Timer,
 } from "lucide-react";
-
 import { AppLayout } from "@/components/AppLayout";
-import { useImportFormFill } from "@/hooks/useImportFormFill";
-import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
-import { AccessDenied } from "@/components/AccessDenied";
-import { AccessNotPermitted } from "@/components/AccessNotPermitted";
-import { PageTitle } from "@/components/PageTitle";
+import { StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -33,23 +27,31 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { TableActionIcon } from "@/components/TableActionIcon";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { BackButton } from "@/components/BackButton";
+import { SummaryStatCard } from "@/components/SummaryStatCard";
 import { TableCellText } from "@/components/TableCellText";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { TablePagination } from "@/components/TablePagination";
-import { SortableHeader } from "@/components/SortableHeader";
-import { NextStepCard } from "@/components/NextStepCard";
-import { usePagination } from "@/hooks/usePagination";
-import { useSortableData } from "@/hooks/useSortableData";
-import { isPlanoAccessDenied } from "@/lib/access";
-import { copyTableFromRef } from "@/lib/copyTableDom";
-import { exportEditalPdf } from "@/lib/pdfExporters";
-import { getTipoPlanoAtual } from "@/lib/plano";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { DataTableEmptyState } from "@/components/list/DataTableEmptyState";
+import { SortableTh } from "@/components/list/SortableTh";
 import {
-  getPermissoesUsuarioLogadoPorModulo,
-  permissoesVazias,
-  type PermissoesModulo,
-} from "@/lib/permissoes";
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+} from "@/components/AdvancedSearchPanel";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/hooks/usePagination";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
+import { getImportConfigForPath } from "@/config/importacoes";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,467 +63,426 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  buildEditalPayload,
   createEdital,
+  buildEditalPayload,
   createEmptyEdital,
   deleteEdital,
   getEditais,
+  updateEdital,
   type EditalData,
   esferaEditalLabel,
   esferaEditalOptions,
   statusEditalLabel,
   statusEditalOptions,
-  updateEdital,
 } from "@/data/editais";
 import {
   getAgentesOptions,
+  getOrganizacoesOptions,
   type SimpleOption,
 } from "@/data/propostasEdital";
 import { toast } from "sonner";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
-
-const EDITAIS_NEXT_STEP_KEY = "aurit:editais:next-step-card";
-const NEXT_STEP_DURATION_MS = 60_000;
-
-type SortKey = "nome" | "numero" | "inscricao" | "orgao" | "ano" | "esfera" | "status" | "organizacao" | "agente" | "abertura" | "encerramento" | "resultado" | "valor";
+const editaisTooltip =
+  "Nesta página são cadastrados e acompanhados os editais de interesse da organização, permitindo reunir as informações necessárias para avaliar oportunidades, acompanhar prazos e manter atualizado o andamento de cada edital. Também podem ser registrados os dados da publicação, os recursos disponíveis, os responsáveis pelo acompanhamento e, quando houver participação, as informações da inscrição.";
+const editaisObjetivo =
+  "Cadastre e acompanhe os editais de interesse da organização, mantendo organizadas as informações necessárias para acompanhar oportunidades, prazos, inscrições, responsáveis e a situação de cada edital ao longo do processo.";
+const textoOuTraco = (value?: string | null) => value?.trim() || "—";
+const formatDataEdital = (value?: string) =>
+  value ? value.split("-").reverse().join("/") : "—";
+const parseValorEdital = (value?: string) =>
+  Number(
+    String(value ?? "0")
+      .replace(/\./g, "")
+      .replace(",", "."),
+  ) || 0;
+const formatValorEdital = (value?: string) =>
+  parseValorEdital(value).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+const formatBRL = (value: number) =>
+  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const periodoInscricoesEdital = (inicio?: string, fim?: string) =>
+  `${formatDataEdital(inicio)} a ${formatDataEdital(fim)}`;
+const statusEditalEmAndamento = new Set([
+  "ABERTO",
+  "EM_ANDAMENTO",
+  "INSCRICOES_ABERTAS",
+]);
+const statusEditalEncerrado = new Set([
+  "ENCERRADO",
+  "FINALIZADO",
+  "RESULTADO_PUBLICADO",
+]);
+const isLinkEditalValido = (value?: string) =>
+  /^https?:\/\//i.test(value ?? "");
 
 type FormMode = "create" | "edit" | "view";
 type EditalForm = EditalData;
 
-interface OrganizacaoOption {
-  id: string;
-  nome: string;
-}
-
-interface EditaisNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
-}
+const fieldClass = "h-9";
 
 const requiredFields: Array<[keyof EditalForm, string]> = [
   ["nomeEdital", "Nome do edital"],
   ["orgaoResponsavel", "Órgão responsável"],
   ["anoEdital", "Ano do edital"],
   ["esferaEdital", "Esfera do edital"],
-  ["statusEdital", "Status do edital"],
-  ["agenteId", "Agente responsável"],
+  ["organizacaoId", "Organização"],
+  ["agenteId", "Responsável pelo acompanhamento"],
+  ["statusEdital", "Situação do edital"],
 ];
-
-function criarProximaAcaoEdital(): EditaisNextStepCardData {
-  return {
-    titulo: "Após cadastrar o edital, escreva a proposta do projeto",
-    descricao:
-      "A proposta é o espaço onde a organização descreve o projeto que deseja inscrever no edital, explicando o que será realizado, por que a ação é importante, quem será beneficiado, como as atividades serão executadas e quais resultados espera alcançar.",
-    acaoLabel: "Cadastrar proposta",
-    acaoUrl: "/propostas-edital/novo",
-    acaoSecundariaLabel: "Ver editais",
-    acaoSecundariaUrl: "/editais",
-    variante: "pendente",
-  };
-}
-
-function salvarProximaAcaoEdital() {
-  sessionStorage.setItem(
-    EDITAIS_NEXT_STEP_KEY,
-    JSON.stringify(criarProximaAcaoEdital()),
-  );
-}
-
-function getAuthHeaders() {
-  const token =
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("accessToken");
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
-async function parseError(response: Response): Promise<string> {
-  try {
-    const text = await response.text();
-
-    if (!text) {
-      if (response.status === 401) {
-        return "Sessão expirada ou token inválido. Faça login novamente.";
-      }
-
-      if (response.status === 403) {
-        return "Acesso negado.";
-      }
-
-      return `Erro ${response.status} ao processar requisição.`;
-    }
-
-    try {
-      const json = JSON.parse(text);
-
-      return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
-      );
-    } catch {
-      return text;
-    }
-  } catch {
-    return `Erro ${response.status} ao processar requisição.`;
-  }
-}
-
-function pickFirstText(...values: Array<unknown>) {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
-  }
-
-  return "";
-}
-
-async function getOrganizacoesOptions(): Promise<OrganizacaoOption[]> {
-  const response = await fetch(`${API_URL}/organizacoes`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data = await response.json();
-
-  return (Array.isArray(data) ? data : [])
-    .filter((item: any) => item.id !== null && item.id !== undefined)
-    .map((item: any) => ({
-      id: String(item.id),
-      nome:
-        pickFirstText(
-          item.nomeFantasia,
-          item.razaoSocial,
-          item.nomeOrganizacao,
-          item.nome,
-        ) || `Organização ${item.id}`,
-    }));
-}
 
 const onlyDigits = (value: string, max = 4) =>
   value.replace(/\D/g, "").slice(0, max);
 
-const formatCurrency = (value: string) => {
+const maskCurrency = (value: string) => {
   const digits = value.replace(/\D/g, "");
-
   if (!digits) return "";
-
   const number = Number(digits) / 100;
-
   return new Intl.NumberFormat("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(number);
 };
 
-const formatDate = (value?: string) => {
-  if (!value) return "—";
+const normalize = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
-  const [year, month, day] = value.split("-");
+const sortByOptions = [
+  { value: "edital", label: "Edital" },
+  { value: "orgao", label: "Órgão responsável" },
+  { value: "esfera", label: "Esfera" },
+  { value: "periodo", label: "Período de inscrições" },
+  { value: "valor", label: "Valor total" },
+  { value: "situacao", label: "Situação" },
+] as const;
 
-  return year && month && day ? `${day}/${month}/${year}` : value;
+type SortBy = (typeof sortByOptions)[number]["value"];
+type SortDir = "asc" | "desc";
+
+interface Filtros {
+  termo: string;
+  esferas: string[];
+  situacoes: string[];
+  organizacoes: string[];
+  agentes: string[];
+  ano: string;
+  aberturaDe: string;
+  encerramentoAte: string;
+  sortBy: SortBy;
+  sortDir: SortDir;
+}
+
+const filtrosIniciais: Filtros = {
+  termo: "",
+  esferas: [],
+  situacoes: [],
+  organizacoes: [],
+  agentes: [],
+  ano: "",
+  aberturaDe: "",
+  encerramentoAte: "",
+  sortBy: "edital",
+  sortDir: "asc",
 };
 
 export default function Editais() {
-  const tableRef = useRef<HTMLTableElement>(null);
-
-  const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
+  const [organizacoes, setOrganizacoes] = useState<SimpleOption[]>([]);
   const [agentes, setAgentes] = useState<SimpleOption[]>([]);
   const [items, setItems] = useState<EditalData[]>([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<EditalForm>(() => createEmptyEdital());
   const [mode, setMode] = useState<FormMode>("create");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingPermissoes, setLoadingPermissoes] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [nextStepCard, setNextStepCard] =
-    useState<EditaisNextStepCardData | null>(null);
-  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
-    null,
-  );
-  const [permissoes, setPermissoes] =
-    useState<PermissoesModulo>(permissoesVazias);
+  const [confirmDelete, setConfirmDelete] = useState<EditalData | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [draft, setDraft] = useState<Filtros>(filtrosIniciais);
+  const [filtros, setFiltros] = useState<Filtros>(filtrosIniciais);
+  const formTopRef = useRef<HTMLDivElement>(null);
 
-  const podeVisualizar = permissoes.VISUALIZAR;
-  const podeCriar = permissoes.CRIAR;
-  const podeEditar = permissoes.EDITAR;
-  const podeExcluir = permissoes.EXCLUIR;
-  const podeGerarPdf = permissoes.GERAR_PDF || permissoes.BAIXAR;
-
-  const readOnly = mode === "view";
-
-  const setField = <K extends keyof EditalForm>(
-    key: K,
-    value: EditalForm[K],
-  ) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  useImportFormFill("editais", setForm);
+  useImportFormFill<EditalForm>("editais", setForm);
 
   useEffect(() => {
     let active = true;
-
-    async function carregarPermissoes() {
-      try {
-        setLoadingPermissoes(true);
-        setAccessDeniedMessage(null);
-
-        const data = await getPermissoesUsuarioLogadoPorModulo("EDITAIS");
-
+    setLoading(true);
+    void Promise.all([
+      getEditais(),
+      getAgentesOptions(),
+      getOrganizacoesOptions(),
+    ])
+      .then(([editaisData, agentesData, organizacoesData]) => {
         if (!active) return;
-
-        setPermissoes(data);
-
-        const tipoPlano = await getTipoPlanoAtual();
-
-        if (!active) return;
-
-        if (tipoPlano === "PLANO_GRATUITO") {
-          setAccessDeniedMessage(
-            "Este módulo está disponível apenas no plano pago.",
-          );
-          return;
-        }
-
-        if (!data.VISUALIZAR) {
-          return;
-        }
-      } catch (error) {
-        console.error(error);
-
-        if (!active) return;
-
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Erro ao verificar acesso aos editais.";
-
-        if (isPlanoAccessDenied(message)) {
-          setAccessDeniedMessage(message);
-          return;
-        }
-
-        setPermissoes(permissoesVazias);
-      } finally {
-        if (active) setLoadingPermissoes(false);
-      }
-    }
-
-    void carregarPermissoes();
-
+        setItems(editaisData);
+        setAgentes(agentesData);
+        setOrganizacoes(organizacoesData);
+      })
+      .catch(() => toast.error("Não foi possível carregar os editais."))
+      .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
   }, []);
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem(EDITAIS_NEXT_STEP_KEY);
-
-    if (!raw) return;
-
-    try {
-      const parsed = JSON.parse(raw) as EditaisNextStepCardData;
-      setNextStepCard(parsed);
-    } catch {
-      setNextStepCard(null);
-    }
-
-    sessionStorage.removeItem(EDITAIS_NEXT_STEP_KEY);
-  }, []);
-
-  useEffect(() => {
-    if (!nextStepCard) return;
-
-    const timer = window.setTimeout(() => {
-      setNextStepCard(null);
-    }, NEXT_STEP_DURATION_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [nextStepCard]);
-
-  useEffect(() => {
-    if (loadingPermissoes) return;
-
-    if (accessDeniedMessage) {
-      setLoading(false);
-      return;
-    }
-
-    if (!podeVisualizar) {
-      setLoading(false);
-      return;
-    }
-
-    void carregarDados();
-  }, [accessDeniedMessage, loadingPermissoes, podeVisualizar]);
-
-  async function carregarDados() {
-    try {
-      setLoading(true);
-      setAccessDeniedMessage(null);
-
-      const [editaisData, organizacoesData, agentesData] = await Promise.all([
-        getEditais(),
-        getOrganizacoesOptions(),
-        getAgentesOptions(),
-      ]);
-
-      setItems(editaisData);
-      setOrganizacoes(organizacoesData);
-
-      setAgentes(
-        (agentesData ?? [])
-          .map((agente) => ({
-            id: String(agente.id),
-            nome: agente.nome?.trim() || `Agente ${agente.id}`,
-          }))
-          .filter((agente) => agente.id),
-      );
-    } catch (error) {
-      console.error(error);
-
-      const message =
-        error instanceof Error ? error.message : "Erro ao carregar editais.";
-
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        return;
-      }
-
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const nomeOrganizacao = (organizacaoId: string) =>
-    organizacaoId
-      ? organizacoes.find((entry) => String(entry.id) === String(organizacaoId))
-        ?.nome ?? "—"
-      : "—";
-
-  const nomeAgente = (agenteId: string) =>
-    agenteId
-      ? agentes.find((entry) => String(entry.id) === String(agenteId))?.nome ??
-      "—"
-      : "—";
-
-  const filtered = useMemo(() => {
-    const term = search.toLowerCase().trim();
-
-    if (!term) return items;
-
-    return items.filter((item) => {
-      return [
-        item.nomeEdital,
-        item.numeroEdital,
-        item.numeroInscricao,
-        item.orgaoResponsavel,
-        item.anoEdital,
-        esferaEditalLabel(item.esferaEdital),
-        statusEditalLabel(item.statusEdital),
-        nomeOrganizacao(item.organizacaoId),
-        nomeAgente(item.agenteId),
-        formatDate(item.dataAbertura),
-        formatDate(item.dataEncerramento),
-        formatDate(item.dataResultado),
-        item.valorTotalDisponivel,
-        item.observacao,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(term);
-    });
-  }, [items, organizacoes, agentes, search]);
-
-
-  const { sortConfig, sortedItems, handleSort } = useSortableData(
-    filtered,
-    (item, key: SortKey) => {
-      switch (key) {
-        case "nome":
-          return item.nomeEdital;
-        case "numero":
-          return item.numeroEdital ?? "";
-        case "inscricao":
-          return item.numeroInscricao ?? "";
-        case "orgao":
-          return item.orgaoResponsavel;
-        case "ano":
-          return Number(item.anoEdital || 0);
-        case "esfera":
-          return esferaEditalLabel(item.esferaEdital);
-        case "status":
-          return statusEditalLabel(item.statusEdital);
-        case "organizacao":
-          return nomeOrganizacao(item.organizacaoId);
-        case "agente":
-          return nomeAgente(item.agenteId);
-        case "abertura":
-          return item.dataAbertura ?? "";
-        case "encerramento":
-          return item.dataEncerramento ?? "";
-        case "resultado":
-          return item.dataResultado ?? "";
-        case "valor":
-          return Number(item.valorTotalDisponivel || 0);
-        default:
-          return "";
-      }
-    },
+  const readOnly = mode === "view";
+  const agentesOptions = useMemo(
+    () => agentes.map((item) => ({ value: String(item.id), label: item.nome })),
+    [agentes],
   );
+  const agenteEditalNome = (id?: string) =>
+    agentes.find((item) => String(item.id) === String(id))?.nome ?? "—";
+  const organizacaoUnica =
+    organizacoes.length === 1 ? organizacoes[0] : undefined;
 
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sortedItems, 25, search);
+  const organizacaoNome = (id?: string) =>
+    (id ? organizacoes.find((entry) => entry.id === id)?.nome : undefined) ??
+    "—";
 
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
-
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
-    }
-
-    toast.success("Dados copiados com sucesso.");
+  const syncItems = async () => {
+    setItems(await getEditais());
+    setOrganizacoes(await getOrganizacoesOptions());
   };
 
-  const handleNew = () => {
-    if (!podeCriar) {
-      toast.error("Você não possui permissão para criar editais.");
-      return;
-    }
+  const setField = <K extends keyof EditalForm>(key: K, value: EditalForm[K]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
+  const setDraftField = <K extends keyof Filtros>(key: K, value: Filtros[K]) =>
+    setDraft((prev) => ({ ...prev, [key]: value }));
+
+  /* ----------------------------- listagem ----------------------------- */
+
+  const filtered = useMemo(() => {
+    const termo = normalize(filtros.termo);
+
+    const list = items.filter((item) => {
+      if (termo) {
+        const haystack = normalize(
+          [item.nomeEdital, item.numeroEdital, item.orgaoResponsavel].join(" "),
+        );
+        if (!haystack.includes(termo)) return false;
+      }
+      if (filtros.ano.trim() && item.anoEdital !== filtros.ano.trim())
+        return false;
+      if (
+        filtros.esferas.length &&
+        !filtros.esferas.includes(item.esferaEdital)
+      )
+        return false;
+      if (
+        filtros.situacoes.length &&
+        !filtros.situacoes.includes(item.statusEdital)
+      )
+        return false;
+      if (
+        filtros.organizacoes.length &&
+        !filtros.organizacoes.includes(item.organizacaoId)
+      )
+        return false;
+      if (filtros.agentes.length && !filtros.agentes.includes(item.agenteId))
+        return false;
+      if (
+        filtros.aberturaDe &&
+        (!item.dataAbertura || item.dataAbertura < filtros.aberturaDe)
+      )
+        return false;
+      if (
+        filtros.encerramentoAte &&
+        (!item.dataEncerramento ||
+          item.dataEncerramento > filtros.encerramentoAte)
+      )
+        return false;
+      return true;
+    });
+
+    const dir = filtros.sortDir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      switch (filtros.sortBy) {
+        case "orgao":
+          return (
+            a.orgaoResponsavel.localeCompare(b.orgaoResponsavel, "pt-BR") * dir
+          );
+        case "esfera":
+          return (
+            esferaEditalLabel(a.esferaEdital).localeCompare(
+              esferaEditalLabel(b.esferaEdital),
+              "pt-BR",
+            ) * dir
+          );
+        case "periodo":
+          return (
+            (a.dataAbertura || "").localeCompare(b.dataAbertura || "") * dir
+          );
+        case "valor":
+          return (
+            (parseValorEdital(a.valorTotalDisponivel) -
+              parseValorEdital(b.valorTotalDisponivel)) *
+            dir
+          );
+        case "situacao":
+          return (
+            statusEditalLabel(a.statusEdital).localeCompare(
+              statusEditalLabel(b.statusEdital),
+              "pt-BR",
+            ) * dir
+          );
+        default:
+          return a.nomeEdital.localeCompare(b.nomeEdital, "pt-BR") * dir;
+      }
+    });
+  }, [items, filtros]);
+
+  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
+    usePagination(filtered, 25, JSON.stringify(filtros));
+
+  const indicadores = useMemo(
+    () => ({
+      total: filtered.length,
+      emAndamento: filtered.filter((item) =>
+        statusEditalEmAndamento.has(item.statusEdital),
+      ).length,
+      encerrados: filtered.filter((item) =>
+        statusEditalEncerrado.has(item.statusEdital),
+      ).length,
+      valorTotal: filtered.reduce(
+        (acc, item) => acc + parseValorEdital(item.valorTotalDisponivel),
+        0,
+      ),
+    }),
+    [filtered],
+  );
+
+  const activeCount =
+    (filtros.termo.trim() ? 1 : 0) +
+    (filtros.ano.trim() ? 1 : 0) +
+    (filtros.esferas.length ? 1 : 0) +
+    (filtros.situacoes.length ? 1 : 0) +
+    (filtros.organizacoes.length ? 1 : 0) +
+    (filtros.agentes.length ? 1 : 0) +
+    (filtros.aberturaDe ? 1 : 0) +
+    (filtros.encerramentoAte ? 1 : 0);
+
+  const removerFiltro = (patch: Partial<Filtros>) => {
+    setDraft((prev) => ({ ...prev, ...patch }));
+    setFiltros((prev) => ({ ...prev, ...patch }));
+  };
+
+  const activeFilters: ActiveFilterItem[] = [];
+  if (filtros.termo.trim())
+    activeFilters.push({
+      id: "termo",
+      label: "Pesquisa",
+      value: filtros.termo.trim(),
+      onRemove: () => removerFiltro({ termo: "" }),
+    });
+  if (filtros.ano.trim())
+    activeFilters.push({
+      id: "ano",
+      label: "Ano do edital",
+      value: filtros.ano.trim(),
+      onRemove: () => removerFiltro({ ano: "" }),
+    });
+  filtros.esferas.forEach((esfera) =>
+    activeFilters.push({
+      id: `esfera-${esfera}`,
+      label: "Esfera",
+      value: esferaEditalLabel(esfera),
+      onRemove: () =>
+        removerFiltro({ esferas: filtros.esferas.filter((e) => e !== esfera) }),
+    }),
+  );
+  filtros.situacoes.forEach((situacao) =>
+    activeFilters.push({
+      id: `situacao-${situacao}`,
+      label: "Situação",
+      value: statusEditalLabel(situacao),
+      onRemove: () =>
+        removerFiltro({
+          situacoes: filtros.situacoes.filter((s) => s !== situacao),
+        }),
+    }),
+  );
+  filtros.organizacoes.forEach((organizacaoId) =>
+    activeFilters.push({
+      id: `organizacao-${organizacaoId}`,
+      label: "Organização",
+      value: organizacaoNome(organizacaoId),
+      onRemove: () =>
+        removerFiltro({
+          organizacoes: filtros.organizacoes.filter((o) => o !== organizacaoId),
+        }),
+    }),
+  );
+  filtros.agentes.forEach((agenteId) =>
+    activeFilters.push({
+      id: `agente-${agenteId}`,
+      label: "Responsável pelo acompanhamento",
+      value: agenteEditalNome(agenteId),
+      onRemove: () =>
+        removerFiltro({
+          agentes: filtros.agentes.filter((a) => a !== agenteId),
+        }),
+    }),
+  );
+  if (filtros.aberturaDe)
+    activeFilters.push({
+      id: "aberturaDe",
+      label: "Abertura a partir de",
+      value: formatDataEdital(filtros.aberturaDe),
+      onRemove: () => removerFiltro({ aberturaDe: "" }),
+    });
+  if (filtros.encerramentoAte)
+    activeFilters.push({
+      id: "encerramentoAte",
+      label: "Encerramento até",
+      value: formatDataEdital(filtros.encerramentoAte),
+      onRemove: () => removerFiltro({ encerramentoAte: "" }),
+    });
+
+  const handleSearch = (event: FormEvent) => {
+    event.preventDefault();
+    setSearching(true);
+    window.setTimeout(() => {
+      setFiltros((prev) => ({
+        ...draft,
+        sortBy: prev.sortBy,
+        sortDir: prev.sortDir,
+      }));
+      setSearching(false);
+    }, 350);
+  };
+
+  const handleClearFiltros = () => {
+    setDraft(filtrosIniciais);
+    setFiltros((prev) => ({
+      ...filtrosIniciais,
+      sortBy: prev.sortBy,
+      sortDir: prev.sortDir,
+    }));
+  };
+
+  const toggleSort = (key: string) =>
+    setFiltros((prev) => ({
+      ...prev,
+      sortBy: key as SortBy,
+      sortDir: prev.sortBy === key && prev.sortDir === "asc" ? "desc" : "asc",
+    }));
+
+  /* ----------------------------- formulário ----------------------------- */
+
+  const handleNew = () => {
     setSelectedId(null);
-    setForm(createEmptyEdital());
+    setForm({
+      ...createEmptyEdital(),
+      organizacaoId: organizacaoUnica?.id ?? "",
+    });
     setMode("create");
     setShowForm(true);
-    setNextStepCard(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleCancel = () => {
@@ -532,55 +493,23 @@ export default function Editais() {
   };
 
   const openRecord = (record: EditalData, nextMode: FormMode) => {
-    if (nextMode === "edit" && !podeEditar) {
-      toast.error("Você não possui permissão para editar editais.");
-      return;
-    }
-
     setSelectedId(record.id);
-    setForm(record);
+    setForm({ ...record });
     setMode(nextMode);
     setShowForm(true);
-    setNextStepCard(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-
-    if (readOnly) return;
-
-    if (mode === "create" && !podeCriar) {
-      toast.error("Você não possui permissão para criar editais.");
-      return;
-    }
-
-    if (mode === "edit" && !podeEditar) {
-      toast.error("Você não possui permissão para editar editais.");
-      return;
-    }
 
     const missing = requiredFields.find(
       ([key]) => !String(form[key] ?? "").trim(),
     );
-
     if (missing) {
-      toast.error(`Preencha o campo: ${missing[1]}.`);
+      toast.error(`Informe o campo: ${missing[1]}.`);
       return;
     }
-
-    if (form.anoEdital.length !== 4) {
-      toast.error("Informe um ano válido para o edital. Ex.: 2026.");
-      return;
-    }
-
-    if (
-      form.linkEdital.trim() &&
-      !/^https?:\/\//i.test(form.linkEdital.trim())
-    ) {
-      toast.error("Informe um link válido, começando com http:// ou https://.");
-      return;
-    }
-
     if (
       form.dataAbertura &&
       form.dataEncerramento &&
@@ -591,957 +520,997 @@ export default function Editais() {
       );
       return;
     }
-
     if (
-      form.dataResultado &&
       form.dataAbertura &&
+      form.dataResultado &&
       form.dataResultado < form.dataAbertura
     ) {
       toast.error(
-        "A data de resultado não pode ser anterior à data de abertura.",
+        "A data do resultado não pode ser anterior à data de abertura.",
       );
       return;
     }
 
     try {
-      setSaving(true);
-
-      const payload = buildEditalPayload(form);
-
-      if (mode === "edit" && selectedId) {
-        await updateEdital(Number(selectedId), payload);
-        toast.success("Edital salvo com sucesso.");
-      } else {
-        await createEdital(payload);
-        salvarProximaAcaoEdital();
-        setNextStepCard(criarProximaAcaoEdital());
-        toast.success("Edital cadastrado com sucesso.");
+      const saved =
+        mode === "create"
+          ? await createEdital(buildEditalPayload(form))
+          : await updateEdital(Number(form.id), buildEditalPayload(form));
+      await syncItems();
+      if (mode === "create") {
+        window.dispatchEvent(
+          new CustomEvent("aurit:import-review-save-success", {
+            detail: { module: "editais" },
+          }),
+        );
       }
-      notifyImportReviewSaveSuccess("editais");
-
-      await carregarDados();
       handleCancel();
-    } catch (error) {
-      console.error(error);
-      toast.error(
-        error instanceof Error ? error.message : "Erro ao salvar edital.",
+      setSelectedId(saved.id);
+      toast.success(
+        mode === "create"
+          ? "Edital cadastrado com sucesso."
+          : "Edital salvo com sucesso.",
       );
-    } finally {
-      setSaving(false);
+    } catch {
+      toast.error("Não foi possível salvar o edital.");
     }
   };
 
   const handleDelete = async () => {
-    if (!confirmDeleteId) return;
-
-    if (!podeExcluir) {
-      toast.error("Você não possui permissão para excluir editais.");
-      setConfirmDeleteId(null);
-      return;
-    }
-
+    if (!confirmDelete) return;
     try {
-      await deleteEdital(Number(confirmDeleteId));
-      await carregarDados();
-
-      if (selectedId === confirmDeleteId) {
-        handleCancel();
-      }
-
-      setConfirmDeleteId(null);
+      await deleteEdital(Number(confirmDelete.id));
+      await syncItems();
+      if (selectedId === confirmDelete.id) handleCancel();
       toast.success("Edital excluído com sucesso.");
-    } catch (error) {
-      console.error(error);
-      toast.error(
-        error instanceof Error ? error.message : "Erro ao excluir edital.",
-      );
+    } catch {
+      toast.error("Não foi possível excluir o edital.");
     }
+    setConfirmDelete(null);
   };
 
-  async function handleExportPdf(item: EditalData) {
-    if (!podeGerarPdf) {
-      toast.error("Você não possui permissão para gerar PDF.");
-      return;
-    }
+  /* ----------------------------- exportação ----------------------------- */
 
-    await exportEditalPdf({
-      id: item.id,
+  const exportColumns = [
+    { header: "Nome do edital", key: "nome" },
+    { header: "Número do edital", key: "numero" },
+    { header: "Órgão responsável", key: "orgao" },
+    { header: "Ano", key: "ano" },
+    { header: "Data de abertura", key: "abertura" },
+    { header: "Data de encerramento", key: "encerramento" },
+    { header: "Data do resultado", key: "resultado" },
+    { header: "Valor total disponível", key: "valor" },
+    { header: "Número de inscrição", key: "inscricao" },
+    { header: "Link do edital", key: "link" },
+    { header: "Esfera", key: "esfera" },
+    { header: "Situação", key: "situacao" },
+    { header: "Organização", key: "organizacao" },
+    { header: "Responsável pelo acompanhamento", key: "responsavel" },
+    { header: "Observações", key: "observacao" },
+  ];
 
-      nomeEdital: item.nomeEdital,
-      numeroEdital: item.numeroEdital,
-      numeroInscricao: item.numeroInscricao,
-      anoEdital: item.anoEdital,
+  const getExportData = () =>
+    filtered.map((item) => ({
+      nome: textoOuTraco(item.nomeEdital),
+      numero: textoOuTraco(item.numeroEdital),
+      orgao: textoOuTraco(item.orgaoResponsavel),
+      ano: textoOuTraco(item.anoEdital),
+      abertura: formatDataEdital(item.dataAbertura),
+      encerramento: formatDataEdital(item.dataEncerramento),
+      resultado: formatDataEdital(item.dataResultado),
+      valor: formatValorEdital(item.valorTotalDisponivel),
+      inscricao: textoOuTraco(item.numeroInscricao),
+      link: textoOuTraco(item.linkEdital),
+      esfera: item.esferaEdital ? esferaEditalLabel(item.esferaEdital) : "—",
+      situacao: item.statusEdital ? statusEditalLabel(item.statusEdital) : "—",
+      organizacao: organizacaoNome(item.organizacaoId),
+      responsavel: agenteEditalNome(item.agenteId),
+      observacao: textoOuTraco(item.observacao),
+    }));
 
-      orgaoResponsavel: item.orgaoResponsavel,
-      linkEdital: item.linkEdital,
+  const tituloFormulario =
+    mode === "view" ? "Editais" : mode === "edit" ? "Editais" : "Editais";
 
-      dataAbertura: item.dataAbertura,
-      dataEncerramento: item.dataEncerramento,
-      dataResultado: item.dataResultado,
-
-      valorTotalDisponivel: item.valorTotalDisponivel,
-
-      esferaEdital: esferaEditalLabel(item.esferaEdital),
-      statusEdital: statusEditalLabel(item.statusEdital),
-
-      observacao: item.observacao,
-      organizacao: nomeOrganizacao(item.organizacaoId),
-      agente: nomeAgente(item.agenteId),
-    });
-  }
-
-  if (accessDeniedMessage) {
-    return (
-      <AppLayout>
-        <AccessDenied />
-      </AppLayout>
-    );
-  }
-
-  if (!podeVisualizar) {
-    return (
-      <AppLayout>
-        <AccessNotPermitted />
-      </AppLayout>
-    );
-  }
+  /* ----------------------------- render ----------------------------- */
 
   return (
     <AppLayout>
       <div
-        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"
-          } py-6 sm:py-8`}
+        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"} py-6 sm:py-8`}
       >
-        {showForm && (
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-          >
-            <ArrowLeft className="h-4 w-4" /> Voltar
-          </button>
-        )}
-
-        <PageTitle
-          title="Editais"
-          tooltip="Cadastre e acompanhe editais, chamadas públicas e oportunidades mapeadas pela organização. Registre órgão responsável, ano, datas, valores, status, número de inscrição, agente responsável e observações para manter o histórico institucional e orientar futuras propostas."
-          showImport={showForm && !readOnly}
-        />
-
-        {!showForm && nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
-        )}
+        <div ref={formTopRef} />
 
         {showForm ? (
           <>
-            {readOnly && (
-              <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Esta tela está em modo de visualização. Para alterar os dados,
-                utilize a opção Editar disponível no menu{" "}
-                <span className="font-semibold">Ações</span>.
-              </div>
-            )}
+            <BackButton onClick={handleCancel} />
+            <ListPageHeader
+              title={tituloFormulario}
+              tooltip={editaisTooltip}
+              actions={
+                !readOnly ? (
+                  <ImportDataButton
+                    config={getImportConfigForPath("/editais")!}
+                    canFillForm
+                    variant="glassSecondary"
+                  />
+                ) : undefined
+              }
+            />
 
-            <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-              <Info
-                className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"
-                strokeWidth={2.2}
-              />
+            <FormLegend />
 
-              <p className="text-[13px] leading-relaxed text-foreground">
-                Esta página registra o{" "}
-                <span className="font-semibold">edital</span> como oportunidade
-                ou processo seletivo. Para detalhar o projeto inscrito, agente
-                proponente, equipe, orçamento, status da inscrição ou resultado
-                da participação, utilize a página de Propostas de Edital.
-              </p>
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+              <fieldset
+                disabled={readOnly}
+                className="space-y-5 border-0 p-0 disabled:opacity-100"
+              >
+                {/* 1 — Identificação do edital */}
+                <FormSectionCard
+                  icon={FileStack}
+                  title="Identificação do edital"
+                  description="Registre as informações oficiais utilizadas para identificar o edital."
+                >
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <FieldLabel
+                        htmlFor="nomeEdital"
+                        required
+                        tooltip="Informe o nome oficial ou o título pelo qual o edital é divulgado. Utilize, sempre que possível, o mesmo nome apresentado no documento ou na página oficial."
+                      >
+                        Nome do Edital
+                      </FieldLabel>
 
-            {!readOnly && <FormLegend />}
+                      <Input
+                        id="nomeEdital"
+                        value={form.nomeEdital}
+                        onChange={(e) => setField("nomeEdital", e.target.value)}
+                      />
+                    </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <Section icon={FileStack} title="Dados do edital">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel
-                      htmlFor="nomeEdital"
-                      required={!readOnly}
-                      tooltip="Informe o nome completo do edital conforme aparece no documento oficial. Ex.: Edital 04/2026 – Execução Cultural."
-                    >
-                      Nome do Edital
-                    </FieldLabel>
+                    <div>
+                      <FieldLabel
+                        htmlFor="numeroEdital"
+                        tooltip="Informe o número, código ou identificação oficial do edital, quando houver. Ex.: Edital nº 05/2026."
+                      >
+                        Número do Edital
+                      </FieldLabel>
 
-                    <Input
-                      id="nomeEdital"
-                      value={form.nomeEdital}
-                      onChange={(e) => setField("nomeEdital", e.target.value)}
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
-                  </Field>
+                      <Input
+                        id="numeroEdital"
+                        value={form.numeroEdital}
+                        onChange={(e) =>
+                          setField("numeroEdital", e.target.value)
+                        }
+                      />
+                    </div>
 
-                  <Field>
-                    <FieldLabel
-                      htmlFor="numeroEdital"
-                      tooltip="Informe o número oficial do edital, chamada pública ou processo seletivo, quando houver. Ex.: 04/2026."
-                    >
-                      Número do Edital
-                    </FieldLabel>
+                    <div>
+                      <FieldLabel
+                        htmlFor="anoEdital"
+                        required
+                        tooltip="Informe o ano ao qual o edital pertence ou em que foi publicado. Ex.: 2026."
+                      >
+                        Ano do Edital
+                      </FieldLabel>
 
-                    <Input
-                      id="numeroEdital"
-                      value={form.numeroEdital}
-                      onChange={(e) => setField("numeroEdital", e.target.value)}
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
-                  </Field>
+                      <Input
+                        id="anoEdital"
+                        value={form.anoEdital}
+                        onChange={(e) =>
+                          setField("anoEdital", onlyDigits(e.target.value))
+                        }
+                        inputMode="numeric"
+                      />
+                    </div>
+                  </div>
+                </FormSectionCard>
 
-                  <Field>
-                    <FieldLabel
-                      htmlFor="numeroInscricao"
-                      tooltip="Informe o número de inscrição, protocolo ou identificação da participação neste edital, quando houver."
-                    >
-                      Número de Inscrição
-                    </FieldLabel>
+                <FormSectionCard
+                  icon={Landmark}
+                  title="Publicação do edital"
+                  description="Registre o orgão que publicou o edital e a referência oficial onde suas regras, documentos e atualizações podem ser consultados."
+                >
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <FieldLabel
+                        htmlFor="orgaoResponsavel"
+                        required
+                        tooltip="Informe o nome do órgão, instituição ou empresa responsável pela publicação do edital. Ex.: Secretaria Municipal de Cultura, Fundação Nacional de Artes ou Instituto Cultural."
+                      >
+                        Órgão Responsável
+                      </FieldLabel>
 
-                    <Input
-                      id="numeroInscricao"
-                      value={form.numeroInscricao}
-                      onChange={(e) =>
-                        setField("numeroInscricao", e.target.value)
-                      }
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
-                  </Field>
+                      <Input
+                        id="orgaoResponsavel"
+                        value={form.orgaoResponsavel}
+                        onChange={(e) =>
+                          setField("orgaoResponsavel", e.target.value)
+                        }
+                      />
+                    </div>
 
-                  <Field>
-                    <FieldLabel
-                      htmlFor="anoEdital"
-                      required={!readOnly}
-                      tooltip="Informe o ano de referência ou publicação do edital. Ex.: 2026."
-                    >
-                      Ano do Edital
-                    </FieldLabel>
+                    <div>
+                      <FieldLabel
+                        htmlFor="esferaEdital"
+                        required
+                        tooltip="Selecione a esfera à qual pertence o órgão responsável pelo edital, como municipal, estadual, federal ou outra opção disponível."
+                      >
+                        Esfera do Edital
+                      </FieldLabel>
 
-                    <Input
-                      id="anoEdital"
-                      value={form.anoEdital}
-                      onChange={(e) =>
-                        setField("anoEdital", onlyDigits(e.target.value))
-                      }
-                      inputMode="numeric"
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
-                  </Field>
+                      <Select
+                        value={form.esferaEdital}
+                        onValueChange={(value) =>
+                          setField("esferaEdital", value)
+                        }
+                      >
+                        <SelectTrigger id="esferaEdital">
+                          <SelectValue placeholder="Selecione a esfera" />
+                        </SelectTrigger>
 
-                  <Field full>
-                    <FieldLabel
-                      htmlFor="orgaoResponsavel"
-                      required={!readOnly}
-                      tooltip="Informe o órgão, instituição, secretaria, fundação, empresa ou entidade responsável pela publicação do edital. Ex.: Secretaria Municipal de Cultura, Ministério da Cultura, fundação cultural ou instituto patrocinador."
-                    >
-                      Órgão Responsável
-                    </FieldLabel>
+                        <SelectContent>
+                          {esferaEditalOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                    <Input
-                      id="orgaoResponsavel"
-                      value={form.orgaoResponsavel}
-                      onChange={(e) =>
-                        setField("orgaoResponsavel", e.target.value)
-                      }
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
-                  </Field>
+                    <div className="sm:col-span-2">
+                      <FieldLabel
+                        htmlFor="linkEdital"
+                        tooltip="Informe o endereço da página oficial onde o edital, seus documentos ou suas informações podem ser consultados."
+                      >
+                        Link do Edital
+                      </FieldLabel>
 
-                  <Field full>
-                    <FieldLabel
-                      htmlFor="linkEdital"
-                      tooltip="Informe o link oficial do edital, chamada pública ou página de inscrição, se houver."
-                    >
-                      Link do Edital
-                    </FieldLabel>
+                      {readOnly && isLinkEditalValido(form.linkEdital) ? (
+                        <a
+                          href={form.linkEdital}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 break-all text-[13px] font-medium text-primary underline-offset-4 hover:underline"
+                        >
+                          <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          {form.linkEdital}
+                        </a>
+                      ) : (
+                        <Input
+                          id="linkEdital"
+                          type="url"
+                          value={form.linkEdital}
+                          onChange={(e) =>
+                            setField("linkEdital", e.target.value)
+                          }
+                          placeholder="https://..."
+                        />
+                      )}
+                    </div>
+                  </div>
+                </FormSectionCard>
 
-                    <Input
-                      id="linkEdital"
-                      value={form.linkEdital}
-                      onChange={(e) => setField("linkEdital", e.target.value)}
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-                </div>
-              </Section>
+                <FormSectionCard
+                  icon={CalendarRange}
+                  title="Prazos e recursos"
+                  description="Acompanhe o período disponível para inscrição, a previsão de divulgação do resultado e os recursos ofertados pelo edital."
+                >
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <FieldLabel
+                        htmlFor="dataAbertura"
+                        tooltip="Informe a data em que o período de inscrições ou envio de propostas começa."
+                      >
+                        Data de Abertura
+                      </FieldLabel>
 
-              <Section icon={CircleDollarSign} title="Acompanhamento e valores">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel
-                      htmlFor="dataAbertura"
-                      tooltip="Informe a data de abertura das inscrições ou do início do período de acompanhamento do edital."
-                    >
-                      Data de Abertura
-                    </FieldLabel>
+                      <Input
+                        id="dataAbertura"
+                        type="date"
+                        value={form.dataAbertura}
+                        onChange={(e) =>
+                          setField("dataAbertura", e.target.value)
+                        }
+                      />
+                    </div>
 
-                    <Input
-                      id="dataAbertura"
-                      type="date"
-                      value={form.dataAbertura}
-                      onChange={(e) =>
-                        setField("dataAbertura", e.target.value)
-                      }
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
-                  </Field>
+                    <div>
+                      <FieldLabel
+                        htmlFor="dataEncerramento"
+                        tooltip="Informe o último dia permitido para realizar a inscrição ou enviar a proposta. Essa é a data limite do edital."
+                      >
+                        Data de Encerramento
+                      </FieldLabel>
 
-                  <Field>
-                    <FieldLabel
-                      htmlFor="dataEncerramento"
-                      tooltip="Informe a data de encerramento das inscrições do edital, quando houver."
-                    >
-                      Data de Encerramento
-                    </FieldLabel>
+                      <Input
+                        id="dataEncerramento"
+                        type="date"
+                        value={form.dataEncerramento}
+                        onChange={(e) =>
+                          setField("dataEncerramento", e.target.value)
+                        }
+                      />
+                    </div>
 
-                    <Input
-                      id="dataEncerramento"
-                      type="date"
-                      value={form.dataEncerramento}
-                      onChange={(e) =>
-                        setField("dataEncerramento", e.target.value)
-                      }
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
-                  </Field>
+                    <div>
+                      <FieldLabel
+                        htmlFor="dataResultado"
+                        tooltip="Informe a data prevista ou já divulgada para publicação do resultado. Se o edital ainda não informar essa data, deixe o campo em branco."
+                      >
+                        Data do Resultado
+                      </FieldLabel>
 
-                  <Field>
-                    <FieldLabel
-                      htmlFor="dataResultado"
-                      tooltip="Informe a data prevista ou divulgada do resultado do edital."
-                    >
-                      Data do Resultado
-                    </FieldLabel>
+                      <Input
+                        id="dataResultado"
+                        type="date"
+                        value={form.dataResultado ?? ""}
+                        onChange={(e) =>
+                          setField("dataResultado", e.target.value)
+                        }
+                      />
+                    </div>
 
-                    <Input
-                      id="dataResultado"
-                      type="date"
-                      value={form.dataResultado}
-                      onChange={(e) =>
-                        setField("dataResultado", e.target.value)
-                      }
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
-                  </Field>
+                    <div>
+                      <FieldLabel
+                        htmlFor="valorTotalDisponivel"
+                        tooltip="Informe o valor total disponibilizado pelo edital para apoiar, financiar ou premiar as propostas selecionadas. Não informe aqui apenas o valor solicitado pela organização."
+                      >
+                        Valor Total Disponível
+                      </FieldLabel>
 
-                  <Field>
-                    <FieldLabel
-                      htmlFor="valorTotalDisponivel"
-                      tooltip="Informe o valor total disponibilizado pelo edital como um todo, quando essa informação constar no documento oficial. Não confunda com o valor solicitado por uma proposta específica."
-                    >
-                      Valor Total Disponível
-                    </FieldLabel>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">
+                          R$
+                        </span>
 
-                    <Input
-                      id="valorTotalDisponivel"
-                      value={form.valorTotalDisponivel}
-                      onChange={(e) =>
-                        setField(
-                          "valorTotalDisponivel",
-                          formatCurrency(e.target.value),
-                        )
-                      }
-                      inputMode="decimal"
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
-                  </Field>
+                        <Input
+                          id="valorTotalDisponivel"
+                          className="pl-9 tabular-nums"
+                          value={form.valorTotalDisponivel}
+                          onChange={(e) =>
+                            setField(
+                              "valorTotalDisponivel",
+                              maskCurrency(e.target.value),
+                            )
+                          }
+                          inputMode="decimal"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </FormSectionCard>
 
-                  <Field>
-                    <FieldLabel
-                      htmlFor="esferaEdital"
-                      required={!readOnly}
-                      tooltip="Selecione a esfera ou origem institucional do edital. Use “Municipal”, “Estadual” ou “Federal” para editais públicos; “Privado” para oportunidades de empresas, institutos ou fundações privadas; “Internacional” para chamadas de fora do país; e “Outro” quando nenhuma opção representar corretamente o edital."
-                    >
-                      Esfera do Edital
-                    </FieldLabel>
+                <FormSectionCard
+                  icon={Landmark}
+                  title="Vínculos institucionais"
+                  description="Defina qual organização acompanhará este edital na Aurit e quem ficará responsável por monitorar seus prazos, atualizações e demais informações."
+                >
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <FieldLabel
+                        htmlFor="organizacao"
+                        required
+                        tooltip="Selecione a organização da Aurit que está acompanhando ou pretende participar deste edital."
+                      >
+                        Organização
+                      </FieldLabel>
 
-                    <Select
-                      value={form.esferaEdital}
-                      onValueChange={(value) =>
-                        setField("esferaEdital", value)
-                      }
-                      disabled={readOnly || saving}
-                    >
-                      <SelectTrigger id="esferaEdital">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
+                      <Select
+                        value={form.organizacaoId}
+                        onValueChange={(value) =>
+                          setField("organizacaoId", value)
+                        }
+                      >
+                        <SelectTrigger id="organizacao">
+                          <SelectValue placeholder="Selecione a organização" />
+                        </SelectTrigger>
 
-                      <SelectContent>
-                        {esferaEditalOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel
-                      htmlFor="statusEdital"
-                      required={!readOnly}
-                      tooltip="Indique a situação atual do edital no sistema. Use “Mapeado” para oportunidades identificadas, “Aberto” para editais com inscrições disponíveis, “Em Análise” quando o processo estiver em avaliação, “Resultado Publicado” quando houver divulgação oficial do resultado, “Encerrado” quando o prazo ou processo tiver terminado, “Cancelado” quando o edital for suspenso ou cancelado e “Arquivado” para manter o registro sem acompanhamento ativo."
-                    >
-                      Status do Edital
-                    </FieldLabel>
-
-                    <Select
-                      value={form.statusEdital}
-                      onValueChange={(value) =>
-                        setField("statusEdital", value)
-                      }
-                      disabled={readOnly || saving}
-                    >
-                      <SelectTrigger id="statusEdital">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent className="max-h-72">
-                        {statusEditalOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field full>
-                    <FieldLabel
-                      htmlFor="observacao"
-                      tooltip="Registre informações importantes sobre o edital, como pendências, documentos exigidos, etapas do processo, contatos, prazos internos ou observações gerais."
-                    >
-                      Observação
-                    </FieldLabel>
-
-                    <Textarea
-                      id="observacao"
-                      value={form.observacao}
-                      onChange={(e) => setField("observacao", e.target.value)}
-                      rows={4}
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-                </div>
-              </Section>
-
-              <Section icon={Landmark} title="Vinculação institucional">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel
-                      htmlFor="organizacao"
-                      tooltip="Selecione a organização vinculada ao edital, quando necessário. Caso não informe, o backend poderá resolver o vínculo pela empresa logada."
-                    >
-                      Organização
-                    </FieldLabel>
-
-                    <Select
-                      value={form.organizacaoId || "NONE"}
-                      onValueChange={(value) =>
-                        setField(
-                          "organizacaoId",
-                          value === "NONE" ? "" : value,
-                        )
-                      }
-                      disabled={readOnly || saving || organizacoes.length === 0}
-                    >
-                      <SelectTrigger id="organizacao">
-                        <SelectValue placeholder="Selecione uma organização" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        <SelectItem value="NONE">
-                          Selecione
-                        </SelectItem>
-
-                        {organizacoes.length === 0 ? (
-                          <SelectItem value="sem-organizacao" disabled>
-                            Nenhuma organização cadastrada
-                          </SelectItem>
-                        ) : (
-                          organizacoes.map((organizacao) => (
+                        <SelectContent className="max-h-72">
+                          {organizacoes.map((organizacao) => (
                             <SelectItem
                               key={organizacao.id}
                               value={organizacao.id}
                             >
                               {organizacao.nome}
                             </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </Field>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <Field>
-                    <FieldLabel
-                      htmlFor="agente"
-                      required={!readOnly}
-                      tooltip="Selecione o agente responsável vinculado ao edital. Esse vínculo identifica quem responde ou acompanha institucionalmente esta oportunidade."
-                    >
-                      Agente Responsável
-                    </FieldLabel>
+                    <div>
+                      <FieldLabel
+                        htmlFor="agente"
+                        required
+                        tooltip="Selecione a pessoa que ficará responsável por acompanhar este edital na organização, observando prazos, atualizações, inscrições e outras informações importantes."
+                      >
+                        Agente Responsável
+                      </FieldLabel>
 
-                    <Select
-                      value={form.agenteId}
-                      onValueChange={(value) => setField("agenteId", value)}
-                      disabled={readOnly || saving || agentes.length === 0}
-                    >
-                      <SelectTrigger id="agente">
-                        <SelectValue placeholder="Selecione um agente" />
-                      </SelectTrigger>
+                      <Select
+                        value={form.agenteId}
+                        onValueChange={(value) => setField("agenteId", value)}
+                      >
+                        <SelectTrigger id="agente">
+                          <SelectValue placeholder="Selecione o responsável" />
+                        </SelectTrigger>
 
-                      <SelectContent className="max-h-72">
-                        {agentes.length === 0 ? (
-                          <SelectItem value="sem-agente" disabled>
-                            Nenhum agente cadastrado
-                          </SelectItem>
-                        ) : (
-                          agentes.map((agente) => (
-                            <SelectItem key={agente.id} value={agente.id}>
-                              {agente.nome}
+                        <SelectContent className="max-h-72">
+                          {agentesOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
                             </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </div>
-              </Section>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </FormSectionCard>
 
-              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCancel}
-                  disabled={saving}
+                <FormSectionCard
+                  icon={ClipboardList}
+                  title="Situação e inscrição"
+                  description="Acompanhe o momento atual do edital e mantenha registrado, quando houver participação da organização, o número recebido após a inscrição."
                 >
-                  {readOnly ? "Voltar" : "Cancelar"}
-                </Button>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <FieldLabel
+                        htmlFor="statusEdital"
+                        required
+                        tooltip="Selecione a situação que melhor representa o momento atual do edital. Atualize este campo quando houver mudança, como abertura das inscrições, encerramento ou divulgação do resultado."
+                      >
+                        Situação do Edital
+                      </FieldLabel>
 
-                {!readOnly && (
+                      <Select
+                        value={form.statusEdital}
+                        onValueChange={(value) =>
+                          setField("statusEdital", value)
+                        }
+                      >
+                        <SelectTrigger id="statusEdital">
+                          <SelectValue placeholder="Selecione a situação" />
+                        </SelectTrigger>
+
+                        <SelectContent className="max-h-72">
+                          {statusEditalOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {form.statusEdital && (
+                        <div className="mt-2">
+                          <StatusPill
+                            status={form.statusEdital}
+                            context="edital"
+                            ariaLabelPrefix="Situação do edital"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <FieldLabel
+                        htmlFor="numeroInscricao"
+                        tooltip="Informe o número, protocolo ou código recebido após a inscrição da organização neste edital, quando houver. Se ainda não houve inscrição, deixe o campo em branco."
+                      >
+                        Número de Inscrição
+                      </FieldLabel>
+
+                      <Input
+                        id="numeroInscricao"
+                        value={form.numeroInscricao}
+                        onChange={(e) =>
+                          setField("numeroInscricao", e.target.value)
+                        }
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <FieldLabel
+                        htmlFor="observacao"
+                        tooltip="Registre informações que sejam importantes para acompanhar o edital e que não possuam um campo próprio, como alterações publicadas, prorrogações, exigências específicas, pendências ou lembretes internos."
+                      >
+                        Observações
+                      </FieldLabel>
+
+                      <Textarea
+                        id="observacao"
+                        value={form.observacao}
+                        onChange={(e) => setField("observacao", e.target.value)}
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+                </FormSectionCard>
+              </fieldset>
+
+              {!readOnly ? (
+                <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="glassSecondary"
+                    className="h-9 px-4"
+                    onClick={handleCancel}
+                  >
+                    Cancelar
+                  </Button>
                   <Button
                     type="submit"
-                    className="sm:min-w-32"
-                    disabled={saving}
+                    variant="glassPrimary"
+                    className="h-9 px-5"
                   >
-                    {saving ? "Salvando..." : "Salvar"}
+                    Salvar
                   </Button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="glassSecondary"
+                    className="h-9 px-4"
+                    onClick={handleCancel}
+                  >
+                    Voltar
+                  </Button>
+                </div>
+              )}
             </form>
           </>
         ) : (
-          <div className="bg-card border border-border rounded">
-            <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-              <div className="relative max-w-md flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-9 pl-9"
-                  aria-label="Buscar edital"
-                />
-              </div>
-
-              {podeCriar && (
-                <Button onClick={handleNew} className="h-9 gap-2">
-                  <Plus className="h-4 w-4" />
-                  Cadastrar Edital
-                </Button>
-              )}
-            </div>
-
-            <div className="hidden overflow-x-auto md:block">
-              <table ref={tableRef} className="w-full min-w-[1480px]">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th
-                      className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy
-                    >
-                      Ações
-                    </th>
-
-                    <SortableHeader
-                      label="Nome do Edital"
-                      sortKey="nome"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Número do Edital"
-                      sortKey="numero"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Número de Inscrição"
-                      sortKey="inscricao"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Órgão Responsável"
-                      sortKey="orgao"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Ano"
-                      sortKey="ano"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Esfera"
-                      sortKey="esfera"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Status do Edital"
-                      sortKey="status"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Organização"
-                      sortKey="organizacao"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Agente Responsável"
-                      sortKey="agente"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Data de Abertura"
-                      sortKey="abertura"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Data de Encerramento"
-                      sortKey="encerramento"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Data do Resultado"
-                      sortKey="resultado"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Valor Total Disponível"
-                      sortKey="valor"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    {podeGerarPdf && (
-                      <th
-                        className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                        data-no-copy
-                      >
-                        Documento
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {paginated.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                    >
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <div className="flex items-center gap-1">
-                          <TableActionIcon
-                            icon={Eye}
-                            label="Visualizar"
-                            onClick={() => openRecord(item, "view")}
-                          />
-
-                          {podeEditar && (
-                            <TableActionIcon
-                              icon={Pencil}
-                              label="Editar"
-                              onClick={() => openRecord(item, "edit")}
-                            />
-                          )}
-
-                          {podeExcluir && (
-                            <TableActionIcon
-                              icon={Trash2}
-                              label="Excluir"
-                              variant="danger"
-                              onClick={() => setConfirmDeleteId(item.id)}
-                            />
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText text={item.nomeEdital} bold>
-                          {item.nomeEdital}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                        {item.numeroEdital || "—"}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                        {item.numeroInscricao || "—"}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText text={item.orgaoResponsavel}>
-                          {item.orgaoResponsavel}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                        {item.anoEdital}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                        {esferaEditalLabel(item.esferaEdital)}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] font-medium text-foreground">
-                        {statusEditalLabel(item.statusEdital)}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText
-                          text={nomeOrganizacao(item.organizacaoId)}
-                        >
-                          {nomeOrganizacao(item.organizacaoId)}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText text={nomeAgente(item.agenteId)}>
-                          {nomeAgente(item.agenteId)}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                        {formatDate(item.dataAbertura)}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                        {formatDate(item.dataEncerramento)}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                        {formatDate(item.dataResultado)}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                        {item.valorTotalDisponivel || "—"}
-                      </td>
-
-                      {podeGerarPdf && (
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void handleExportPdf(item)}
-                            className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                          >
-                            <FileDown className="h-3.5 w-3.5" />
-                            Gerar ficha
-                          </Button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-
-                  {paginated.length === 0 && (
-                    <EmptyRow colSpan={podeGerarPdf ? 15 : 14} />
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="divide-y divide-border md:hidden">
-              {paginated.length === 0 ? (
-                <div className="p-10 text-center">
-                  <FileStack className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Nenhum edital encontrado.
-                  </p>
-                </div>
-              ) : (
-                paginated.map((item) => (
-                  <div key={item.id} className="p-4">
-                    <div className="mb-3 flex items-center gap-1">
-                      <TableActionIcon
-                        icon={Eye}
-                        label="Visualizar"
-                        onClick={() => openRecord(item, "view")}
-                      />
-
-                      {podeEditar && (
-                        <TableActionIcon
-                          icon={Pencil}
-                          label="Editar"
-                          onClick={() => openRecord(item, "edit")}
-                        />
-                      )}
-
-                      {podeExcluir && (
-                        <TableActionIcon
-                          icon={Trash2}
-                          label="Excluir"
-                          variant="danger"
-                          onClick={() => setConfirmDeleteId(item.id)}
-                        />
-                      )}
-
-                      {podeGerarPdf && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleExportPdf(item)}
-                          className="ml-auto h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                        >
-                          <FileDown className="h-3.5 w-3.5" />
-                          PDF
-                        </Button>
-                      )}
-                    </div>
-
-                    <p className="font-medium text-foreground">
-                      {item.nomeEdital}
-                    </p>
-
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {item.numeroEdital || "Sem número"} ·{" "}
-                      {item.numeroInscricao
-                        ? `Inscrição ${item.numeroInscricao}`
-                        : "Sem inscrição"}{" "}
-                      · {item.orgaoResponsavel}
-                    </p>
-
-                    <p className="mt-2 text-sm text-foreground">
-                      {nomeOrganizacao(item.organizacaoId)}
-                    </p>
-
-                    <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <UserRound className="h-3 w-3" />
-                      {nomeAgente(item.agenteId)}
-                    </p>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{item.anoEdital}</span>
-                      <span>• {esferaEditalLabel(item.esferaEdital)}</span>
-                      <span>• {statusEditalLabel(item.statusEdital)}</span>
-                    </div>
-
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>Abertura: {formatDate(item.dataAbertura)}</span>
-                      <span>
-                        •{" "}
-                        {item.valorTotalDisponivel ||
-                          "Valor total não informado"}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <TablePagination
-              totalItems={sortedItems.length}
-              currentPage={currentPage}
-              pageSize={pageSize}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
-              onCopy={handleCopy}
+          <>
+            <ListPageHeader
+              title="Editais"
+              tooltip={editaisTooltip}
+              objective={editaisObjetivo}
+              actions={
+                <>
+                  <Button
+                    variant="glassPrimary"
+                    className="h-9 gap-2 px-4"
+                    onClick={handleNew}
+                  >
+                    <Plus className="h-4 w-4" aria-hidden /> Cadastrar edital
+                  </Button>
+                </>
+              }
             />
-          </div>
+
+            <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <SummaryStatCard
+                title="Editais cadastrados"
+                value={indicadores.total}
+                icon={FileStack}
+                variant="neutral"
+              />
+              <SummaryStatCard
+                title="Em acompanhamento"
+                value={indicadores.emAndamento}
+                icon={Timer}
+                variant="info"
+              />
+              <SummaryStatCard
+                title="Encerrados"
+                value={indicadores.encerrados}
+                icon={CheckCircle2}
+                variant="success"
+              />
+              <SummaryStatCard
+                title="Valor total disponível"
+                value={formatBRL(indicadores.valorTotal)}
+                icon={CircleDollarSign}
+                variant="warning"
+              />
+            </div>
+
+            <div className="space-y-4">
+              <AdvancedSearchPanel
+                open={panelOpen}
+                onOpenChange={setPanelOpen}
+                activeCount={activeCount}
+              >
+                <form onSubmit={handleSearch} noValidate>
+                  <SearchFilterGrid>
+                    <div>
+                      <FieldLabel htmlFor="filtroTermo">Pesquisa</FieldLabel>
+                      <Input
+                        id="filtroTermo"
+                        value={draft.termo}
+                        onChange={(e) => setDraftField("termo", e.target.value)}
+                        placeholder="Digite um termo"
+                        className={fieldClass}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroAno">Ano do edital</FieldLabel>
+                      <Input
+                        id="filtroAno"
+                        value={draft.ano}
+                        onChange={(e) =>
+                          setDraftField("ano", onlyDigits(e.target.value))
+                        }
+                        inputMode="numeric"
+                        placeholder="Informe o ano"
+                        className={fieldClass}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroEsferas">
+                        Esfera do edital
+                      </FieldLabel>
+                      <FilterMultiSelect
+                        id="filtroEsferas"
+                        options={esferaEditalOptions.map((o) => ({
+                          value: o.value,
+                          label: o.label,
+                        }))}
+                        value={draft.esferas}
+                        onChange={(value) => setDraftField("esferas", value)}
+                        placeholder="Todas as esferas"
+                        summaryNoun="esferas selecionadas"
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroSituacoes">
+                        Situação do edital
+                      </FieldLabel>
+                      <FilterMultiSelect
+                        id="filtroSituacoes"
+                        options={statusEditalOptions.map((o) => ({
+                          value: o.value,
+                          label: o.label,
+                        }))}
+                        value={draft.situacoes}
+                        onChange={(value) => setDraftField("situacoes", value)}
+                        placeholder="Todas as situações"
+                        summaryNoun="situações selecionadas"
+                        searchable
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroOrganizacoes">
+                        Organização
+                      </FieldLabel>
+                      <FilterMultiSelect
+                        id="filtroOrganizacoes"
+                        options={organizacoes.map((o) => ({
+                          value: o.id,
+                          label: o.nome,
+                        }))}
+                        value={draft.organizacoes}
+                        onChange={(value) =>
+                          setDraftField("organizacoes", value)
+                        }
+                        placeholder="Todas as organizações"
+                        summaryNoun="organizações selecionadas"
+                        searchable
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroAgentes">
+                        Responsável pelo acompanhamento
+                      </FieldLabel>
+                      <FilterMultiSelect
+                        id="filtroAgentes"
+                        options={agentesOptions}
+                        value={draft.agentes}
+                        onChange={(value) => setDraftField("agentes", value)}
+                        placeholder="Todos os responsáveis"
+                        summaryNoun="responsáveis selecionados"
+                        searchable
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroAberturaDe">
+                        Abertura a partir de
+                      </FieldLabel>
+                      <Input
+                        id="filtroAberturaDe"
+                        type="date"
+                        value={draft.aberturaDe}
+                        onChange={(e) =>
+                          setDraftField("aberturaDe", e.target.value)
+                        }
+                        className={fieldClass}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroEncerramentoAte">
+                        Encerramento até
+                      </FieldLabel>
+                      <Input
+                        id="filtroEncerramentoAte"
+                        type="date"
+                        value={draft.encerramentoAte}
+                        onChange={(e) =>
+                          setDraftField("encerramentoAte", e.target.value)
+                        }
+                        className={fieldClass}
+                      />
+                    </div>
+                  </SearchFilterGrid>
+                  <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                    <Button
+                      type="button"
+                      variant="glassSecondary"
+                      className="h-9 gap-2 px-4"
+                      onClick={handleClearFiltros}
+                    >
+                      <RotateCcw className="h-4 w-4" aria-hidden /> Limpar
+                      filtros
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="glassPrimary"
+                      className="h-9 gap-2 px-5"
+                      disabled={searching}
+                      aria-busy={searching}
+                    >
+                      {searching ? (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      ) : (
+                        <Search className="h-4 w-4" aria-hidden />
+                      )}
+                      {searching ? "Pesquisando..." : "Pesquisar"}
+                    </Button>
+                  </div>
+                </form>
+              </AdvancedSearchPanel>
+
+              <ActiveFilters
+                items={activeFilters}
+                onClearAll={handleClearFiltros}
+              />
+
+              <DataTableCard>
+                <DataTableToolbar
+                  total={filtered.length}
+                  reportTo="/relatorios/editais"
+                  exportColumns={exportColumns}
+                  getExportData={getExportData}
+                  exportFilename="editais"
+                />
+
+                {loading ? (
+                  <div className="flex items-center justify-center gap-2 px-6 py-12 text-[13px] text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    Carregando os editais...
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <DataTableEmptyState
+                    emptyTitle="Nenhum edital cadastrado."
+                    emptyDescription="Cadastre os editais de interesse da organização para acompanhar prazos, valores, inscrições e situação."
+                    noResultsTitle="Nenhum edital encontrado com os filtros selecionados."
+                    createLabel="Cadastrar edital"
+                    onCreate={handleNew}
+                    activeCount={activeCount}
+                    onReviewSearch={() => setPanelOpen(true)}
+                    onClearFilters={handleClearFiltros}
+                  />
+                ) : (
+                  <>
+                    <div className="hidden overflow-x-auto md:block">
+                      <table className="w-full min-w-[1340px] table-fixed">
+                        <thead>
+                          <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
+                            <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Ações
+                            </th>
+                            <SortableTh
+                              className="w-[350px]"
+                              sortKey="edital"
+                              activeKey={filtros.sortBy}
+                              dir={filtros.sortDir}
+                              onSort={toggleSort}
+                            >
+                              Edital
+                            </SortableTh>
+                            <SortableTh
+                              className="w-[270px]"
+                              sortKey="orgao"
+                              activeKey={filtros.sortBy}
+                              dir={filtros.sortDir}
+                              onSort={toggleSort}
+                            >
+                              Órgão responsável
+                            </SortableTh>
+                            <SortableTh
+                              className="w-[130px]"
+                              sortKey="esfera"
+                              activeKey={filtros.sortBy}
+                              dir={filtros.sortDir}
+                              onSort={toggleSort}
+                            >
+                              Esfera
+                            </SortableTh>
+                            <SortableTh
+                              className="w-[220px]"
+                              sortKey="periodo"
+                              activeKey={filtros.sortBy}
+                              dir={filtros.sortDir}
+                              onSort={toggleSort}
+                            >
+                              Período de inscrições
+                            </SortableTh>
+                            <SortableTh
+                              className="w-[140px]"
+                              sortKey="valor"
+                              activeKey={filtros.sortBy}
+                              dir={filtros.sortDir}
+                              onSort={toggleSort}
+                            >
+                              Valor total
+                            </SortableTh>
+                            <SortableTh
+                              className="w-[150px]"
+                              sortKey="situacao"
+                              activeKey={filtros.sortBy}
+                              dir={filtros.sortDir}
+                              onSort={toggleSort}
+                            >
+                              Situação
+                            </SortableTh>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginated.map((item) => (
+                            <tr
+                              key={item.id}
+                              className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
+                            >
+                              <td className="whitespace-nowrap px-6 py-2.5">
+                                <RowActionsDropdown
+                                  reportEndpoint={`/editais/${item.id}/relatorio`}
+                                  reportFilename={`edital-${item.id}.pdf`}
+                                  onView={() => openRecord(item, "view")}
+                                  onEdit={() => openRecord(item, "edit")}
+                                  onDelete={() => setConfirmDelete(item)}
+                                />
+                              </td>
+                              <td className="w-[350px] overflow-hidden px-6 py-2.5">
+                                <TableCellText text={item.nomeEdital} bold>
+                                  {item.nomeEdital}
+                                </TableCellText>
+                                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                                  {item.numeroEdital
+                                    ? `Edital nº ${item.numeroEdital}`
+                                    : "Sem número informado"}
+                                  {item.anoEdital ? ` · ${item.anoEdital}` : ""}
+                                </p>
+                              </td>
+                              <td className="w-[270px] overflow-hidden px-6 py-2.5">
+                                <TableCellText
+                                  text={item.orgaoResponsavel}
+                                  muted
+                                >
+                                  {item.orgaoResponsavel}
+                                </TableCellText>
+                              </td>
+                              <td className="whitespace-nowrap px-6 py-2.5">
+                                <span className="rounded-full border border-border/70 bg-muted/50 px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {item.esferaEdital
+                                    ? esferaEditalLabel(item.esferaEdital)
+                                    : "—"}
+                                </span>
+                              </td>
+                              <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
+                                {periodoInscricoesEdital(
+                                  item.dataAbertura,
+                                  item.dataEncerramento,
+                                )}
+                              </td>
+                              <td className="whitespace-nowrap px-6 py-2.5 text-[13px] font-medium tabular-nums text-foreground">
+                                {formatValorEdital(item.valorTotalDisponivel)}
+                              </td>
+                              <td className="whitespace-nowrap px-6 py-2.5">
+                                <StatusPill
+                                  status={item.statusEdital}
+                                  context="edital"
+                                  ariaLabelPrefix="Situação do edital"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="divide-y divide-border md:hidden">
+                      {paginated.map((item) => (
+                        <div key={item.id} className="p-4">
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            <RowActionsDropdown
+                              reportEndpoint={`/editais/${item.id}/relatorio`}
+                              reportFilename={`edital-${item.id}.pdf`}
+                              onView={() => openRecord(item, "view")}
+                              onEdit={() => openRecord(item, "edit")}
+                              onDelete={() => setConfirmDelete(item)}
+                            />
+                            <StatusPill
+                              status={item.statusEdital}
+                              context="edital"
+                              ariaLabelPrefix="Situação do edital"
+                            />
+                          </div>
+                          <p className="font-medium text-foreground">
+                            {item.nomeEdital}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {item.orgaoResponsavel}
+                          </p>
+                          <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+                            <div>
+                              <p className="text-muted-foreground">Esfera</p>
+                              <p className="text-foreground">
+                                {item.esferaEdital
+                                  ? esferaEditalLabel(item.esferaEdital)
+                                  : "—"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">
+                                Valor total
+                              </p>
+                              <p className="font-medium tabular-nums text-foreground">
+                                {formatValorEdital(item.valorTotalDisponivel)}
+                              </p>
+                            </div>
+                            <div className="col-span-2">
+                              <p className="text-muted-foreground">
+                                Período de inscrições
+                              </p>
+                              <p className="text-foreground">
+                                {periodoInscricoesEdital(
+                                  item.dataAbertura,
+                                  item.dataEncerramento,
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <DataTablePagination
+                      totalItems={filtered.length}
+                      currentPage={currentPage}
+                      pageSize={pageSize}
+                      onPageChange={setCurrentPage}
+                      onPageSizeChange={setPageSize}
+                      entityLabel="edital"
+                      entityLabelPlural="editais"
+                      pageSizeLabel="Editais por página"
+                    />
+                  </>
+                )}
+              </DataTableCard>
+            </div>
+          </>
         )}
       </div>
 
       <AlertDialog
-        open={!!confirmDeleteId}
-        onOpenChange={(open) => !open && setConfirmDeleteId(null)}
+        open={!!confirmDelete}
+        onOpenChange={(open) => !open && setConfirmDelete(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir edital?</AlertDialogTitle>
-
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita.
+              Esta ação não pode ser desfeita.{" "}
+              <span className="font-medium text-foreground">
+                {confirmDelete?.nomeEdital}
+              </span>{" "}
+              deixará de ser acompanhado pela organização.
             </AlertDialogDescription>
           </AlertDialogHeader>
-
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete}>
               Sim, excluir
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1553,59 +1522,5 @@ export default function Editais() {
         href="https://www.aurit.com.br/wiki/editais/editais"
       />
     </AppLayout>
-  );
-}
-
-function Section({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: any;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
-
-      {children}
-    </Card>
-  );
-}
-
-function Field({
-  children,
-  full,
-  className,
-}: {
-  children: React.ReactNode;
-  full?: boolean;
-  className?: string;
-}) {
-  return (
-    <div className={`${full ? "sm:col-span-2" : ""} ${className ?? ""}`}>
-      {children}
-    </div>
-  );
-}
-
-function EmptyRow({ colSpan }: { colSpan: number }) {
-  return (
-    <tr>
-      <td colSpan={colSpan} className="px-5 py-16 text-center">
-        <FileStack className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-        <p className="mt-3 text-sm text-muted-foreground">
-          Nenhum edital encontrado.
-        </p>
-      </td>
-    </tr>
   );
 }

@@ -9,6 +9,7 @@ import {
   Image as ImageIcon,
   Info,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { ProprietarioLayout } from "@/components/ProprietarioLayout";
 import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
@@ -22,8 +23,7 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { maskCEP, maskPhone } from "@/lib/masks";
+import { maskCEP, maskCpfCnpj, maskPhone } from "@/lib/masks";
 import { estadosBrasil } from "@/data/colaboradores";
 import { LIMITE_USUARIOS_PLANO_GRATUITO } from "@/lib/plano";
 import { toast } from "sonner";
@@ -36,23 +36,6 @@ import {
   type ConfiguracaoEmpresaRequestDTO,
   type TipoPlanoApi,
 } from "@/lib/configuracaoEmpresaStore";
-
-const maskDoc = (v: string) => {
-  const d = v.replace(/\D/g, "").slice(0, 14);
-
-  if (d.length <= 11) {
-    return d
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-  }
-
-  return d
-    .replace(/(\d{2})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1/$2")
-    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
-};
 
 interface ViaCepResponse {
   cep?: string;
@@ -139,46 +122,69 @@ function formatDateTimeBR(value?: string | null) {
   }).format(date);
 }
 
-function mapUfToEstado(uf?: string): string {
-  const valor = (uf ?? "").trim();
+const estadosPorUf: Record<string, string> = {
+  AC: "Acre",
+  AL: "Alagoas",
+  AP: "Amapá",
+  AM: "Amazonas",
+  BA: "Bahia",
+  CE: "Ceará",
+  DF: "Distrito Federal",
+  ES: "Espírito Santo",
+  GO: "Goiás",
+  MA: "Maranhão",
+  MT: "Mato Grosso",
+  MS: "Mato Grosso do Sul",
+  MG: "Minas Gerais",
+  PA: "Pará",
+  PB: "Paraíba",
+  PR: "Paraná",
+  PE: "Pernambuco",
+  PI: "Piauí",
+  RJ: "Rio de Janeiro",
+  RN: "Rio Grande do Norte",
+  RS: "Rio Grande do Sul",
+  RO: "Rondônia",
+  RR: "Roraima",
+  SC: "Santa Catarina",
+  SP: "São Paulo",
+  SE: "Sergipe",
+  TO: "Tocantins",
+};
+
+function normalizarChave(value?: string | null) {
+  return (value ?? "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function resolverEstadoParaSelect(value?: string | null): string {
+  const valor = (value ?? "").trim();
 
   if (!valor) return "";
 
-  const mapa: Record<string, string> = {
-    AC: "Acre",
-    AL: "Alagoas",
-    AP: "Amapá",
-    AM: "Amazonas",
-    BA: "Bahia",
-    CE: "Ceará",
-    DF: "Distrito Federal",
-    ES: "Espírito Santo",
-    GO: "Goiás",
-    MA: "Maranhão",
-    MT: "Mato Grosso",
-    MS: "Mato Grosso do Sul",
-    MG: "Minas Gerais",
-    PA: "Pará",
-    PB: "Paraíba",
-    PR: "Paraná",
-    PE: "Pernambuco",
-    PI: "Piauí",
-    RJ: "Rio de Janeiro",
-    RN: "Rio Grande do Norte",
-    RS: "Rio Grande do Sul",
-    RO: "Rondônia",
-    RR: "Roraima",
-    SC: "Santa Catarina",
-    SP: "São Paulo",
-    SE: "Sergipe",
-    TO: "Tocantins",
-  };
+  const estadoExato = estadosBrasil.find((estado) => estado === valor);
+
+  if (estadoExato) return estadoExato;
 
   const upper = valor.toUpperCase();
+  const nomePorUf = estadosPorUf[upper];
 
-  if (mapa[upper]) return mapa[upper];
+  if (nomePorUf) {
+    return (
+      estadosBrasil.find(
+        (estado) => normalizarChave(estado) === normalizarChave(nomePorUf),
+      ) ?? ""
+    );
+  }
 
-  return estadosBrasil.includes(valor) ? valor : "";
+  return (
+    estadosBrasil.find(
+      (estado) => normalizarChave(estado) === normalizarChave(valor),
+    ) ?? ""
+  );
 }
 
 function mapDataToForm(data: ConfiguracaoEmpresaData): ConfigEmpresaForm {
@@ -186,18 +192,18 @@ function mapDataToForm(data: ConfiguracaoEmpresaData): ConfigEmpresaForm {
     id: data.id ?? null,
     nomeEmpresa: data.nomeEmpresa ?? "",
     slug: data.slug ?? "",
-    documentoIdentificacao: data.documentoIdentificacao ?? "",
+    documentoIdentificacao: maskCpfCnpj(data.documentoIdentificacao ?? ""),
     emailContato: data.emailContato ?? "",
-    telefoneContato: data.telefoneContato ?? "",
+    telefoneContato: maskPhone(data.telefoneContato ?? ""),
     tipoPlano: data.tipoPlano ?? "",
     limiteUsuarios: data.limiteUsuarios ?? "",
-    cep: data.cep ?? "",
+    cep: maskCEP(data.cep ?? ""),
     logradouro: data.logradouro ?? "",
     numero: data.numero ?? "",
     complemento: data.complemento ?? "",
     bairro: data.bairro ?? "",
     cidade: data.cidade ?? "",
-    estado: data.estado ?? "",
+    estado: resolverEstadoParaSelect(data.estado),
     caminhoLogo: data.caminhoLogo ?? null,
     dataCriacao: formatDateTimeBR(data.dataCriacao),
     dataAtualizacao: formatDateTimeBR(data.dataAtualizacao),
@@ -321,7 +327,9 @@ export default function ConfiguracaoEmpresa() {
     try {
       setCepLoading(true);
 
-      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const response = await fetch(
+        `https://viacep.com.br/ws/${cepLimpo}/json/`,
+      );
 
       if (!response.ok) {
         throw new Error("Não foi possível consultar o CEP.");
@@ -340,7 +348,7 @@ export default function ConfiguracaoEmpresa() {
         complemento: prev.complemento || data.complemento || "",
         bairro: data.bairro ?? "",
         cidade: data.localidade ?? "",
-        estado: mapUfToEstado(data.uf ?? data.estado),
+        estado: resolverEstadoParaSelect(data.uf ?? data.estado),
       }));
     } catch (error) {
       console.error(error);
@@ -356,7 +364,9 @@ export default function ConfiguracaoEmpresa() {
     if (!file) return;
 
     if (
-      !["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(file.type)
+      !["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(
+        file.type,
+      )
     ) {
       toast.error("Envie uma imagem nos formatos PNG, JPG ou WEBP.");
       return;
@@ -415,7 +425,10 @@ export default function ConfiguracaoEmpresa() {
       return;
     }
 
-    if (form.tipoPlano !== "PLANO_GRATUITO" && Number(form.limiteUsuarios) < 1) {
+    if (
+      form.tipoPlano !== "PLANO_GRATUITO" &&
+      Number(form.limiteUsuarios) < 1
+    ) {
       toast.error("O limite de usuários deve ser maior que zero.");
       return;
     }
@@ -472,7 +485,7 @@ export default function ConfiguracaoEmpresa() {
     <ProprietarioLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
         <PageTitle
-          title="Configuração da Empresa"
+          title="Configuração da Organização"
           tooltip="Gerencie os dados oficiais da organização utilizados na geração de documentos e relatórios. Informações corretas garantem consistência na prestação de contas e nas inscrições em editais."
         />
 
@@ -526,7 +539,7 @@ export default function ConfiguracaoEmpresa() {
                   id="documentoIdentificacao"
                   value={form.documentoIdentificacao}
                   onChange={(e) =>
-                    set("documentoIdentificacao", maskDoc(e.target.value))
+                    set("documentoIdentificacao", maskCpfCnpj(e.target.value))
                   }
                   inputMode="numeric"
                   disabled={loading || saving}
@@ -919,42 +932,6 @@ export default function ConfiguracaoEmpresa() {
           </div>
         </form>
       </div>
-
-      <WikiFloatingButton
-        pageTitle="Configuração da Empresa"
-        sections={[
-          {
-            title: "Para que serve esta página?",
-            content:
-              "Centraliza os dados oficiais da organização — nome, documento, logo, contato, plano e endereço — utilizados em documentos, contratos e relatórios gerados pelo sistema.",
-          },
-          {
-            title: "Dados institucionais",
-            content:
-              "Informe o nome oficial e o CPF/CNPJ da organização. Esses dados aparecerão em todos os documentos.",
-          },
-          {
-            title: "Logo da organização",
-            content:
-              "Envie uma imagem. A logo será reutilizada automaticamente em PDFs e relatórios oficiais.",
-          },
-          {
-            title: "Plano e acesso",
-            content:
-              `No plano gratuito o limite é automaticamente ${LIMITE_USUARIOS_PLANO_GRATUITO} usuários. Nos planos pago e cortesia, o limite informado é respeitado.`,
-          },
-          {
-            title: "Endereço",
-            content:
-              "Ao completar o CEP, o sistema tenta preencher logradouro, bairro, cidade e estado automaticamente.",
-          },
-          {
-            title: "Salvando",
-            content:
-              "Clique em 'Salvar' ao final. As datas de criação e atualização são retornadas pelo backend.",
-          },
-        ]}
-      />
     </ProprietarioLayout>
   );
 }
@@ -964,7 +941,7 @@ function Section({
   title,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
   children: React.ReactNode;
 }) {

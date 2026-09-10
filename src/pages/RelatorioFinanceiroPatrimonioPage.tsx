@@ -5,7 +5,7 @@ import { AccessDenied } from "@/components/AccessDenied";
 import {
   RelatorioHeader,
   GrupoIndicadores,
-  SecaoLinhasRelatorio,
+  TabelaLinhasRelatorio,
   RelatorioLoading,
 } from "@/components/relatorios/RelatorioComponents";
 import {
@@ -75,19 +75,33 @@ export default function RelatorioFinanceiroPatrimonioPage() {
           <div>
             {data.resumo?.map((g, i) => <GrupoIndicadores key={i} grupo={g} />)}
 
-            <SecaoLinhasRelatorio
+            <TabelaLinhasRelatorio
               titulo="Movimentações financeiras"
               items={data.movimentacoesFinanceiras}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
             />
 
-            <SecaoLinhasRelatorio
+            <TabelaLinhasRelatorio
               titulo="Planejamentos financeiros"
               items={data.planejamentosFinanceiros}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
             />
 
-            <SecaoLinhasRelatorio titulo="Patrimônios" items={data.patrimonios} />
+            <TabelaLinhasRelatorio
+              titulo="Patrimônios"
+              items={data.patrimonios}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
+            />
 
-            <SecaoLinhasRelatorio titulo="Empréstimos" items={data.emprestimos} />
+            <TabelaLinhasRelatorio
+              titulo="Empréstimos"
+              items={data.emprestimos}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
+            />
           </div>
         )}
       </div>

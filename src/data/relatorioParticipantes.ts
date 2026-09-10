@@ -112,14 +112,16 @@ export const filtrosIniciais: FiltrosRelatorioParticipantes = {
   busca: "",
 };
 
-export const booleanFiltroOptions: Array<{ value: BooleanFiltro; label: string }> = [
+export const booleanFiltroOptions: Array<{
+  value: BooleanFiltro;
+  label: string;
+}> = [
   { value: "SIM", label: "Sim" },
   { value: "NAO", label: "Não" },
 ];
 
-export const tipoNeurodivergenciaRelatorioOptions = tipoNeurodivergenciaOptions.map(
-  (option) => option.value,
-);
+export const tipoNeurodivergenciaRelatorioOptions =
+  tipoNeurodivergenciaOptions.map((option) => option.value);
 
 export const tipoDeficienciaRelatorioOptions =
   tipoDeficienciaParticipanteOptions.map((option) => option.value);
@@ -195,10 +197,10 @@ export async function getRelatorioParticipantes(): Promise<RelatorioParticipante
         id: `${participante.id}-${vinculo.atividadeId}-${vinculo.turmaId ?? "sem-turma"}-${vinculo.id ?? index}`,
         participanteId: participante.id,
         participanteNome: participante.nomeCompleto,
-        tipoNeurodivergencias:
-          (participante.tipoNeurodivergencias ?? []) as TipoNeurodivergencia[],
-        tipoDeficiencias:
-          (participante.tipoDeficiencias ?? []) as TipoDeficienciaParticipante[],
+        tipoNeurodivergencias: (participante.tipoNeurodivergencias ??
+          []) as TipoNeurodivergencia[],
+        tipoDeficiencias: (participante.tipoDeficiencias ??
+          []) as TipoDeficienciaParticipante[],
         possuiCadunico: Boolean(participante.possuiCadunico),
         possuiBolsaFamilia: Boolean(participante.possuiBolsaFamilia),
         status: vinculo.statusMatricula || participante.status,
@@ -249,7 +251,11 @@ export function aplicarFiltros(
       return false;
     }
 
-    if (filtros.turmaId !== "TODOS" && filtros.turmaId !== "SELECIONE" && linha.turmaId !== filtros.turmaId) {
+    if (
+      filtros.turmaId !== "TODOS" &&
+      filtros.turmaId !== "SELECIONE" &&
+      linha.turmaId !== filtros.turmaId
+    ) {
       return false;
     }
 
@@ -265,7 +271,8 @@ export function aplicarFiltros(
 
     if (
       filtros.tipoNeurodivergencias.length > 0 &&
-      filtros.tipoNeurodivergencias.length < tipoNeurodivergenciaRelatorioOptions.length &&
+      filtros.tipoNeurodivergencias.length <
+        tipoNeurodivergenciaRelatorioOptions.length &&
       !filtros.tipoNeurodivergencias.some((tipo) =>
         linha.tipoNeurodivergencias.includes(tipo),
       )
@@ -275,7 +282,8 @@ export function aplicarFiltros(
 
     if (
       filtros.tipoDeficiencias.length > 0 &&
-      filtros.tipoDeficiencias.length < tipoDeficienciaRelatorioOptions.length &&
+      filtros.tipoDeficiencias.length <
+        tipoDeficienciaRelatorioOptions.length &&
       !filtros.tipoDeficiencias.some((tipo) =>
         linha.tipoDeficiencias.includes(tipo),
       )
@@ -307,7 +315,9 @@ export function aplicarFiltros(
         linha.participanteNome,
         tipoNeurodivergenciasRelatorioLabel(linha.tipoNeurodivergencias),
         tipoDeficienciasRelatorioLabel(linha.tipoDeficiencias),
-        linha.possuiCadunico ? "cadunico cadúnico sim" : "cadunico cadúnico não",
+        linha.possuiCadunico
+          ? "cadunico cadúnico sim"
+          : "cadunico cadúnico não",
         linha.possuiBolsaFamilia
           ? "bolsa familia bolsa família sim"
           : "bolsa familia bolsa família não",

@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Check, ChevronDown, X } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +33,9 @@ export function MultiSelect({
     getOptionLabel ? getOptionLabel(option) : option;
 
   const toggle = (opt: string) => {
-    onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
+    onChange(
+      value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt],
+    );
   };
 
   const remove = (opt: string, e: React.MouseEvent) => {
@@ -37,7 +43,8 @@ export function MultiSelect({
     onChange(value.filter((v) => v !== opt));
   };
 
-  const allSelected = options.length > 0 && options.every((option) => value.includes(option));
+  const allSelected =
+    options.length > 0 && options.every((option) => value.includes(option));
 
   const toggleAll = () => {
     onChange(allSelected ? [] : [...options]);
@@ -52,14 +59,17 @@ export function MultiSelect({
           className={cn(
             "w-full min-h-10 px-3 py-1.5 rounded-md border border-input bg-background text-sm",
             "flex items-center justify-between gap-2 hover:border-primary/40 transition-colors",
-            "focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring"
+            "focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring",
           )}
         >
           <div className="flex flex-wrap gap-1.5 flex-1 text-left">
             {value.length === 0 ? (
               <span className="text-muted-foreground py-1">{placeholder}</span>
             ) : allSelected && selectAllLabel ? (
-              <Badge variant="secondary" className="bg-primary-soft text-primary hover:bg-primary-soft">
+              <Badge
+                variant="secondary"
+                className="bg-primary-soft text-primary hover:bg-primary-soft"
+              >
                 {selectAllLabel}
               </Badge>
             ) : (
@@ -87,7 +97,10 @@ export function MultiSelect({
         </button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-1" align="start">
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-1"
+        align="start"
+      >
         <div className="max-h-64 overflow-y-auto">
           {selectAllLabel && (
             <button
@@ -98,10 +111,12 @@ export function MultiSelect({
               <div
                 className={cn(
                   "h-4 w-4 rounded border flex items-center justify-center transition-colors",
-                  allSelected ? "bg-primary border-primary" : "border-input"
+                  allSelected ? "bg-primary border-primary" : "border-input",
                 )}
               >
-                {allSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                {allSelected && (
+                  <Check className="h-3 w-3 text-primary-foreground" />
+                )}
               </div>
               <span>{selectAllLabel}</span>
             </button>
@@ -119,10 +134,12 @@ export function MultiSelect({
                 <div
                   className={cn(
                     "h-4 w-4 rounded border flex items-center justify-center transition-colors",
-                    selected ? "bg-primary border-primary" : "border-input"
+                    selected ? "bg-primary border-primary" : "border-input",
                   )}
                 >
-                  {selected && <Check className="h-3 w-3 text-primary-foreground" />}
+                  {selected && (
+                    <Check className="h-3 w-3 text-primary-foreground" />
+                  )}
                 </div>
 
                 <span>{resolveLabel(opt)}</span>

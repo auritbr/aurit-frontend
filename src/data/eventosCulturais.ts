@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { sortOptionsByLabel } from "@/lib/sortOptions";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -22,11 +23,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -36,7 +33,7 @@ async function parseError(response: Response): Promise<string> {
   }
 }
 
-export const tiposEvento = [
+export const tiposEvento = sortOptionsByLabel([
   { value: "APRESENTACAO", label: "Apresentação" },
   { value: "ESPETACULO", label: "Espetáculo" },
   { value: "SHOW", label: "Show" },
@@ -155,7 +152,7 @@ export const tiposEvento = [
   { value: "VISITA_INSTITUCIONAL", label: "Visita Institucional" },
 
   { value: "OUTRO", label: "Outro" },
-] as const;
+] as const);
 
 export type TipoEventoValue = (typeof tiposEvento)[number]["value"];
 
@@ -472,9 +469,7 @@ export function enrichEventoCultural(
       : [];
 
   const projetosNomes = projetosIds.map(
-    (id) =>
-      projetos.find((projeto) => projeto.id === id)?.nome ??
-      `#${id}`,
+    (id) => projetos.find((projeto) => projeto.id === id)?.nome ?? `#${id}`,
   );
 
   return {
@@ -588,7 +583,8 @@ export async function getProjetosOptions(): Promise<ProjetoOption[]> {
       return {
         id,
         nome:
-          pickText(projeto.nomeProjeto, projeto.nome) || `Projeto ${projeto.id}`,
+          pickText(projeto.nomeProjeto, projeto.nome) ||
+          `Projeto ${projeto.id}`,
       };
     })
     .filter((projeto) => projeto.id);

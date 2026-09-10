@@ -1,21 +1,21 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   User,
   KeyRound,
   ShieldCheck,
   Eye,
   EyeOff,
   Building2,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BackButton } from "@/components/BackButton";
 import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -25,7 +25,9 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
+import { FormSectionCard } from "@/components/FormSectionCard";
 import { PermissionGuard } from "@/components/PermissionGuard";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { toast } from "sonner";
 import {
@@ -47,6 +49,7 @@ import { getUsuarioLogadoStorage } from "@/lib/auth";
 interface FormState {
   name: string;
   login: string;
+  email: string;
   password: string;
   userRole: "" | UserRole;
   statusUsuario: "" | StatusUsuario;
@@ -56,6 +59,7 @@ interface FormState {
 const initial: FormState = {
   name: "",
   login: "",
+  email: "",
   password: "",
   userRole: "",
   statusUsuario: "ATIVO",
@@ -159,6 +163,7 @@ function UsuarioFormContent({
           setForm({
             name: usuarioData.name,
             login: usuarioData.login,
+            email: usuarioData.email ?? "",
             password: "",
             userRole: usuarioData.userRole,
             statusUsuario: usuarioData.statusUsuario,
@@ -215,8 +220,8 @@ function UsuarioFormContent({
     }
 
     return idEmpresa
-      ? empresas.find((empresa) => empresa.id === idEmpresa)?.nome ??
-        "Configuração da empresa"
+      ? (empresas.find((empresa) => empresa.id === idEmpresa)?.nome ??
+          "Configuração da empresa")
       : "Configuração da empresa vinculada";
   };
 
@@ -232,6 +237,11 @@ function UsuarioFormContent({
 
     if (!form.login.trim()) {
       toast.error("Informe o login.");
+      return;
+    }
+
+    if (criando && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(form.email.trim())) {
+      toast.error("Informe um e-mail válido.");
       return;
     }
 
@@ -264,28 +274,18 @@ function UsuarioFormContent({
       }
 
       if (criando) {
-        if (!form.password) {
-          toast.error("Informe a senha.");
-          return;
-        }
-
-        const passwordError = validatePasswordStrength(form.password);
-
-        if (passwordError) {
-          toast.error(passwordError);
-          return;
-        }
-
         await createUsuario({
           name: form.name.trim(),
           login: form.login.trim(),
-          password: form.password,
+          email: form.email.trim().toLowerCase(),
           userRole: form.userRole as UserRole,
           statusUsuario: form.statusUsuario as StatusUsuario,
           configuracaoEmpresaId: form.configuracaoEmpresaId,
         });
 
-        toast.success("Usuário cadastrado com sucesso.");
+        toast.success(
+          "Usuário cadastrado. Enviamos o link de ativação para o e-mail informado.",
+        );
       }
 
       if (editando) {
@@ -306,6 +306,7 @@ function UsuarioFormContent({
         await updateUsuario(existing.id, {
           name: form.name.trim(),
           login: modoProprioUsuario ? existing.login : form.login.trim(),
+          email: existing.email,
           ...(form.password ? { password: form.password } : {}),
           userRole:
             isProprietario || modoProprioUsuario
@@ -350,49 +351,30 @@ function UsuarioFormContent({
   return (
     <AppLayout>
       <div className="container max-w-3xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/usuarios")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </button>
+        <BackButton to="/usuarios" />
 
         <PageTitle
-          title="Usuário"
+          title={visualizando ? "Usuário" : editando ? "Usuário" : "Usuário"}
           tooltip="Cadastre e gerencie os usuários que terão acesso ao sistema. Defina perfil, status e permissões de acesso."
         />
 
-        <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-          Gerencie os acessos da sua organização. O vínculo com a configuração
-          da empresa é definido automaticamente pelo sistema.
-        </div>
-
         {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+          <div className="mb-5 rounded-[14px] border border-amber-400/40 bg-amber-400/[0.12] px-4 py-3 text-[13px] leading-relaxed text-amber-900 backdrop-blur-md dark:text-amber-200">
             Esta tela está em modo de visualização. Para alterar os dados,
             utilize a opção Editar disponível no menu{" "}
             <span className="font-semibold">Ações</span>.
           </div>
         )}
 
-        {!visualizando && !modoProprioUsuario && (
-          <div className="mb-4 rounded border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
-            No plano gratuito, é permitido cadastrar usuários respeitando o
-            limite total definido para a configuração da empresa.
-          </div>
-        )}
-
         {isProprietario && !visualizando && (
-          <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+          <div className="mb-4 rounded-[14px] border border-amber-400/40 bg-amber-400/[0.12] px-4 py-3 text-[13px] leading-relaxed text-amber-900 backdrop-blur-md dark:text-amber-200">
             O administrador proprietário não pode ter perfil nem status
             alterados.
           </div>
         )}
 
         {modoProprioUsuario && !visualizando && (
-          <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+          <div className="mb-4 rounded-[14px] border border-amber-400/40 bg-amber-400/[0.12] px-4 py-3 text-[13px] leading-relaxed text-amber-900 backdrop-blur-md dark:text-amber-200">
             Você pode alterar apenas seus próprios dados permitidos. Perfil,
             status, login e organização são definidos pela administração.
           </div>
@@ -401,7 +383,11 @@ function UsuarioFormContent({
         {!visualizando && <FormLegend />}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={User} title="Dados do usuário">
+          <Section
+            icon={User}
+            title="Dados do usuário"
+            description="Informe o nome da pessoa que utilizará o sistema."
+          >
             <Field>
               <FieldLabel
                 htmlFor="name"
@@ -421,7 +407,11 @@ function UsuarioFormContent({
             </Field>
           </Section>
 
-          <Section icon={Building2} title="Configuração vinculada">
+          <Section
+            icon={Building2}
+            title="Configuração vinculada"
+            description="O vínculo com a organização é definido automaticamente pelo sistema."
+          >
             <Field>
               <FieldLabel
                 htmlFor="configuracaoEmpresaId"
@@ -444,7 +434,15 @@ function UsuarioFormContent({
             </Field>
           </Section>
 
-          <Section icon={KeyRound} title="Acesso ao sistema">
+          <Section
+            icon={KeyRound}
+            title="Acesso ao sistema"
+            description={
+              criando
+                ? "Informe o login e o e-mail. A pessoa receberá um link para criar a própria senha."
+                : "Gerencie os dados de acesso à plataforma."
+            }
+          >
             <div className="grid sm:grid-cols-2 gap-4">
               <Field>
                 <FieldLabel
@@ -465,7 +463,32 @@ function UsuarioFormContent({
                 />
               </Field>
 
-              {!visualizando && (
+              <Field>
+                <FieldLabel
+                  htmlFor="email"
+                  required={criando}
+                  tooltip="O link de ativação será enviado para este endereço."
+                >
+                  E-mail
+                </FieldLabel>
+                <Input
+                  id="email"
+                  type="email"
+                  value={form.email}
+                  onChange={(event) => set("email", event.target.value)}
+                  autoComplete="email"
+                  disabled={bloqueado || !criando}
+                  readOnly={visualizando || !criando}
+                />
+                {criando && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    A pessoa definirá a senha pelo link de ativação enviado por
+                    e-mail.
+                  </p>
+                )}
+              </Field>
+
+              {!visualizando && !criando && (
                 <Field>
                   <FieldLabel
                     htmlFor="password"
@@ -480,9 +503,7 @@ function UsuarioFormContent({
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={form.password}
-                      onChange={(event) =>
-                        set("password", event.target.value)
-                      }
+                      onChange={(event) => set("password", event.target.value)}
                       autoComplete="new-password"
                       className="pr-10"
                       disabled={saving}
@@ -491,7 +512,9 @@ function UsuarioFormContent({
                     <button
                       type="button"
                       onClick={() => setShowPassword((value) => !value)}
-                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                      aria-label={
+                        showPassword ? "Ocultar senha" : "Mostrar senha"
+                      }
                       className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted"
                     >
                       {showPassword ? (
@@ -512,7 +535,11 @@ function UsuarioFormContent({
             </div>
           </Section>
 
-          <Section icon={ShieldCheck} title="Perfil e status">
+          <Section
+            icon={ShieldCheck}
+            title="Perfil e status"
+            description="Defina o nível de acesso e se o usuário pode entrar no sistema."
+          >
             <div className="grid sm:grid-cols-2 gap-4">
               <Field>
                 <FieldLabel
@@ -538,7 +565,9 @@ function UsuarioFormContent({
                 ) : (
                   <Select
                     value={form.userRole}
-                    onValueChange={(value) => set("userRole", value as UserRole)}
+                    onValueChange={(value) =>
+                      set("userRole", value as UserRole)
+                    }
                     disabled={bloqueiaPerfilStatus || saving}
                   >
                     <SelectTrigger id="userRole">
@@ -570,8 +599,8 @@ function UsuarioFormContent({
                     value={
                       form.statusUsuario
                         ? statusUsuarioLabel[
-                        form.statusUsuario as StatusUsuario
-                        ]
+                            form.statusUsuario as StatusUsuario
+                          ]
                         : "—"
                     }
                     disabled
@@ -600,10 +629,11 @@ function UsuarioFormContent({
             </div>
           </Section>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/usuarios")}
               disabled={saving}
             >
@@ -611,13 +641,22 @@ function UsuarioFormContent({
             </Button>
 
             {!visualizando && (
-              <Button type="submit" className="sm:min-w-32" disabled={saving}>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                className="h-9 px-5"
+                disabled={saving}
+              >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
             )}
           </div>
         </form>
       </div>
+      <WikiFloatingButton
+        pageTitle="Usuários"
+        href="/wiki/configuracoes/usuarios"
+      />
     </AppLayout>
   );
 }
@@ -625,24 +664,18 @@ function UsuarioFormContent({
 function Section({
   icon: Icon,
   title,
+  description,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
+  description?: string;
   children: ReactNode;
 }) {
   return (
-    <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
-      <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
-          {title}
-        </h2>
-      </div>
-
+    <FormSectionCard icon={Icon} title={title} description={description}>
       {children}
-    </Card>
+    </FormSectionCard>
   );
 }
 

@@ -105,7 +105,12 @@ export interface PlanoAulaApiDTO {
   dataInicio?: string | null;
   dataFim?: string | null;
   aulaReposicao?: boolean | null;
-  statusPlanoAula?: StatusPlanoAula | "CONCLUIDO" | "EM_ANDAMENTO" | string | null;
+  statusPlanoAula?:
+    | StatusPlanoAula
+    | "CONCLUIDO"
+    | "EM_ANDAMENTO"
+    | string
+    | null;
 
   conteudo?: string | null;
   observacao?: string | null;
@@ -127,8 +132,7 @@ export interface PlanoAulaApiDTO {
     } | null;
   } | null;
 
-  turmas?:
-  | Array<{
+  turmas?: Array<{
     id?: number | string | null;
     nomeTurma?: string | null;
     nome?: string | null;
@@ -136,8 +140,7 @@ export interface PlanoAulaApiDTO {
     atividade?: {
       id?: number | string | null;
     } | null;
-  } | null>
-  | null;
+  } | null> | null;
 
   colaborador?: {
     id?: number | string | null;
@@ -217,11 +220,7 @@ export async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -326,11 +325,13 @@ export function mapPlanoAula(dto: PlanoAulaApiDTO): PlanoAula {
       : [];
 
   const turmaIds = Array.from(
-    new Set([
-      ...normalizeIds(dto.turmaIds),
-      ...turmas.map((turma) => turma.id).filter(Boolean),
-      normalizeId(dto.turmaId),
-    ].filter(Boolean)),
+    new Set(
+      [
+        ...normalizeIds(dto.turmaIds),
+        ...turmas.map((turma) => turma.id).filter(Boolean),
+        normalizeId(dto.turmaId),
+      ].filter(Boolean),
+    ),
   );
 
   const turmaNomes = turmas
@@ -338,7 +339,8 @@ export function mapPlanoAula(dto: PlanoAulaApiDTO): PlanoAula {
     .filter(Boolean);
 
   const turmaId = turmaIds[0] || undefined;
-  const turmaNome = turmaNomes[0] || pickText(dto.turma?.nomeTurma, dto.turma?.nome);
+  const turmaNome =
+    turmaNomes[0] || pickText(dto.turma?.nomeTurma, dto.turma?.nome);
 
   const atividadeNome = pickText(
     dto.atividade?.nomeAtividade,
@@ -362,21 +364,21 @@ export function mapPlanoAula(dto: PlanoAulaApiDTO): PlanoAula {
     atividadeNome,
     atividade: atividadeId
       ? {
-        id: atividadeId,
-        nomeAtividade: atividadeNome,
-        nome: atividadeNome,
-        titulo: atividadeNome,
-      }
+          id: atividadeId,
+          nomeAtividade: atividadeNome,
+          nome: atividadeNome,
+          titulo: atividadeNome,
+        }
       : undefined,
 
     turmaId,
     turmaNome,
     turma: turmaId
       ? {
-        id: turmaId,
-        nomeTurma: turmaNome,
-        nome: turmaNome,
-      }
+          id: turmaId,
+          nomeTurma: turmaNome,
+          nome: turmaNome,
+        }
       : null,
 
     turmaIds,
@@ -387,13 +389,14 @@ export function mapPlanoAula(dto: PlanoAulaApiDTO): PlanoAula {
     colaboradorNome,
     colaborador: colaboradorId
       ? {
-        id: colaboradorId,
-        nome: colaboradorNome,
-        nomeCompleto: colaboradorNome,
-      }
+          id: colaboradorId,
+          nome: colaboradorNome,
+          nomeCompleto: colaboradorNome,
+        }
       : undefined,
 
-    organizacaoId: normalizeId(dto.organizacaoId ?? dto.organizacao) || undefined,
+    organizacaoId:
+      normalizeId(dto.organizacaoId ?? dto.organizacao) || undefined,
 
     dataInicio: normalizeIsoDate(dto.dataInicio),
     dataFim: normalizeIsoDate(dto.dataFim) || undefined,

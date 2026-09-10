@@ -24,11 +24,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -221,10 +217,9 @@ function formatDateBR(value?: string | null) {
   return `${day}/${month}/${year}`;
 }
 
-function compareByName<T extends { nomeAtividade?: string; nomeTurma?: string }>(
-  a: T,
-  b: T,
-) {
+function compareByName<
+  T extends { nomeAtividade?: string; nomeTurma?: string },
+>(a: T, b: T) {
   const nomeA = a.nomeAtividade ?? a.nomeTurma ?? "";
   const nomeB = b.nomeAtividade ?? b.nomeTurma ?? "";
 
@@ -232,10 +227,7 @@ function compareByName<T extends { nomeAtividade?: string; nomeTurma?: string }>
 }
 
 function comparePlanosAula(a: PlanoAulaOption, b: PlanoAulaOption) {
-  const nomeCompare = a.nomePlanoAula.localeCompare(
-    b.nomePlanoAula,
-    "pt-BR",
-  );
+  const nomeCompare = a.nomePlanoAula.localeCompare(b.nomePlanoAula, "pt-BR");
 
   if (nomeCompare !== 0) return nomeCompare;
 
@@ -351,9 +343,7 @@ export function mapPlanoAulaOption(dto: PlanoAulaApiDTO): PlanoAulaOption {
   const turmasLabel =
     turmaNomes.length > 0 ? ` · ${turmaNomes.join(", ")}` : "";
 
-  const labelBase = periodo
-    ? `${nomePlanoAula} · ${periodo}`
-    : nomePlanoAula;
+  const labelBase = periodo ? `${nomePlanoAula} · ${periodo}` : nomePlanoAula;
 
   const label = `${labelBase}${turmasLabel}`;
 
@@ -480,7 +470,9 @@ export async function getPlanosAulaPresenca(): Promise<PlanoAulaOption[]> {
     .sort(comparePlanosAula);
 }
 
-export async function getParticipantesPresenca(): Promise<ParticipanteApiDTO[]> {
+export async function getParticipantesPresenca(): Promise<
+  ParticipanteApiDTO[]
+> {
   const response = await fetch(`${API_URL}/participantes`, {
     method: "GET",
     headers: getJsonHeaders(),

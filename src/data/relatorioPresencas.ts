@@ -1,6 +1,4 @@
-import { getJsonHeaders } from "@/lib/apiHeaders";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+import { apiFetch } from "@/lib/api";
 
 export type StatusPresenca =
   | "PRESENTE"
@@ -114,51 +112,8 @@ type DateApiValue =
   | null
   | undefined;
 
-async function parseError(response: Response): Promise<string> {
-  try {
-    const text = await response.text();
-
-    if (!text) {
-      if (response.status === 401) {
-        return "Sessão expirada ou token inválido. Faça login novamente.";
-      }
-
-      if (response.status === 403) {
-        return "Acesso negado.";
-      }
-
-      return `Erro ${response.status} ao processar requisição.`;
-    }
-
-    try {
-      const json = JSON.parse(text);
-
-      return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
-      );
-    } catch {
-      return text;
-    }
-  } catch {
-    return `Erro ${response.status} ao processar requisição.`;
-  }
-}
-
 async function getApi<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  return response.json();
+  return apiFetch<T>(path);
 }
 
 async function getApiListSafe<T>(path: string): Promise<T[]> {
@@ -308,7 +263,8 @@ function mapTurmas(data: TurmaApiDTO[]): RelatorioOption[] {
       return {
         id,
         atividadeId,
-        nome: pickText(item.nome, item.nomeTurma, item.descricao) || `Turma ${id}`,
+        nome:
+          pickText(item.nome, item.nomeTurma, item.descricao) || `Turma ${id}`,
       };
     });
 }
@@ -338,7 +294,9 @@ function montarRegistrosPresenca(params: {
     params.atividades.map((item) => [item.id, item.nome]),
   );
 
-  const turmaNomePorId = new Map(params.turmas.map((item) => [item.id, item.nome]));
+  const turmaNomePorId = new Map(
+    params.turmas.map((item) => [item.id, item.nome]),
+  );
 
   const participanteNomePorId = new Map(
     params.participantes.map((item) => [item.id, item.nome]),
@@ -364,7 +322,8 @@ function montarRegistrosPresenca(params: {
       );
       const participanteRegistroId = toIdString(participante.id);
       const participanteAninhado =
-        participante.participante && typeof participante.participante === "object"
+        participante.participante &&
+        typeof participante.participante === "object"
           ? participante.participante
           : undefined;
       const participanteNomeRetorno = pickText(
@@ -377,7 +336,8 @@ function montarRegistrosPresenca(params: {
       );
 
       return {
-        id: participanteRegistroId || `${presencaId}-${participanteId || index}`,
+        id:
+          participanteRegistroId || `${presencaId}-${participanteId || index}`,
         presencaId,
         participanteId,
         participanteNome:
@@ -441,7 +401,9 @@ export async function getRegistrosPresenca(): Promise<RegistroPresenca[]> {
   return data.registros;
 }
 
-export function anosDisponiveisPresenca(registros: RegistroPresenca[]): string[] {
+export function anosDisponiveisPresenca(
+  registros: RegistroPresenca[],
+): string[] {
   const set = new Set<string>();
 
   registros.forEach((registro) => {
@@ -453,7 +415,9 @@ export function anosDisponiveisPresenca(registros: RegistroPresenca[]): string[]
   return Array.from(set).sort((a, b) => Number(b) - Number(a));
 }
 
-export function mesesDisponiveisPresenca(registros: RegistroPresenca[]): string[] {
+export function mesesDisponiveisPresenca(
+  registros: RegistroPresenca[],
+): string[] {
   const set = new Set<string>();
 
   registros.forEach((registro) => {

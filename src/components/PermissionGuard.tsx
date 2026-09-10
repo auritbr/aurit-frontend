@@ -1,8 +1,5 @@
 import { type ReactNode } from "react";
-import {
-  type AcaoPermissao,
-  type ModuloPermissao,
-} from "@/data/usuarios";
+import { type AcaoPermissao, type ModuloPermissao } from "@/data/usuarios";
 import { usePermissao } from "@/hooks/usePermissao";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 

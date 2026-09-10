@@ -211,7 +211,7 @@ export function countByStatus<T extends { status?: string }>(
   return (list ?? []).filter((item) => item.status === status).length;
 }
 
-export function groupByField<T extends Record<string, any>>(
+export function groupByField<T extends Record<string, unknown>>(
   list: T[],
   field: keyof T,
   labelFn?: (value: string) => string,
@@ -232,7 +232,11 @@ export function groupByField<T extends Record<string, any>>(
   return Array.from(map.entries())
     .map(([key, value]) => ({
       label:
-        key === "NÃO_INFORMADO" ? "Não informado" : labelFn ? labelFn(key) : key,
+        key === "NÃO_INFORMADO"
+          ? "Não informado"
+          : labelFn
+            ? labelFn(key)
+            : key,
       valor: value,
     }))
     .filter((item) => item.valor > 0)

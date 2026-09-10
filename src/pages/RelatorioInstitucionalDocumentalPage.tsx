@@ -5,26 +5,14 @@ import { AccessDenied } from "@/components/AccessDenied";
 import {
   RelatorioHeader,
   GrupoIndicadores,
-  SecaoLinhasRelatorio,
+  TabelaLinhasRelatorio,
   RelatorioLoading,
 } from "@/components/relatorios/RelatorioComponents";
 import {
   getRelatorioInstitucionalDocumental,
   type RelatorioInstitucionalDocumental,
-  type LinhaRelatorio,
 } from "@/data/relatorios";
 import { isPlanoAccessDenied } from "@/lib/access";
-
-const isDocumentoVencido = (linha: LinhaRelatorio): boolean => {
-  return !!linha.indicadores?.find((ind) => {
-    const chave = ind.chave?.toLowerCase();
-
-    return (
-      (chave === "vencido" || chave === "documentovencido") &&
-      ind.valor === true
-    );
-  });
-};
 
 export default function RelatorioInstitucionalDocumentalPage() {
   const [data, setData] = useState<RelatorioInstitucionalDocumental | null>(
@@ -89,25 +77,32 @@ export default function RelatorioInstitucionalDocumentalPage() {
           <div>
             {data.resumo?.map((g, i) => <GrupoIndicadores key={i} grupo={g} />)}
 
-            <SecaoLinhasRelatorio
+            <TabelaLinhasRelatorio
               titulo="Documentos"
               items={data.documentos}
-              highlight={isDocumentoVencido}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
             />
 
-            <SecaoLinhasRelatorio
+            <TabelaLinhasRelatorio
               titulo="Colaboradores"
               items={data.colaboradores}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
             />
 
-            <SecaoLinhasRelatorio
+            <TabelaLinhasRelatorio
               titulo="Integrantes"
               items={data.integrantes}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
             />
 
-            <SecaoLinhasRelatorio
+            <TabelaLinhasRelatorio
               titulo="Trajetórias culturais"
               items={data.trajetoriasCulturais}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
             />
           </div>
         )}

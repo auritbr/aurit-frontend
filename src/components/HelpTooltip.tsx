@@ -1,5 +1,9 @@
 import { HelpCircle } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface HelpTooltipProps {
@@ -9,6 +13,8 @@ interface HelpTooltipProps {
   side?: "top" | "right" | "bottom" | "left";
   align?: "start" | "center" | "end";
   className?: string;
+  /** Estilos extras do conteúdo do tooltip (largura, tipografia, etc.). */
+  contentClassName?: string;
 }
 
 /**
@@ -43,6 +49,7 @@ export function HelpTooltip({
   side = "top",
   align = "start",
   className,
+  contentClassName,
 }: HelpTooltipProps) {
   const dim = size === "md" ? "h-5 w-5" : "h-[18px] w-[18px]";
   const icon = size === "md" ? "h-3.5 w-3.5" : "h-3 w-3";
@@ -61,7 +68,13 @@ export function HelpTooltip({
           <HelpCircle className={icon} strokeWidth={2.4} />
         </button>
       </TooltipTrigger>
-      <TooltipContent side={side} align={align}>
+      <TooltipContent
+        side={side}
+        align={align}
+        collisionPadding={16}
+        avoidCollisions
+        className={contentClassName}
+      >
         <TooltipBody text={text} />
       </TooltipContent>
     </Tooltip>

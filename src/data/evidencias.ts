@@ -22,11 +22,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -51,6 +47,7 @@ export type TipoEvidencia =
 
 export type TipoVinculoEvidencia =
   | "PROPOSTA_EDITAL"
+  | "PLANO_AULA"
   | "ATIVIDADE"
   | "TURMA"
   | "EVENTO_CULTURAL"
@@ -76,6 +73,7 @@ export const tiposVinculoEvidencia: {
   label: string;
 }[] = [
   { value: "PROPOSTA_EDITAL", label: "Proposta de Edital" },
+  { value: "PLANO_AULA", label: "Plano de Aula" },
   { value: "ATIVIDADE", label: "Atividade" },
   { value: "TURMA", label: "Turma" },
   { value: "EVENTO_CULTURAL", label: "Evento Cultural" },
@@ -93,6 +91,14 @@ export const tipoVinculoLabel = (value?: TipoVinculoEvidencia | string) =>
 
 export const tipoVinculoEvidenciaLabel = tipoVinculoLabel;
 
+export function normalizePublicationUrl(value?: string | null) {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^www\./i.test(trimmed)) return `https://${trimmed}`;
+  return trimmed;
+}
+
 export interface EvidenciaExecucaoDTO {
   id?: number;
   tituloEvidencia?: string | null;
@@ -104,6 +110,7 @@ export interface EvidenciaExecucaoDTO {
 
   projetoId: number;
   propostaEditalId?: number | null;
+  planoAulaId?: number | null;
   atividadeId?: number | null;
   turmaId?: number | null;
   eventoCulturalId?: number | null;
@@ -122,6 +129,7 @@ export interface Evidencia {
 
   projeto: string;
   propostaEdital: string;
+  planoAula: string;
   atividade: string;
   turma: string;
   eventoCultural: string;
@@ -151,19 +159,26 @@ function pickText(...values: Array<unknown>) {
   return "";
 }
 
-function pickProjetoId(item: any): string | undefined {
+type ApiOptionRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): ApiOptionRecord {
+  return value && typeof value === "object" ? (value as ApiOptionRecord) : {};
+}
+
+function pickProjetoId(item: ApiOptionRecord): string | undefined {
+  const projeto = asRecord(item.projeto);
   const value =
-    item?.projetoId ??
-    item?.projeto?.id ??
-    item?.projeto?.projetoId ??
-    item?.idProjeto;
+    item.projetoId ?? projeto.id ?? projeto.projetoId ?? item.idProjeto;
 
   return value !== null && value !== undefined && value !== ""
     ? String(value)
     : undefined;
 }
 
-function normalizeOptionList(data: any[], fallback: string): OptionItem[] {
+function normalizeOptionList(
+  data: ApiOptionRecord[],
+  fallback: string,
+): OptionItem[] {
   return (Array.isArray(data) ? data : [])
     .filter((item) => item?.id !== null && item?.id !== undefined)
     .map((item) => ({
@@ -197,6 +212,7 @@ export function createEmptyEvidencia(): Evidencia {
 
     projeto: "",
     propostaEdital: "",
+    planoAula: "",
     atividade: "",
     turma: "",
     eventoCultural: "",
@@ -217,6 +233,7 @@ export function mapEvidencia(dto: EvidenciaExecucaoDTO): Evidencia {
 
     projeto: mapId(dto.projetoId),
     propostaEdital: mapId(dto.propostaEditalId),
+    planoAula: mapId(dto.planoAulaId),
     atividade: mapId(dto.atividadeId),
     turma: mapId(dto.turmaId),
     eventoCultural: mapId(dto.eventoCulturalId),
@@ -237,12 +254,11 @@ export function buildEvidenciaPayload(form: Evidencia): EvidenciaExecucaoDTO {
 
     projetoId: Number(form.projeto),
     propostaEditalId: form.propostaEdital ? Number(form.propostaEdital) : null,
+    planoAulaId: form.planoAula ? Number(form.planoAula) : null,
     atividadeId: form.atividade ? Number(form.atividade) : null,
     turmaId: form.turma ? Number(form.turma) : null,
     eventoCulturalId: form.eventoCultural ? Number(form.eventoCultural) : null,
-    acaoDivulgacaoId: form.acaoDivulgacao
-      ? Number(form.acaoDivulgacao)
-      : null,
+    acaoDivulgacaoId: form.acaoDivulgacao ? Number(form.acaoDivulgacao) : null,
     presencaId: form.presenca ? Number(form.presenca) : null,
   };
 }
@@ -262,9 +278,7 @@ export async function getEvidenciasExecucao(): Promise<Evidencia[]> {
   return (Array.isArray(data) ? data : []).map(mapEvidencia);
 }
 
-export async function getEvidenciaExecucaoById(
-  id: number,
-): Promise<Evidencia> {
+export async function getEvidenciaExecucaoById(id: number): Promise<Evidencia> {
   const response = await fetch(`${API_URL}/evidencias-execucao/${id}`, {
     method: "GET",
     headers: getJsonHeaders(),
@@ -375,7 +389,7 @@ export async function getPropostasEditalOptions(): Promise<OptionItem[]> {
 
   const data = await response.json();
 
-  return (Array.isArray(data) ? data : []).map((item: any) => ({
+  return (Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => ({
     id: String(item.id),
     nome:
       pickText(
@@ -402,7 +416,7 @@ export async function getAtividadesOptions(): Promise<OptionItem[]> {
 
   const data = await response.json();
 
-  return (Array.isArray(data) ? data : []).map((item: any) => ({
+  return (Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => ({
     id: String(item.id),
     nome: pickText(item.nomeAtividade, item.nome) || `Atividade ${item.id}`,
     projetoId: pickProjetoId(item),
@@ -421,7 +435,7 @@ export async function getTurmasOptions(): Promise<OptionItem[]> {
 
   const data = await response.json();
 
-  return (Array.isArray(data) ? data : []).map((item: any) => ({
+  return (Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => ({
     id: String(item.id),
     nome: pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
     projetoId: pickProjetoId(item),
@@ -440,7 +454,7 @@ export async function getEventosCulturaisOptions(): Promise<OptionItem[]> {
 
   const data = await response.json();
 
-  return (Array.isArray(data) ? data : []).map((item: any) => ({
+  return (Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => ({
     id: String(item.id),
     nome: pickText(item.nomeEvento, item.nome) || `Evento ${item.id}`,
     projetoId: pickProjetoId(item),
@@ -459,7 +473,7 @@ export async function getAcoesDivulgacaoOptions(): Promise<OptionItem[]> {
 
   const data = await response.json();
 
-  return (Array.isArray(data) ? data : []).map((item: any) => ({
+  return (Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => ({
     id: String(item.id),
     nome: pickText(item.nomeAcao, item.nome) || `Ação ${item.id}`,
     projetoId: pickProjetoId(item),
@@ -478,7 +492,7 @@ export async function getPresencasOptions(): Promise<OptionItem[]> {
 
   const data = await response.json();
 
-  return (Array.isArray(data) ? data : []).map((item: any) => ({
+  return (Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => ({
     id: String(item.id),
     nome:
       pickText(
@@ -493,7 +507,7 @@ export async function getPresencasOptions(): Promise<OptionItem[]> {
 }
 
 export const optionName = (items: OptionItem[], id?: string) =>
-  id ? items.find((item) => item.id === id)?.nome ?? "—" : "—";
+  id ? (items.find((item) => item.id === id)?.nome ?? "—") : "—";
 
 export function vinculoRelacionadoTexto(
   evidencia: Evidencia,
@@ -533,10 +547,13 @@ export function vinculoRelacionadoTexto(
 export async function getEvidenciaArquivoDownloadUrl(
   id: number,
 ): Promise<string> {
-  const response = await fetch(`${API_URL}/evidencias-execucao/${id}/download`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
+  const response = await fetch(
+    `${API_URL}/evidencias-execucao/${id}/download`,
+    {
+      method: "GET",
+      headers: getJsonHeaders(),
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await parseError(response));
@@ -574,4 +591,275 @@ export function buildArquivoUrl(urlArquivo?: string) {
   }
 
   return `${API_URL}${urlArquivo.startsWith("/") ? "" : "/"}${urlArquivo}`;
+}
+
+export type ContextoEvidencia = "AULA" | "EVENTO_CULTURAL";
+
+export interface EvidenciaReferencia {
+  id: number;
+  nome: string;
+}
+
+export interface EvidenciaPlanoAula {
+  id: number;
+  nome: string;
+  dataInicio: string;
+  dataFim?: string | null;
+  atividadeId: number;
+  atividadeNome: string;
+  turmas: EvidenciaReferencia[];
+}
+
+export interface EvidenciaEventoCultural {
+  id: number;
+  nome: string;
+  dataInicio: string;
+  dataFim?: string | null;
+  descricao?: string | null;
+  local?: string | null;
+  status?: string | null;
+  projetos: EvidenciaReferencia[];
+}
+
+export interface EvidenciaImagem {
+  id: number;
+  nomeOriginal: string;
+  contentType: string;
+  tamanho: number;
+  ordem: number;
+  downloadUrl: string;
+  /** URL temporária resolvida pelo frontend para visualização autenticada. */
+  visualizacaoUrl?: string;
+}
+
+export interface EvidenciaLink {
+  id?: number;
+  titulo?: string | null;
+  url: string;
+  ordem?: number;
+}
+
+export interface EvidenciaFotografica {
+  id: number;
+  titulo: string;
+  contexto: ContextoEvidencia;
+  tipoEvidencia: TipoEvidencia;
+  projeto: EvidenciaReferencia;
+  atividade?: EvidenciaReferencia | null;
+  turma?: EvidenciaReferencia | null;
+  planoAula?: EvidenciaPlanoAula | null;
+  eventoCultural?: EvidenciaEventoCultural | null;
+  descricao?: string | null;
+  imagens: EvidenciaImagem[];
+  links: EvidenciaLink[];
+  quantidadeImagens: number;
+  quantidadeLinks: number;
+  dataReferencia?: string | null;
+  dataCriacao: string;
+  dataAtualizacao: string;
+}
+
+export interface EvidenciaFotograficaRequest {
+  tituloEvidencia?: string | null;
+  contexto: ContextoEvidencia;
+  tipoEvidencia: TipoEvidencia;
+  projetoId: number;
+  atividadeId?: number | null;
+  turmaId?: number | null;
+  planoAulaId?: number | null;
+  eventoCulturalId?: number | null;
+  descricao?: string | null;
+  links: Array<{ titulo?: string | null; url: string }>;
+  removerImagemIds: number[];
+}
+
+export interface EvidenciaFotograficaFiltros {
+  projetoId?: number;
+  atividadeId?: number;
+  turmaId?: number;
+  planoAulaId?: number;
+  eventoCulturalId?: number;
+  contexto?: ContextoEvidencia;
+  dataInicio?: string;
+  dataFim?: string;
+}
+
+export interface PlanoAulaEvidenciaOption extends OptionItem {
+  dataInicio: string;
+  dataFim?: string;
+  turmaIds: string[];
+}
+
+export interface EventoCulturalEvidenciaOption extends OptionItem {
+  dataInicio: string;
+  dataFim?: string;
+  descricao?: string;
+  local?: string;
+  status?: string;
+}
+
+function appendQueryValue(
+  params: URLSearchParams,
+  key: string,
+  value: unknown,
+) {
+  if (value !== undefined && value !== null && value !== "") {
+    params.set(key, String(value));
+  }
+}
+
+export async function getEvidenciasFotograficas(
+  filtros: EvidenciaFotograficaFiltros = {},
+): Promise<EvidenciaFotografica[]> {
+  const params = new URLSearchParams();
+  Object.entries(filtros).forEach(([key, value]) =>
+    appendQueryValue(params, key, value),
+  );
+  const query = params.toString();
+  const response = await fetch(
+    `${API_URL}/evidencias-execucao/fotograficas${query ? `?${query}` : ""}`,
+    { headers: getJsonHeaders(), cache: "no-store" },
+  );
+  if (!response.ok) throw new Error(await parseError(response));
+  const data: EvidenciaFotografica[] = await response.json();
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getEvidenciaFotograficaById(
+  id: number,
+): Promise<EvidenciaFotografica> {
+  const response = await fetch(
+    `${API_URL}/evidencias-execucao/${id}/detalhes`,
+    {
+      headers: getJsonHeaders(),
+      cache: "no-store",
+    },
+  );
+  if (!response.ok) throw new Error(await parseError(response));
+  return response.json() as Promise<EvidenciaFotografica>;
+}
+
+async function salvarEvidenciaFotografica(
+  method: "POST" | "PUT",
+  payload: EvidenciaFotograficaRequest,
+  imagens: File[],
+  id?: number,
+): Promise<EvidenciaFotografica> {
+  const formData = new FormData();
+  formData.append("dados", JSON.stringify(payload));
+  imagens.forEach((imagem) => formData.append("imagens", imagem));
+  const response = await fetch(
+    `${API_URL}/evidencias-execucao${id ? `/${id}` : ""}`,
+    { method, headers: getMultipartHeaders(), body: formData },
+  );
+  if (!response.ok) throw new Error(await parseError(response));
+  return response.json() as Promise<EvidenciaFotografica>;
+}
+
+export function createEvidenciaFotografica(
+  payload: EvidenciaFotograficaRequest,
+  imagens: File[],
+) {
+  return salvarEvidenciaFotografica("POST", payload, imagens);
+}
+
+export function updateEvidenciaFotografica(
+  id: number,
+  payload: EvidenciaFotograficaRequest,
+  imagens: File[],
+) {
+  return salvarEvidenciaFotografica("PUT", payload, imagens, id);
+}
+
+export async function getEvidenciaImagemUrl(
+  evidenciaId: number,
+  imagemId: number,
+): Promise<string> {
+  const response = await fetch(
+    `${API_URL}/evidencias-execucao/${evidenciaId}/imagens/${imagemId}/download`,
+    { headers: getJsonHeaders() },
+  );
+  if (!response.ok) throw new Error(await parseError(response));
+  const url = await response.text();
+  if (!url.trim())
+    throw new Error("URL da imagem não retornada pelo servidor.");
+  return url;
+}
+
+export async function getAtividadesEvidenciaOptions(
+  projetoId: number,
+): Promise<OptionItem[]> {
+  const response = await fetch(`${API_URL}/atividades/projeto/${projetoId}`, {
+    headers: getJsonHeaders(),
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+  const data: ApiOptionRecord[] = await response.json();
+  return (Array.isArray(data) ? data : []).map((item) => ({
+    id: String(item.id),
+    nome: pickText(item.nomeAtividade, item.nome) || `Atividade ${item.id}`,
+    projetoId: String(projetoId),
+  }));
+}
+
+export async function getTurmasEvidenciaOptions(
+  atividadeId: number,
+): Promise<OptionItem[]> {
+  const response = await fetch(`${API_URL}/turmas/atividade/${atividadeId}`, {
+    headers: getJsonHeaders(),
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+  const data: ApiOptionRecord[] = await response.json();
+  return (Array.isArray(data) ? data : []).map((item) => ({
+    id: String(item.id),
+    nome: pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
+  }));
+}
+
+export async function getPlanosAulaEvidenciaOptions(
+  atividadeId: number,
+  turmaId: number,
+): Promise<PlanoAulaEvidenciaOption[]> {
+  const params = new URLSearchParams({
+    atividadeId: String(atividadeId),
+    turmaId: String(turmaId),
+  });
+  const response = await fetch(`${API_URL}/planos-aula?${params}`, {
+    headers: getJsonHeaders(),
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+  const data: ApiOptionRecord[] = await response.json();
+  return (Array.isArray(data) ? data : []).map((item) => ({
+    id: String(item.id),
+    nome: pickText(item.nomePlanoAula, item.nome) || `Plano de aula ${item.id}`,
+    dataInicio: pickText(item.dataInicio),
+    dataFim: pickText(item.dataFim),
+    turmaIds: Array.isArray(item.turmaIds)
+      ? item.turmaIds.map(String)
+      : Array.isArray(item.turmas)
+        ? item.turmas.map((turma) => String(asRecord(turma).id)).filter(Boolean)
+        : [],
+  }));
+}
+
+export async function getEventosEvidenciaOptions(
+  projetoId: number,
+): Promise<EventoCulturalEvidenciaOption[]> {
+  const response = await fetch(
+    `${API_URL}/eventos-culturais/projeto/${projetoId}`,
+    {
+      headers: getJsonHeaders(),
+    },
+  );
+  if (!response.ok) throw new Error(await parseError(response));
+  const data: ApiOptionRecord[] = await response.json();
+  return (Array.isArray(data) ? data : []).map((item) => ({
+    id: String(item.id),
+    nome: pickText(item.nomeEvento, item.nome) || `Evento ${item.id}`,
+    projetoId: String(projetoId),
+    dataInicio: pickText(item.dataEvento, item.dataInicio),
+    dataFim: pickText(item.dataFim),
+    descricao: pickText(item.descricaoEvento, item.descricao),
+    local: pickText(item.localEvento, item.local),
+    status: pickText(item.status),
+  }));
 }

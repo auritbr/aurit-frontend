@@ -1,4 +1,4 @@
-import { getUsuarioLogadoStorage } from "@/lib/auth";
+import { getUsuarioLogadoStorage, usuarioLogadoEhAdmin } from "@/lib/auth";
 import {
   getPermissoes,
   type AcaoPermissao,
@@ -15,10 +15,7 @@ export async function usuarioTemPermissaoFrontend(
 
   if (usuario.statusUsuario === "INATIVO") return false;
 
-  if (
-    usuario.userRole === "ADMIN_PROPRIETARIO" ||
-    usuario.userRole === "ADMIN"
-  ) {
+  if (usuarioLogadoEhAdmin()) {
     return true;
   }
 

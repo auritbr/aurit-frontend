@@ -1,30 +1,34 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Search,
-  Plus,
-  Eye,
-  Pencil,
-  Trash2,
-  Power,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { Search, Plus, Power, ShieldCheck, RotateCcw } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
-import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { TablePagination } from "@/components/TablePagination";
-import { SortableHeader } from "@/components/SortableHeader";
+import { StatusPill } from "@/components/StatusPill";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableEmptyState } from "@/components/list/DataTableEmptyState";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { SortableTh } from "@/components/list/SortableTh";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+  useSessionBoolean,
+} from "@/components/AdvancedSearchPanel";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+import { FieldLabel } from "@/components/FieldLabel";
+import { DataTablePagination } from "@/components/DataTablePagination";
 import { usePagination } from "@/hooks/usePagination";
-import { useSortableData } from "@/hooks/useSortableData";
-import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { getUsuarioLogadoStorage } from "@/lib/auth";
 import {
@@ -55,30 +59,89 @@ import {
   statusUsuarioLabel,
 } from "@/data/usuarios";
 
-type SortKey = "nome" | "login" | "empresa" | "perfil" | "status";
+const perfilOptions = [
+  { value: "USER", label: userRoleLabel.USER },
+  { value: "ADMIN", label: userRoleLabel.ADMIN },
+  { value: "ADMIN_PROPRIETARIO", label: userRoleLabel.ADMIN_PROPRIETARIO },
+];
 
-const statusTone: Record<string, string> = {
-  ATIVO:
-    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
-  INATIVO: "border-border bg-muted text-muted-foreground",
-};
+const statusOptions = [
+  { value: "ATIVO", label: statusUsuarioLabel.ATIVO },
+  { value: "INATIVO", label: statusUsuarioLabel.INATIVO },
+];
 
-const roleTone: Record<string, string> = {
-  ADMIN: "border-primary/20 bg-primary/10 text-primary",
-  USER: "border-border bg-muted text-foreground",
-  ADMIN_PROPRIETARIO:
-    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
+const sortByOptions = [
+  { value: "name", label: "Nome" },
+  { value: "login", label: "Usuário (login)" },
+  { value: "empresa", label: "Organização" },
+  { value: "userRole", label: "Perfil de acesso" },
+  { value: "statusUsuario", label: "Status" },
+] as const;
+
+type SortBy = (typeof sortByOptions)[number]["value"];
+type SortDir = "asc" | "desc";
+
+const sortDirLabels: Record<SortDir, string> = { asc: "A–Z", desc: "Z–A" };
+const normalize = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+const labelOf = (
+  options: readonly { value: string; label: string }[],
+  value: string,
+) => options.find((option) => option.value === value)?.label || value;
+
+interface Filtros {
+  nome: string;
+  login: string;
+  perfil: string[];
+  status: string[];
+  sortBy: SortBy;
+  sortDir: SortDir;
+}
+
+function FilterField({
+  label,
+  tooltip,
+  children,
+}: {
+  label: string;
+  tooltip: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <FieldLabel tooltip={tooltip}>{label}</FieldLabel>
+      {children}
+    </div>
+  );
+}
+
+const emptyFiltros: Filtros = {
+  nome: "",
+  login: "",
+  perfil: [],
+  status: [],
+  sortBy: "name",
+  sortDir: "asc",
 };
 
 export default function Usuarios() {
   const navigate = useNavigate();
-  const tableRef = useRef<HTMLTableElement>(null);
 
   const [items, setItems] = useState<Usuario[]>([]);
   const [empresas, setEmpresas] = useState<ConfiguracaoEmpresaOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
-  const [search, setSearch] = useState("");
+  const [panelOpen, setPanelOpen] = useSessionBoolean(
+    "usuarios:pesquisa-avancada",
+    false,
+  );
+  const [draft, setDraft] = useState<Filtros>(emptyFiltros);
+  const [filtros, setFiltros] = useState<Filtros>(emptyFiltros);
+  const [searching, setSearching] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [changingStatusId, setChangingStatusId] = useState<string | null>(null);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
@@ -199,64 +262,116 @@ export default function Usuarios() {
     }
 
     return id
-      ? empresas.find((empresa) => empresa.id === id)?.nome ??
-        "Empresa não encontrada"
+      ? (empresas.find((empresa) => empresa.id === id)?.nome ??
+          "Empresa não encontrada")
       : "Sem empresa vinculada";
   };
 
+  const setDraftField = <K extends keyof Filtros>(key: K, value: Filtros[K]) =>
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  const applyFiltros = (next: Filtros) => {
+    setDraft(next);
+    setSearching(true);
+    setFiltros(next);
+    setCurrentPage(1);
+    window.setTimeout(() => setSearching(false), 180);
+  };
+  const handleSearch = (event?: React.FormEvent) => {
+    event?.preventDefault();
+    if (!searching) applyFiltros(draft);
+  };
+  const handleClearFiltros = () => applyFiltros(emptyFiltros);
+
   const filtered = useMemo(() => {
-    const term = search.toLowerCase().trim();
-
-    if (!term) return items;
-
-    return items.filter((usuario) =>
-      [
-        usuario.name,
-        usuario.login,
-        userRoleLabel[usuario.userRole],
-        statusUsuarioLabel[usuario.statusUsuario],
-        empresaNome(usuario.configuracaoEmpresaId),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(term),
-    );
-  }, [search, items, empresas, isUsuarioComum]);
-
-
-  const { sortConfig, sortedItems, handleSort } = useSortableData(
-    filtered,
-    (usuario, key: SortKey) => {
-      switch (key) {
-        case "nome":
-          return usuario.name;
+    const nome = normalize(filtros.nome);
+    const login = normalize(filtros.login);
+    const result = items.filter((usuario) => {
+      if (nome && !normalize(usuario.name).includes(nome)) return false;
+      if (login && !normalize(usuario.login).includes(login)) return false;
+      if (filtros.perfil.length && !filtros.perfil.includes(usuario.userRole))
+        return false;
+      if (
+        filtros.status.length &&
+        !filtros.status.includes(usuario.statusUsuario)
+      )
+        return false;
+      return true;
+    });
+    const sortValue = (usuario: Usuario) => {
+      switch (filtros.sortBy) {
         case "login":
           return usuario.login;
         case "empresa":
           return empresaNome(usuario.configuracaoEmpresaId);
-        case "perfil":
+        case "userRole":
           return userRoleLabel[usuario.userRole];
-        case "status":
+        case "statusUsuario":
           return statusUsuarioLabel[usuario.statusUsuario];
         default:
-          return "";
+          return usuario.name;
       }
-    },
-  );
+    };
+    return [...result].sort((a, b) => {
+      const compare = sortValue(a).localeCompare(sortValue(b), "pt-BR", {
+        sensitivity: "base",
+      });
+      return filtros.sortDir === "asc" ? compare : -compare;
+    });
+  }, [items, filtros, empresas, isUsuarioComum]);
 
+  const activeFilters = useMemo<ActiveFilterItem[]>(() => {
+    const list: ActiveFilterItem[] = [];
+    if (filtros.nome.trim())
+      list.push({
+        id: "nome",
+        label: "Nome",
+        value: filtros.nome.trim(),
+        onRemove: () => applyFiltros({ ...filtros, nome: "" }),
+      });
+    if (filtros.login.trim())
+      list.push({
+        id: "login",
+        label: "Usuário",
+        value: filtros.login.trim(),
+        onRemove: () => applyFiltros({ ...filtros, login: "" }),
+      });
+    filtros.perfil.forEach((value) =>
+      list.push({
+        id: `perfil-${value}`,
+        label: "Perfil",
+        value: labelOf(perfilOptions, value),
+        onRemove: () =>
+          applyFiltros({
+            ...filtros,
+            perfil: filtros.perfil.filter((item) => item !== value),
+          }),
+      }),
+    );
+    filtros.status.forEach((value) =>
+      list.push({
+        id: `status-${value}`,
+        label: "Status",
+        value: labelOf(statusOptions, value),
+        onRemove: () =>
+          applyFiltros({
+            ...filtros,
+            status: filtros.status.filter((item) => item !== value),
+          }),
+      }),
+    );
+    return list;
+  }, [filtros]);
+
+  const filtrosKey = JSON.stringify(filtros);
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sortedItems, 25, search);
-
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
-
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
-    }
-
-    toast.success("Dados copiados com sucesso.");
-  };
+    usePagination(filtered, 25, filtrosKey);
+  const toggleSort = (sortBy: SortBy) =>
+    applyFiltros({
+      ...filtros,
+      sortBy,
+      sortDir:
+        filtros.sortBy === sortBy && filtros.sortDir === "asc" ? "desc" : "asc",
+    });
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
@@ -278,7 +393,9 @@ export default function Usuarios() {
     try {
       await deleteUsuario(confirmDelete);
 
-      setItems((prev) => prev.filter((usuario) => usuario.id !== confirmDelete));
+      setItems((prev) =>
+        prev.filter((usuario) => usuario.id !== confirmDelete),
+      );
       toast.success("Usuário excluído com sucesso.");
     } catch (error) {
       const message =
@@ -322,7 +439,8 @@ export default function Usuarios() {
       );
 
       toast.success(
-        `Usuário ${updated.statusUsuario === "ATIVO" ? "ativado" : "inativado"
+        `Usuário ${
+          updated.statusUsuario === "ATIVO" ? "ativado" : "inativado"
         }.`,
       );
     } catch (error) {
@@ -341,7 +459,110 @@ export default function Usuarios() {
       setChangingStatusId(null);
     }
   };
-  
+
+  const usuarioActions = (usuario: Usuario) => {
+    const isProprietario = usuario.userRole === "ADMIN_PROPRIETARIO";
+    const isProprioUsuario =
+      usuarioLogado?.id != null &&
+      String(usuarioLogado.id) === String(usuario.id);
+    const podeVisualizarLinha = !isUsuarioComum || isProprioUsuario;
+    const podeEditarLinha = isUsuarioComum ? isProprioUsuario : podeEditar;
+    return {
+      viewTo: podeVisualizarLinha ? `/usuarios/${usuario.id}` : undefined,
+      editTo: podeEditarLinha ? `/usuarios/${usuario.id}/editar` : undefined,
+      onDelete:
+        !isUsuarioComum && podeExcluir && !isProprietario
+          ? () => setConfirmDelete(usuario.id)
+          : undefined,
+      extraItems: [
+        ...(!isUsuarioComum && podeEditar
+          ? [
+              {
+                label: "Permissões",
+                icon: ShieldCheck,
+                to: `/usuarios/${usuario.id}/permissoes`,
+              },
+            ]
+          : []),
+        ...(!isUsuarioComum && podeAlterarStatus && !isProprietario
+          ? [
+              {
+                label:
+                  usuario.statusUsuario === "ATIVO" ? "Inativar" : "Ativar",
+                icon: Power,
+                disabled: changingStatusId === usuario.id,
+                onClick: () => void handleToggleStatus(usuario),
+              },
+            ]
+          : []),
+      ],
+    };
+  };
+
+  const UsuarioRow = ({
+    usuario,
+    mobile,
+  }: {
+    usuario: Usuario;
+    mobile: boolean;
+  }) => {
+    const actions = usuarioActions(usuario);
+    const empresa = empresaNome(usuario.configuracaoEmpresaId);
+    if (mobile)
+      return (
+        <div className="p-4">
+          <div className="mb-3">
+            <RowActionsDropdown {...actions} />
+          </div>
+          <p className="font-medium text-foreground">{usuario.name}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {usuario.login}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{empresa}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-[12px] text-muted-foreground">
+              {userRoleLabel[usuario.userRole]}
+            </span>
+            <StatusPill
+              status={usuario.statusUsuario}
+              ariaLabelPrefix="Status do usuário"
+            />
+          </div>
+        </div>
+      );
+    return (
+      <tr className="border-b border-border/50 last:border-0 transition-colors hover:bg-muted/25">
+        <td className="whitespace-nowrap px-6 py-2.5">
+          <RowActionsDropdown {...actions} />
+        </td>
+        <td className="whitespace-nowrap px-6 py-2.5">
+          <TableCellText text={usuario.name} bold>
+            {usuario.name}
+          </TableCellText>
+        </td>
+        <td className="whitespace-nowrap px-6 py-2.5">
+          <TableCellText text={usuario.login}>{usuario.login}</TableCellText>
+        </td>
+        <td className="whitespace-nowrap px-6 py-2.5">
+          <TableCellText text={empresa} muted={!usuario.configuracaoEmpresaId}>
+            {empresa}
+          </TableCellText>
+        </td>
+        <td className="whitespace-nowrap px-6 py-2.5">
+          <TableCellText text={userRoleLabel[usuario.userRole]}>
+            {userRoleLabel[usuario.userRole]}
+          </TableCellText>
+        </td>
+        <td className="whitespace-nowrap px-6 py-2.5">
+          <StatusPill
+            status={usuario.statusUsuario}
+            ariaLabelPrefix="Status do usuário"
+          />
+        </td>
+      </tr>
+    );
+  };
+
   if (loadingPermissoes || loading) {
     return (
       <AppLayout>
@@ -373,350 +594,218 @@ export default function Usuarios() {
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
-        <PageTitle
+        <ListPageHeader
           title="Usuários"
-          tooltip="Cadastre e gerencie os usuários que terão acesso ao sistema. Defina empresa vinculada, perfil, status e permissões de acesso."
-        />
-
-        <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-          Gerencie os acessos da sua organização. Usuários sem empresa vinculada
-          podem ter problemas com plano, limites e permissões.
-        </div>
-
-        <div className="rounded border border-border bg-card">
-          <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-            <div className="relative max-w-md flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className="h-9 pl-9"
-                aria-label="Buscar usuário"
-              />
-            </div>
-
-            {!isUsuarioComum && podeCriar && (
+          tooltip="Cadastre e gerencie os usuários que terão acesso ao sistema. Defina perfil, status e controle quem pode utilizar a plataforma."
+          objective="Gerencie os acessos da sua organização. Usuários ativos podem entrar no sistema, enquanto usuários inativos ficam impedidos de acessar até nova liberação."
+          actions={
+            !isUsuarioComum && podeCriar ? (
               <Button
+                type="button"
+                variant="glassPrimary"
                 onClick={() => navigate("/usuarios/novo")}
-                className="h-9 gap-2"
+                className="h-9 gap-2 px-4"
               >
                 <Plus className="h-4 w-4" />
                 Cadastrar usuário
               </Button>
-            )}
-          </div>
-
-          <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[1080px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th
-                    className="w-[180px] px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    data-no-copy
-                  >
-                    Ações
-                  </th>
-
-                  <SortableHeader
-                    label="Nome"
-                    sortKey="nome"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+            ) : undefined
+          }
+        />
+        <div className="space-y-4">
+          <AdvancedSearchPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            activeCount={activeFilters.length}
+          >
+            <form onSubmit={handleSearch} noValidate>
+              <SearchFilterGrid>
+                <FilterField
+                  label="Nome"
+                  tooltip="Digite o nome do usuário cadastrado."
+                >
+                  <Input
+                    value={draft.nome}
+                    onChange={(event) =>
+                      setDraftField("nome", event.target.value)
+                    }
+                    placeholder="Digite o nome do usuário"
+                    className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
                   />
-
-                  <SortableHeader
-                    label="Login"
-                    sortKey="login"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </FilterField>
+                <FilterField
+                  label="Usuário (login)"
+                  tooltip="Digite o login utilizado para acessar o sistema."
+                >
+                  <Input
+                    value={draft.login}
+                    onChange={(event) =>
+                      setDraftField("login", event.target.value)
+                    }
+                    placeholder="Ex.: maria.silva"
+                    className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
                   />
-
-                  <SortableHeader
-                    label="Empresa"
-                    sortKey="empresa"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </FilterField>
+                <FilterField
+                  label="Perfil de acesso"
+                  tooltip="Selecione um ou mais perfis de acesso."
+                >
+                  <FilterMultiSelect
+                    options={perfilOptions}
+                    value={draft.perfil}
+                    onChange={(value) => setDraftField("perfil", value)}
+                    placeholder="Todos os perfis"
+                    summaryNoun="perfis selecionados"
                   />
-
-                  <SortableHeader
-                    label="Perfil"
-                    sortKey="perfil"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </FilterField>
+                <FilterField
+                  label="Status"
+                  tooltip="Selecione o status do usuário no sistema."
+                >
+                  <FilterMultiSelect
+                    options={statusOptions}
+                    value={draft.status}
+                    onChange={(value) => setDraftField("status", value)}
+                    placeholder="Todos os status"
+                    summaryNoun="status selecionados"
                   />
-
-                  <SortableHeader
-                    label="Status"
-                    sortKey="status"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-                </tr>
-              </thead>
-
-              <tbody>
-                {paginated.map((usuario) => {
-                  const semEmpresa = !usuario.configuracaoEmpresaId;
-                  const isProprietario =
-                    usuario.userRole === "ADMIN_PROPRIETARIO";
-                  const isProprioUsuario =
-                    usuarioLogado?.id != null &&
-                    String(usuarioLogado.id) === String(usuario.id);
-                  const podeVisualizarLinha =
-                    !isUsuarioComum || isProprioUsuario;
-                  const podeEditarLinha = isUsuarioComum
-                    ? isProprioUsuario
-                    : podeEditar;
-
-                  return (
-                    <tr
-                      key={usuario.id}
-                      className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                    >
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <div className="flex items-center gap-1">
-                          {podeVisualizarLinha && (
-                            <TableActionIcon
-                              icon={Eye}
-                              label="Visualizar"
-                              onClick={() => navigate(`/usuarios/${usuario.id}`)}
-                            />
-                          )}
-
-                          {podeEditarLinha && (
-                            <TableActionIcon
-                              icon={Pencil}
-                              label="Editar"
-                              onClick={() =>
-                                navigate(`/usuarios/${usuario.id}/editar`)
-                              }
-                            />
-                          )}
-
-                          {!isUsuarioComum && podeEditar && (
-                            <TableActionIcon
-                              icon={ShieldCheck}
-                              label="Permissões"
-                              onClick={() =>
-                                navigate(`/usuarios/${usuario.id}/permissoes`)
-                              }
-                            />
-                          )}
-
-                          {!isUsuarioComum && podeAlterarStatus && !isProprietario && (
-                            <TableActionIcon
-                              icon={Power}
-                              label={
-                                usuario.statusUsuario === "ATIVO"
-                                  ? "Inativar"
-                                  : "Ativar"
-                              }
-                              onClick={() => {
-                                if (changingStatusId === usuario.id) return;
-                                void handleToggleStatus(usuario);
-                              }}
-                            />
-                          )}
-
-                          {!isUsuarioComum && podeExcluir && !isProprietario && (
-                            <TableActionIcon
-                              icon={Trash2}
-                              label="Excluir"
-                              variant="danger"
-                              onClick={() => setConfirmDelete(usuario.id)}
-                            />
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={usuario.name} bold>
-                          {usuario.name}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                        {usuario.login}
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <span
-                          className={`text-[13px] ${semEmpresa
-                              ? "font-medium text-destructive"
-                              : "text-muted-foreground"
-                            }`}
-                        >
-                          {empresaNome(usuario.configuracaoEmpresaId)}
-                        </span>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <span
-                          className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium ${roleTone[usuario.userRole]
-                            }`}
-                        >
-                          {userRoleLabel[usuario.userRole]}
-                        </span>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <span
-                          className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium ${statusTone[usuario.statusUsuario]
-                            }`}
-                        >
-                          {statusUsuarioLabel[usuario.statusUsuario]}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                {paginated.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-16 text-center">
-                      <Users className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                      <p className="mt-3 text-sm text-muted-foreground">
-                        Nenhum usuário encontrado.
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="divide-y divide-border md:hidden">
-            {paginated.length === 0 ? (
-              <div className="p-10 text-center">
-                <Users className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nenhum usuário encontrado.
-                </p>
+                </FilterField>
+              </SearchFilterGrid>
+              <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 gap-2 px-4"
+                  onClick={handleClearFiltros}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Limpar filtros
+                </Button>
+                <Button
+                  type="submit"
+                  variant="glassPrimary"
+                  className="h-9 gap-2 px-5"
+                  disabled={searching}
+                >
+                  <Search className="h-4 w-4" />
+                  {searching ? "Pesquisando..." : "Pesquisar"}
+                </Button>
               </div>
-            ) : (
-              paginated.map((usuario) => {
-                const semEmpresa = !usuario.configuracaoEmpresaId;
-                const isProprietario =
-                  usuario.userRole === "ADMIN_PROPRIETARIO";
-                const isProprioUsuario =
-                  usuarioLogado?.id != null &&
-                  String(usuarioLogado.id) === String(usuario.id);
-                const podeVisualizarLinha =
-                  !isUsuarioComum || isProprioUsuario;
-                const podeEditarLinha = isUsuarioComum
-                  ? isProprioUsuario
-                  : podeEditar;
-
-                return (
-                  <div key={usuario.id} className="p-4">
-                    <div className="mb-3 flex items-center gap-1">
-                      {podeVisualizarLinha && (
-                        <TableActionIcon
-                          icon={Eye}
-                          label="Visualizar"
-                          onClick={() => navigate(`/usuarios/${usuario.id}`)}
-                        />
-                      )}
-
-                      {podeEditarLinha && (
-                        <TableActionIcon
-                          icon={Pencil}
-                          label="Editar"
-                          onClick={() =>
-                            navigate(`/usuarios/${usuario.id}/editar`)
-                          }
-                        />
-                      )}
-
-                      {!isUsuarioComum && podeEditar && (
-                        <TableActionIcon
-                          icon={ShieldCheck}
-                          label="Permissões"
-                          onClick={() =>
-                            navigate(`/usuarios/${usuario.id}/permissoes`)
-                          }
-                        />
-                      )}
-
-                      {!isUsuarioComum && podeAlterarStatus && !isProprietario && (
-                        <TableActionIcon
-                          icon={Power}
-                          label={
-                            usuario.statusUsuario === "ATIVO"
-                              ? "Inativar"
-                              : "Ativar"
-                          }
-                          onClick={() => {
-                            if (changingStatusId === usuario.id) return;
-                            void handleToggleStatus(usuario);
-                          }}
-                        />
-                      )}
-
-                      {!isUsuarioComum && podeExcluir && !isProprietario && (
-                        <TableActionIcon
-                          icon={Trash2}
-                          label="Excluir"
-                          variant="danger"
-                          onClick={() => setConfirmDelete(usuario.id)}
-                        />
-                      )}
-                    </div>
-
-                    <p className="font-medium text-foreground">
-                      {usuario.name}
-                    </p>
-
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {usuario.login}
-                    </p>
-
-                    <p
-                      className={`mt-1 text-xs ${semEmpresa
-                          ? "font-medium text-destructive"
-                          : "text-muted-foreground"
-                        }`}
-                    >
-                      {empresaNome(usuario.configuracaoEmpresaId)}
-                    </p>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span
-                        className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium ${roleTone[usuario.userRole]
-                          }`}
-                      >
-                        {userRoleLabel[usuario.userRole]}
-                      </span>
-
-                      <span
-                        className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium ${statusTone[usuario.statusUsuario]
-                          }`}
-                      >
-                        {statusUsuarioLabel[usuario.statusUsuario]}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          <TablePagination
-            totalItems={sortedItems.length}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            onCopy={handleCopy}
+            </form>
+          </AdvancedSearchPanel>
+          <ActiveFilters
+            items={activeFilters}
+            onClearAll={handleClearFiltros}
           />
+          <DataTableCard>
+            <DataTableToolbar
+              total={filtered.length}
+              reportTo="/relatorios"
+              exportColumns={[
+                { header: "Nome", key: "name" },
+                { header: "Login", key: "login" },
+                { header: "Organização", key: "empresa" },
+                { header: "Perfil", key: "perfil" },
+                { header: "Status", key: "status" },
+              ]}
+              getExportData={() =>
+                filtered.map((usuario) => ({
+                  name: usuario.name,
+                  login: usuario.login,
+                  empresa: empresaNome(usuario.configuracaoEmpresaId),
+                  perfil: userRoleLabel[usuario.userRole],
+                  status: statusUsuarioLabel[usuario.statusUsuario],
+                }))
+              }
+              exportFilename="usuarios"
+              canExport={permissoes.BAIXAR}
+            />
+            {filtered.length === 0 ? (
+              <DataTableEmptyState
+                emptyTitle="Nenhum usuário encontrado."
+                emptyDescription="Cadastre o primeiro usuário para liberar o acesso ao sistema."
+                activeCount={activeFilters.length}
+              />
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="min-w-full w-max">
+                    <thead>
+                      <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
+                        <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Ações
+                        </th>
+                        <SortableTh
+                          sortKey="name"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Nome
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="login"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Usuário
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="empresa"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Organização
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="userRole"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Perfil
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="statusUsuario"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Status
+                        </SortableTh>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginated.map((usuario) => (
+                        <UsuarioRow
+                          key={usuario.id}
+                          usuario={usuario}
+                          mobile={false}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="divide-y divide-border md:hidden">
+                  {paginated.map((usuario) => (
+                    <UsuarioRow key={usuario.id} usuario={usuario} mobile />
+                  ))}
+                </div>
+                <DataTablePagination
+                  totalItems={filtered.length}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  entityLabel="usuário"
+                  entityLabelPlural="usuários"
+                  pageSizeLabel="Registros por página"
+                />
+              </>
+            )}
+          </DataTableCard>
         </div>
       </div>
 
@@ -748,7 +837,10 @@ export default function Usuarios() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <WikiFloatingButton pageTitle="Usuários" />
+      <WikiFloatingButton
+        pageTitle="Usuários"
+        href="/wiki/configuracoes/usuarios"
+      />
     </AppLayout>
   );
 }

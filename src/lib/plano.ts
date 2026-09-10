@@ -1,4 +1,4 @@
-import { getAuthHeaders, getUsuarioLogadoStorage } from "@/lib/auth";
+import { getAuthHeaders } from "@/lib/auth";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -10,19 +10,49 @@ export type TipoPlano =
 
 export const LIMITE_USUARIOS_PLANO_GRATUITO = 3;
 
-interface ConfiguracaoEmpresaDTO {
-  id?: number;
+// Mesma matriz aplicada à navegação. Mantê-la aqui permite que uma URL direta
+// receba o bloqueio de plano antes mesmo de montar a página protegida.
+const MODULOS_EXCLUSIVOS_PLANO_PAGO = new Set<string>([
+  "DOCUMENTOS",
+  "CURRICULOS",
+  "TRAJETORIAS_CULTURAIS",
+  "METAS_PROJETO",
+  "CRONOGRAMA",
+  "PLANOS_AULA",
+  "EVIDENCIAS",
+  "EDITAIS",
+  "PROPOSTAS_EDITAL",
+  "EQUIPE_EDITAL",
+  "PLANO_COMUNICACAO",
+  "ACOES_DIVULGACAO",
+  "PLANEJAMENTO_FINANCEIRO",
+  "RESULTADO_PROPOSTA",
+  "HABILITACAO",
+  "FINANCEIRO",
+  "PAINEL_FINANCEIRO",
+  "CONTAS_BANCARIAS",
+  "FORNECEDORES",
+  "DOADORES",
+  "DOACOES",
+  "PARCEIROS",
+  "CONTAS_PAGAR",
+  "CONTAS_RECEBER",
+  "TRANSFERENCIAS_BANCARIAS",
+  "MOVIMENTACOES_BANCARIAS",
+  "FLUXO_CAIXA",
+  "CONCILIACOES_BANCARIAS",
+  "PRESTACAO_CONTAS",
+  "PRESTACAO_METAS",
+  "PATRIMONIO",
+  "EMPRESTIMOS",
+]);
+
+interface PlanoAtualDTO {
   tipoPlano?: TipoPlano | null;
 }
 
 export async function getTipoPlanoAtual(): Promise<TipoPlano | null> {
-  const usuario = getUsuarioLogadoStorage();
-  const configuracaoEmpresaId =
-    usuario?.configuracaoEmpresaId != null
-      ? String(usuario.configuracaoEmpresaId)
-      : "";
-
-  const response = await fetch(`${API_URL}/configuracoes-empresa`, {
+  const response = await fetch(`${API_URL}/configuracoes-empresa/me/plano`, {
     method: "GET",
     headers: getAuthHeaders(),
   });
@@ -31,23 +61,8 @@ export async function getTipoPlanoAtual(): Promise<TipoPlano | null> {
     return null;
   }
 
-  const data: ConfiguracaoEmpresaDTO[] = await response.json();
-
-  if (!Array.isArray(data) || data.length === 0) {
-    return null;
-  }
-
-  if (configuracaoEmpresaId) {
-    const found = data.find(
-      (item) => String(item.id) === configuracaoEmpresaId,
-    );
-
-    if (found?.tipoPlano) {
-      return found.tipoPlano;
-    }
-  }
-
-  return data[0]?.tipoPlano ?? null;
+  const data = (await response.json()) as PlanoAtualDTO;
+  return data?.tipoPlano ?? null;
 }
 
 export async function isPlanoGratuitoAtual() {
@@ -56,6 +71,10 @@ export async function isPlanoGratuitoAtual() {
 
 export function isPlanoPagoOuCortesia(tipoPlano?: TipoPlano | null): boolean {
   return tipoPlano === "PLANO_PAGO" || tipoPlano === "PLANO_CORTESIA";
+}
+
+export function moduloExigePlanoPago(modulo?: string): boolean {
+  return !!modulo && MODULOS_EXCLUSIVOS_PLANO_PAGO.has(modulo);
 }
 
 export function getPlanoLabel(tipoPlano?: TipoPlano | null): string {

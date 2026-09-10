@@ -12,6 +12,7 @@ import {
   Building2,
   CalendarClock,
   X,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
+import { maskCpfCnpj } from "@/lib/masks";
 import {
   formasPagamento,
   aplicacoesFinanceiro,
@@ -43,38 +45,15 @@ import {
   type FinanceiroPayloadDTO,
 } from "@/data/financeiro";
 import { toast } from "sonner";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const NONE_VALUE = "__NONE__";
 const MAX_FILE_MB = 10;
 
-const FINANCEIRO_NEXT_STEP_KEY = "aurit:financeiro:next-step-card";
-
-interface FinanceiroNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
-}
-
 function salvarProximaAcaoFinanceiro() {
-  const card: FinanceiroNextStepCardData = {
-    titulo:
-      "Após registrar o controle financeiro, acompanhe o cumprimento das metas",
-    descricao:
-      "O cumprimento de metas ajuda a comparar o que foi planejado com o que foi executado, registrando a meta prevista, o resultado alcançado e as evidências que comprovam a realização das ações.",
-    acaoLabel: "Cadastrar cumprimento de metas",
-    acaoUrl: "/cumprimento-metas/novo",
-    acaoSecundariaLabel: "Ver controle financeiro",
-    acaoSecundariaUrl: "/financeiro",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(FINANCEIRO_NEXT_STEP_KEY, JSON.stringify(card));
+  emitJourneyNextStep();
 }
 
 interface OrganizacaoOption {
@@ -177,28 +156,6 @@ const initial: FormState = {
 const onlyDigits = (value: string, max = 14) =>
   value.replace(/\D/g, "").slice(0, max);
 
-const maskCpfCnpj = (value: string) => {
-  const digits = onlyDigits(value, 14);
-
-  if (!digits) return "";
-
-  if (digits.length <= 11) {
-    return digits
-      .replace(/^(\d{3})(\d)/, "$1.$2")
-      .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
-      .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, "$1.$2.$3-$4");
-  }
-
-  return digits
-    .replace(/^(\d{2})(\d)/, "$1.$2")
-    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
-    .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, "$1.$2.$3/$4")
-    .replace(
-      /^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/,
-      "$1.$2.$3/$4-$5",
-    );
-};
-
 const moneyToInput = (value?: number) => {
   if (value == null || Number.isNaN(value)) return "";
 
@@ -263,12 +220,33 @@ function getNomeComprovante(urlComprovante?: string) {
 
   const ultimoTrecho = urlComprovante.split("?")[0].split("/").pop() ?? "";
 
-  return ultimoTrecho
-    .replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i, "")
-    .trim() || "Comprovante anexado";
+  return (
+    ultimoTrecho
+      .replace(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i,
+        "",
+      )
+      .trim() || "Comprovante anexado"
+  );
 }
 
-function optionName(item: any, fallback: string) {
+interface ApiOptionRecord {
+  id: string | number;
+  nomePlanejamento?: string;
+  nomeProjeto?: string;
+  nomeAtividade?: string;
+  nomeEvento?: string;
+  nomeAcao?: string;
+  nomeCompleto?: string;
+  razaoSocial?: string;
+  nomeFantasia?: string;
+  nomeOrganizacao?: string;
+  titulo?: string;
+  projetoId?: string | number | null;
+  cpf?: string;
+}
+
+function optionName(item: ApiOptionRecord, fallback: string) {
   return (
     item.nomePlanejamento?.trim() ||
     item.nomeProjeto?.trim() ||
@@ -310,7 +288,8 @@ export default function FinanceiroForm() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const bloqueado = loading || saving || visualizando;
-  const comprovanteLabel = comprovanteFile?.name || getNomeComprovante(form.urlComprovante);
+  const comprovanteLabel =
+    comprovanteFile?.name || getNomeComprovante(form.urlComprovante);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -340,11 +319,9 @@ export default function FinanceiroForm() {
 
   const vinculosComplementares = useMemo(
     () =>
-      [
-        form.atividadeId,
-        form.eventoCulturalId,
-        form.acaoDivulgacaoId,
-      ].filter(Boolean).length,
+      [form.atividadeId, form.eventoCulturalId, form.acaoDivulgacaoId].filter(
+        Boolean,
+      ).length,
     [form.atividadeId, form.eventoCulturalId, form.acaoDivulgacaoId],
   );
 
@@ -409,29 +386,30 @@ export default function FinanceiroForm() {
       const acoesData = await acoesRes.json();
 
       setOrganizacoes(
-        (organizacoesData ?? []).map((item: any) => ({
+        (organizacoesData ?? []).map((item: ApiOptionRecord) => ({
           id: String(item.id),
           nome: optionName(item, `Organização ${item.id}`),
         })),
       );
 
       setPlanejamentos(
-        (planejamentosData ?? []).map((item: any) => ({
+        (planejamentosData ?? []).map((item: ApiOptionRecord) => ({
           id: String(item.id),
           nome: optionName(item, `Orçamento ${item.id}`),
-          projetoId: item.projetoId != null ? String(item.projetoId) : undefined,
+          projetoId:
+            item.projetoId != null ? String(item.projetoId) : undefined,
         })),
       );
 
       setProjetos(
-        (projetosData ?? []).map((item: any) => ({
+        (projetosData ?? []).map((item: ApiOptionRecord) => ({
           id: String(item.id),
           nome: optionName(item, `Projeto ${item.id}`),
         })),
       );
 
       setColaboradores(
-        (colaboradoresData ?? []).map((item: any) => ({
+        (colaboradoresData ?? []).map((item: ApiOptionRecord) => ({
           id: String(item.id),
           nome: optionName(item, `Colaborador ${item.id}`),
           cpf: item.cpf,
@@ -439,21 +417,21 @@ export default function FinanceiroForm() {
       );
 
       setAtividades(
-        (atividadesData ?? []).map((item: any) => ({
+        (atividadesData ?? []).map((item: ApiOptionRecord) => ({
           id: String(item.id),
           nome: optionName(item, `Atividade ${item.id}`),
         })),
       );
 
       setEventos(
-        (eventosData ?? []).map((item: any) => ({
+        (eventosData ?? []).map((item: ApiOptionRecord) => ({
           id: String(item.id),
           nome: optionName(item, `Evento ${item.id}`),
         })),
       );
 
       setAcoes(
-        (acoesData ?? []).map((item: any) => ({
+        (acoesData ?? []).map((item: ApiOptionRecord) => ({
           id: String(item.id),
           nome: optionName(item, `Ação ${item.id}`),
         })),
@@ -588,7 +566,9 @@ export default function FinanceiroForm() {
     if (!file) return;
 
     if (!isAllowedComprovante(file)) {
-      toast.error("Formato não permitido. Envie PDF, PNG, JPG, JPEG, WEBP ou OFX.");
+      toast.error(
+        "Formato não permitido. Envie PDF, PNG, JPG, JPEG, WEBP ou OFX.",
+      );
       e.target.value = "";
       return;
     }
@@ -642,7 +622,9 @@ export default function FinanceiroForm() {
     if (visualizando) return;
 
     if (colaboradorSelected && pessoaSelected) {
-      toast.error("Preencha apenas Colaborador OU Nome da Pessoa, nunca os dois.");
+      toast.error(
+        "Preencha apenas Colaborador OU Nome da Pessoa, nunca os dois.",
+      );
       return;
     }
 
@@ -651,8 +633,13 @@ export default function FinanceiroForm() {
       return;
     }
 
-    if (!form.dataPagamento) {
-      toast.error("Informe a data de pagamento.");
+    if (!form.descricao.trim()) {
+      toast.error("Informe a descrição.");
+      return;
+    }
+
+    if (!form.dataPagamento && !form.dataVencimento) {
+      toast.error("Informe a data de pagamento ou a data de vencimento.");
       return;
     }
 
@@ -741,7 +728,9 @@ export default function FinanceiroForm() {
 
       if (editando && id) {
         await updateFinanceiro(Number(id), payload, comprovanteFile);
-        toast.success("Lançamento do controle financeiro atualizado com sucesso.");
+        toast.success(
+          "Lançamento do controle financeiro atualizado com sucesso.",
+        );
       } else {
         await createFinanceiro(payload, comprovanteFile);
         salvarProximaAcaoFinanceiro();
@@ -753,7 +742,9 @@ export default function FinanceiroForm() {
       console.error(error);
 
       toast.error(
-        error instanceof Error ? error.message : "Erro ao salvar lançamento do controle financeiro.",
+        error instanceof Error
+          ? error.message
+          : "Erro ao salvar lançamento do controle financeiro.",
       );
     } finally {
       setSaving(false);
@@ -817,7 +808,10 @@ export default function FinanceiroForm() {
             </div>
           </Section>
 
-          <Section icon={FileText} title="Identificação do lançamento do controle financeiro">
+          <Section
+            icon={FileText}
+            title="Identificação do lançamento do controle financeiro"
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
@@ -839,6 +833,7 @@ export default function FinanceiroForm() {
               <Field>
                 <FieldLabel
                   htmlFor="descricao"
+                  required
                   tooltip="Informe uma descrição clara e objetiva sobre o motivo da entrada ou saída financeira. Ex.: pagamento da conta de luz, compra de material pedagógico, recebimento de recurso do edital ou pagamento de oficina."
                 >
                   Descrição
@@ -876,7 +871,7 @@ export default function FinanceiroForm() {
                     value={comprovanteLabel}
                     readOnly
                     disabled
-                    className="flex-1 cursor-not-allowed bg-muted/40"
+                    className="attachment-file-glass flex-1 cursor-not-allowed"
                     placeholder="Nenhum arquivo anexado"
                   />
 
@@ -906,13 +901,13 @@ export default function FinanceiroForm() {
                   {!visualizando && (
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="glassSecondary"
                       className="h-10 gap-2"
                       onClick={abrirSeletorComprovante}
                       disabled={saving}
                     >
                       <Upload className="h-4 w-4" />
-                      Anexar
+                      {comprovanteLabel ? "Substituir" : "Selecionar arquivo"}
                     </Button>
                   )}
                 </div>
@@ -936,8 +931,8 @@ export default function FinanceiroForm() {
                 )}
 
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Formatos aceitos: PDF, PNG, JPG, JPEG, WEBP ou OFX. Tamanho máximo:
-                  10 MB.
+                  Formatos aceitos: PDF, PNG, JPG, JPEG, WEBP ou OFX. Tamanho
+                  máximo: 10 MB.
                 </p>
               </Field>
             </div>
@@ -948,7 +943,6 @@ export default function FinanceiroForm() {
               <Field>
                 <FieldLabel
                   htmlFor="dataPagamento"
-                  required
                   tooltip="Informe a data em que a movimentação foi paga, recebida ou registrada financeiramente."
                 >
                   Data do Pagamento
@@ -967,6 +961,7 @@ export default function FinanceiroForm() {
               <Field>
                 <FieldLabel
                   htmlFor="dataVencimento"
+                  required={form.statusFinanceiro === "VENCIDO"}
                   tooltip="Informe a data de vencimento quando houver prazo de pagamento, boleto, conta, parcela ou despesa programada."
                 >
                   Data de Vencimento
@@ -995,8 +990,8 @@ export default function FinanceiroForm() {
                 <p className="text-amber-800/90">
                   Informe quem está relacionado à movimentação. Se for alguém já
                   cadastrado na equipe, selecione o colaborador. Se for uma
-                  pessoa externa, empresa ou fornecedor, preencha o nome no campo
-                  “Nome da Pessoa”. Use apenas uma dessas opções.
+                  pessoa externa, empresa ou fornecedor, preencha o nome no
+                  campo “Nome da Pessoa”. Use apenas uma dessas opções.
                 </p>
               </div>
             </div>
@@ -1106,7 +1101,8 @@ export default function FinanceiroForm() {
 
                 {colaboradorSelected && (
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Preenchido automaticamente a partir do colaborador selecionado.
+                    Preenchido automaticamente a partir do colaborador
+                    selecionado.
                   </p>
                 )}
               </Field>
@@ -1279,7 +1275,10 @@ export default function FinanceiroForm() {
             </div>
           </Section>
 
-          <Section icon={Link2} title="Origem do lançamento do controle financeiro">
+          <Section
+            icon={Link2}
+            title="Origem do lançamento do controle financeiro"
+          >
             <div className="mb-4 rounded border border-border border-l-4 border-l-primary/70 bg-primary-soft/40 p-4 shadow-sm">
               <p className="text-[12px] font-semibold uppercase tracking-wide text-primary mb-2">
                 Vínculos opcionais
@@ -1287,8 +1286,8 @@ export default function FinanceiroForm() {
 
               <p className="text-[13px] leading-relaxed text-foreground/90">
                 Vincule a movimentação apenas quando ela estiver diretamente
-                relacionada a um projeto, planejamento, atividade, evento cultural
-                ou ação de divulgação. Para despesas administrativas ou
+                relacionada a um projeto, planejamento, atividade, evento
+                cultural ou ação de divulgação. Para despesas administrativas ou
                 institucionais, deixe esses vínculos em branco e detalhe a
                 finalidade na observação.
               </p>
@@ -1479,7 +1478,7 @@ function Section({
   title,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
   children: React.ReactNode;
 }) {

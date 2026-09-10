@@ -22,7 +22,9 @@ export function extractTableTSV(table: HTMLTableElement | null): string {
     headers.push((th.textContent || "").trim().replace(/\s+/g, " "));
   });
 
-  const bodyRows = Array.from(table.querySelectorAll("tbody tr")) as HTMLTableRowElement[];
+  const bodyRows = Array.from(
+    table.querySelectorAll("tbody tr"),
+  ) as HTMLTableRowElement[];
   const lines: string[] = [headers.join("\t")];
 
   bodyRows.forEach((tr) => {

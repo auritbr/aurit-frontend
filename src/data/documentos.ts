@@ -22,11 +22,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -406,14 +402,17 @@ export type TipoDocumento = (typeof tipoDocumentoValues)[number];
 
 export const tipoDocumentoLabels: Record<TipoDocumento, string> = {
   CNPJ: "CNPJ",
-  COMPROVANTE_INSCRICAO_SITUACAO_CADASTRAL_CNPJ: "Comprovante de Inscrição e Situação Cadastral do CNPJ",
-  QSA_QUADRO_SOCIETARIO_ADMINISTRADORES: "QSA - Quadro de Sócios e Administradores",
+  COMPROVANTE_INSCRICAO_SITUACAO_CADASTRAL_CNPJ:
+    "Comprovante de Inscrição e Situação Cadastral do CNPJ",
+  QSA_QUADRO_SOCIETARIO_ADMINISTRADORES:
+    "QSA - Quadro de Sócios e Administradores",
   NIRE: "NIRE",
   INSCRICAO_ESTADUAL: "Inscrição Estadual",
   INSCRICAO_MUNICIPAL: "Inscrição Municipal",
-  ALVARA_FUNCIONAMENTO: "Alvará Funcionamento",
-  LICENCA_FUNCIONAMENTO: "Licença Funcionamento",
-  CERTIFICADO_CONDICAO_MICROEMPREENDEDOR_INDIVIDUAL: "Certificado da Condição de Microempreendedor Individual",
+  ALVARA_FUNCIONAMENTO: "Alvará de funcionamento",
+  LICENCA_FUNCIONAMENTO: "Licença de funcionamento",
+  CERTIFICADO_CONDICAO_MICROEMPREENDEDOR_INDIVIDUAL:
+    "Certificado da Condição de Microempreendedor Individual",
   CONTRATO_SOCIAL: "Contrato Social",
   REQUERIMENTO_EMPRESARIO: "Requerimento Empresário",
   CERTIFICADO_MEI: "Certificado MEI",
@@ -440,39 +439,53 @@ export const tipoDocumentoLabels: Record<TipoDocumento, string> = {
   LIVRO_REGISTRO_ASSOCIADOS: "Livro de Registro de Associados",
   DECLARACAO_NAO_REMUNERACAO_DIRETORIA: "Declaração Nao Remuneração Diretoria",
   DECLARACAO_REMUNERACAO_DIRETORIA: "Declaração Remuneração Diretoria",
-  DECLARACAO_INEXISTENCIA_CONFLITO_INTERESSES: "Declaração de Inexistência de Conflito de Interesses",
+  DECLARACAO_INEXISTENCIA_CONFLITO_INTERESSES:
+    "Declaração de Inexistência de Conflito de Interesses",
   CPF_REPRESENTANTE: "CPF do Representante",
   RG_REPRESENTANTE: "RG do Representante",
   CNH_REPRESENTANTE: "CNH do Representante",
-  DOCUMENTO_IDENTIFICACAO_REPRESENTANTE: "Documento de Identificação do Representante",
-  DOCUMENTO_IDENTIFICACAO_REPRESENTANTE_FRENTE_VERSO: "Documento de Identificação do Representante (Frente e Verso)",
-  COMPROVANTE_ENDERECO_REPRESENTANTE: "Comprovante de Endereço do Representante",
-  COMPROVANTE_RESIDENCIA_REPRESENTANTE: "Comprovante de Residência do Representante",
+  DOCUMENTO_IDENTIFICACAO_REPRESENTANTE:
+    "Documento de Identificação do Representante",
+  DOCUMENTO_IDENTIFICACAO_REPRESENTANTE_FRENTE_VERSO:
+    "Documento de Identificação do Representante (Frente e Verso)",
+  COMPROVANTE_ENDERECO_REPRESENTANTE:
+    "Comprovante de Endereço do Representante",
+  COMPROVANTE_RESIDENCIA_REPRESENTANTE:
+    "Comprovante de Residência do Representante",
   CERTIDAO_NASCIMENTO_REPRESENTANTE: "Certidão de Nascimento do Representante",
   CERTIDAO_CASAMENTO_REPRESENTANTE: "Certidão de Casamento do Representante",
   PROCURACAO_REPRESENTANTE: "Procuração do Representante",
   TERMO_NOMEACAO_REPRESENTANTE: "Termo de Nomeação do Representante",
   DECLARACAO_REPRESENTANTE_LEGAL: "Declaração do Representante Legal",
-  CARTA_INDICACAO_REPRESENTANTE_COLETIVO: "Carta de Indicação do Representante do Coletivo",
+  CARTA_INDICACAO_REPRESENTANTE_COLETIVO:
+    "Carta de Indicação do Representante do Coletivo",
   COMPROVANTE_ENDERECO: "Comprovante de Endereço",
   COMPROVANTE_SEDE: "Comprovante Sede",
   CONTRATO_LOCACAO: "Contrato Locação",
   TERMO_CESSAO_USO_ESPACO: "Termo de Cessão de Uso de Espaço",
   DECLARACAO_CESSAO_ESPACO: "Declaração de Cessão de Espaço",
-  DECLARACAO_FUNCIONAMENTO_NO_ENDERECO: "Declaração de Funcionamento no Endereço",
+  DECLARACAO_FUNCIONAMENTO_NO_ENDERECO:
+    "Declaração de Funcionamento no Endereço",
   IPTU_IMOVEL: "IPTU Imovel",
   CONTA_AGUA: "Conta de Água",
   CONTA_LUZ: "Conta de Luz",
   CONTA_TELEFONE_INTERNET: "Conta de Telefone/Internet",
-  CERTIDAO_NEGATIVA_DEBITOS_MUNICIPAIS: "Certidão Negativa de Débitos Municipais",
-  CERTIDAO_POSITIVA_EFEITOS_NEGATIVA_DEBITOS_MUNICIPAIS: "Certidão Positiva com Efeitos de Negativa de Débitos Municipais",
-  CERTIDAO_DEBITOS_TRIBUTARIOS_FAZENDA_ESTADUAL: "Certidão de Débitos Tributários da Fazenda Estadual",
+  CERTIDAO_NEGATIVA_DEBITOS_MUNICIPAIS:
+    "Certidão Negativa de Débitos Municipais",
+  CERTIDAO_POSITIVA_EFEITOS_NEGATIVA_DEBITOS_MUNICIPAIS:
+    "Certidão Positiva com Efeitos de Negativa de Débitos Municipais",
+  CERTIDAO_DEBITOS_TRIBUTARIOS_FAZENDA_ESTADUAL:
+    "Certidão de Débitos Tributários da Fazenda Estadual",
   CERTIDAO_NEGATIVA_DEBITOS_ESTADUAIS: "Certidão Negativa de Débitos Estaduais",
-  CERTIDAO_POSITIVA_EFEITOS_NEGATIVA_DEBITOS_ESTADUAIS: "Certidão Positiva com Efeitos de Negativa de Débitos Estaduais",
-  CERTIDAO_DEBITOS_TRIBUTARIOS_FEDERAIS_DIVIDA_ATIVA_UNIAO: "Certidão de Débitos Tributários Federais e Dívida Ativa da União",
+  CERTIDAO_POSITIVA_EFEITOS_NEGATIVA_DEBITOS_ESTADUAIS:
+    "Certidão Positiva com Efeitos de Negativa de Débitos Estaduais",
+  CERTIDAO_DEBITOS_TRIBUTARIOS_FEDERAIS_DIVIDA_ATIVA_UNIAO:
+    "Certidão de Débitos Tributários Federais e Dívida Ativa da União",
   CERTIDAO_NEGATIVA_DEBITOS_FEDERAIS: "Certidão Negativa de Débitos Federais",
-  CERTIDAO_POSITIVA_EFEITOS_NEGATIVA_DEBITOS_FEDERAIS: "Certidão Positiva com Efeitos de Negativa de Débitos Federais",
-  CERTIDAO_REGULARIDADE_FISCAL_RECEITA_FEDERAL_PGFN: "Certidão de Regularidade Fiscal da Receita Federal e PGFN",
+  CERTIDAO_POSITIVA_EFEITOS_NEGATIVA_DEBITOS_FEDERAIS:
+    "Certidão Positiva com Efeitos de Negativa de Débitos Federais",
+  CERTIDAO_REGULARIDADE_FISCAL_RECEITA_FEDERAL_PGFN:
+    "Certidão de Regularidade Fiscal da Receita Federal e PGFN",
   CERTIDAO_DIVIDA_ATIVA_MUNICIPAL: "Certidão de Dívida Ativa Municipal",
   CERTIDAO_DIVIDA_ATIVA_ESTADUAL: "Certidão de Dívida Ativa Estadual",
   CERTIDAO_DIVIDA_ATIVA_UNIAO: "Certidão de Dívida Ativa da União",
@@ -481,8 +494,10 @@ export const tipoDocumentoLabels: Record<TipoDocumento, string> = {
   CERTIDAO_CADIN_MUNICIPAL: "Certidão CADIN Municipal",
   CERTIDAO_CADIN_ESTADUAL: "Certidão CADIN Estadual",
   CERTIDAO_CADIN_FEDERAL: "Certidão CADIN Federal",
-  CERTIDAO_NEGATIVA_DEBITOS_TRABALHISTAS: "Certidão Negativa de Débitos Trabalhistas",
-  CERTIDAO_POSITIVA_EFEITOS_NEGATIVA_DEBITOS_TRABALHISTAS: "Certidão Positiva com Efeitos de Negativa de Débitos Trabalhistas",
+  CERTIDAO_NEGATIVA_DEBITOS_TRABALHISTAS:
+    "Certidão Negativa de Débitos Trabalhistas",
+  CERTIDAO_POSITIVA_EFEITOS_NEGATIVA_DEBITOS_TRABALHISTAS:
+    "Certidão Positiva com Efeitos de Negativa de Débitos Trabalhistas",
   CERTIDAO_REGULARIDADE_FGTS: "Certidão de Regularidade do FGTS",
   CERTIFICADO_REGULARIDADE_FGTS: "Certificado de Regularidade do FGTS",
   COMPROVANTE_ESOCIAL: "Comprovante eSocial",
@@ -492,11 +507,13 @@ export const tipoDocumentoLabels: Record<TipoDocumento, string> = {
   GUIA_RECOLHIMENTO_FGTS: "Guia de Recolhimento do FGTS",
   GUIA_RECOLHIMENTO_INSS: "Guia de Recolhimento do INSS",
   CERTIDAO_FALENCIA_E_CONCORDATA: "Certidão de Falência e Concordata",
-  CERTIDAO_FALENCIA_RECUPERACAO_JUDICIAL_EXTRAJUDICIAL: "Certidão de Falência, Recuperação Judicial e Extrajudicial",
+  CERTIDAO_FALENCIA_RECUPERACAO_JUDICIAL_EXTRAJUDICIAL:
+    "Certidão de Falência, Recuperação Judicial e Extrajudicial",
   CERTIDAO_DISTRIBUICAO_CIVEL: "Certidão de Distribuição Cível",
   CERTIDAO_DISTRIBUICAO_CRIMINAL: "Certidão de Distribuição Criminal",
   CERTIDAO_EXECUCAO_FISCAL: "Certidão de Execução Fiscal",
-  CERTIDAO_IMPROBIDADE_ADMINISTRATIVA_CNJ: "Certidão de Improbidade Administrativa - CNJ",
+  CERTIDAO_IMPROBIDADE_ADMINISTRATIVA_CNJ:
+    "Certidão de Improbidade Administrativa - CNJ",
   CERTIDAO_INIDONEIDADE_TCU: "Certidão de Inidoneidade - TCU",
   CERTIDAO_CEIS: "Certidão CEIS",
   CERTIDAO_CNEP: "Certidão CNEP",
@@ -504,7 +521,8 @@ export const tipoDocumentoLabels: Record<TipoDocumento, string> = {
   DECLARACAO_INEXISTENCIA_IMPEDIMENTO: "Declaração Inexistência Impedimento",
   DECLARACAO_NAO_INIDONEIDADE: "Declaração de Não Inidoneidade",
   DECLARACAO_NAO_EMPREGAR_MENOR: "Declaração de Não Empregar Menor",
-  DECLARACAO_CUMPRIMENTO_ARTIGO_7_CONSTITUICAO: "Declaração de Cumprimento do Artigo 7º da Constituição",
+  DECLARACAO_CUMPRIMENTO_ARTIGO_7_CONSTITUICAO:
+    "Declaração de Cumprimento do Artigo 7º da Constituição",
   UTILIDADE_PUBLICA_MUNICIPAL: "Utilidade Pública Municipal",
   UTILIDADE_PUBLICA_ESTADUAL: "Utilidade Pública Estadual",
   UTILIDADE_PUBLICA_FEDERAL: "Utilidade Pública Federal",
@@ -517,10 +535,13 @@ export const tipoDocumentoLabels: Record<TipoDocumento, string> = {
   CERTIFICADO_PONTO_DE_CULTURA: "Certificado de Ponto de Cultura",
   CERTIFICADO_PONTAO_DE_CULTURA: "Certificado de Pontão de Cultura",
   CERTIFICADO_CULTURA_VIVA: "Certificado Cultura Viva",
-  COMPROVANTE_CADASTRO_NACIONAL_PONTOS_PONTOES_CULTURA: "Comprovante de Cadastro Nacional de Pontos e Pontões de Cultura",
-  COMPROVANTE_SOLICITACAO_INGRESSO_CADASTRO_NACIONAL_PONTOS_PONTOES_CULTURA: "Comprovante de Solicitação de Ingresso no Cadastro Nacional de Pontos e Pontões de Cultura",
+  COMPROVANTE_CADASTRO_NACIONAL_PONTOS_PONTOES_CULTURA:
+    "Comprovante de Cadastro Nacional de Pontos e Pontões de Cultura",
+  COMPROVANTE_SOLICITACAO_INGRESSO_CADASTRO_NACIONAL_PONTOS_PONTOES_CULTURA:
+    "Comprovante de Solicitação de Ingresso no Cadastro Nacional de Pontos e Pontões de Cultura",
   CERTIFICADO_ASSISTENCIA_SOCIAL: "Certificado de Assistência Social",
-  CERTIFICADO_ENTIDADE_BENEFICENTE_ASSISTENCIA_SOCIAL: "Certificado de Entidade Beneficente de Assistência Social",
+  CERTIFICADO_ENTIDADE_BENEFICENTE_ASSISTENCIA_SOCIAL:
+    "Certificado de Entidade Beneficente de Assistência Social",
   CEBAS: "CEBAS",
   CERTIFICADO_CEBAS: "Certificado CEBAS",
   COMPROVANTE_PROTOCOLO_CEBAS: "Comprovante Protocolo CEBAS",
@@ -532,14 +553,18 @@ export const tipoDocumentoLabels: Record<TipoDocumento, string> = {
   INSCRICAO_CMDCA: "Inscrição no CMDCA",
   COMPROVANTE_INSCRICAO_CMDCA: "Comprovante de Inscrição no CMDCA",
   INSCRICAO_CONSELHO_IDOSO: "Inscrição no Conselho do Idoso",
-  COMPROVANTE_INSCRICAO_CONSELHO_IDOSO: "Comprovante de Inscrição no Conselho do Idoso",
+  COMPROVANTE_INSCRICAO_CONSELHO_IDOSO:
+    "Comprovante de Inscrição no Conselho do Idoso",
   INSCRICAO_CONSELHO_CULTURA: "Inscrição no Conselho de Cultura",
-  COMPROVANTE_INSCRICAO_CONSELHO_CULTURA: "Comprovante de Inscrição no Conselho de Cultura",
-  INSCRICAO_CONSELHO_DIREITOS_PESSOA_DEFICIENCIA: "Inscrição no Conselho dos Direitos da Pessoa com Deficiência",
+  COMPROVANTE_INSCRICAO_CONSELHO_CULTURA:
+    "Comprovante de Inscrição no Conselho de Cultura",
+  INSCRICAO_CONSELHO_DIREITOS_PESSOA_DEFICIENCIA:
+    "Inscrição no Conselho dos Direitos da Pessoa com Deficiência",
   INSCRICAO_CONSELHO_SAUDE: "Inscrição no Conselho de Saúde",
   INSCRICAO_CONSELHO_EDUCACAO: "Inscrição no Conselho de Educação",
   CADASTUR: "CADASTUR",
-  CNEA_CADASTRO_NACIONAL_ENTIDADES_AMBIENTALISTAS: "CNEA - Cadastro Nacional de Entidades Ambientalistas",
+  CNEA_CADASTRO_NACIONAL_ENTIDADES_AMBIENTALISTAS:
+    "CNEA - Cadastro Nacional de Entidades Ambientalistas",
   PORTFOLIO_INSTITUCIONAL: "Portfólio Institucional",
   PORTFOLIO_CULTURAL: "Portfólio Cultural",
   CURRICULO_INSTITUCIONAL: "Currículo Institucional",
@@ -554,11 +579,13 @@ export const tipoDocumentoLabels: Record<TipoDocumento, string> = {
   CARTA_RECOMENDACAO_COMUNITARIA: "Carta de Recomendação Comunitária",
   CARTA_ANUENCIA: "Carta Anuência",
   CARTA_APOIO: "Carta Apoio",
-  DECLARACAO_RECONHECIMENTO_COMUNIDADE: "Declaração de Reconhecimento da Comunidade",
+  DECLARACAO_RECONHECIMENTO_COMUNIDADE:
+    "Declaração de Reconhecimento da Comunidade",
   DECLARACAO_EXISTENCIA_COLETIVO: "Declaração de Existência do Coletivo",
   AUTODECLARACAO_COLETIVO: "Autodeclaração Coletivo",
   LISTA_INTEGRANTES_COLETIVO: "Lista de Integrantes do Coletivo",
-  DECLARACAO_ANUENCIA_INTEGRANTES_COLETIVO: "Declaração de Anuência dos Integrantes do Coletivo",
+  DECLARACAO_ANUENCIA_INTEGRANTES_COLETIVO:
+    "Declaração de Anuência dos Integrantes do Coletivo",
   TERMO_COMPROMETIMENTO_PNCV: "Termo de Comprometimento - PNCV",
   TERMO_VERACIDADE_INFORMACOES: "Termo de Veracidade das Informações",
   TERMO_ADESAO_PNCV: "Termo de Adesão - PNCV",
@@ -608,14 +635,17 @@ export const tipoDocumentoLabels: Record<TipoDocumento, string> = {
   PLANO_ACESSIBILIDADE: "Plano de Acessibilidade",
   DECLARACAO_ACESSIBILIDADE: "Declaração Acessibilidade",
   DECLARACAO_CONTRAPARTIDA: "Declaração Contrapartida",
-  DECLARACAO_CAPACIDADE_TECNICA_OPERACIONAL: "Declaração de Capacidade Técnica e Operacional",
+  DECLARACAO_CAPACIDADE_TECNICA_OPERACIONAL:
+    "Declaração de Capacidade Técnica e Operacional",
   DECLARACAO_CAPACIDADE_ADMINISTRATIVA: "Declaração Capacidade Administrativa",
   DECLARACAO_CAPACIDADE_FINANCEIRA: "Declaração Capacidade Financeira",
   DECLARACAO_EXPERIENCIA_PREVIA: "Declaração de Experiência Prévia",
   COMPROVANTE_EXPERIENCIA_PREVIA: "Comprovante de Experiência Prévia",
   DECLARACAO_CIENCIA_EDITAL: "Declaração de Ciência do Edital",
-  DECLARACAO_ACEITE_CONDICOES_EDITAL: "Declaração de Aceite das Condições do Edital",
-  DECLARACAO_RESPONSABILIDADE_INFORMACOES: "Declaração de Responsabilidade pelas Informações",
+  DECLARACAO_ACEITE_CONDICOES_EDITAL:
+    "Declaração de Aceite das Condições do Edital",
+  DECLARACAO_RESPONSABILIDADE_INFORMACOES:
+    "Declaração de Responsabilidade pelas Informações",
   RESULTADO_HABILITACAO: "Resultado de Habilitação",
   RESULTADO_CLASSIFICACAO: "Resultado Classificacao",
   RESULTADO_FINAL: "Resultado Final",
@@ -655,22 +685,30 @@ export const tipoDocumentoLabels: Record<TipoDocumento, string> = {
   RELATORIO_PRESTACAO_CONTAS: "Relatório de Prestação de Contas",
   DEMONSTRATIVO_RECEITAS_DESPESAS: "Demonstrativo de Receitas e Despesas",
   DECLARACAO_ISENCAO_IMPOSTO_RENDA: "Declaração de Isenção de Imposto de Renda",
-  DECLARACAO_IMPOSTO_RENDA_PESSOA_JURIDICA: "Declaração de Imposto de Renda Pessoa Jurídica",
+  DECLARACAO_IMPOSTO_RENDA_PESSOA_JURIDICA:
+    "Declaração de Imposto de Renda Pessoa Jurídica",
   ECF_ESCRITURACAO_CONTABIL_FISCAL: "ECF - Escrituração Contábil Fiscal",
   ECD_ESCRITURACAO_CONTABIL_DIGITAL: "ECD - Escrituração Contábil Digital",
   PLANO_ASSISTENCIA_SOCIAL: "Plano de Assistência Social",
   PLANO_TRABALHO_ASSISTENCIA_SOCIAL: "Plano de Trabalho de Assistência Social",
   PLANO_ACAO_ASSISTENCIA_SOCIAL: "Plano de Ação de Assistência Social",
-  RELATORIO_ATIVIDADES_ASSISTENCIA_SOCIAL: "Relatório de Atividades de Assistência Social",
+  RELATORIO_ATIVIDADES_ASSISTENCIA_SOCIAL:
+    "Relatório de Atividades de Assistência Social",
   RELATORIO_SOCIOASSISTENCIAL: "Relatório Socioassistencial",
-  COMPROVANTE_OFERTA_SOCIOASSISTENCIAL: "Comprovante de Oferta Socioassistencial",
-  INSCRICAO_SERVICO_PROGRAMA_PROJETO_BENEFICIO_SOCIOASSISTENCIAL: "Inscrição de Serviço, Programa, Projeto ou Benefício Socioassistencial",
+  COMPROVANTE_OFERTA_SOCIOASSISTENCIAL:
+    "Comprovante de Oferta Socioassistencial",
+  INSCRICAO_SERVICO_PROGRAMA_PROJETO_BENEFICIO_SOCIOASSISTENCIAL:
+    "Inscrição de Serviço, Programa, Projeto ou Benefício Socioassistencial",
   DECLARACAO_GRATUIDADE_ATENDIMENTO: "Declaração de Gratuidade do Atendimento",
-  DECLARACAO_UNIVERSALIDADE_ATENDIMENTO: "Declaração de Universalidade do Atendimento",
-  DECLARACAO_CONTINUIDADE_ATENDIMENTO: "Declaração de Continuidade do Atendimento",
-  DECLARACAO_PLANEJAMENTO_PERMANENCIA: "Declaração de Planejamento e Permanência",
+  DECLARACAO_UNIVERSALIDADE_ATENDIMENTO:
+    "Declaração de Universalidade do Atendimento",
+  DECLARACAO_CONTINUIDADE_ATENDIMENTO:
+    "Declaração de Continuidade do Atendimento",
+  DECLARACAO_PLANEJAMENTO_PERMANENCIA:
+    "Declaração de Planejamento e Permanência",
   COMPROVANTE_VINCULO_SUAS: "Comprovante de Vínculo com o SUAS",
-  COMPROVANTE_CADASTRO_REDE_SOCIOASSISTENCIAL: "Comprovante de Cadastro na Rede Socioassistencial",
+  COMPROVANTE_CADASTRO_REDE_SOCIOASSISTENCIAL:
+    "Comprovante de Cadastro na Rede Socioassistencial",
   CONTRATO_TRABALHO: "Contrato Trabalho",
   CONTRATO_PRESTACAO_SERVICOS: "Contrato de Prestação de Serviços",
   TERMO_VOLUNTARIADO: "Termo Voluntariado",
@@ -1025,13 +1063,13 @@ export async function getOrganizacoesDocumento(): Promise<OrganizacaoOption[]> {
   const data = await response.json();
 
   return (Array.isArray(data) ? data : [])
-    .map((item: any) => ({
+    .map((item: Record<string, unknown>) => ({
       id: Number(item.id),
       nome:
-        item.razaoSocial?.trim() ||
-        item.nomeFantasia?.trim() ||
-        item.nomeOrganizacao?.trim() ||
-        item.nome?.trim() ||
+        String(item.razaoSocial ?? "").trim() ||
+        String(item.nomeFantasia ?? "").trim() ||
+        String(item.nomeOrganizacao ?? "").trim() ||
+        String(item.nome ?? "").trim() ||
         `Organização ${item.id}`,
     }))
     .filter((item) => Number.isFinite(item.id));
@@ -1063,6 +1101,13 @@ export function contarDocumentosVencidos(documentos: Documento[]): number {
   return documentos.filter(
     (doc) => doc.statusDocumento !== "NAO_SE_APLICA" && isDocumentoVencido(doc),
   ).length;
+}
+
+export async function getDocumentosVencidos(): Promise<Documento[]> {
+  const documentos = await getDocumentos();
+  return documentos.filter(
+    (doc) => doc.statusDocumento !== "NAO_SE_APLICA" && isDocumentoVencido(doc),
+  );
 }
 
 export const statusDocumentoTone = (

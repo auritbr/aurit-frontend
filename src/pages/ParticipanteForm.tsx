@@ -6,22 +6,23 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   UserRound,
   MapPin,
   ShieldCheck,
   Link2,
   Plus,
   Trash2,
-  Info,
   Download,
   FilePlus2,
   FileText,
   Upload,
   X,
+  Building2,
   CircleHelp,
+  ArrowLeftRight,
+  PackageCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -29,10 +30,13 @@ import { AppLayout } from "@/components/AppLayout";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { EmailInput } from "@/components/EmailInput";
 import { PageTitle } from "@/components/PageTitle";
+import { PageObjective } from "@/components/PageObjective";
+import { BackButton } from "@/components/BackButton";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { MultiSelect } from "@/components/MultiSelect";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -83,10 +87,18 @@ import {
   type TipoNeurodivergencia,
 } from "@/data/participantes";
 import { toast } from "sonner";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
+import { getImportConfigForPath } from "@/config/importacoes";
+import {
+  getPatrimonios,
+  estadoConservacaoOptions,
+  type Patrimonio,
+} from "@/data/patrimonio";
+import { getEmprestimos, type Emprestimo } from "@/data/emprestimos";
 
 const SEM_TURMA = "__SEM_TURMA__";
 const SEM_NIVEL_TURMA = "__SEM_NIVEL_TURMA__";
-const PARTICIPANTE_NEXT_STEP_KEY = "aurit:participantes:next-step-card";
+const SEM_PATRIMONIO = "__SEM_PATRIMONIO__";
 const MAX_FILE_MB = 10;
 
 const STATUS_MATRICULA_FINAIS = [
@@ -95,29 +107,8 @@ const STATUS_MATRICULA_FINAIS = [
   "CONCLUIDO",
 ] as const;
 
-interface ParticipanteNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
-}
-
 function salvarProximaAcaoParticipante() {
-  const card: ParticipanteNextStepCardData = {
-    titulo: "Após cadastrar os participantes, organize os currículos da equipe",
-    descricao:
-      "Os currículos ajudam a registrar formações, experiências, competências e atuações dos colaboradores, fortalecendo a comprovação da capacidade técnica da equipe em projetos, editais e documentos institucionais.",
-    acaoLabel: "Cadastrar currículos",
-    acaoUrl: "/curriculos",
-    acaoSecundariaLabel: "Ver participantes",
-    acaoSecundariaUrl: "/participantes",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(PARTICIPANTE_NEXT_STEP_KEY, JSON.stringify(card));
+  emitJourneyNextStep();
 }
 
 interface FormState {
@@ -176,6 +167,7 @@ const novoVinculo = (): ParticipanteVinculo => ({
   dataMatricula: "",
   nivelTurma: "",
   statusMatricula: "",
+  patrimonioId: "",
 });
 
 const initial: FormState = {
@@ -232,10 +224,7 @@ function isMinor(dataNascimento: string) {
   let age = today.getFullYear() - birth.getFullYear();
   const monthDiff = today.getMonth() - birth.getMonth();
 
-  if (
-    monthDiff < 0 ||
-    (monthDiff === 0 && today.getDate() < birth.getDate())
-  ) {
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
     age -= 1;
   }
 
@@ -299,7 +288,7 @@ function mapUfToEstado(uf?: string): string {
     TO: "Tocantins",
   };
 
-  return uf ? mapa[uf] ?? "" : "";
+  return uf ? (mapa[uf] ?? "") : "";
 }
 
 function normalizarEstado(value?: string): string {
@@ -522,6 +511,8 @@ export default function ParticipanteForm() {
   const [atividades, setAtividades] = useState<AtividadeOption[]>([]);
   const [turmas, setTurmas] = useState<TurmaOption[]>([]);
   const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
+  const [patrimonios, setPatrimonios] = useState<Patrimonio[]>([]);
+  const [emprestimos, setEmprestimos] = useState<Emprestimo[]>([]);
   const [documento, setDocumento] = useState<File | null>(null);
   const [documentoNome, setDocumentoNome] = useState("");
   const [loading, setLoading] = useState(true);
@@ -562,6 +553,11 @@ export default function ParticipanteForm() {
     () => (atividadeId: string) =>
       turmas.filter((t) => String(t.atividadeId) === String(atividadeId)),
     [turmas],
+  );
+
+  const patrimoniosDisponiveis = useMemo(
+    () => patrimonios.filter((item) => item.statusPatrimonio !== "BAIXADO"),
+    [patrimonios],
   );
 
   const organizacoesOptions = useMemo(() => {
@@ -633,13 +629,21 @@ export default function ParticipanteForm() {
       try {
         setLoading(true);
 
-        const [atividadesData, turmasData, organizacoesData, participanteData] =
-          await Promise.all([
-            getAtividadesOptions(),
-            getTurmasOptions(),
-            getOrganizacoesParticipante(),
-            id ? getParticipanteById(Number(id)) : Promise.resolve(null),
-          ]);
+        const [
+          atividadesData,
+          turmasData,
+          organizacoesData,
+          participanteData,
+          patrimoniosData,
+          emprestimosData,
+        ] = await Promise.all([
+          getAtividadesOptions(),
+          getTurmasOptions(),
+          getOrganizacoesParticipante(),
+          id ? getParticipanteById(Number(id)) : Promise.resolve(null),
+          getPatrimonios().catch(() => [] as Patrimonio[]),
+          getEmprestimos().catch(() => [] as Emprestimo[]),
+        ]);
 
         if (!active) return;
 
@@ -648,6 +652,8 @@ export default function ParticipanteForm() {
         setAtividades(atividadesData);
         setTurmas(turmasData);
         setOrganizacoes(organizacoesData);
+        setPatrimonios(patrimoniosData);
+        setEmprestimos(emprestimosData);
 
         if (participanteData) {
           const mapped = mapParticipanteToForm(participanteData);
@@ -782,7 +788,9 @@ export default function ParticipanteForm() {
     try {
       setCepLoading(true);
 
-      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const response = await fetch(
+        `https://viacep.com.br/ws/${cepLimpo}/json/`,
+      );
 
       if (!response.ok) {
         throw new Error("Não foi possível consultar o CEP.");
@@ -924,7 +932,8 @@ export default function ParticipanteForm() {
         v.turmaId ||
         v.dataMatricula.trim() ||
         v.nivelTurma ||
-        v.statusMatricula
+        v.statusMatricula ||
+        v.patrimonioId
       );
     });
 
@@ -944,7 +953,9 @@ export default function ParticipanteForm() {
       }
 
       if (!isValidBrDate(v.dataMatricula)) {
-        toast.error(`Informe uma data de matrícula válida no vínculo ${i + 1}.`);
+        toast.error(
+          `Informe uma data de matrícula válida no vínculo ${i + 1}.`,
+        );
         return;
       }
 
@@ -965,7 +976,10 @@ export default function ParticipanteForm() {
       chavesVinculos.add(chave);
     }
 
-    if (formComOrganizacao.status === "CONCLUIDO" && vinculosPreenchidos.length > 0) {
+    if (
+      formComOrganizacao.status === "CONCLUIDO" &&
+      vinculosPreenchidos.length > 0
+    ) {
       const indiceInvalido = vinculosPreenchidos.findIndex(
         (v) =>
           !STATUS_MATRICULA_FINAIS.includes(
@@ -975,7 +989,8 @@ export default function ParticipanteForm() {
 
       if (indiceInvalido !== -1) {
         toast.error(
-          `Para marcar o participante como concluído, a matrícula do vínculo ${indiceInvalido + 1
+          `Para marcar o participante como concluído, a matrícula do vínculo ${
+            indiceInvalido + 1
           } precisa estar como Cancelado, Desistente ou Concluído.`,
         );
         return;
@@ -988,8 +1003,8 @@ export default function ParticipanteForm() {
       const vinculosNormalizados = vinculosPreenchidos.map((v) => {
         const turmaSelecionada = v.turmaId
           ? turmasPorAtividade(v.atividadeId).find(
-            (t) => String(t.id) === String(v.turmaId),
-          )
+              (t) => String(t.id) === String(v.turmaId),
+            )
           : null;
 
         return {
@@ -1033,34 +1048,40 @@ export default function ParticipanteForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/participantes")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" /> Voltar
-        </button>
+        <BackButton to="/participantes" />
 
         <PageTitle
-          title="Participante"
-          tooltip="Cadastre e acompanhe os participantes da organização. O vínculo com atividades e turmas é opcional e deve ser preenchido apenas quando o participante estiver matriculado ou vinculado a uma ação específica."
+          title="Participantes"
+          tooltip="Nesta página são cadastrados e acompanhados os participantes da organização, com informações pessoais, sociais, de acessibilidade, endereço, documentos, responsável legal quando menor de idade e vínculo institucional. A associação com atividades e turmas é opcional e deve ser informada apenas quando o participante fizer parte de uma atividade ou turma específica."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/participantes")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
+          showImport={false}
         />
 
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Tabs defaultValue="dados" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:inline-flex sm:w-auto">
-              <TabsTrigger value="dados">Dados do Participante</TabsTrigger>
-              <TabsTrigger value="vinculos">Matrículas</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 rounded-[12px] border border-border/70 bg-card/70 p-1 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.16)] backdrop-blur-md supports-[backdrop-filter]:bg-card/55 sm:inline-flex sm:w-auto">
+              <TabsTrigger
+                value="dados"
+                className="rounded-[8px] data-[state=active]:bg-background/75 data-[state=active]:backdrop-blur-sm"
+              >
+                Dados do Participante
+              </TabsTrigger>
+              <TabsTrigger
+                value="vinculos"
+                className="rounded-[8px] data-[state=active]:bg-background/75 data-[state=active]:backdrop-blur-sm"
+              >
+                Matrículas
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="dados" className="mt-4 space-y-5">
@@ -1081,7 +1102,10 @@ export default function ParticipanteForm() {
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="dataNascimento" required={!visualizando}>
+                    <FieldLabel
+                      htmlFor="dataNascimento"
+                      required={!visualizando}
+                    >
                       Data de Nascimento
                     </FieldLabel>
 
@@ -1098,7 +1122,9 @@ export default function ParticipanteForm() {
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="cpf">CPF</FieldLabel>
+                    <FieldLabel htmlFor="cpf" required={!visualizando}>
+                      CPF
+                    </FieldLabel>
 
                     <Input
                       id="cpf"
@@ -1120,6 +1146,66 @@ export default function ParticipanteForm() {
                       disabled={bloqueado}
                       readOnly={visualizando}
                     />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="racaCor"
+                      tooltip="Informe a raça ou cor autodeclarada pelo participante. Essa informação pode ser utilizada no acompanhamento do perfil do público atendido, em relatórios, editais e prestações de contas."
+                    >
+                      Raça/cor
+                    </FieldLabel>
+
+                    <Select
+                      value={form.racaCor}
+                      onValueChange={(v) => {
+                        if (visualizando) return;
+                        set("racaCor", v);
+                      }}
+                      disabled={bloqueado}
+                    >
+                      <SelectTrigger id="racaCor">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {racaCorOptions.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="genero"
+                      tooltip="Informe o gênero autodeclarado pelo participante, quando essa informação for necessária para acompanhamento, relatórios, editais ou prestação de contas."
+                    >
+                      Gênero
+                    </FieldLabel>
+
+                    <Select
+                      value={form.genero}
+                      onValueChange={(v) => {
+                        if (visualizando) return;
+                        set("genero", v);
+                      }}
+                      disabled={bloqueado}
+                    >
+                      <SelectTrigger id="genero">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {generoOptions.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </Field>
 
                   <Field>
@@ -1150,71 +1236,18 @@ export default function ParticipanteForm() {
                       readOnly={visualizando}
                     />
                   </Field>
+                </div>
+              </Section>
 
-                  <Field>
-                    <FieldLabel
-                      htmlFor="genero"
-                      tooltip="Informe o gênero autodeclarado do participante, quando essa informação for necessária para relatórios, editais ou patrocinadores."
-                    >
-                      Gênero
-                    </FieldLabel>
-
-                    <Select
-                      value={form.genero}
-                      onValueChange={(v) => {
-                        if (visualizando) return;
-                        set("genero", v);
-                      }}
-                      disabled={bloqueado}
-                    >
-                      <SelectTrigger id="genero">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        {generoOptions.map((item) => (
-                          <SelectItem key={item.value} value={item.value}>
-                            {item.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel
-                      htmlFor="racaCor"
-                      tooltip="Informe a raça/cor autodeclarada do participante. Essa informação apoia relatórios sociodemográficos, editais e prestação de contas."
-                    >
-                      Raça/cor
-                    </FieldLabel>
-
-                    <Select
-                      value={form.racaCor}
-                      onValueChange={(v) => {
-                        if (visualizando) return;
-                        set("racaCor", v);
-                      }}
-                      disabled={bloqueado}
-                    >
-                      <SelectTrigger id="racaCor">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        {racaCorOptions.map((item) => (
-                          <SelectItem key={item.value} value={item.value}>
-                            {item.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
+              <Section
+                icon={FilePlus2}
+                title="Informações sociais e de acessibilidade"
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel
                       htmlFor="faixaRenda"
-                      tooltip="Informe a faixa de renda familiar do participante, quando essa informação for necessária para relatórios, editais ou análise do perfil atendido."
+                      tooltip="Informe a faixa de renda familiar declarada pelo participante ou responsável, quando essa informação estiver disponível."
                     >
                       Faixa de Renda Familiar
                     </FieldLabel>
@@ -1240,11 +1273,7 @@ export default function ParticipanteForm() {
                       </SelectContent>
                     </Select>
                   </Field>
-                </div>
-              </Section>
 
-              <Section icon={FilePlus2} title="Informações complementares">
-                <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <div className="flex h-10 items-center justify-between rounded-md border border-input bg-background px-3">
                       <div className="flex min-w-0 items-center gap-2">
@@ -1255,7 +1284,7 @@ export default function ParticipanteForm() {
                           Possui CadÚnico?
                         </label>
 
-                        <InlineTooltip content="Indique se o participante possui inscrição no Cadastro Único. Essa informação pode apoiar relatórios sociais, editais, projetos com critérios de vulnerabilidade e prestação de contas." />
+                        <InlineTooltip content="Informe se o participante possui inscrição no Cadastro Único. Essa informação pode ser utilizada na identificação do perfil socioeconômico e em projetos, editais ou relatórios." />
                       </div>
 
                       <Switch
@@ -1280,7 +1309,7 @@ export default function ParticipanteForm() {
                           Possui Bolsa Família?
                         </label>
 
-                        <InlineTooltip content="Informe se o participante ou sua família recebe Bolsa Família. Esse dado ajuda a caracterizar o público atendido em relatórios, diagnósticos sociais, editais e ações voltadas a famílias em situação de vulnerabilidade." />
+                        <InlineTooltip content="Informe se o participante ou sua família recebe o Bolsa Família. Essa informação pode ser utilizada na identificação do perfil socioeconômico e em projetos, editais ou relatórios." />
                       </div>
 
                       <Switch
@@ -1295,153 +1324,64 @@ export default function ParticipanteForm() {
                     </div>
                   </Field>
 
-                  <Field full>
+                  <Field>
                     <FieldLabel
                       htmlFor="tipoNeurodivergencias"
-                      tooltip="Selecione as neurodivergências informadas pelo participante, responsável ou documentação apresentada. Preencha apenas quando a informação for declarada ou necessária para acompanhamento, acessibilidade, relatórios ou editais."
+                      tooltip="Informe as neurodivergências declaradas pelo participante ou responsável, quando houver. Essa informação pode auxiliar no planejamento de acompanhamento, acessibilidade e adaptações necessárias."
                     >
                       Tipos de Neurodivergências
                     </FieldLabel>
 
-                    <div className={bloqueado ? "pointer-events-none opacity-80" : ""}>
+                    <div
+                      className={
+                        bloqueado ? "pointer-events-none opacity-80" : ""
+                      }
+                    >
                       <MultiSelect
                         id="tipoNeurodivergencias"
                         options={tipoNeurodivergenciaValues}
                         value={form.tipoNeurodivergencias}
                         onChange={(value) => {
                           if (visualizando) return;
-                          set("tipoNeurodivergencias", value as TipoNeurodivergencia[]);
+
+                          set(
+                            "tipoNeurodivergencias",
+                            value as TipoNeurodivergencia[],
+                          );
                         }}
                         getOptionLabel={getTipoNeurodivergenciaLabel}
                       />
                     </div>
                   </Field>
 
-                  <Field full>
+                  <Field>
                     <FieldLabel
                       htmlFor="tipoDeficiencias"
-                      tooltip="Informe os tipos de deficiência declarados pelo participante, responsável ou identificados em documento de apoio. Essa informação auxilia no planejamento de acessibilidade, adaptação de atividades, relatórios sociodemográficos e prestação de contas."
+                      tooltip="Informe os tipos de deficiência declarados pelo participante ou responsável, quando houver. Essa informação pode auxiliar no planejamento de acessibilidade, adaptações e acompanhamento das atividades."
                     >
                       Tipos de Deficiência
                     </FieldLabel>
 
-                    <div className={bloqueado ? "pointer-events-none opacity-80" : ""}>
+                    <div
+                      className={
+                        bloqueado ? "pointer-events-none opacity-80" : ""
+                      }
+                    >
                       <MultiSelect
                         id="tipoDeficiencias"
                         options={tipoDeficienciaValues}
                         value={form.tipoDeficiencias}
                         onChange={(value) => {
                           if (visualizando) return;
-                          set("tipoDeficiencias", value as TipoDeficienciaParticipante[]);
+
+                          set(
+                            "tipoDeficiencias",
+                            value as TipoDeficienciaParticipante[],
+                          );
                         }}
                         getOptionLabel={getTipoDeficienciaLabel}
                       />
                     </div>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel
-                      htmlFor="tipoDocumentoParticipante"
-                      tooltip="Selecione o tipo de documento que será anexado ao cadastro. Essa classificação facilita a localização posterior do arquivo e mantém a documentação organizada para conferência, relatórios, editais e prestação de contas."
-                    >
-                      Tipo de Documento
-                    </FieldLabel>
-
-                    <Select
-                      value={form.tipoDocumentoParticipante}
-                      onValueChange={(value) => {
-                        if (visualizando) return;
-                        set(
-                          "tipoDocumentoParticipante",
-                          value as TipoDocumentoParticipante,
-                        );
-                      }}
-                      disabled={bloqueado}
-                    >
-                      <SelectTrigger id="tipoDocumentoParticipante">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        {tipoDocumentoParticipanteOptions.map((item) => (
-                          <SelectItem key={item.value} value={item.value}>
-                            {item.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel
-                      htmlFor="anexoDocumento"
-                      tooltip="Anexe o arquivo correspondente ao tipo de documento selecionado. Use este campo para documentos pessoais, comprovantes, autorizações, laudos, relatórios ou outros registros necessários ao acompanhamento do participante."
-                    >
-                      Anexar Documento
-                    </FieldLabel>
-
-                    {documentoNome || form.urlDocumento ? (
-                      <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-input bg-muted/30">
-                        <FileText className="h-4 w-4 text-primary shrink-0" />
-
-                        <span className="text-sm text-foreground truncate flex-1"
-                          title={documentoNome || "Documento anexado"}
-                        >
-                          {documentoNome || "Documento anexado"}
-                        </span>
-
-                        {form.urlDocumento && !documento && (
-                          <button
-                            type="button"
-                            onClick={handleAbrirDocumento}
-                            disabled={loading || saving}
-                            className="text-muted-foreground hover:text-primary transition-colors"
-                            aria-label="Baixar/visualizar documento"
-                          >
-                            <Download className="h-4 w-4" />
-                          </button>
-                        )}
-
-                        {!visualizando && (
-                          <button
-                            type="button"
-                            onClick={removeDocumento}
-                            disabled={loading || saving}
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                            aria-label="Remover documento"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      visualizando ? (
-                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm text-muted-foreground">
-                          Nenhum documento anexado
-                        </div>
-                      ) : (
-                        <label
-                          htmlFor="anexoDocumento"
-                          className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-dashed border-input bg-background px-3 transition-colors hover:border-primary/40"
-                        >
-                          <Upload className="h-4 w-4 shrink-0 text-muted-foreground" />
-
-                          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-                            PDF, PNG, JPG, JPEG ou WEBP até 10 MB
-                          </span>
-
-                          <input
-                            ref={fileInputRef}
-                            id="anexoDocumento"
-                            type="file"
-                            accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
-                            className="hidden"
-                            onChange={handleDocumentoFile}
-                            disabled={bloqueado}
-                          />
-                        </label>
-                      )
-                    )}
                   </Field>
                 </div>
               </Section>
@@ -1460,6 +1400,7 @@ export default function ParticipanteForm() {
                         if (visualizando) return;
 
                         const cepFormatado = maskCEP(e.target.value);
+
                         set("cep", cepFormatado);
 
                         const cepLimpo = cepFormatado.replace(/\D/g, "");
@@ -1495,11 +1436,7 @@ export default function ParticipanteForm() {
                   </Field>
 
                   <Field className="sm:col-span-2">
-                    <FieldLabel
-                      htmlFor="numero"
-                      required={!visualizando}
-                      tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
-                    >
+                    <FieldLabel htmlFor="numero" required={!visualizando}>
                       Número
                     </FieldLabel>
 
@@ -1528,7 +1465,9 @@ export default function ParticipanteForm() {
                   </Field>
 
                   <Field className="sm:col-span-2">
-                    <FieldLabel htmlFor="bairro">Bairro</FieldLabel>
+                    <FieldLabel htmlFor="bairro" required={!visualizando}>
+                      Bairro
+                    </FieldLabel>
 
                     <Input
                       id="bairro"
@@ -1582,12 +1521,12 @@ export default function ParticipanteForm() {
                 </div>
               </Section>
 
-              <Section icon={ShieldCheck} title="Responsável e situação">
+              <Section icon={ShieldCheck} title="Responsável">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel
                       htmlFor="nomeResponsavel"
-                      tooltip="Informe o nome completo do responsável pelo participante, quando aplicável. Para participantes menores de idade, este campo deve ser preenchido."
+                      tooltip="Informe o nome completo do responsável pelo participante, quando aplicável. Para participantes menores de idade, deve ser informado o responsável legal."
                     >
                       Nome do Responsável
                     </FieldLabel>
@@ -1603,28 +1542,8 @@ export default function ParticipanteForm() {
 
                   <Field>
                     <FieldLabel
-                      htmlFor="telefoneResponsavel"
-                      tooltip="Informe um telefone de contato do responsável, quando aplicável."
-                    >
-                      Telefone do Responsável
-                    </FieldLabel>
-
-                    <Input
-                      id="telefoneResponsavel"
-                      value={form.telefoneResponsavel}
-                      onChange={(e) =>
-                        set("telefoneResponsavel", maskPhone(e.target.value))
-                      }
-                      inputMode="tel"
-                      disabled={bloqueado}
-                      readOnly={visualizando}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel
                       htmlFor="cpfResponsavel"
-                      tooltip="Informe o CPF do responsável, utilizando apenas números ou a máscara padrão. Para participantes menores de idade, este campo deve ser preenchido. Ex.: 123.456.789-00."
+                      tooltip="Informe o CPF do responsável legal, quando aplicável."
                     >
                       CPF do Responsável
                     </FieldLabel>
@@ -1659,39 +1578,32 @@ export default function ParticipanteForm() {
 
                   <Field>
                     <FieldLabel
-                      htmlFor="status"
-                      required={!visualizando}
-                      tooltip="Indique a situação atual do participante no sistema. Use “Ativo” para participantes acompanhados pela organização, “Pendente” para cadastros em conferência, “Concluído” para participações finalizadas conforme previsto e “Inativo” para participantes que não devem mais ser considerados ativos."
+                      htmlFor="telefoneResponsavel"
+                      tooltip="Informe o principal telefone utilizado para contato com o responsável, quando aplicável."
                     >
-                      Status do Participante
+                      Telefone do Responsável
                     </FieldLabel>
 
-                    <Select
-                      value={form.status}
-                      onValueChange={(v) => {
-                        if (visualizando) return;
-                        set("status", v);
-                      }}
+                    <Input
+                      id="telefoneResponsavel"
+                      value={form.telefoneResponsavel}
+                      onChange={(e) =>
+                        set("telefoneResponsavel", maskPhone(e.target.value))
+                      }
+                      inputMode="tel"
                       disabled={bloqueado}
-                    >
-                      <SelectTrigger id="status">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        {statusParticipante.map((s) => (
-                          <SelectItem key={s.value} value={s.value}>
-                            {s.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      readOnly={visualizando}
+                    />
                   </Field>
+                </div>
+              </Section>
 
+              <Section icon={Building2} title="Vínculo institucional">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel
                       htmlFor="organizacaoId"
-                      tooltip="Selecione a organização à qual este participante está vinculado."
+                      tooltip="Informe a organização à qual o participante está vinculado."
                     >
                       Organização
                     </FieldLabel>
@@ -1716,7 +1628,7 @@ export default function ParticipanteForm() {
                       disabled={bloqueado || organizacoesOptions.length === 0}
                     >
                       <SelectTrigger id="organizacaoId">
-                        <SelectValue placeholder="Vincular pela empresa logada" />
+                        <SelectValue placeholder="Selecione uma organização" />
                       </SelectTrigger>
 
                       <SelectContent>
@@ -1737,28 +1649,174 @@ export default function ParticipanteForm() {
                       </SelectContent>
                     </Select>
                   </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="status"
+                      required={!visualizando}
+                      tooltip="Informe a situação atual do participante. Ativo indica participação em andamento; Pendente, cadastro ou vínculo em conferência; Concluído, participação finalizada; e Inativo, participante que não está mais em acompanhamento."
+                    >
+                      Situação do Participante
+                    </FieldLabel>
+
+                    <Select
+                      value={form.status}
+                      onValueChange={(v) => {
+                        if (visualizando) return;
+                        set("status", v);
+                      }}
+                      disabled={bloqueado}
+                    >
+                      <SelectTrigger id="status">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {statusParticipante.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+              </Section>
+
+              <Section icon={FilePlus2} title="Documentos">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel
+                      htmlFor="tipoDocumentoParticipante"
+                      tooltip="Informe o tipo correspondente ao documento que será anexado ao cadastro do participante."
+                    >
+                      Tipo de Documento
+                    </FieldLabel>
+
+                    <Select
+                      value={form.tipoDocumentoParticipante}
+                      onValueChange={(value) => {
+                        if (visualizando) return;
+
+                        set(
+                          "tipoDocumentoParticipante",
+                          value as TipoDocumentoParticipante,
+                        );
+                      }}
+                      disabled={bloqueado}
+                    >
+                      <SelectTrigger id="tipoDocumentoParticipante">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {tipoDocumentoParticipanteOptions.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="anexoDocumento"
+                      tooltip="Anexe o arquivo correspondente ao tipo de documento selecionado."
+                    >
+                      Arquivo do Documento
+                    </FieldLabel>
+
+                    <input
+                      ref={fileInputRef}
+                      id="anexoDocumento"
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={handleDocumentoFile}
+                      disabled={bloqueado}
+                    />
+
+                    {documentoNome || form.urlDocumento ? (
+                      <div className="attachment-file-glass flex h-10 items-center gap-2 px-3">
+                        <FileText className="h-4 w-4 shrink-0 text-primary" />
+
+                        <span
+                          className="flex-1 truncate text-sm text-foreground"
+                          title={documentoNome || "Documento anexado"}
+                        >
+                          {documentoNome || "Documento anexado"}
+                        </span>
+
+                        {form.urlDocumento && !documento && (
+                          <button
+                            type="button"
+                            onClick={handleAbrirDocumento}
+                            disabled={loading || saving}
+                            className="text-muted-foreground transition-colors hover:text-primary"
+                            aria-label="Baixar ou visualizar documento"
+                          >
+                            <Download className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {!visualizando && (
+                          <div className="flex shrink-0 items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="glassSecondary"
+                              size="sm"
+                              className="h-7 px-2.5 text-xs"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={loading || saving}
+                            >
+                              Substituir
+                            </Button>
+                            <button
+                              type="button"
+                              onClick={removeDocumento}
+                              disabled={loading || saving}
+                              className="text-muted-foreground transition-colors hover:text-destructive"
+                              aria-label="Remover documento"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : visualizando ? (
+                      <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm text-muted-foreground">
+                        Nenhum documento anexado
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="glassSecondary"
+                        className="h-9 gap-2 px-4"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={bloqueado}
+                      >
+                        <Upload className="h-4 w-4" />
+                        Selecionar arquivo
+                      </Button>
+                    )}
+                  </Field>
                 </div>
               </Section>
             </TabsContent>
 
             <TabsContent value="vinculos" className="mt-4 space-y-5">
-              <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-                <Info
-                  className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
-                  strokeWidth={2.2}
-                />
-
-                <p className="text-[13px] leading-relaxed text-foreground">
-                  Preencha esta seção apenas quando o participante estiver
-                  matriculado ou vinculado a uma atividade específica. Para
-                  realizar apenas o cadastro geral do participante, deixe estes
-                  campos em branco.
-                </p>
-              </div>
+              <PageObjective
+                className="mb-5"
+                variant="primary"
+                label="Preencha esta seção"
+                icon={Link2}
+                description=" quando o participante fizer parte de uma atividade ou turma cadastrada na organização. Caso esteja realizando apenas o cadastro geral do participante, não é necessário adicionar vínculos."
+              />
 
               <Section
                 icon={Link2}
-                title="Matrículas em Atividades e Turmas"
+                title="Vínculos com atividades e turmas"
                 action={
                   !visualizando ? (
                     <Button
@@ -1768,7 +1826,8 @@ export default function ParticipanteForm() {
                       onClick={addVinculo}
                       className="h-8 gap-1.5"
                     >
-                      <Plus className="h-3.5 w-3.5" /> Adicionar Atividade
+                      <Plus className="h-3.5 w-3.5" />
+                      Adicionar atividade
                     </Button>
                   ) : null
                 }
@@ -1776,9 +1835,9 @@ export default function ParticipanteForm() {
                 <div className="space-y-3">
                   {form.vinculos.length === 0 && (
                     <p className="text-sm text-muted-foreground">
-                      Nenhuma matrícula vinculada. Utilize a opção{" "}
-                      <span className="font-semibold">Adicionar Atividade</span>{" "}
-                      para vincular este participante a uma atividade.
+                      Nenhuma atividade vinculada. Utilize a opção{" "}
+                      <span className="font-semibold">Adicionar atividade</span>{" "}
+                      para registrar a participação em uma atividade ou turma.
                     </p>
                   )}
 
@@ -1792,12 +1851,15 @@ export default function ParticipanteForm() {
 
                     const turmaSelecionada = v.turmaId
                       ? turmasDaAtividade.find(
-                        (t) => String(t.id) === String(v.turmaId),
-                      )
+                          (t) => String(t.id) === String(v.turmaId),
+                        )
                       : null;
 
-                    const nivelTurmaDaTurma = turmaSelecionada?.nivelTurma ?? "";
+                    const nivelTurmaDaTurma =
+                      turmaSelecionada?.nivelTurma ?? "";
+
                     const nivelTurmaValue = v.nivelTurma || nivelTurmaDaTurma;
+
                     const nivelTurmaBloqueado =
                       !v.atividadeId ||
                       semTurmas ||
@@ -1810,10 +1872,26 @@ export default function ParticipanteForm() {
                         ? "Não se aplica"
                         : "Turma sem nível cadastrado";
 
+                    const patrimonioSelecionado = v.patrimonioId
+                      ? (patrimoniosDisponiveis.find(
+                          (item) => String(item.id) === String(v.patrimonioId),
+                        ) ?? null)
+                      : null;
+
+                    const emprestimoAtivo = v.patrimonioId
+                      ? (emprestimos.find(
+                          (item) =>
+                            item.patrimonioId === String(v.patrimonioId) &&
+                            ["EM_ANDAMENTO", "ATRASADO"].includes(
+                              item.statusEmprestimo,
+                            ),
+                        ) ?? null)
+                      : null;
+
                     return (
                       <div
                         key={`${originalIndex}-${v.id ?? "novo"}`}
-                        className="rounded border border-border bg-muted/20 p-4"
+                        className="rounded-[12px] border border-border/70 bg-card/70 p-4 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-card/55"
                       >
                         <div className="mb-3 flex items-center justify-between">
                           <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1827,7 +1905,8 @@ export default function ParticipanteForm() {
                               className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
                               aria-label={`Remover vínculo ${idx + 1}`}
                             >
-                              <Trash2 className="h-3.5 w-3.5" /> Remover
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Remover
                             </button>
                           )}
                         </div>
@@ -1836,7 +1915,7 @@ export default function ParticipanteForm() {
                           <div>
                             <FieldLabel
                               htmlFor={`atividade-${originalIndex}`}
-                              tooltip="Selecione a atividade apenas quando o participante estiver matriculado ou vinculado a uma ação específica. Para cadastro geral, deixe este campo em branco."
+                              tooltip="Informe a atividade da qual o participante faz parte."
                             >
                               Atividade
                             </FieldLabel>
@@ -1884,7 +1963,7 @@ export default function ParticipanteForm() {
                           <div>
                             <FieldLabel
                               htmlFor={`turma-${originalIndex}`}
-                              tooltip="Selecione a turma específica, caso a atividade possua turmas. Quando não houver turma, deixe como sem turma específica."
+                              tooltip="Informe a turma da qual o participante faz parte, quando a atividade estiver organizada em turmas."
                             >
                               Turma
                             </FieldLabel>
@@ -1903,8 +1982,8 @@ export default function ParticipanteForm() {
                                     val === SEM_TURMA
                                       ? null
                                       : turmasDaAtividade.find(
-                                        (t) => String(t.id) === String(val),
-                                      );
+                                          (t) => String(t.id) === String(val),
+                                        );
 
                                   setVinculo(originalIndex, {
                                     turmaId: val === SEM_TURMA ? "" : val,
@@ -1946,59 +2025,39 @@ export default function ParticipanteForm() {
                             )}
                           </div>
 
-                          <div>
+                          <div className="sm:col-span-2">
                             <FieldLabel
-                              htmlFor={`dataMatricula-${originalIndex}`}
-                              tooltip="Informe a data em que o participante foi matriculado ou passou a integrar a atividade ou turma."
+                              htmlFor={`patrimonio-${originalIndex}`}
+                              tooltip="Selecione, quando aplicável, um patrimônio ou equipamento associado ao participante durante suas atividades. O vínculo não registra automaticamente um empréstimo."
                             >
-                              Data da Matrícula
-                            </FieldLabel>
-
-                            <Input
-                              id={`dataMatricula-${originalIndex}`}
-                              value={v.dataMatricula}
-                              onChange={(e) => {
-                                if (visualizando) return;
-
-                                setVinculo(originalIndex, {
-                                  dataMatricula: maskDate(e.target.value),
-                                });
-                              }}
-                              inputMode="numeric"
-                              disabled={bloqueado}
-                              readOnly={visualizando}
-                            />
-                          </div>
-
-                          <div>
-                            <FieldLabel
-                              htmlFor={`status-vinculo-${originalIndex}`}
-                              tooltip="Indique a situação da matrícula do participante nesta atividade ou turma. Esse status se refere apenas ao vínculo com a atividade selecionada, não ao cadastro geral do participante."
-                            >
-                              Status da Matrícula
+                              Patrimônio Vinculado
                             </FieldLabel>
 
                             <Select
-                              value={v.statusMatricula}
-                              onValueChange={(val) => {
+                              value={v.patrimonioId || SEM_PATRIMONIO}
+                              onValueChange={(value) => {
                                 if (visualizando) return;
-
                                 setVinculo(originalIndex, {
-                                  statusMatricula: val,
+                                  patrimonioId:
+                                    value === SEM_PATRIMONIO ? "" : value,
                                 });
                               }}
                               disabled={bloqueado}
                             >
-                              <SelectTrigger
-                                id={`status-vinculo-${originalIndex}`}
-                              >
-                                <SelectValue placeholder="Selecione" />
+                              <SelectTrigger id={`patrimonio-${originalIndex}`}>
+                                <SelectValue placeholder="Selecione um patrimônio" />
                               </SelectTrigger>
-
                               <SelectContent>
-                                {statusMatriculaOptions.map((s) => (
-                                  <SelectItem key={s.value} value={s.value}>
-                                    {s.label}
+                                <SelectItem value={SEM_PATRIMONIO}>
+                                  Selecione
+                                </SelectItem>
+                                {patrimoniosDisponiveis.map((patrimonio) => (
+                                  <SelectItem
+                                    key={patrimonio.id}
+                                    value={String(patrimonio.id)}
+                                  >
+                                    {patrimonio.numeroPatrimonio} —{" "}
+                                    {patrimonio.nomePatrimonio}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -2008,9 +2067,9 @@ export default function ParticipanteForm() {
                           <div>
                             <FieldLabel
                               htmlFor={`nivelTurma-${originalIndex}`}
-                              tooltip="O nível é preenchido a partir da turma selecionada. Quando a atividade não possuir turmas ou a turma não possuir nível cadastrado, o campo fica bloqueado."
+                              tooltip="Informe o nível correspondente à turma do participante. Quando a turma possuir um nível cadastrado, essa informação será preenchida automaticamente."
                             >
-                              Nível do Participante
+                              Nível da Turma
                             </FieldLabel>
 
                             <Select
@@ -2047,7 +2106,74 @@ export default function ParticipanteForm() {
                               </SelectContent>
                             </Select>
                           </div>
+
+                          <div>
+                            <FieldLabel
+                              htmlFor={`dataMatricula-${originalIndex}`}
+                              tooltip="Informe a data em que o participante começou a fazer parte da atividade ou turma."
+                            >
+                              Data de Matrícula
+                            </FieldLabel>
+
+                            <Input
+                              id={`dataMatricula-${originalIndex}`}
+                              value={v.dataMatricula}
+                              onChange={(e) => {
+                                if (visualizando) return;
+
+                                setVinculo(originalIndex, {
+                                  dataMatricula: maskDate(e.target.value),
+                                });
+                              }}
+                              inputMode="numeric"
+                              disabled={bloqueado}
+                              readOnly={visualizando}
+                            />
+                          </div>
+
+                          <div>
+                            <FieldLabel
+                              htmlFor={`status-vinculo-${originalIndex}`}
+                              tooltip="Informe a situação atual da participação do participante nesta atividade ou turma."
+                            >
+                              Situação da Matrícula
+                            </FieldLabel>
+
+                            <Select
+                              value={v.statusMatricula}
+                              onValueChange={(val) => {
+                                if (visualizando) return;
+
+                                setVinculo(originalIndex, {
+                                  statusMatricula: val,
+                                });
+                              }}
+                              disabled={bloqueado}
+                            >
+                              <SelectTrigger
+                                id={`status-vinculo-${originalIndex}`}
+                              >
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+
+                              <SelectContent>
+                                {statusMatriculaOptions.map((s) => (
+                                  <SelectItem key={s.value} value={s.value}>
+                                    {s.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
+
+                        {patrimonioSelecionado && (
+                          <PatrimonioVinculoInfo
+                            participanteId={id}
+                            patrimonio={patrimonioSelecionado}
+                            emprestimoAtivo={emprestimoAtivo}
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -2056,10 +2182,11 @@ export default function ParticipanteForm() {
             </TabsContent>
           </Tabs>
 
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-2.5 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/participantes")}
               disabled={saving}
             >
@@ -2069,8 +2196,10 @@ export default function ParticipanteForm() {
             {!visualizando && (
               <Button
                 type="submit"
-                className="sm:min-w-32"
+                variant="glassPrimary"
+                className="h-9 px-5"
                 disabled={saving || loading}
+                aria-busy={saving}
               >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
@@ -2098,23 +2227,117 @@ function Section({
   action?: ReactNode;
   children: ReactNode;
 }) {
+  const descriptions: Record<string, string> = {
+    "Dados pessoais":
+      "Informe os principais dados pessoais, de identificação e contato do participante.",
+
+    "Informações sociais e de acessibilidade":
+      "Informe dados relacionados à situação socioeconômica, programas sociais, acessibilidade e necessidades específicas do participante, quando aplicável.",
+
+    Endereço:
+      "Informe o endereço principal do participante. Ao preencher o CEP, os dados disponíveis serão preenchidos automaticamente.",
+
+    Responsável:
+      "Informe os dados do responsável legal pelo participante quando ele for menor de idade. Para participantes maiores de idade, esta seção não precisa ser preenchida.",
+
+    "Vínculo institucional":
+      "Informe a organização à qual o participante está vinculado e sua situação atual.",
+
+    Documentos:
+      "Selecione o tipo de documento e anexe o arquivo correspondente, quando necessário.",
+
+    "Vínculos com atividades e turmas":
+      "Informe as atividades das quais o participante faz parte e, quando aplicável, as turmas correspondentes.",
+  };
+
   return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center justify-between gap-3 border-b border-border pb-3">
-        <div className="flex items-center gap-2.5">
-          <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
+    <FormSectionCard
+      icon={Icon}
+      title={title}
+      description={descriptions[title]}
+    >
+      {action && <div className="mb-4 flex justify-end">{action}</div>}
+      {children}
+    </FormSectionCard>
+  );
+}
 
-          <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-            {title}
-          </h2>
-        </div>
+function PatrimonioVinculoInfo({
+  participanteId,
+  patrimonio,
+  emprestimoAtivo,
+}: {
+  participanteId?: string;
+  patrimonio: Patrimonio;
+  emprestimoAtivo: Emprestimo | null;
+}) {
+  const emprestadoAoParticipante =
+    !!participanteId &&
+    emprestimoAtivo?.participanteId === String(participanteId);
 
-        {action}
+  const estadoConservacao =
+    estadoConservacaoOptions.find(
+      (item) => item.value === patrimonio.estadoConservacao,
+    )?.label ?? patrimonio.estadoConservacao;
+
+  const params = new URLSearchParams({
+    patrimonioId: String(patrimonio.id),
+    tipoDestinatario: "PARTICIPANTE",
+    participanteId: participanteId ?? "",
+    dataEmprestimo: formatarDataAtual(),
+    estadoConservacao: patrimonio.estadoConservacao,
+    returnTo: participanteId
+      ? `/participantes/${participanteId}/editar`
+      : "/participantes",
+  });
+
+  const actionClass =
+    "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[10px] border border-primary/25 bg-primary-soft/50 px-3 text-xs font-medium text-primary backdrop-blur-sm transition-colors hover:bg-primary-soft/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50";
+
+  return (
+    <div className="mt-3 flex flex-col gap-2 rounded-[12px] border border-border/70 bg-background/50 px-3.5 py-3 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="truncate text-xs font-medium text-foreground">
+          {patrimonio.numeroPatrimonio} — {patrimonio.nomePatrimonio}
+        </p>
+        <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+          Conservação na saída: {estadoConservacao}.{" "}
+          {emprestadoAoParticipante
+            ? "Empréstimo ativo para este participante."
+            : emprestimoAtivo
+              ? "Este patrimônio possui empréstimo ativo para outro destinatário."
+              : "Nenhum empréstimo ativo registrado."}
+        </p>
       </div>
 
-      {children}
-    </Card>
+      {participanteId &&
+        (emprestadoAoParticipante ? (
+          <Link
+            to={`/emprestimos/${emprestimoAtivo.id}`}
+            className={actionClass}
+          >
+            <PackageCheck className="h-3.5 w-3.5" aria-hidden />
+            Ver empréstimo
+          </Link>
+        ) : emprestimoAtivo ? null : (
+          <Link
+            to={`/emprestimos/novo?${params.toString()}`}
+            className={actionClass}
+            title="Registrar a entrega deste patrimônio ao participante"
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden />
+            Registrar empréstimo
+          </Link>
+        ))}
+    </div>
   );
+}
+
+function formatarDataAtual() {
+  const hoje = new Date();
+  const dia = String(hoje.getDate()).padStart(2, "0");
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+  return `${dia}/${mes}/${hoje.getFullYear()}`;
 }
 
 function Field({

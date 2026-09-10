@@ -1,4 +1,8 @@
-import { getStoredToken, limparSessaoUsuario } from "@/lib/auth";
+import { getStoredToken, getTenantSlug, limparSessaoUsuario } from "@/lib/auth";
+import {
+  invalidateReportData,
+  isDataMutation,
+} from "@/lib/reportDataInvalidation";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -32,30 +36,6 @@ export class ApiError extends Error {
 
 function isFormData(body: RequestInit["body"]) {
   return typeof FormData !== "undefined" && body instanceof FormData;
-}
-
-function getTenantSlug() {
-  const hostname = window.location.hostname;
-
-  if (hostname === "localhost") {
-    return "";
-  }
-
-  if (!hostname.endsWith(".aurit.com.br")) {
-    return "";
-  }
-
-  const slug = hostname.replace(".aurit.com.br", "");
-
-  if (!slug || slug.includes(".")) {
-    return "";
-  }
-
-  if (["www", "admin", "api", "mail", "webmail", "cpanel"].includes(slug)) {
-    return "";
-  }
-
-  return slug;
 }
 
 async function readErrorPayload(response: Response, path: string) {
@@ -141,13 +121,14 @@ function buildHeaders(options: RequestInit = {}) {
   return headers;
 }
 
-export async function apiFetch<T>(
+export async function apiFetchResponse(
   path: string,
   options: RequestInit = {},
-): Promise<T> {
+): Promise<Response> {
   const url = `${API_URL}${path}`;
   const response = await fetch(url, {
     ...options,
+    cache: options.cache ?? "no-store",
     headers: buildHeaders(options),
   });
 
@@ -192,6 +173,19 @@ export async function apiFetch<T>(
       message,
     });
   }
+
+  if (isDataMutation(options.method)) {
+    invalidateReportData(path);
+  }
+
+  return response;
+}
+
+export async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const response = await apiFetchResponse(path, options);
 
   if (response.status === 204) {
     return undefined as T;

@@ -5,18 +5,32 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, BookOpen, CalendarClock, Users } from "lucide-react";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import {
+  BookOpen,
+  CalendarClock,
+  Plus,
+  Settings2,
+  Trash2,
+  Users,
+} from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
-import { PageTitle } from "@/components/PageTitle";
+import { BackButton } from "@/components/BackButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { AccessDenied } from "@/components/AccessDenied";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -27,21 +41,34 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { MultiSelect } from "@/components/MultiSelect";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { getImportConfigForPath } from "@/config/importacoes";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
   buildTurmaPayload,
   createTurma,
+  criarHorarioTurma,
+  diaLabel,
   diasSemana,
   getAtividadesOptions,
   getColaboradoresOptions,
   getTurmaById,
+  horarioTurmaChave,
   niveisTurma,
+  normalizarHorariosTurma,
   statusTurma,
   updateTurma,
   type AtividadeOption,
   type ColaboradorOption,
+  type HorarioTurma,
 } from "@/data/turmas";
 import { toast } from "sonner";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 interface FormState {
   nomeTurma: string;
@@ -50,6 +77,7 @@ interface FormState {
   horarioFim: string;
   quantidadeVagas: string;
   diaAtividade: string;
+  horarios: HorarioTurma[];
   status: string;
   nivelTurma: string;
   atividadeId: string;
@@ -63,6 +91,11 @@ interface TurmaCarregada {
   horarioFim?: string | null;
   quantidadeVagas?: number | string | null;
   diaAtividade?: string | null;
+  horarios?: Array<{
+    diaAtividade?: string | null;
+    horarioInicio?: string | null;
+    horarioFim?: string | null;
+  }> | null;
   status?: string | null;
   nivelTurma?: string | null;
   atividadeId?: string | number | null;
@@ -80,6 +113,7 @@ const initial: FormState = {
   horarioFim: "",
   quantidadeVagas: "",
   diaAtividade: "",
+  horarios: [criarHorarioTurma()],
   status: "",
   nivelTurma: "",
   atividadeId: "",
@@ -107,6 +141,8 @@ export default function TurmaForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const duplicarId = !id ? searchParams.get("duplicar") : null;
 
   const visualizando = !!id && !location.pathname.endsWith("/editar");
   const editando = !!id && location.pathname.endsWith("/editar");
@@ -127,6 +163,35 @@ export default function TurmaForm() {
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const setHorario = <K extends keyof Omit<HorarioTurma, "id">>(
+    horarioId: string,
+    campo: K,
+    value: HorarioTurma[K],
+  ) =>
+    setForm((prev) => ({
+      ...prev,
+      horarios: prev.horarios.map((horario) =>
+        horario.id === horarioId ? { ...horario, [campo]: value } : horario,
+      ),
+    }));
+
+  const adicionarHorario = () =>
+    setForm((prev) => ({
+      ...prev,
+      horarios: [...prev.horarios, criarHorarioTurma()],
+    }));
+
+  const removerHorario = (horarioId: string) =>
+    setForm((prev) => {
+      const horarios = prev.horarios.filter(
+        (horario) => horario.id !== horarioId,
+      );
+      return {
+        ...prev,
+        horarios: horarios.length > 0 ? horarios : [criarHorarioTurma()],
+      };
+    });
 
   const atividadeSelectValue =
     form.atividadeId || String(existingTurma?.atividadeId ?? "");
@@ -177,6 +242,28 @@ export default function TurmaForm() {
   useImportFormFill("turmas", setForm);
 
   useEffect(() => {
+    if (!form.diaAtividade && !form.horarioInicio && !form.horarioFim) return;
+    const primeiro = form.horarios[0];
+    if (
+      primeiro &&
+      (primeiro.diaAtividade || primeiro.horarioInicio || primeiro.horarioFim)
+    )
+      return;
+
+    setForm((prev) => ({
+      ...prev,
+      horarios: [
+        criarHorarioTurma({
+          diaAtividade: prev.diaAtividade,
+          horarioInicio: prev.horarioInicio,
+          horarioFim: prev.horarioFim,
+        }),
+        ...prev.horarios.slice(1),
+      ],
+    }));
+  }, [form.diaAtividade, form.horarioInicio, form.horarioFim, form.horarios]);
+
+  useEffect(() => {
     let active = true;
 
     async function carregar() {
@@ -188,7 +275,9 @@ export default function TurmaForm() {
           await Promise.all([
             getAtividadesOptions(),
             getColaboradoresOptions(),
-            id ? getTurmaById(Number(id)) : Promise.resolve(null),
+            id || duplicarId
+              ? getTurmaById(Number(id ?? duplicarId))
+              : Promise.resolve(null),
           ]);
 
         if (!active) return;
@@ -203,22 +292,25 @@ export default function TurmaForm() {
             ? String(turma.atividadeId)
             : "";
 
-          setExistingTurma({
-            ...turma,
-            atividadeId,
-          });
+          setExistingTurma(duplicarId ? null : { ...turma, atividadeId });
 
           setForm({
-            nomeTurma: turma.nomeTurma ?? "",
+            nomeTurma: duplicarId
+              ? `${turma.nomeTurma ?? "Turma"} (cópia)`
+              : (turma.nomeTurma ?? ""),
             descricaoTurma: turma.descricaoTurma ?? "",
             horarioInicio: turma.horarioInicio ?? "",
             horarioFim: turma.horarioFim ?? "",
             quantidadeVagas:
               turma.quantidadeVagas !== null &&
-                turma.quantidadeVagas !== undefined
+              turma.quantidadeVagas !== undefined
                 ? String(turma.quantidadeVagas)
                 : "",
             diaAtividade: turma.diaAtividade ?? "",
+            horarios: (() => {
+              const horarios = normalizarHorariosTurma(turma);
+              return horarios.length > 0 ? horarios : [criarHorarioTurma()];
+            })(),
             status: turma.status ?? "",
             nivelTurma: turma.nivelTurma ?? "",
             atividadeId,
@@ -252,7 +344,7 @@ export default function TurmaForm() {
     return () => {
       active = false;
     };
-  }, [id, navigate]);
+  }, [duplicarId, id, navigate]);
 
   function getFormComAtividade(): FormState {
     return {
@@ -278,24 +370,56 @@ export default function TurmaForm() {
       return;
     }
 
-    if (!formComAtividade.horarioInicio) {
-      toast.error("Informe o horário de início.");
+    if (formComAtividade.horarios.length === 0) {
+      toast.error("Informe ao menos um dia e horário para a turma.");
       return;
     }
 
-    if (!formComAtividade.horarioFim) {
-      toast.error("Informe o horário de término.");
-      return;
-    }
+    const horariosVistos = new Set<string>();
+    for (let index = 0; index < formComAtividade.horarios.length; index += 1) {
+      const horario = formComAtividade.horarios[index];
+      const posicao = `${index + 1}º horário`;
 
-    if (formComAtividade.horarioFim <= formComAtividade.horarioInicio) {
-      toast.error("O horário de término deve ser posterior ao de início.");
-      return;
-    }
+      if (!horario.diaAtividade) {
+        toast.error(`Selecione o dia da semana do ${posicao}.`);
+        return;
+      }
+      if (!horario.horarioInicio) {
+        toast.error(`Informe o horário de início do ${posicao}.`);
+        return;
+      }
+      if (!horario.horarioFim) {
+        toast.error(`Informe o horário de término do ${posicao}.`);
+        return;
+      }
+      if (horario.horarioFim <= horario.horarioInicio) {
+        toast.error(
+          `No ${posicao} (${diaLabel(horario.diaAtividade)}), o horário de término deve ser posterior ao de início.`,
+        );
+        return;
+      }
 
-    if (!formComAtividade.diaAtividade) {
-      toast.error("Selecione o dia da atividade.");
-      return;
+      const chave = horarioTurmaChave(horario);
+      if (horariosVistos.has(chave)) {
+        toast.error("Este dia e horário já foram adicionados à turma.");
+        return;
+      }
+      horariosVistos.add(chave);
+
+      const sobreposto = formComAtividade.horarios
+        .slice(0, index)
+        .some(
+          (anterior) =>
+            anterior.diaAtividade === horario.diaAtividade &&
+            anterior.horarioInicio < horario.horarioFim &&
+            horario.horarioInicio < anterior.horarioFim,
+        );
+      if (sobreposto) {
+        toast.error(
+          `Existem horários sobrepostos na ${diaLabel(horario.diaAtividade)}.`,
+        );
+        return;
+      }
     }
 
     if (!formComAtividade.status) {
@@ -327,11 +451,8 @@ export default function TurmaForm() {
         toast.success("Turma salva com sucesso.");
       }
 
-      navigate("/turmas", {
-        state: {
-          showNextStepCard: true,
-        },
-      });
+      emitJourneyNextStep();
+      navigate("/turmas");
     } catch (error) {
       const message =
         error instanceof Error
@@ -369,301 +490,399 @@ export default function TurmaForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/turmas")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </button>
+        <BackButton to="/turmas" />
 
-        <PageTitle
-          title="Turma"
-          tooltip="Cadastre turmas vinculadas às atividades do projeto. Use esta página para organizar grupos por horário, dia, faixa etária, nível, território ou responsável, facilitando o acompanhamento de participantes, presenças e execução das ações."
+        <ListPageHeader
+          title="Turmas"
+          tooltip="Nesta página são cadastradas e acompanhadas as turmas vinculadas às atividades dos projetos, com informações sobre identificação, nível, quantidade de vagas, dias e horários de realização, situação atual e equipe responsável. Esses registros ajudam a organizar os participantes, acompanhar os encontros e presenças e apoiar a execução das atividades."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/turmas")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
         />
 
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={BookOpen} title="Dados da turma">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field full>
-                <FieldLabel
-                  htmlFor="nomeTurma"
-                  required={!visualizando}
-                  tooltip="Informe um nome claro para identificar a turma dentro da atividade. Ex.: turma infantil, turma manhã ou turma iniciante."
-                >
-                  Nome da Turma
-                </FieldLabel>
+          <fieldset
+            disabled={visualizando}
+            className="space-y-5 border-0 p-0 disabled:opacity-100"
+          >
+            <FormSectionCard
+              icon={BookOpen}
+              title="Identificação da turma"
+              description="Vincule a turma à atividade em que será oferecida e registre as informações que permitem identificá-la e diferenciá-la das demais turmas dessa atividade."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="atividade"
+                    required={!visualizando}
+                    tooltip="Selecione a atividade à qual esta turma pertence. A turma funciona como um grupo organizado dentro de uma atividade cadastrada."
+                  >
+                    Atividade
+                  </FieldLabel>
 
-                <Input
-                  id="nomeTurma"
-                  value={form.nomeTurma}
-                  onChange={(event) => set("nomeTurma", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="descricaoTurma"
-                  required={!visualizando}
-                  tooltip="Descreva as características da turma, como perfil dos participantes, faixa etária, nível, local, objetivo ou forma de organização dentro da atividade. Ex.: Turma voltada para crianças de 8 a 12 anos, com aulas semanais de iniciação musical no período da tarde."
-                >
-                  Descrição da Turma
-                </FieldLabel>
-
-                <Textarea
-                  id="descricaoTurma"
-                  value={form.descricaoTurma}
-                  onChange={(event) =>
-                    set("descricaoTurma", event.target.value)
-                  }
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={CalendarClock} title="Organização da atividade">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="horarioInicio"
-                  required={!visualizando}
-                  tooltip="Informe o horário de início dos encontros desta turma. Ex.: 14:00."
-                >
-                  Horário de Início da Aula
-                </FieldLabel>
-
-                <Input
-                  id="horarioInicio"
-                  type="time"
-                  value={form.horarioInicio}
-                  onChange={(event) =>
-                    set("horarioInicio", event.target.value)
-                  }
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="horarioFim"
-                  required={!visualizando}
-                  tooltip="Informe o horário de término dos encontros desta turma. Ex.: 16:00."
-                >
-                  Horário de Término da Aula
-                </FieldLabel>
-
-                <Input
-                  id="horarioFim"
-                  type="time"
-                  value={form.horarioFim}
-                  onChange={(event) => set("horarioFim", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="diaAtividade"
-                  required={!visualizando}
-                  tooltip="Selecione o dia da semana em que esta turma acontece regularmente."
-                >
-                  Dia da Atividade
-                </FieldLabel>
-
-                <Select
-                  value={form.diaAtividade}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("diaAtividade", value);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="diaAtividade">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {diasSemana.map((dia) => (
-                      <SelectItem key={dia.value} value={dia.value}>
-                        {dia.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="status"
-                  required={!visualizando}
-                  tooltip="Indique a situação atual da turma no sistema. Use “Ativo” para turmas em andamento, “Pendente” para turmas em organização ou conferência, “Concluído” para turmas finalizadas conforme previsto e “Inativo” para turmas que não devem mais ser consideradas ativas."
-                >
-                  Status da Turma
-                </FieldLabel>
-
-                <Select
-                  value={form.status}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("status", value);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {statusTurma.map((status) => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="nivelTurma"
-                  tooltip="Selecione o nível da turma somente quando a organização trabalhar com turmas por nível. Ex.: iniciante, intermediário ou avançado."
-                >
-                  Nível da Turma
-                </FieldLabel>
-
-                <Select
-                  value={form.nivelTurma || SEM_NIVEL_TURMA}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("nivelTurma", value === SEM_NIVEL_TURMA ? "" : value);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="nivelTurma">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    <SelectItem value={SEM_NIVEL_TURMA}>
-                      Não se aplica
-                    </SelectItem>
-
-                    {niveisTurma.map((nivel) => (
-                      <SelectItem key={nivel.value} value={nivel.value}>
-                        {nivel.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="quantidadeVagas"
-                  tooltip="Informe a quantidade máxima de participantes prevista para esta turma. Ex.: 25."
-                >
-                  Quantidade de Vagas
-                </FieldLabel>
-
-                <Input
-                  id="quantidadeVagas"
-                  value={form.quantidadeVagas}
-                  onChange={(event) =>
-                    set("quantidadeVagas", onlyDigits(event.target.value))
-                  }
-                  inputMode="numeric"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="atividade"
-                  required={!visualizando}
-                  tooltip="Selecione a atividade à qual esta turma pertence. A turma deve ser usada como uma divisão interna de uma atividade já cadastrada."
-                >
-                  Atividade
-                </FieldLabel>
-
-                <Select
-                  value={atividadeSelectValue}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("atividadeId", String(value));
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="atividade">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {atividadesComFallback.map((atividade) => (
-                      <SelectItem
-                        key={String(atividade.id)}
-                        value={String(atividade.id)}
-                      >
-                        {atividade.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Users} title="Colaboradores responsáveis">
-            <div className="grid grid-cols-1 gap-4">
-              <Field full>
-                <FieldLabel
-                  htmlFor="colaboradores"
-                  required={!visualizando}
-                  tooltip="Selecione os colaboradores responsáveis pela condução, apoio, coordenação, acompanhamento ou registro de presença desta turma."
-                >
-                  Colaboradores
-                </FieldLabel>
-
-                <div
-                  className={visualizando ? "pointer-events-none opacity-80" : ""}
-                >
-                  <MultiSelect
-                    id="colaboradores"
-                    options={colaboradoresOptions}
-                    value={form.colaboradores}
-                    onChange={(value) => {
+                  <Select
+                    value={atividadeSelectValue}
+                    onValueChange={(value) => {
                       if (visualizando) return;
-                      set("colaboradores", value);
+                      set("atividadeId", String(value));
                     }}
-                    getOptionLabel={colaboradorLabel}
-                  />
-                </div>
-              </Field>
-            </div>
-          </Section>
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="atividade">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
 
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+                    <SelectContent>
+                      {atividadesComFallback.map((atividade) => (
+                        <SelectItem
+                          key={String(atividade.id)}
+                          value={String(atividade.id)}
+                        >
+                          {atividade.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="nomeTurma"
+                    required={!visualizando}
+                    tooltip="Informe um nome curto e claro que permita identificar facilmente esta turma dentro da atividade."
+                  >
+                    Nome da Turma
+                  </FieldLabel>
+
+                  <Input
+                    id="nomeTurma"
+                    value={form.nomeTurma}
+                    onChange={(event) => set("nomeTurma", event.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field full>
+                  <FieldLabel
+                    htmlFor="descricaoTurma"
+                    required={!visualizando}
+                    tooltip="Descreva as principais características da turma, como perfil dos participantes, faixa etária, forma de organização ou outras informações que ajudem a diferenciá-la."
+                  >
+                    Descrição da Turma
+                  </FieldLabel>
+
+                  <Textarea
+                    id="descricaoTurma"
+                    value={form.descricaoTurma}
+                    onChange={(event) =>
+                      set("descricaoTurma", event.target.value)
+                    }
+                    rows={3}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={Settings2}
+              title="Organização da turma"
+              description="Defina como a turma será organizada em relação ao nível dos participantes e à capacidade de atendimento."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="nivelTurma"
+                    tooltip="Selecione o nível da turma quando a atividade estiver organizada por níveis de aprendizagem ou experiência."
+                  >
+                    Nível da Turma
+                  </FieldLabel>
+
+                  <Select
+                    value={form.nivelTurma || SEM_NIVEL_TURMA}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+                      set("nivelTurma", value === SEM_NIVEL_TURMA ? "" : value);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="nivelTurma">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value={SEM_NIVEL_TURMA}>
+                        Não se aplica
+                      </SelectItem>
+
+                      {niveisTurma.map((nivel) => (
+                        <SelectItem key={nivel.value} value={nivel.value}>
+                          {nivel.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="quantidadeVagas"
+                    tooltip="Informe a quantidade máxima de participantes que poderão fazer parte desta turma, quando houver limite de vagas."
+                  >
+                    Quantidade de Vagas
+                  </FieldLabel>
+
+                  <Input
+                    id="quantidadeVagas"
+                    value={form.quantidadeVagas}
+                    onChange={(event) =>
+                      set("quantidadeVagas", onlyDigits(event.target.value))
+                    }
+                    inputMode="numeric"
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={CalendarClock}
+              title="Horários da turma"
+              description="Defina a rotina semanal da turma, registrando os dias e períodos em que os encontros acontecem. Adicione outros horários quando houver mais de um dia ou período de funcionamento."
+            >
+              <TooltipProvider delayDuration={200}>
+                <div className="space-y-3">
+                  {form.horarios.map((horario, index) => (
+                    <div
+                      key={horario.id}
+                      className="rounded-[14px] border border-border/60 bg-background/50 p-3 backdrop-blur-sm transition-colors hover:border-primary/25 hover:bg-background/70 sm:p-3.5"
+                    >
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+                        <div>
+                          <FieldLabel
+                            htmlFor={`dia-${horario.id}`}
+                            required={!visualizando}
+                            tooltip="Selecione o dia da semana em que a atividade da turma acontece neste horário."
+                          >
+                            Dia da Semana
+                          </FieldLabel>
+
+                          <Select
+                            value={horario.diaAtividade}
+                            onValueChange={(value) =>
+                              setHorario(horario.id, "diaAtividade", value)
+                            }
+                            disabled={bloqueado}
+                          >
+                            <SelectTrigger id={`dia-${horario.id}`}>
+                              <SelectValue placeholder="Selecione o dia" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                              {diasSemana.map((dia) => (
+                                <SelectItem key={dia.value} value={dia.value}>
+                                  {dia.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <FieldLabel
+                            htmlFor={`inicio-${horario.id}`}
+                            required={!visualizando}
+                            tooltip="Informe o horário em que a atividade da turma começa neste dia."
+                          >
+                            Horário de Início
+                          </FieldLabel>
+
+                          <Input
+                            id={`inicio-${horario.id}`}
+                            type="time"
+                            value={horario.horarioInicio}
+                            onChange={(event) =>
+                              setHorario(
+                                horario.id,
+                                "horarioInicio",
+                                event.target.value,
+                              )
+                            }
+                            disabled={bloqueado}
+                            readOnly={visualizando}
+                          />
+                        </div>
+
+                        <div>
+                          <FieldLabel
+                            htmlFor={`fim-${horario.id}`}
+                            required={!visualizando}
+                            tooltip="Informe o horário em que a atividade da turma termina neste dia."
+                          >
+                            Horário de Fim
+                          </FieldLabel>
+
+                          <Input
+                            id={`fim-${horario.id}`}
+                            type="time"
+                            value={horario.horarioFim}
+                            onChange={(event) =>
+                              setHorario(
+                                horario.id,
+                                "horarioFim",
+                                event.target.value,
+                              )
+                            }
+                            disabled={bloqueado}
+                            readOnly={visualizando}
+                          />
+                        </div>
+
+                        <div className="flex sm:pb-1">
+                          {!visualizando && form.horarios.length > 1 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => removerHorario(horario.id)}
+                                  aria-label={`Remover o ${index + 1}º dia e horário`}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-border/60 bg-background/60 text-muted-foreground backdrop-blur-sm transition-colors hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" aria-hidden />
+                                </button>
+                              </TooltipTrigger>
+
+                              <TooltipContent
+                                side="left"
+                                className="max-w-[260px] text-xs"
+                              >
+                                Remover este dia e horário.
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {!visualizando && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="glassSecondary"
+                          onClick={adicionarHorario}
+                          className="h-9 gap-2 px-4"
+                          disabled={loading || saving}
+                        >
+                          <Plus className="h-4 w-4" aria-hidden />
+                          Adicionar horário
+                        </Button>
+                      </TooltipTrigger>
+
+                      <TooltipContent
+                        side="right"
+                        className="max-w-[280px] text-xs"
+                      >
+                        Adicionar outro dia e horário para esta turma.
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+              </TooltipProvider>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={Settings2}
+              title="Situação da turma"
+              description="Indique a situação atual da turma, considerando se está em funcionamento, ainda está em preparação, já foi concluída ou não está mais em funcionamento."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="status"
+                    required={!visualizando}
+                    tooltip="Selecione a situação atual da turma. Ativa indica que está em funcionamento; Pendente, que ainda está em preparação; Concluída, que suas atividades foram encerradas; e Inativa, que não está em funcionamento no momento."
+                  >
+                    Situação da Turma
+                  </FieldLabel>
+
+                  <Select
+                    value={form.status}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+                      set("status", value);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {statusTurma.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={Users}
+              title="Equipe responsável"
+              description="Identifique os colaboradores que ficarão responsáveis pela condução, pelo apoio e pelo acompanhamento das atividades desta turma."
+            >
+              <div className="grid grid-cols-1 gap-4">
+                <Field>
+                  <FieldLabel
+                    htmlFor="colaboradores"
+                    required={!visualizando}
+                    tooltip="Selecione os colaboradores responsáveis pela condução, apoio, coordenação ou acompanhamento das atividades desta turma."
+                  >
+                    Colaboradores
+                  </FieldLabel>
+
+                  <div
+                    className={
+                      visualizando ? "pointer-events-none opacity-80" : ""
+                    }
+                  >
+                    <MultiSelect
+                      id="colaboradores"
+                      options={colaboradoresOptions}
+                      value={form.colaboradores}
+                      onChange={(value) => {
+                        if (visualizando) return;
+                        set("colaboradores", value);
+                      }}
+                      getOptionLabel={colaboradorLabel}
+                    />
+                  </div>
+                </Field>
+              </div>
+            </FormSectionCard>
+          </fieldset>
+
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/turmas")}
               disabled={saving}
             >
@@ -671,7 +890,12 @@ export default function TurmaForm() {
             </Button>
 
             {!visualizando && (
-              <Button type="submit" className="sm:min-w-32" disabled={saving}>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                className="h-9 px-5"
+                disabled={saving}
+              >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
             )}
@@ -683,30 +907,6 @@ export default function TurmaForm() {
         />
       </div>
     </AppLayout>
-  );
-}
-
-function Section({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: any;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
-
-      {children}
-    </Card>
   );
 }
 

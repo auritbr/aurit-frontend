@@ -1,24 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   FileText,
   BookOpen,
   Accessibility,
   Wallet,
-  Building2,
+  Link2,
   Users,
   ClipboardList,
-  Info,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BackButton } from "@/components/BackButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { StatusPill } from "@/components/StatusPill";
+import { getImportConfigForPath } from "@/config/importacoes";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -28,8 +32,6 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { HelpTooltip } from "@/components/HelpTooltip";
-import { ImportDataTitleAction } from "@/components/PageTitle";
 import {
   getPropostaEditalById,
   createPropostaEdital,
@@ -49,8 +51,8 @@ import {
 } from "@/data/propostasEdital";
 import { toast } from "sonner";
 
-const PROPOSTA_EDITAL_NEXT_STEP_KEY =
-  "aurit:propostas-edital:next-step-card";
+const PROPOSTA_EDITAL_NEXT_STEP_KEY = "aurit:propostas-edital:next-step-card";
+const SELECIONE = "__selecione__";
 
 interface PropostaEditalNextStepCardData {
   titulo: string;
@@ -114,10 +116,7 @@ function salvarProximaAcaoPropostaEdital() {
     variante: "pendente",
   };
 
-  sessionStorage.setItem(
-    PROPOSTA_EDITAL_NEXT_STEP_KEY,
-    JSON.stringify(card),
-  );
+  sessionStorage.setItem(PROPOSTA_EDITAL_NEXT_STEP_KEY, JSON.stringify(card));
 }
 
 function maskBRL(raw: string): string {
@@ -142,9 +141,9 @@ function parseBRL(formatted: string): number {
 function numberToBRL(value?: number) {
   return typeof value === "number" && Number.isFinite(value)
     ? value.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    })
+        style: "currency",
+        currency: "BRL",
+      })
     : "";
 }
 
@@ -180,14 +179,10 @@ function propostaToForm(proposta: PropostaEdital): FormState {
   };
 }
 
-function getOptionNome(
-  options: SimpleOption[],
-  id: string,
-  fallback: string,
-) {
+function getOptionNome(options: SimpleOption[], id: string, fallback: string) {
   return (
-    options.find((option) => normalizeId(option.id) === normalizeId(id))?.nome ||
-    `${fallback} ${id}`
+    options.find((option) => normalizeId(option.id) === normalizeId(id))
+      ?.nome || `${fallback} ${id}`
   );
 }
 
@@ -332,14 +327,11 @@ export default function PropostaEditalForm() {
           setForm({
             ...initial,
             organizacao: orgs.length === 1 ? normalizeId(orgs[0].id) : "",
-            statusPropostaEdital: "EM_PREPARACAO",
           });
         }
       } catch (error) {
         toast.error(
-          error instanceof Error
-            ? error.message
-            : "Erro ao carregar proposta.",
+          error instanceof Error ? error.message : "Erro ao carregar proposta.",
         );
         navigate("/propostas-edital");
       } finally {
@@ -370,9 +362,7 @@ export default function PropostaEditalForm() {
       projeto: projetoSelectValue,
       agente: agenteSelectValue,
       motivoReprovacao:
-        form.statusPropostaEdital === "REPROVADA"
-          ? form.motivoReprovacao
-          : "",
+        form.statusPropostaEdital === "REPROVADA" ? form.motivoReprovacao : "",
     };
   }
 
@@ -389,7 +379,7 @@ export default function PropostaEditalForm() {
       ["edital", "Selecione o edital."],
       ["projeto", "Selecione o projeto base."],
       ["agente", "Selecione o agente responsável."],
-      ["statusPropostaEdital", "Selecione o status da proposta."],
+      ["statusPropostaEdital", "Selecione a situação da proposta."],
     ];
 
     for (const [key, message] of required) {
@@ -407,7 +397,7 @@ export default function PropostaEditalForm() {
     const status = formValidacao.statusPropostaEdital;
 
     if (!status) {
-      toast.error("Selecione o status da proposta.");
+      toast.error("Selecione a situação da proposta.");
       return false;
     }
 
@@ -438,7 +428,8 @@ export default function PropostaEditalForm() {
     try {
       setSaving(true);
 
-      const status = formComVinculos.statusPropostaEdital as StatusPropostaEdital;
+      const status =
+        formComVinculos.statusPropostaEdital as StatusPropostaEdital;
 
       const item: PropostaEdital = {
         id: id ?? "",
@@ -461,9 +452,7 @@ export default function PropostaEditalForm() {
         agente: normalizeId(formComVinculos.agente),
         observacoesInternas: formComVinculos.observacoesInternas.trim(),
         motivoReprovacao:
-          status === "REPROVADA"
-            ? formComVinculos.motivoReprovacao.trim()
-            : "",
+          status === "REPROVADA" ? formComVinculos.motivoReprovacao.trim() : "",
         equipesEditaisIds: equipe.map((item) => item.id),
       };
 
@@ -481,9 +470,7 @@ export default function PropostaEditalForm() {
       navigate("/propostas-edital");
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erro ao salvar proposta.",
+        error instanceof Error ? error.message : "Erro ao salvar proposta.",
       );
     } finally {
       setSaving(false);
@@ -500,340 +487,37 @@ export default function PropostaEditalForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/propostas-edital")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" /> Voltar
-        </button>
+        <BackButton to="/propostas-edital" />
 
-        <div className="mb-5 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
-              Proposta de Edital
-            </h1>
+        <ListPageHeader
+          title="Propostas de Edital"
+          tooltip="Nesta página são cadastradas e acompanhadas as propostas que serão apresentadas aos editais, reunindo as informações necessárias para estruturar o projeto, demonstrar sua relevância, planejar sua execução e acompanhar sua participação no processo seletivo. Também podem ser registrados os valores previstos, a equipe envolvida, os responsáveis e as informações de submissão e resultado."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/propostas-edital")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
+        />
 
-            <HelpTooltip
-              text="Cadastre a proposta que será inscrita no edital, reunindo informações do projeto, justificativa, metodologia, acessibilidade, impacto esperado, valores, responsáveis e vínculos institucionais. Esta página ajuda a estruturar a candidatura antes do envio oficial."
-              label="Proposta de Edital"
-              size="md"
-              side="bottom"
-              align="start"
-            />
-            <ImportDataTitleAction show={!visualizando} />
-          </div>
-        </div>
-
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3">
-          <p className="text-xs leading-5 text-muted-foreground">
-            Use esta página para estruturar a proposta antes do envio oficial ao
-            edital. Preencha os textos com atenção, revise valores, responsáveis
-            e vínculos institucionais, e mantenha o status atualizado conforme a
-            evolução da candidatura.
-          </p>
-        </div>
-
-        <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-          <Info
-            className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"
-            strokeWidth={2.2}
-          />
-
-          <p className="text-[13px] leading-relaxed text-foreground">
-            A <span className="font-semibold">Proposta do Edital</span>{" "}
-            representa a candidatura da organização para uma oportunidade
-            específica. Ela pode usar um projeto já cadastrado como base, mas
-            deve ser ajustada conforme as regras, linguagem e critérios do
-            edital selecionado.
-          </p>
-        </div>
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={FileText} title="Identificação da proposta">
-            <div className="space-y-4">
-              <Field>
-                <FieldLabel
-                  htmlFor="tituloProjeto"
-                  required
-                  tooltip="Informe o título do projeto exatamente como será apresentado no edital. Ex.: Oficinas Culturais no Território."
-                >
-                  Título do Projeto
-                </FieldLabel>
-
-                <Input
-                  id="tituloProjeto"
-                  value={form.tituloProjeto}
-                  onChange={(e) => set("tituloProjeto", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="resumoProjeto"
-                  required
-                  tooltip="Apresente uma síntese clara da proposta, explicando o que será realizado, para quem, onde, por qual motivo e com qual finalidade."
-                >
-                  Resumo do Projeto
-                </FieldLabel>
-
-                <Textarea
-                  id="resumoProjeto"
-                  value={form.resumoProjeto}
-                  onChange={(e) => set("resumoProjeto", e.target.value)}
-                  rows={4}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={BookOpen} title="Conteúdo do projeto">
-            <div className="space-y-4">
-              <Field>
-                <FieldLabel
-                  htmlFor="justificativaProjeto"
-                  required
-                  tooltip="Explique por que o projeto é importante, qual necessidade, demanda ou oportunidade cultural ele atende, quem será beneficiado e como contribui para a comunidade, território ou público envolvido."
-                >
-                  Justificativa
-                </FieldLabel>
-
-                <Textarea
-                  id="justificativaProjeto"
-                  value={form.justificativaProjeto}
-                  onChange={(e) => set("justificativaProjeto", e.target.value)}
-                  rows={5}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="metodologiaExecucao"
-                  required
-                  tooltip="Descreva como o projeto será executado na prática, informando etapas, atividades, cronograma, equipe envolvida, forma de organização, acompanhamento e registro das ações."
-                >
-                  Metodologia de Execução
-                </FieldLabel>
-
-                <Textarea
-                  id="metodologiaExecucao"
-                  value={form.metodologiaExecucao}
-                  onChange={(e) => set("metodologiaExecucao", e.target.value)}
-                  rows={5}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Accessibility} title="Acesso, acessibilidade e impacto">
-            <div className="space-y-4">
-              <Field>
-                <FieldLabel
-                  htmlFor="democratizacaoAcesso"
-                  required
-                  tooltip="Explique como o projeto facilitará o acesso do público às ações culturais, considerando gratuidade, localização, divulgação, acolhimento, público prioritário, horários, território ou redução de barreiras de participação."
-                >
-                  Democratização de Acesso
-                </FieldLabel>
-
-                <Textarea
-                  id="democratizacaoAcesso"
-                  value={form.democratizacaoAcesso}
-                  onChange={(e) => set("democratizacaoAcesso", e.target.value)}
-                  rows={4}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="acoesAcessibilidade"
-                  required
-                  tooltip="Descreva as medidas previstas para ampliar a participação e compreensão do público, considerando acessibilidade física, comunicacional, social, territorial, econômica ou pedagógica."
-                >
-                  Ações de Acessibilidade
-                </FieldLabel>
-
-                <Textarea
-                  id="acoesAcessibilidade"
-                  value={form.acoesAcessibilidade}
-                  onChange={(e) => set("acoesAcessibilidade", e.target.value)}
-                  rows={4}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="impactoEsperado"
-                  required
-                  tooltip="Descreva os efeitos esperados com a realização do projeto, como fortalecimento cultural, participação comunitária, formação de público, desenvolvimento de habilidades, visibilidade, inclusão ou ampliação do acesso à cultura."
-                >
-                  Impacto Esperado
-                </FieldLabel>
-
-                <Textarea
-                  id="impactoEsperado"
-                  value={form.impactoEsperado}
-                  onChange={(e) => set("impactoEsperado", e.target.value)}
-                  rows={4}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Wallet} title="Valores e submissão">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="valorSolicitado"
-                  required
-                  tooltip="Informe o valor que será solicitado ao edital para execução da proposta, conforme orçamento apresentado. Ex.: R$ 50.000,00."
-                >
-                  Valor Solicitado
-                </FieldLabel>
-
-                <Input
-                  id="valorSolicitado"
-                  inputMode="numeric"
-                  value={form.valorSolicitado}
-                  onChange={(e) =>
-                    set("valorSolicitado", maskBRL(e.target.value))
-                  }
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="valorContrapartida"
-                  tooltip="Informe o valor estimado da contrapartida, quando o edital exigir ou quando a organização oferecer recursos próprios, apoio, serviços, estrutura, equipe ou outras contribuições mensuráveis."
-                >
-                  Valor de Contrapartida
-                </FieldLabel>
-
-                <Input
-                  id="valorContrapartida"
-                  inputMode="numeric"
-                  value={form.valorContrapartida}
-                  onChange={(e) =>
-                    set("valorContrapartida", maskBRL(e.target.value))
-                  }
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="dataSubmissao"
-                  tooltip="Informe a data em que a proposta foi enviada, protocolada ou submetida oficialmente ao edital. Para propostas em preparação, esta data pode ficar em branco."
-                >
-                  Data de Submissão
-                </FieldLabel>
-
-                <Input
-                  id="dataSubmissao"
-                  type="date"
-                  value={form.dataSubmissao}
-                  onChange={(e) => set("dataSubmissao", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="statusPropostaEdital"
-                  required
-                  tooltip="Indique a situação atual da proposta. Use “Em preparação” enquanto estiver sendo estruturada, “Submetida” após o envio oficial, “Em habilitação” na fase documental, “Em diligência” quando houver solicitação de ajuste, “Aprovada” quando selecionada, “Suplente” quando estiver em lista de espera, “Reprovada” quando não for selecionada, “Cancelada” quando a proposta for suspensa, “Em execução” durante a realização do projeto, “Em prestação de contas” durante a comprovação e “Finalizada” quando o processo estiver encerrado."
-                >
-                  Status da Proposta
-                </FieldLabel>
-
-                <Select
-                  value={form.statusPropostaEdital}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-
-                    setForm((prev) => ({
-                      ...prev,
-                      statusPropostaEdital: value as StatusPropostaEdital,
-                      motivoReprovacao:
-                        value === "REPROVADA"
-                          ? prev.motivoReprovacao
-                          : "",
-                    }));
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="statusPropostaEdital">
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {statusPropostaEditalOptions.map((status) => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              {form.statusPropostaEdital === "REPROVADA" && (
-                <Field>
-                  <FieldLabel
-                    htmlFor="motivoReprovacao"
-                    required={!visualizando}
-                    tooltip="Informe o motivo oficial ou uma observação interna sobre a reprovação da proposta."
-                  >
-                    Motivo de Reprovação
-                  </FieldLabel>
-
-                  <Textarea
-                    id="motivoReprovacao"
-                    value={form.motivoReprovacao}
-                    onChange={(e) => set("motivoReprovacao", e.target.value)}
-                    rows={4}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
-              )}
-            </div>
-          </Section>
-
-          <Section icon={Building2} title="Vínculos institucionais">
+          {/* 1 — Vínculos da proposta */}
+          <Section
+            icon={Link2}
+            title="Vínculos da proposta"
+            description="Defina o contexto em que a proposta será elaborada, relacionando-a à organização que irá apresentá-la, ao edital correspondente e ao projeto que servirá como referência."
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="organizacao"
                   required
-                  tooltip="Selecione a organização responsável pela inscrição e execução da proposta."
+                  tooltip="Selecione a organização que apresentará a proposta ao edital e será responsável por sua execução caso ela seja selecionada."
                 >
                   Organização
                 </FieldLabel>
@@ -873,7 +557,7 @@ export default function PropostaEditalForm() {
                 <FieldLabel
                   htmlFor="edital"
                   required
-                  tooltip="Selecione o edital ao qual esta proposta será vinculada. Esse vínculo conecta a candidatura ao processo seletivo correto."
+                  tooltip="Selecione o edital ao qual esta proposta será apresentada. O edital define regras, prazos, valores e exigências que devem ser considerados no preenchimento da proposta."
                 >
                   Edital
                 </FieldLabel>
@@ -913,9 +597,9 @@ export default function PropostaEditalForm() {
                 <FieldLabel
                   htmlFor="projeto"
                   required
-                  tooltip="Selecione o projeto que servirá como referência para esta proposta. Revise e adapte os textos conforme as exigências, critérios e linguagem do edital."
+                  tooltip="Selecione o projeto já cadastrado que servirá como base para esta proposta. As informações da proposta podem ser adaptadas para atender às exigências específicas do edital."
                 >
-                  Projeto Base
+                  Projeto de Referência
                 </FieldLabel>
 
                 <Select
@@ -927,7 +611,7 @@ export default function PropostaEditalForm() {
                   disabled={bloqueado}
                 >
                   <SelectTrigger id="projeto">
-                    <SelectValue placeholder="Selecione o projeto base" />
+                    <SelectValue placeholder="Selecione o projeto" />
                   </SelectTrigger>
 
                   <SelectContent>
@@ -948,55 +632,224 @@ export default function PropostaEditalForm() {
                   </SelectContent>
                 </Select>
               </Field>
+            </div>
+          </Section>
+
+          {/* 2 — Identificação da proposta */}
+          <Section
+            icon={FileText}
+            title="Identificação da proposta"
+            description="Apresente a proposta de forma clara e resumida, permitindo compreender rapidamente qual projeto será submetido ao edital e o que ele pretende realizar."
+          >
+            <div className="space-y-4">
+              <Field>
+                <FieldLabel
+                  htmlFor="tituloProjeto"
+                  required
+                  tooltip="Informe o título pelo qual o projeto será apresentado nesta proposta. Ele pode ser igual ao nome do projeto de referência ou adaptado para este edital."
+                >
+                  Título do Projeto
+                </FieldLabel>
+
+                <Input
+                  id="tituloProjeto"
+                  value={form.tituloProjeto}
+                  onChange={(e) => set("tituloProjeto", e.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
 
               <Field>
                 <FieldLabel
-                  htmlFor="agente"
+                  htmlFor="resumoProjeto"
                   required
-                  tooltip="Selecione o agente cultural responsável pela inscrição ou representação da proposta no edital."
+                  tooltip="Apresente uma visão geral do projeto, explicando de forma breve o que será realizado, para quem, onde acontecerá e quais resultados se pretende alcançar."
                 >
-                  Agente Responsável
+                  Resumo do Projeto
                 </FieldLabel>
 
-                <Select
-                  value={agenteSelectValue}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("agente", normalizeId(value));
-                  }}
+                <Textarea
+                  id="resumoProjeto"
+                  value={form.resumoProjeto}
+                  onChange={(e) => set("resumoProjeto", e.target.value)}
+                  rows={4}
                   disabled={bloqueado}
-                >
-                  <SelectTrigger id="agente">
-                    <SelectValue placeholder="Selecione o agente" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {agentesComFallback.length === 0 ? (
-                      <SelectItem value="sem-agente" disabled>
-                        Nenhum agente cadastrado
-                      </SelectItem>
-                    ) : (
-                      agentesComFallback.map((agente) => (
-                        <SelectItem
-                          key={normalizeId(agente.id)}
-                          value={normalizeId(agente.id)}
-                        >
-                          {agente.nome}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                  readOnly={visualizando}
+                />
               </Field>
             </div>
           </Section>
 
-          <Section icon={Users} title="Equipe do edital">
-            <p className="mb-3 text-xs text-muted-foreground">
-              Após salvar a proposta, acesse o módulo Equipe do Edital para
-              cadastrar ou vincular os membros responsáveis.
-            </p>
+          {/* 3 — Conteúdo do projeto */}
+          <Section
+            icon={BookOpen}
+            title="Conteúdo do projeto"
+            description="Fundamente a proposta e explique como ela será desenvolvida, demonstrando sua relevância e a forma prevista para colocar as ações em prática."
+          >
+            <div className="space-y-4">
+              <Field>
+                <FieldLabel
+                  htmlFor="justificativaProjeto"
+                  required
+                  tooltip="Explique por que o projeto é necessário e relevante. Apresente a situação, necessidade ou oportunidade que motivou a proposta e indique por que a realização do projeto é importante para o público, a comunidade ou o território."
+                >
+                  Justificativa
+                </FieldLabel>
 
+                <Textarea
+                  id="justificativaProjeto"
+                  value={form.justificativaProjeto}
+                  onChange={(e) => set("justificativaProjeto", e.target.value)}
+                  rows={5}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="metodologiaExecucao"
+                  required
+                  tooltip="Explique como o projeto será realizado na prática. Descreva as principais etapas, atividades, formas de organização, participação da equipe e como a execução será acompanhada."
+                >
+                  Metodologia de Execução
+                </FieldLabel>
+
+                <Textarea
+                  id="metodologiaExecucao"
+                  value={form.metodologiaExecucao}
+                  onChange={(e) => set("metodologiaExecucao", e.target.value)}
+                  rows={5}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          {/* 4 — Acesso, acessibilidade e impacto */}
+          <Section
+            icon={Accessibility}
+            title="Acesso, acessibilidade e impacto"
+            description="Demonstre como o projeto pretende alcançar e incluir o público e quais mudanças ou benefícios são esperados a partir de sua realização."
+          >
+            <div className="space-y-4">
+              <Field>
+                <FieldLabel
+                  htmlFor="democratizacaoAcesso"
+                  required
+                  tooltip="Explique como o projeto ampliará o acesso e facilitará a participação do público. Considere, quando aplicável, gratuidade, localização, horários, divulgação, público prioritário e outras medidas que reduzam barreiras de participação."
+                >
+                  Democratização do Acesso
+                </FieldLabel>
+
+                <Textarea
+                  id="democratizacaoAcesso"
+                  value={form.democratizacaoAcesso}
+                  onChange={(e) => set("democratizacaoAcesso", e.target.value)}
+                  rows={4}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="acoesAcessibilidade"
+                  required
+                  tooltip="Descreva as medidas previstas para permitir a participação de pessoas com diferentes necessidades. Podem incluir Libras, audiodescrição, legendas, acessibilidade física, linguagem simples ou outras adaptações adequadas ao projeto."
+                >
+                  Ações de Acessibilidade
+                </FieldLabel>
+
+                <Textarea
+                  id="acoesAcessibilidade"
+                  value={form.acoesAcessibilidade}
+                  onChange={(e) => set("acoesAcessibilidade", e.target.value)}
+                  rows={4}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="impactoEsperado"
+                  required
+                  tooltip="Descreva as mudanças, benefícios ou resultados que se espera alcançar com o projeto para o público atendido, a comunidade, o território ou a área de atuação envolvida."
+                >
+                  Impacto Esperado
+                </FieldLabel>
+
+                <Textarea
+                  id="impactoEsperado"
+                  value={form.impactoEsperado}
+                  onChange={(e) => set("impactoEsperado", e.target.value)}
+                  rows={4}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          {/* 5 — Valores da proposta */}
+          <Section
+            icon={Wallet}
+            title="Valores da proposta"
+            description="Registre os recursos financeiros necessários para viabilizar a proposta, considerando o valor solicitado ao edital e eventual participação financeira da própria organização."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="valorSolicitado"
+                  required
+                  tooltip="Informe o valor que a organização está solicitando ao edital para executar esta proposta. Esse valor deve ser compatível com o orçamento apresentado."
+                >
+                  Valor Solicitado
+                </FieldLabel>
+
+                <Input
+                  id="valorSolicitado"
+                  inputMode="numeric"
+                  value={form.valorSolicitado}
+                  onChange={(e) =>
+                    set("valorSolicitado", maskBRL(e.target.value))
+                  }
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="valorContrapartida"
+                  tooltip="Informe o valor correspondente aos recursos próprios ou outras contribuições da organização destinadas à realização da proposta, quando o edital exigir ou quando houver contrapartida prevista."
+                >
+                  Valor da Contrapartida
+                </FieldLabel>
+
+                <Input
+                  id="valorContrapartida"
+                  inputMode="numeric"
+                  value={form.valorContrapartida}
+                  onChange={(e) =>
+                    set("valorContrapartida", maskBRL(e.target.value))
+                  }
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          {/* 6 — Equipe da proposta */}
+          <Section
+            icon={Users}
+            title="Equipe da proposta"
+            description="Organize as pessoas previstas para participar da execução da proposta, mantendo registradas suas funções, cargas horárias e valores previstos."
+          >
             {isEdit && equipe.length > 0 ? (
               <div className="overflow-hidden rounded border border-border">
                 <table className="w-full text-sm">
@@ -1047,8 +900,8 @@ export default function PropostaEditalForm() {
               <div className="rounded border border-dashed border-border bg-muted/20 px-4 py-6 text-center">
                 <p className="text-xs text-muted-foreground">
                   {isEdit
-                    ? "Nenhum membro vinculado a esta proposta ainda."
-                    : "Após salvar a proposta, acesse o módulo Equipe do Edital para cadastrar ou vincular os membros responsáveis."}
+                    ? "Nenhum integrante vinculado a esta proposta."
+                    : "Salve a proposta para adicionar os integrantes da equipe."}
                 </p>
               </div>
             )}
@@ -1057,7 +910,7 @@ export default function PropostaEditalForm() {
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="glassSecondary"
                   size="sm"
                   onClick={() =>
                     navigate(
@@ -1065,28 +918,172 @@ export default function PropostaEditalForm() {
                     )
                   }
                 >
-                  Adicionar membro da equipe
+                  Adicionar integrante
                 </Button>
 
                 {isEdit && (
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="glassSecondary"
                     size="sm"
                     onClick={() => navigate(`/equipe-edital?proposta=${id}`)}
                   >
-                    Ver equipe vinculada
+                    Ver equipe
                   </Button>
                 )}
               </div>
             )}
           </Section>
 
-          <Section icon={ClipboardList} title="Observações internas">
+          {/* 7 — Acompanhamento da proposta */}
+          <Section
+            icon={ClipboardList}
+            title="Acompanhamento da proposta"
+            description="Acompanhe a proposta ao longo do processo do edital, mantendo definido o responsável interno e atualizadas as informações sobre envio e resultado."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="agente"
+                  required
+                  tooltip="Selecione o agente da organização responsável por acompanhar esta proposta, incluindo inscrição, envio de informações, prazos, diligências e outras etapas relacionadas ao edital."
+                >
+                  Agente Responsável
+                </FieldLabel>
+
+                <Select
+                  value={agenteSelectValue}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
+                    set("agente", normalizeId(value));
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="agente">
+                    <SelectValue placeholder="Selecione o responsável" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {agentesComFallback.length === 0 ? (
+                      <SelectItem value="sem-agente" disabled>
+                        Nenhum responsável cadastrado
+                      </SelectItem>
+                    ) : (
+                      agentesComFallback.map((agente) => (
+                        <SelectItem
+                          key={normalizeId(agente.id)}
+                          value={normalizeId(agente.id)}
+                        >
+                          {agente.nome}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="dataSubmissao"
+                  tooltip="Informe a data em que a proposta foi efetivamente enviada, protocolada ou inscrita no edital. Se a proposta ainda estiver sendo preparada, deixe o campo em branco."
+                >
+                  Data de Submissão
+                </FieldLabel>
+
+                <Input
+                  id="dataSubmissao"
+                  type="date"
+                  value={form.dataSubmissao}
+                  onChange={(e) => set("dataSubmissao", e.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="statusPropostaEdital"
+                  required
+                  tooltip="Selecione a situação que representa o momento atual desta proposta, desde sua preparação e envio até as etapas posteriores do processo seletivo. Atualize o campo sempre que houver mudança."
+                >
+                  Situação da Proposta
+                </FieldLabel>
+
+                <Select
+                  value={form.statusPropostaEdital || SELECIONE}
+                  onValueChange={(value) => {
+                    if (visualizando) return;
+
+                    setForm((prev) => ({
+                      ...prev,
+                      statusPropostaEdital:
+                        value === SELECIONE
+                          ? ""
+                          : (value as StatusPropostaEdital),
+                      motivoReprovacao:
+                        value === "REPROVADA" ? prev.motivoReprovacao : "",
+                    }));
+                  }}
+                  disabled={bloqueado}
+                >
+                  <SelectTrigger id="statusPropostaEdital">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value={SELECIONE}>Selecione</SelectItem>
+                    {statusPropostaEditalOptions.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {form.statusPropostaEdital && (
+                  <div className="mt-2">
+                    <StatusPill
+                      status={form.statusPropostaEdital}
+                      context="proposta-edital"
+                      ariaLabelPrefix="Situação da proposta"
+                    />
+                  </div>
+                )}
+              </Field>
+
+              {form.statusPropostaEdital === "REPROVADA" && (
+                <Field full>
+                  <FieldLabel
+                    htmlFor="motivoReprovacao"
+                    required
+                    tooltip="Informe o motivo apresentado para a reprovação da proposta. Quando não houver justificativa oficial, registre uma informação que ajude a organização a compreender e acompanhar esse resultado."
+                  >
+                    Motivo da Reprovação
+                  </FieldLabel>
+
+                  <Textarea
+                    id="motivoReprovacao"
+                    value={form.motivoReprovacao}
+                    onChange={(e) => set("motivoReprovacao", e.target.value)}
+                    rows={4}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              )}
+            </div>
+          </Section>
+
+          {/* 8 — Observações internas */}
+          <Section
+            icon={ClipboardList}
+            title="Observações internas"
+            description="Registre informações de acompanhamento que sejam úteis para a organização, mas que não façam parte do conteúdo oficial apresentado ao edital."
+          >
             <Field>
               <FieldLabel
                 htmlFor="observacoesInternas"
-                tooltip="Registre observações internas sobre a proposta, como pendências, ajustes necessários, decisões da equipe, pontos de atenção, diligências, prazos ou informações que não farão parte do texto oficial enviado ao edital."
+                tooltip="Registre informações importantes para o acompanhamento interno, como pendências, ajustes necessários, decisões da equipe, diligências, prazos, documentos que ainda precisam ser enviados ou outros pontos de atenção."
               >
                 Observações Internas
               </FieldLabel>
@@ -1101,15 +1098,16 @@ export default function PropostaEditalForm() {
               />
 
               <p className="mt-1.5 text-[11px] text-muted-foreground">
-                Campo interno — não faz parte do texto oficial do edital.
+                Campo de uso interno — não faz parte do conteúdo oficial enviado
+                ao edital.
               </p>
             </Field>
           </Section>
-
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/propostas-edital")}
               disabled={saving}
             >
@@ -1117,7 +1115,12 @@ export default function PropostaEditalForm() {
             </Button>
 
             {!visualizando && (
-              <Button type="submit" className="sm:min-w-40" disabled={saving}>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                className="h-9 px-5"
+                disabled={saving}
+              >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
             )}
@@ -1133,29 +1136,29 @@ export default function PropostaEditalForm() {
 }
 
 function Section({
-  icon: Icon,
+  icon,
   title,
+  description,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
-
+    <FormSectionCard icon={icon} title={title} description={description}>
       {children}
-    </Card>
+    </FormSectionCard>
   );
 }
 
-function Field({ children }: { children: React.ReactNode }) {
-  return <div>{children}</div>;
+function Field({
+  children,
+  full,
+}: {
+  children: React.ReactNode;
+  full?: boolean;
+}) {
+  return <div className={full ? "sm:col-span-2" : ""}>{children}</div>;
 }

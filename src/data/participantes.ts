@@ -1,12 +1,10 @@
 import { getJsonHeaders, getMultipartHeaders } from "@/lib/apiHeaders";
+import { sortOptionsByLabel } from "@/lib/sortOptions";
+import { maskCEP, maskCPF, maskPhone, maskRGFlex } from "@/lib/masks";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
-export type ParticipanteStatus =
-  | "ATIVO"
-  | "INATIVO"
-  | "PENDENTE"
-  | "CONCLUIDO";
+export type ParticipanteStatus = "ATIVO" | "INATIVO" | "PENDENTE" | "CONCLUIDO";
 
 export type StatusMatricula =
   | "MATRICULADO"
@@ -111,7 +109,7 @@ export const faixaRendaOptions = [
   { value: "PREFERE_NAO_INFORMAR", label: "Prefere não informar" },
 ] as const;
 
-export const tipoDocumentoParticipanteOptions = [
+export const tipoDocumentoParticipanteOptions = sortOptionsByLabel([
   { value: "RG", label: "RG" },
   { value: "CPF", label: "CPF" },
   { value: "CERTIDAO_NASCIMENTO", label: "Certidão de nascimento" },
@@ -119,7 +117,10 @@ export const tipoDocumentoParticipanteOptions = [
   { value: "COMPROVANTE_ESCOLAR", label: "Comprovante escolar" },
   { value: "DOCUMENTO_RESPONSAVEL", label: "Documento do responsável" },
   { value: "AUTORIZACAO_RESPONSAVEL", label: "Autorização do responsável" },
-  { value: "TERMO_AUTORIZACAO_IMAGEM", label: "Termo de autorização de imagem" },
+  {
+    value: "TERMO_AUTORIZACAO_IMAGEM",
+    label: "Termo de autorização de imagem",
+  },
   {
     value: "TERMO_AUTORIZACAO_PARTICIPACAO",
     label: "Termo de autorização de participação",
@@ -132,9 +133,9 @@ export const tipoDocumentoParticipanteOptions = [
   { value: "COMPROVANTE_BOLSA_FAMILIA", label: "Comprovante Bolsa Família" },
   { value: "NIS", label: "NIS" },
   { value: "OUTRO", label: "Outro" },
-] as const;
+] as const);
 
-export const tipoNeurodivergenciaOptions = [
+export const tipoNeurodivergenciaOptions = sortOptionsByLabel([
   { value: "TEA", label: "TEA" },
   { value: "ASPERGER", label: "Asperger" },
   { value: "TDAH", label: "TDAH" },
@@ -158,9 +159,9 @@ export const tipoNeurodivergenciaOptions = [
     label: "Transtorno do processamento auditivo",
   },
   { value: "OUTRA", label: "Outra" },
-] as const;
+] as const);
 
-export const tipoDeficienciaParticipanteOptions = [
+export const tipoDeficienciaParticipanteOptions = sortOptionsByLabel([
   { value: "NAO_POSSUI", label: "Não possui" },
   { value: "FISICA", label: "Física" },
   { value: "AUDITIVA", label: "Auditiva" },
@@ -168,10 +169,13 @@ export const tipoDeficienciaParticipanteOptions = [
   { value: "INTELECTUAL", label: "Intelectual" },
   { value: "PSICOSSOCIAL", label: "Psicossocial" },
   { value: "MULTIPLA", label: "Múltipla" },
-  { value: "TRANSTORNO_ESPECTRO_AUTISTA", label: "Transtorno do Espectro Autista" },
+  {
+    value: "TRANSTORNO_ESPECTRO_AUTISTA",
+    label: "Transtorno do Espectro Autista",
+  },
   { value: "OUTRA", label: "Outra" },
   { value: "NAO_INFORMADO", label: "Não informado" },
-] as const;
+] as const);
 
 export const statusParticipante = [
   { value: "ATIVO", label: "Ativo" },
@@ -201,27 +205,31 @@ export const statusMatriculaValueToLabel = (v?: string) =>
   statusMatriculaOptions.find((s) => s.value === v)?.label ?? v ?? "—";
 
 export const nivelTurmaValueToLabel = (v?: string | null) =>
-  v ? niveisTurmaOptions.find((nivel) => nivel.value === v)?.label ?? v : "—";
+  v ? (niveisTurmaOptions.find((nivel) => nivel.value === v)?.label ?? v) : "—";
 
 export const tipoDocumentoParticipanteValueToLabel = (v?: string | null) =>
   v
-    ? tipoDocumentoParticipanteOptions.find((item) => item.value === v)
-      ?.label ?? v
+    ? (tipoDocumentoParticipanteOptions.find((item) => item.value === v)
+        ?.label ?? v)
     : "—";
 
 export const tipoNeurodivergenciaValueToLabel = (v?: string | null) =>
   v
-    ? tipoNeurodivergenciaOptions.find((item) => item.value === v)?.label ?? v
+    ? (tipoNeurodivergenciaOptions.find((item) => item.value === v)?.label ?? v)
     : "—";
 
 export const tipoDeficienciaParticipanteValueToLabel = (v?: string | null) =>
   v
-    ? tipoDeficienciaParticipanteOptions.find((item) => item.value === v)
-      ?.label ?? v
+    ? (tipoDeficienciaParticipanteOptions.find((item) => item.value === v)
+        ?.label ?? v)
     : "—";
 
 export const tipoNeurodivergenciasValueToLabel = (
-  values?: Array<TipoNeurodivergencia | string> | TipoNeurodivergencia | string | null,
+  values?:
+    | Array<TipoNeurodivergencia | string>
+    | TipoNeurodivergencia
+    | string
+    | null,
 ) => {
   const lista = normalizeEnumList(values);
 
@@ -240,7 +248,9 @@ export const tipoDeficienciasParticipanteValueToLabel = (
   const lista = normalizeEnumList(values);
 
   return lista.length
-    ? lista.map((item) => tipoDeficienciaParticipanteValueToLabel(item)).join(", ")
+    ? lista
+        .map((item) => tipoDeficienciaParticipanteValueToLabel(item))
+        .join(", ")
     : "—";
 };
 
@@ -251,6 +261,7 @@ export interface ParticipanteVinculo {
   dataMatricula: string;
   nivelTurma?: string;
   statusMatricula: string;
+  patrimonioId?: string;
 }
 
 export interface Participante {
@@ -315,6 +326,7 @@ export interface ParticipanteAtividadeApiDTO {
   atividadeId?: number | string | null;
   turmaId?: number | string | null;
   statusMatricula?: string | null;
+  patrimonioId?: number | string | null;
 
   atividade?: {
     id?: number | string | null;
@@ -326,6 +338,10 @@ export interface ParticipanteAtividadeApiDTO {
     id?: number | string | null;
     nomeTurma?: string | null;
     nome?: string | null;
+  } | null;
+
+  patrimonio?: {
+    id?: number | string | null;
   } | null;
 }
 
@@ -431,6 +447,7 @@ export interface ParticipantePayloadDTO {
     atividadeId: number;
     turmaId?: number | null;
     statusMatricula: string;
+    patrimonioId?: number | null;
   }[];
 }
 
@@ -479,11 +496,7 @@ export async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -602,9 +615,9 @@ export function mapParticipante(dto: ParticipanteApiDTO): Participante {
     id: normalizeId(dto.id),
     nomeCompleto: pickText(dto.nomeCompleto, dto.nome),
     dataNascimento: formatIsoToBR(dto.dataNascimento),
-    cpf: dto.cpf ?? "",
-    rg: dto.rg ?? "",
-    telefone: dto.telefone ?? "",
+    cpf: maskCPF(dto.cpf ?? ""),
+    rg: maskRGFlex(dto.rg ?? ""),
+    telefone: maskPhone(dto.telefone ?? ""),
     email: dto.email ?? "",
     genero: dto.genero ?? "",
     racaCor: dto.racaCor ?? "",
@@ -617,7 +630,7 @@ export function mapParticipante(dto: ParticipanteApiDTO): Participante {
     tipoNeurodivergencias: normalizeEnumList(dto.tipoNeurodivergencias),
     tipoDeficiencias: normalizeEnumList(dto.tipoDeficiencias),
 
-    cep: dto.cep ?? "",
+    cep: maskCEP(dto.cep ?? ""),
     logradouro: dto.logradouro ?? "",
     numero: dto.numero ?? "",
     complemento: dto.complemento ?? "",
@@ -626,9 +639,9 @@ export function mapParticipante(dto: ParticipanteApiDTO): Participante {
     estado: dto.estado ?? "",
 
     nomeResponsavel: dto.nomeResponsavel ?? "",
-    cpfResponsavel: dto.cpfResponsavel ?? "",
-    rgResponsavel: dto.rgResponsavel ?? "",
-    telefoneResponsavel: dto.telefoneResponsavel ?? "",
+    cpfResponsavel: maskCPF(dto.cpfResponsavel ?? ""),
+    rgResponsavel: maskRGFlex(dto.rgResponsavel ?? ""),
+    telefoneResponsavel: maskPhone(dto.telefoneResponsavel ?? ""),
 
     status: dto.status ?? "",
     organizacaoId: normalizeId(dto.organizacaoId ?? dto.organizacao),
@@ -641,6 +654,7 @@ export function mapParticipante(dto: ParticipanteApiDTO): Participante {
       dataMatricula: formatIsoToBR(v.dataMatricula),
       nivelTurma: v.nivelTurma ?? "",
       statusMatricula: v.statusMatricula ?? "",
+      patrimonioId: normalizeId(v.patrimonioId ?? v.patrimonio) || undefined,
     })),
   };
 }
@@ -698,6 +712,7 @@ export function buildParticipantePayload(
       atividadeId: Number(v.atividadeId),
       turmaId: v.turmaId ? Number(v.turmaId) : null,
       statusMatricula: v.statusMatricula,
+      patrimonioId: v.patrimonioId ? Number(v.patrimonioId) : null,
     })),
   };
 }
@@ -791,10 +806,13 @@ function buildParticipanteRequestBody(
 export async function getParticipanteDocumentoDownloadUrl(
   id: number,
 ): Promise<string> {
-  const response = await fetch(`${API_URL}/participantes/${id}/documento/download`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
+  const response = await fetch(
+    `${API_URL}/participantes/${id}/documento/download`,
+    {
+      method: "GET",
+      headers: getJsonHeaders(),
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await parseError(response));

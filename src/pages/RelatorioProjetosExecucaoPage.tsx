@@ -5,7 +5,7 @@ import { AccessDenied } from "@/components/AccessDenied";
 import {
   RelatorioHeader,
   GrupoIndicadores,
-  SecaoLinhasRelatorio,
+  TabelaLinhasRelatorio,
   RelatorioLoading,
 } from "@/components/relatorios/RelatorioComponents";
 import {
@@ -75,26 +75,39 @@ export default function RelatorioProjetosExecucaoPage() {
           <div>
             {data.resumo?.map((g, i) => <GrupoIndicadores key={i} grupo={g} />)}
 
-            <SecaoLinhasRelatorio titulo="Projetos" items={data.projetos} />
+            <TabelaLinhasRelatorio
+              titulo="Projetos"
+              items={data.projetos}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
+            />
 
-            <SecaoLinhasRelatorio
+            <TabelaLinhasRelatorio
               titulo="Cronogramas"
               items={data.cronogramas}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
             />
 
-            <SecaoLinhasRelatorio
+            <TabelaLinhasRelatorio
               titulo="Eventos culturais"
               items={data.eventosCulturais}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
             />
 
-            <SecaoLinhasRelatorio
+            <TabelaLinhasRelatorio
               titulo="Propostas de edital"
               items={data.propostasEditais}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
             />
 
-            <SecaoLinhasRelatorio
+            <TabelaLinhasRelatorio
               titulo="Prestações de contas"
               items={data.prestacoesContas}
+              nomeEmpresa={data.nomeEmpresa}
+              dataGeracao={data.dataGeracao}
             />
           </div>
         )}

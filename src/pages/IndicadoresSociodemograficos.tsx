@@ -1,7 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
-import { Users, FileText, Download, FileSpreadsheet } from "lucide-react";
+import {
+  Users,
+  FileText,
+  Download,
+  FileSpreadsheet,
+  RotateCcw,
+  Search,
+} from "lucide-react";
+
 import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { PageObjective } from "@/components/PageObjective";
+import { FieldLabel } from "@/components/FieldLabel";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+  useSessionBoolean,
+} from "@/components/AdvancedSearchPanel";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -11,11 +31,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import {
   getAtividadesOptions,
-  getIndicadoresSociodemograficos,
   getParticipantes,
   getTurmasOptions,
+  faixaRendaOptions,
+  generoOptions,
+  racaCorOptions,
+  tipoDeficienciaParticipanteOptions,
+  tipoNeurodivergenciaOptions,
   statusMatriculaOptions,
   type AtividadeOption,
   type IndicadorItem,
@@ -23,8 +48,12 @@ import {
   type Participante,
   type TurmaOption,
 } from "@/data/participantes";
+
 import { exportToCSV, exportToExcel } from "@/lib/indicadoresExport";
-import { exportIndicadoresSociodemograficosPdf } from "@/lib/relatorioExporters";
+
+import { downloadGeneralReportPdf } from "@/lib/generalReportPdf";
+import { REPORT_DATA_INVALIDATED_EVENT } from "@/lib/reportDataInvalidation";
+
 import { toast } from "sonner";
 
 type Filtros = {
@@ -32,6 +61,13 @@ type Filtros = {
   atividadeId: string;
   turmaId: string;
   statusMatricula: string;
+  genero: string;
+  racaCor: string;
+  faixaRenda: string;
+  cadunico: string;
+  tipoDeficiencia: string;
+  tipoNeurodivergencia: string;
+  bolsaFamilia: string;
 };
 
 type IndicadorExportItem = {
@@ -41,13 +77,45 @@ type IndicadorExportItem = {
 };
 
 const TODOS = "TODOS";
+const SELECIONE = "SELECIONE";
 
 const FILTROS_INICIAIS: Filtros = {
   ano: TODOS,
   atividadeId: TODOS,
   turmaId: TODOS,
   statusMatricula: TODOS,
+  genero: TODOS,
+  racaCor: TODOS,
+  faixaRenda: TODOS,
+  cadunico: TODOS,
+  tipoDeficiencia: TODOS,
+  tipoNeurodivergencia: TODOS,
+  bolsaFamilia: TODOS,
 };
+
+const FILTROS_PESQUISA_INICIAIS: Filtros = {
+  ...FILTROS_INICIAIS,
+  ano: SELECIONE,
+  atividadeId: SELECIONE,
+  turmaId: SELECIONE,
+  statusMatricula: SELECIONE,
+  genero: SELECIONE,
+  racaCor: SELECIONE,
+  faixaRenda: SELECIONE,
+  cadunico: SELECIONE,
+  tipoDeficiencia: SELECIONE,
+  tipoNeurodivergencia: SELECIONE,
+  bolsaFamilia: SELECIONE,
+};
+
+function normalizarFiltros(filtros: Filtros): Filtros {
+  return Object.fromEntries(
+    Object.entries(filtros).map(([key, value]) => [
+      key,
+      value === SELECIONE ? TODOS : value,
+    ]),
+  ) as Filtros;
+}
 
 const categoriaLabels: Record<string, string> = {
   true: "Sim",
@@ -93,8 +161,7 @@ const categoriaLabels: Record<string, string> = {
   TOURETTE: "Tourette",
   TOC: "TOC",
   ALTAS_HABILIDADES_SUPERDOTACAO: "Altas habilidades/superdotação",
-  TRANSTORNO_PROCESSAMENTO_SENSORIAL:
-    "Transtorno do processamento sensorial",
+  TRANSTORNO_PROCESSAMENTO_SENSORIAL: "Transtorno do processamento sensorial",
   TRANSTORNO_PROCESSAMENTO_AUDITIVO: "Transtorno do processamento auditivo",
   OUTRA: "Outra",
 
@@ -112,11 +179,13 @@ const categoriaLabels: Record<string, string> = {
 
 function labelCategoria(value?: string) {
   if (!value) return "Não informado";
+
   return categoriaLabels[value] ?? value;
 }
 
 function anosDisponiveis(): string[] {
   const anoAtual = new Date().getFullYear();
+
   return Array.from({ length: 8 }, (_, index) => String(anoAtual - index));
 }
 
@@ -132,24 +201,100 @@ function anoDaData(value?: string) {
   if (!value) return "";
 
   const trimmed = value.trim();
+
   const brMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
-  if (brMatch) return brMatch[3];
+
+  if (brMatch) {
+    return brMatch[3];
+  }
 
   const isoMatch = /^(\d{4})-\d{2}-\d{2}/.exec(trimmed);
+
   return isoMatch?.[1] ?? "";
+}
+
+function normalizarValorFiltro(value?: string | null) {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s/-]+/g, "_");
+}
+
+function correspondeAoFiltro(value: string | null | undefined, filtro: string) {
+  return (
+    filtro === TODOS ||
+    normalizarValorFiltro(value) === normalizarValorFiltro(filtro)
+  );
+}
+
+function listaContemFiltro(
+  values: Array<string | null | undefined> | undefined,
+  filtro: string,
+) {
+  return (
+    filtro === TODOS ||
+    Boolean(values?.some((value) => correspondeAoFiltro(value, filtro)))
+  );
 }
 
 function participanteAtendeFiltros(
   participante: Participante,
   filtros: Filtros,
 ) {
+  if (!correspondeAoFiltro(participante.genero, filtros.genero)) {
+    return false;
+  }
+
+  if (!correspondeAoFiltro(participante.racaCor, filtros.racaCor)) {
+    return false;
+  }
+
+  if (!correspondeAoFiltro(participante.faixaRenda, filtros.faixaRenda)) {
+    return false;
+  }
+
+  if (
+    filtros.cadunico !== TODOS &&
+    (participante.possuiCadunico ? "SIM" : "NAO") !== filtros.cadunico
+  ) {
+    return false;
+  }
+
+  if (
+    filtros.bolsaFamilia !== TODOS &&
+    (participante.possuiBolsaFamilia ? "SIM" : "NAO") !== filtros.bolsaFamilia
+  ) {
+    return false;
+  }
+
+  if (
+    filtros.tipoDeficiencia !== TODOS &&
+    !listaContemFiltro(participante.tipoDeficiencias, filtros.tipoDeficiencia)
+  ) {
+    return false;
+  }
+
+  if (
+    filtros.tipoNeurodivergencia !== TODOS &&
+    !listaContemFiltro(
+      participante.tipoNeurodivergencias,
+      filtros.tipoNeurodivergencia,
+    )
+  ) {
+    return false;
+  }
+
   const filtraVinculo =
     filtros.ano !== TODOS ||
     filtros.atividadeId !== TODOS ||
     filtros.turmaId !== TODOS ||
     filtros.statusMatricula !== TODOS;
 
-  if (!filtraVinculo) return true;
+  if (!filtraVinculo) {
+    return true;
+  }
 
   return participante.vinculos.some((vinculo) => {
     if (
@@ -168,6 +313,7 @@ function participanteAtendeFiltros(
 
     if (
       filtros.turmaId !== TODOS &&
+      filtros.turmaId !== SELECIONE &&
       String(vinculo.turmaId ?? "") !== String(filtros.turmaId)
     ) {
       return false;
@@ -175,7 +321,7 @@ function participanteAtendeFiltros(
 
     if (
       filtros.statusMatricula !== TODOS &&
-      vinculo.statusMatricula !== filtros.statusMatricula
+      !correspondeAoFiltro(vinculo.statusMatricula, filtros.statusMatricula)
     ) {
       return false;
     }
@@ -191,7 +337,9 @@ function mapCountsToIndicadores(counts: Map<string, number>, total: number) {
       total: quantidade,
       percentual: total > 0 ? (quantidade / total) * 100 : 0,
     }))
-    .sort((a, b) => b.total - a.total || a.categoria.localeCompare(b.categoria));
+    .sort(
+      (a, b) => b.total - a.total || a.categoria.localeCompare(b.categoria),
+    );
 }
 
 function montarIndicadoresLista(
@@ -202,6 +350,7 @@ function montarIndicadoresLista(
 
   participantes.forEach((participante) => {
     const values = getValues(participante)?.filter(Boolean);
+
     const categorias = values?.length ? values : ["NAO_INFORMADO"];
 
     Array.from(new Set(categorias)).forEach((categoria) => {
@@ -220,38 +369,118 @@ function montarIndicadoresBooleanos(
 
   participantes.forEach((participante) => {
     const categoria = getValue(participante) ? "SIM" : "NAO";
+
     counts.set(categoria, (counts.get(categoria) ?? 0) + 1);
   });
 
   return mapCountsToIndicadores(counts, participantes.length);
 }
 
-async function getIndicadoresComplementares(
+function montarIndicadoresSimples(
+  participantes: Participante[],
+  getValue: (participante: Participante) => string | undefined,
+) {
+  const counts = new Map<string, number>();
+
+  participantes.forEach((participante) => {
+    const categoria = getValue(participante) || "NAO_INFORMADO";
+
+    counts.set(categoria, (counts.get(categoria) ?? 0) + 1);
+  });
+
+  return mapCountsToIndicadores(counts, participantes.length);
+}
+
+function faixaEtaria(dataNascimento?: string) {
+  if (!dataNascimento) {
+    return "NAO_INFORMADO";
+  }
+
+  const partes = dataNascimento.includes("/")
+    ? dataNascimento.split("/").reverse()
+    : dataNascimento.slice(0, 10).split("-");
+
+  const [ano, mes, dia] = partes.map(Number);
+
+  const nascimento = new Date(ano, mes - 1, dia);
+
+  if (Number.isNaN(nascimento.getTime())) {
+    return "NAO_INFORMADO";
+  }
+
+  const hoje = new Date();
+
+  let idade = hoje.getFullYear() - nascimento.getFullYear();
+
+  if (
+    hoje.getMonth() < nascimento.getMonth() ||
+    (hoje.getMonth() === nascimento.getMonth() &&
+      hoje.getDate() < nascimento.getDate())
+  ) {
+    idade--;
+  }
+
+  if (idade <= 5) {
+    return "ATE_5_ANOS";
+  }
+
+  if (idade <= 12) {
+    return "DE_6_A_12_ANOS";
+  }
+
+  if (idade <= 17) {
+    return "DE_13_A_17_ANOS";
+  }
+
+  if (idade <= 29) {
+    return "DE_18_A_29_ANOS";
+  }
+
+  if (idade <= 59) {
+    return "DE_30_A_59_ANOS";
+  }
+
+  return "60_ANOS_OU_MAIS";
+}
+
+async function getIndicadoresLocais(
   filtros: Filtros,
-): Promise<Pick<
-  IndicadoresSociodemograficos,
-  | "porTipoDeficiencia"
-  | "porTipoNeurodivergencia"
-  | "porCadunico"
-  | "porBolsaFamilia"
->> {
+): Promise<IndicadoresSociodemograficos> {
   const participantes = (await getParticipantes()).filter((participante) =>
     participanteAtendeFiltros(participante, filtros),
   );
 
   return {
+    totalParticipantes: participantes.length,
+
+    porGenero: montarIndicadoresSimples(participantes, (item) => item.genero),
+
+    porRacaCor: montarIndicadoresSimples(participantes, (item) => item.racaCor),
+
+    porFaixaRenda: montarIndicadoresSimples(
+      participantes,
+      (item) => item.faixaRenda,
+    ),
+
+    porFaixaEtaria: montarIndicadoresSimples(participantes, (item) =>
+      faixaEtaria(item.dataNascimento),
+    ),
+
     porTipoDeficiencia: montarIndicadoresLista(
       participantes,
       (participante) => participante.tipoDeficiencias,
     ),
+
     porTipoNeurodivergencia: montarIndicadoresLista(
       participantes,
       (participante) => participante.tipoNeurodivergencias,
     ),
+
     porCadunico: montarIndicadoresBooleanos(
       participantes,
       (participante) => participante.possuiCadunico,
     ),
+
     porBolsaFamilia: montarIndicadoresBooleanos(
       participantes,
       (participante) => participante.possuiBolsaFamilia,
@@ -266,8 +495,8 @@ interface IndicadorCardProps {
 
 function IndicadorCard({ title, itens }: IndicadorCardProps) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 sm:p-5 shadow-sm">
-      <h3 className="text-sm font-semibold text-foreground tracking-tight mb-3">
+    <div className="rounded-[16px] border border-border/70 bg-card/75 p-4 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-card/65 sm:p-5">
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground">
         {title}
       </h3>
 
@@ -280,20 +509,22 @@ function IndicadorCard({ title, itens }: IndicadorCardProps) {
 
             return (
               <li key={it.categoria}>
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-foreground font-medium">
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="font-medium text-foreground">
                     {labelCategoria(it.categoria)}
                   </span>
 
-                  <span className="text-muted-foreground tabular-nums">
+                  <span className="tabular-nums text-muted-foreground">
                     {it.total} • {pct.toFixed(2)}%
                   </span>
                 </div>
 
-                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${Math.min(pct, 100)}%` }}
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{
+                      width: `${Math.min(pct, 100)}%`,
+                    }}
                   />
                 </div>
               </li>
@@ -306,18 +537,38 @@ function IndicadorCard({ title, itens }: IndicadorCardProps) {
 }
 
 export default function IndicadoresSociodemograficos() {
-  const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIAIS);
+  const [filtros, setFiltros] = useState<Filtros>(FILTROS_PESQUISA_INICIAIS);
+
   const [aplicados, setAplicados] = useState<Filtros>(FILTROS_INICIAIS);
 
   const [atividades, setAtividades] = useState<AtividadeOption[]>([]);
+
   const [turmas, setTurmas] = useState<TurmaOption[]>([]);
+
   const [dados, setDados] = useState<IndicadoresSociodemograficos | null>(null);
+
   const [loading, setLoading] = useState(true);
+
+  /*
+   * A página já inicia com o relatório carregado.
+   * FILTROS_INICIAIS utiliza TODOS em todos os campos,
+   * portanto nenhum recorte é aplicado na abertura.
+   */
+  const [hasSearched, setHasSearched] = useState(true);
+
+  const [panelOpen, setPanelOpen] = useSessionBoolean(
+    "indicadores:pesquisa-avancada:v2",
+    false,
+  );
+
+  const [searching, setSearching] = useState(false);
 
   const anos = useMemo(anosDisponiveis, []);
 
   const turmasFiltradas = useMemo(() => {
-    if (filtros.atividadeId === TODOS) return turmas;
+    if (filtros.atividadeId === TODOS || filtros.atividadeId === SELECIONE) {
+      return [];
+    }
 
     return turmas.filter(
       (turma) => String(turma.atividadeId) === String(filtros.atividadeId),
@@ -334,12 +585,16 @@ export default function IndicadoresSociodemograficos() {
           getTurmasOptions(),
         ]);
 
-        if (!active) return;
+        if (!active) {
+          return;
+        }
 
         setAtividades(atividadesData);
+
         setTurmas(turmasData);
       } catch (error) {
         console.error(error);
+
         toast.error("Não foi possível carregar os filtros do relatório.");
       }
     }
@@ -356,26 +611,7 @@ export default function IndicadoresSociodemograficos() {
       try {
         setLoading(true);
 
-        const [response, complementares] = await Promise.all([
-          getIndicadoresSociodemograficos({
-            ano: aplicados.ano === TODOS ? undefined : aplicados.ano,
-            atividadeId:
-              aplicados.atividadeId === TODOS
-                ? undefined
-                : aplicados.atividadeId,
-            turmaId: aplicados.turmaId === TODOS ? undefined : aplicados.turmaId,
-            statusMatricula:
-              aplicados.statusMatricula === TODOS
-                ? undefined
-                : aplicados.statusMatricula,
-          }),
-          getIndicadoresComplementares(aplicados),
-        ]);
-
-        setDados({
-          ...response,
-          ...complementares,
-        });
+        setDados(await getIndicadoresLocais(aplicados));
       } catch (error) {
         console.error(error);
 
@@ -393,80 +629,277 @@ export default function IndicadoresSociodemograficos() {
   }, [aplicados]);
 
   useEffect(() => {
+    const refresh = () => setAplicados((current) => ({ ...current }));
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+
+    window.addEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, []);
+
+  useEffect(() => {
     if (
       filtros.turmaId !== TODOS &&
+      filtros.turmaId !== SELECIONE &&
       !turmasFiltradas.find((turma) => String(turma.id) === filtros.turmaId)
     ) {
-      setFiltros((f) => ({ ...f, turmaId: TODOS }));
+      setFiltros((f) => ({
+        ...f,
+        turmaId: TODOS,
+      }));
     }
   }, [turmasFiltradas, filtros.turmaId]);
 
   const total = dados?.totalParticipantes ?? 0;
 
-  const limpar = () => {
-    setFiltros(FILTROS_INICIAIS);
-    setAplicados(FILTROS_INICIAIS);
+  const aplicar = (next: Filtros) => {
+    const normalizados = normalizarFiltros(next);
+
+    setFiltros(next);
+
+    setAplicados(normalizados);
+
+    setHasSearched(true);
+
+    setSearching(true);
+
+    window.setTimeout(() => setSearching(false), 180);
   };
 
+  /*
+   * Limpar agora remove todos os filtros,
+   * mas mantém o relatório visível,
+   * voltando à consulta completa.
+   */
+  const limpar = () => {
+    setFiltros(FILTROS_PESQUISA_INICIAIS);
+
+    setAplicados(FILTROS_INICIAIS);
+
+    setHasSearched(true);
+  };
+
+  const activeFilters = useMemo<ActiveFilterItem[]>(() => {
+    const items: ActiveFilterItem[] = [];
+
+    const add = (id: keyof Filtros, label: string, value: string) =>
+      items.push({
+        id,
+        label,
+        value,
+        onRemove: () =>
+          aplicar({
+            ...aplicados,
+            [id]: TODOS,
+          }),
+      });
+
+    if (aplicados.ano !== TODOS) {
+      add("ano", "Ano", aplicados.ano);
+    }
+
+    if (aplicados.atividadeId !== TODOS) {
+      add(
+        "atividadeId",
+        "Atividade",
+        atividades.find((item) => String(item.id) === aplicados.atividadeId)
+          ?.nomeAtividade ?? aplicados.atividadeId,
+      );
+    }
+
+    if (aplicados.turmaId !== TODOS) {
+      add(
+        "turmaId",
+        "Turma",
+        turmas.find((item) => String(item.id) === aplicados.turmaId)
+          ?.nomeTurma ?? aplicados.turmaId,
+      );
+    }
+
+    if (aplicados.statusMatricula !== TODOS) {
+      add(
+        "statusMatricula",
+        "Situação",
+        labelCategoria(aplicados.statusMatricula),
+      );
+    }
+
+    if (aplicados.genero !== TODOS) {
+      add("genero", "Gênero", labelCategoria(aplicados.genero));
+    }
+
+    if (aplicados.racaCor !== TODOS) {
+      add("racaCor", "Raça/cor", labelCategoria(aplicados.racaCor));
+    }
+
+    if (aplicados.faixaRenda !== TODOS) {
+      add("faixaRenda", "Faixa de renda", labelCategoria(aplicados.faixaRenda));
+    }
+
+    if (aplicados.cadunico !== TODOS) {
+      add("cadunico", "CadÚnico", labelCategoria(aplicados.cadunico));
+    }
+
+    if (aplicados.tipoDeficiencia !== TODOS) {
+      add(
+        "tipoDeficiencia",
+        "Tipo de deficiência",
+        labelCategoria(aplicados.tipoDeficiencia),
+      );
+    }
+
+    if (aplicados.tipoNeurodivergencia !== TODOS) {
+      add(
+        "tipoNeurodivergencia",
+        "Tipo de neurodivergência",
+        labelCategoria(aplicados.tipoNeurodivergencia),
+      );
+    }
+
+    if (aplicados.bolsaFamilia !== TODOS) {
+      add(
+        "bolsaFamilia",
+        "Bolsa Família",
+        labelCategoria(aplicados.bolsaFamilia),
+      );
+    }
+
+    return items;
+  }, [aplicados, atividades, turmas]);
+
   const handleExport = (type: "csv" | "excel" | "pdf") => {
-    if (total === 0 || !dados) return;
+    if (total === 0 || !dados) {
+      return;
+    }
 
     const activityName =
       aplicados.atividadeId === TODOS
         ? "Todas"
-        : atividades.find((a) => String(a.id) === String(aplicados.atividadeId))
-          ?.nomeAtividade ?? aplicados.atividadeId;
+        : (atividades.find(
+            (a) => String(a.id) === String(aplicados.atividadeId),
+          )?.nomeAtividade ?? aplicados.atividadeId);
 
     const turmaName =
       aplicados.turmaId === TODOS
         ? "Todas"
-        : turmas.find((t) => String(t.id) === String(aplicados.turmaId))
-          ?.nomeTurma ?? aplicados.turmaId;
+        : (turmas.find((t) => String(t.id) === String(aplicados.turmaId))
+            ?.nomeTurma ?? aplicados.turmaId);
 
     const statusLabel =
       aplicados.statusMatricula === TODOS
         ? "Todos"
-        : statusMatriculaOptions.find(
-          (s) => s.value === aplicados.statusMatricula,
-        )?.label ?? aplicados.statusMatricula;
+        : (statusMatriculaOptions.find(
+            (s) => s.value === aplicados.statusMatricula,
+          )?.label ?? aplicados.statusMatricula);
+
+    const generoLabel =
+      aplicados.genero === TODOS
+        ? "Todos"
+        : (generoOptions.find((item) => item.value === aplicados.genero)
+            ?.label ?? aplicados.genero);
+
+    const racaCorLabel =
+      aplicados.racaCor === TODOS
+        ? "Todas"
+        : (racaCorOptions.find((item) => item.value === aplicados.racaCor)
+            ?.label ?? aplicados.racaCor);
+
+    const faixaRendaLabel =
+      aplicados.faixaRenda === TODOS
+        ? "Todas"
+        : (faixaRendaOptions.find((item) => item.value === aplicados.faixaRenda)
+            ?.label ?? aplicados.faixaRenda);
+
+    const cadunicoLabel =
+      aplicados.cadunico === TODOS
+        ? "Todos"
+        : labelCategoria(aplicados.cadunico);
+
+    const deficienciaLabel =
+      aplicados.tipoDeficiencia === TODOS
+        ? "Todas"
+        : labelCategoria(aplicados.tipoDeficiencia);
+
+    const neurodivergenciaLabel =
+      aplicados.tipoNeurodivergencia === TODOS
+        ? "Todas"
+        : labelCategoria(aplicados.tipoNeurodivergencia);
+
+    const bolsaFamiliaLabel =
+      aplicados.bolsaFamilia === TODOS
+        ? "Todos"
+        : labelCategoria(aplicados.bolsaFamilia);
 
     const data = {
       filtros: {
         ano: aplicados.ano === TODOS ? "Todos" : aplicados.ano,
+
         atividade: activityName,
+
         turma: turmaName,
+
         status: statusLabel,
+
+        genero: generoLabel,
+
+        racaCor: racaCorLabel,
+
+        faixaRenda: faixaRendaLabel,
+
+        cadunico: cadunicoLabel,
+
+        tipoDeficiencia: deficienciaLabel,
+
+        tipoNeurodivergencia: neurodivergenciaLabel,
+
+        bolsaFamilia: bolsaFamiliaLabel,
       },
+
       total,
+
       indicadores: [
         {
           title: "Perfil por gênero",
           itens: converterIndicadores(dados.porGenero ?? []),
         },
+
         {
           title: "Perfil por raça/cor",
           itens: converterIndicadores(dados.porRacaCor ?? []),
         },
+
         {
           title: "Perfil por faixa de renda",
           itens: converterIndicadores(dados.porFaixaRenda ?? []),
         },
+
         {
           title: "Perfil por faixa etária",
           itens: converterIndicadores(dados.porFaixaEtaria ?? []),
         },
+
         {
           title: "Perfil por tipo de deficiência",
           itens: converterIndicadores(dados.porTipoDeficiencia ?? []),
         },
+
         {
           title: "Perfil por tipo de neurodivergência",
           itens: converterIndicadores(dados.porTipoNeurodivergencia ?? []),
         },
+
         {
           title: "Participantes com CadÚnico",
           itens: converterIndicadores(dados.porCadunico ?? []),
         },
+
         {
           title: "Participantes com Bolsa Família",
           itens: converterIndicadores(dados.porBolsaFamilia ?? []),
@@ -474,31 +907,370 @@ export default function IndicadoresSociodemograficos() {
       ],
     };
 
-    if (type === "csv") exportToCSV(data);
-    else if (type === "excel") exportToExcel(data);
-    else void exportIndicadoresSociodemograficosPdf(data);
+    // O PDF registra integralmente a pesquisa avançada. Valores não
+    // selecionados são normalizados para Todos/Todas, deixando o escopo
+    // auditável mesmo quando o arquivo é consultado fora do sistema.
+    const filterLabels = [
+      { label: "Ano", value: data.filtros.ano },
+      { label: "Atividade", value: data.filtros.atividade },
+      { label: "Turma", value: data.filtros.turma },
+      {
+        label: "Situação da matrícula",
+        value: data.filtros.status,
+      },
+      { label: "Gênero", value: data.filtros.genero },
+      { label: "Raça/cor", value: data.filtros.racaCor },
+      { label: "Faixa de renda", value: data.filtros.faixaRenda },
+      { label: "CadÚnico", value: data.filtros.cadunico },
+      {
+        label: "Tipo de deficiência",
+        value: data.filtros.tipoDeficiencia,
+      },
+      {
+        label: "Tipo de neurodivergência",
+        value: data.filtros.tipoNeurodivergencia,
+      },
+      { label: "Bolsa Família", value: data.filtros.bolsaFamilia },
+    ];
+
+    if (type === "csv") {
+      exportToCSV(data);
+    } else if (type === "excel") {
+      exportToExcel(data);
+    } else {
+      void downloadGeneralReportPdf({
+        slug: "indicadores-sociodemograficos",
+        columns: ["grupo", "categoria", "quantidade", "percentual"],
+        filters: {
+          ano: aplicados.ano === TODOS ? undefined : aplicados.ano,
+          atividadeId:
+            aplicados.atividadeId === TODOS ? undefined : aplicados.atividadeId,
+          turmaId: aplicados.turmaId === TODOS ? undefined : aplicados.turmaId,
+          statusMatricula:
+            aplicados.statusMatricula === TODOS
+              ? undefined
+              : aplicados.statusMatricula,
+          genero: aplicados.genero === TODOS ? undefined : aplicados.genero,
+          racaCor: aplicados.racaCor === TODOS ? undefined : aplicados.racaCor,
+          faixaRenda:
+            aplicados.faixaRenda === TODOS ? undefined : aplicados.faixaRenda,
+          cadunico:
+            aplicados.cadunico === TODOS ? undefined : aplicados.cadunico,
+          tipoDeficiencia:
+            aplicados.tipoDeficiencia === TODOS
+              ? undefined
+              : aplicados.tipoDeficiencia,
+          tipoNeurodivergencia:
+            aplicados.tipoNeurodivergencia === TODOS
+              ? undefined
+              : aplicados.tipoNeurodivergencia,
+          bolsaFamilia:
+            aplicados.bolsaFamilia === TODOS
+              ? undefined
+              : aplicados.bolsaFamilia,
+        },
+        filterLabels,
+      });
+    }
   };
 
   return (
     <AppLayout>
-      <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl mx-auto">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <PageTitle
           title="Relatório Sociodemográfico"
-          tooltip="Relatório com o perfil sociodemográfico dos participantes por gênero, raça/cor, faixa de renda, faixa etária, deficiência, neurodivergência, CadÚnico e Bolsa Família com filtros por ano, atividade, turma e status da matrícula."
+          tooltip="Nesta página é apresentado o perfil sociodemográfico dos participantes da organização, permitindo analisar características do público atendido e sua distribuição entre diferentes grupos. Os dados podem ser filtrados por ano, atividade, turma e situação da matrícula para apoiar o acompanhamento das ações, a elaboração de relatórios e as prestações de contas."
         />
 
-        <section className="rounded-lg border border-border bg-card p-4 sm:p-5 shadow-sm mb-5">
-          <h2 className="text-sm font-semibold text-foreground tracking-tight mb-4">
+        <PageObjective
+          className="mb-4"
+          description="Analise o perfil sociodemográfico dos participantes considerando características como gênero, raça/cor, renda, faixa etária, deficiência, neurodivergência e participação em programas sociais. Utilize os filtros disponíveis para comparar diferentes recortes do público atendido por ano, atividade, turma e situação da matrícula."
+        />
+
+        <div className="mb-5 space-y-4">
+          <AdvancedSearchPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            activeCount={activeFilters.length}
+            title="Pesquisa avançada"
+          >
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+
+                aplicar(filtros);
+              }}
+              noValidate
+            >
+              <SearchFilterGrid>
+                <FilterSelect
+                  label="Ano"
+                  id="filtro-ano"
+                  value={filtros.ano}
+                  onChange={(value) =>
+                    setFiltros((previous) => ({
+                      ...previous,
+                      ano: value,
+                    }))
+                  }
+                  allLabel="Todos"
+                  options={anos.map((value) => ({
+                    value,
+                    label: value,
+                  }))}
+                />
+
+                <FilterSelect
+                  label="Atividade"
+                  id="filtro-atividade"
+                  value={filtros.atividadeId}
+                  onChange={(value) =>
+                    setFiltros((previous) => ({
+                      ...previous,
+                      atividadeId: value,
+                      turmaId: SELECIONE,
+                    }))
+                  }
+                  allLabel="Todas"
+                  options={atividades.map((item) => ({
+                    value: String(item.id),
+                    label: item.nomeAtividade,
+                  }))}
+                />
+
+                <FilterSelect
+                  label="Turma"
+                  id="filtro-turma"
+                  value={filtros.turmaId}
+                  onChange={(value) =>
+                    setFiltros((previous) => ({
+                      ...previous,
+                      turmaId: value,
+                    }))
+                  }
+                  allLabel="Todas"
+                  options={turmasFiltradas.map((item) => ({
+                    value: String(item.id),
+                    label: item.nomeTurma,
+                  }))}
+                  disabled={
+                    filtros.atividadeId === TODOS ||
+                    filtros.atividadeId === SELECIONE ||
+                    turmasFiltradas.length === 0
+                  }
+                />
+
+                <FilterSelect
+                  label="Situação da matrícula"
+                  id="filtro-status"
+                  value={filtros.statusMatricula}
+                  onChange={(value) =>
+                    setFiltros((previous) => ({
+                      ...previous,
+                      statusMatricula: value,
+                    }))
+                  }
+                  allLabel="Todas"
+                  options={[...statusMatriculaOptions]}
+                />
+
+                <FilterSelect
+                  label="Gênero"
+                  id="filtro-genero"
+                  value={filtros.genero}
+                  onChange={(value) =>
+                    setFiltros((previous) => ({
+                      ...previous,
+                      genero: value,
+                    }))
+                  }
+                  allLabel="Todos"
+                  options={[...generoOptions]}
+                />
+
+                <FilterSelect
+                  label="Raça/cor"
+                  id="filtro-raca"
+                  value={filtros.racaCor}
+                  onChange={(value) =>
+                    setFiltros((previous) => ({
+                      ...previous,
+                      racaCor: value,
+                    }))
+                  }
+                  allLabel="Todas"
+                  options={[...racaCorOptions]}
+                />
+
+                <FilterSelect
+                  label="Faixa de renda"
+                  id="filtro-renda"
+                  value={filtros.faixaRenda}
+                  onChange={(value) =>
+                    setFiltros((previous) => ({
+                      ...previous,
+                      faixaRenda: value,
+                    }))
+                  }
+                  allLabel="Todas"
+                  options={[...faixaRendaOptions]}
+                />
+
+                <FilterSelect
+                  label="CadÚnico"
+                  id="filtro-cadunico"
+                  value={filtros.cadunico}
+                  onChange={(value) =>
+                    setFiltros((previous) => ({
+                      ...previous,
+                      cadunico: value,
+                    }))
+                  }
+                  allLabel="Todos"
+                  options={[
+                    {
+                      value: "SIM",
+                      label: "Sim",
+                    },
+                    {
+                      value: "NAO",
+                      label: "Não",
+                    },
+                  ]}
+                />
+
+                <FilterSelect
+                  label="Tipo de deficiência"
+                  id="filtro-deficiencia"
+                  value={filtros.tipoDeficiencia}
+                  onChange={(value) =>
+                    setFiltros((previous) => ({
+                      ...previous,
+                      tipoDeficiencia: value,
+                    }))
+                  }
+                  allLabel="Todas"
+                  options={[...tipoDeficienciaParticipanteOptions]}
+                />
+
+                <FilterSelect
+                  label="Tipo de neurodivergência"
+                  id="filtro-neurodivergencia"
+                  value={filtros.tipoNeurodivergencia}
+                  onChange={(value) =>
+                    setFiltros((previous) => ({
+                      ...previous,
+                      tipoNeurodivergencia: value,
+                    }))
+                  }
+                  allLabel="Todas"
+                  options={[...tipoNeurodivergenciaOptions]}
+                />
+
+                <FilterSelect
+                  label="Bolsa Família"
+                  id="filtro-bolsa-familia"
+                  value={filtros.bolsaFamilia}
+                  onChange={(value) =>
+                    setFiltros((previous) => ({
+                      ...previous,
+                      bolsaFamilia: value,
+                    }))
+                  }
+                  allLabel="Todos"
+                  options={[
+                    {
+                      value: "SIM",
+                      label: "Sim",
+                    },
+                    {
+                      value: "NAO",
+                      label: "Não",
+                    },
+                  ]}
+                />
+              </SearchFilterGrid>
+
+              <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 gap-2 px-4"
+                  onClick={limpar}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Limpar
+                </Button>
+
+                <Button
+                  type="submit"
+                  variant="glassPrimary"
+                  className="h-9 gap-2 px-4"
+                  disabled={searching}
+                >
+                  <Search className="h-4 w-4" />
+
+                  {searching ? "Buscando..." : "Buscar"}
+                </Button>
+              </div>
+            </form>
+          </AdvancedSearchPanel>
+
+          <ActiveFilters items={activeFilters} onClearAll={limpar} />
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="glassSecondary"
+              onClick={() => handleExport("excel")}
+              disabled={total === 0 || loading}
+              className="h-8 gap-1.5 rounded-[10px] px-2.5 text-[12px] font-semibold"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Excel
+            </Button>
+
+            <Button
+              type="button"
+              variant="glassSecondary"
+              onClick={() => handleExport("csv")}
+              disabled={total === 0 || loading}
+              className="h-8 gap-1.5 rounded-[10px] px-2.5 text-[12px] font-semibold"
+            >
+              <Download className="h-3.5 w-3.5" />
+              CSV
+            </Button>
+
+            <Button
+              type="button"
+              variant="glassSecondary"
+              onClick={() => handleExport("pdf")}
+              disabled={total === 0 || loading}
+              className="h-8 gap-1.5 rounded-[10px] px-2.5 text-[12px] font-semibold"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              PDF
+            </Button>
+          </div>
+        </div>
+
+        <section className="hidden">
+          <h2 className="mb-4 text-sm font-semibold tracking-tight text-foreground">
             Filtros do relatório
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <Label htmlFor="f-ano">Ano</Label>
 
               <Select
                 value={filtros.ano}
-                onValueChange={(v) => setFiltros((f) => ({ ...f, ano: v }))}
+                onValueChange={(v) =>
+                  setFiltros((f) => ({
+                    ...f,
+                    ano: v,
+                  }))
+                }
               >
                 <SelectTrigger id="f-ano">
                   <SelectValue />
@@ -537,10 +1309,7 @@ export default function IndicadoresSociodemograficos() {
                   <SelectItem value={TODOS}>Todas</SelectItem>
 
                   {atividades.map((atividade) => (
-                    <SelectItem
-                      key={atividade.id}
-                      value={String(atividade.id)}
-                    >
+                    <SelectItem key={atividade.id} value={String(atividade.id)}>
                       {atividade.nomeAtividade}
                     </SelectItem>
                   ))}
@@ -554,7 +1323,10 @@ export default function IndicadoresSociodemograficos() {
               <Select
                 value={filtros.turmaId}
                 onValueChange={(v) =>
-                  setFiltros((f) => ({ ...f, turmaId: v }))
+                  setFiltros((f) => ({
+                    ...f,
+                    turmaId: v,
+                  }))
                 }
                 disabled={turmasFiltradas.length === 0}
               >
@@ -580,7 +1352,10 @@ export default function IndicadoresSociodemograficos() {
               <Select
                 value={filtros.statusMatricula}
                 onValueChange={(v) =>
-                  setFiltros((f) => ({ ...f, statusMatricula: v }))
+                  setFiltros((f) => ({
+                    ...f,
+                    statusMatricula: v,
+                  }))
                 }
               >
                 <SelectTrigger id="f-status">
@@ -598,10 +1373,94 @@ export default function IndicadoresSociodemograficos() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="f-genero">Gênero</Label>
+
+              <Select
+                value={filtros.genero}
+                onValueChange={(v) =>
+                  setFiltros((f) => ({
+                    ...f,
+                    genero: v,
+                  }))
+                }
+              >
+                <SelectTrigger id="f-genero">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value={TODOS}>Todos</SelectItem>
+
+                  {generoOptions.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="f-raca-cor">Raça/cor</Label>
+
+              <Select
+                value={filtros.racaCor}
+                onValueChange={(v) =>
+                  setFiltros((f) => ({
+                    ...f,
+                    racaCor: v,
+                  }))
+                }
+              >
+                <SelectTrigger id="f-raca-cor">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value={TODOS}>Todas</SelectItem>
+
+                  {racaCorOptions.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="f-faixa-renda">Faixa de renda</Label>
+
+              <Select
+                value={filtros.faixaRenda}
+                onValueChange={(v) =>
+                  setFiltros((f) => ({
+                    ...f,
+                    faixaRenda: v,
+                  }))
+                }
+              >
+                <SelectTrigger id="f-faixa-renda">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value={TODOS}>Todas</SelectItem>
+
+                  {faixaRendaOptions.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2 justify-between mt-5 items-end sm:items-center">
-            <div className="flex flex-wrap gap-2 order-2 sm:order-1">
+          <div className="mt-5 flex flex-col items-end justify-between gap-2 sm:flex-row sm:items-center">
+            <div className="order-2 flex flex-wrap gap-2 sm:order-1">
               <Button
                 variant="outline"
                 size="sm"
@@ -636,7 +1495,7 @@ export default function IndicadoresSociodemograficos() {
               </Button>
             </div>
 
-            <div className="flex gap-2 order-1 sm:order-2 w-full sm:w-auto">
+            <div className="order-1 flex w-full gap-2 sm:order-2 sm:w-auto">
               <Button
                 variant="outline"
                 onClick={limpar}
@@ -646,7 +1505,7 @@ export default function IndicadoresSociodemograficos() {
               </Button>
 
               <Button
-                onClick={() => setAplicados(filtros)}
+                onClick={() => aplicar(filtros)}
                 className="flex-1 sm:flex-none"
               >
                 Gerar relatório
@@ -655,38 +1514,43 @@ export default function IndicadoresSociodemograficos() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-border bg-card p-4 sm:p-5 shadow-sm mb-5">
-          <div className="flex items-center gap-4">
-            <div className="h-11 w-11 rounded-lg bg-primary-soft border border-primary/15 flex items-center justify-center">
-              <Users className="h-5 w-5 text-primary" strokeWidth={2.2} />
-            </div>
+        {hasSearched && (
+          <section className="mb-5 rounded-[16px] border border-border/70 bg-card/75 p-3.5 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-card/65 sm:p-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-primary/15 bg-primary-soft/60">
+                <Users
+                  className="h-[18px] w-[18px] text-primary"
+                  strokeWidth={2.2}
+                />
+              </div>
 
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
-                Total de participantes encontrados
-              </p>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Total de participantes encontrados
+                </p>
 
-              <p className="text-2xl font-semibold text-foreground tabular-nums">
-                {loading ? "..." : total}
-              </p>
+                <p className="text-[22px] font-semibold leading-tight tabular-nums text-foreground">
+                  {loading ? "..." : total}
+                </p>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {loading ? (
-          <div className="rounded-lg border border-border bg-card p-8 text-center">
+          <div className="rounded-[16px] border border-border/70 bg-card/75 p-8 text-center backdrop-blur-md">
             <p className="text-sm text-muted-foreground">
               Carregando indicadores...
             </p>
           </div>
         ) : total === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center">
+          <div className="rounded-[16px] border border-dashed border-border/70 bg-card/60 p-8 text-center backdrop-blur-md">
             <p className="text-sm text-muted-foreground">
               Nenhum dado encontrado para os filtros selecionados.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
             <IndicadorCard
               title="Perfil por gênero"
               itens={dados?.porGenero ?? []}
@@ -730,5 +1594,53 @@ export default function IndicadoresSociodemograficos() {
         )}
       </div>
     </AppLayout>
+  );
+}
+
+function FilterSelect({
+  label,
+  id,
+  value,
+  onChange,
+  allLabel,
+  options,
+  disabled,
+}: {
+  label: string;
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  allLabel: string;
+  options: readonly {
+    value: string;
+    label: string;
+  }[];
+  disabled?: boolean;
+}) {
+  return (
+    <div>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger
+          id={id}
+          className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+        >
+          <SelectValue />
+        </SelectTrigger>
+
+        <SelectContent>
+          <SelectItem value={SELECIONE}>Selecione</SelectItem>
+
+          <SelectItem value={TODOS}>{allLabel}</SelectItem>
+
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

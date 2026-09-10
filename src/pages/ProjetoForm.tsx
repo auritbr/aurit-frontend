@@ -1,22 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   FileText,
   Target,
   Users2,
   Plus,
+  CalendarClock,
   Trash2,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
+import { BackButton } from "@/components/BackButton";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -27,6 +29,7 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { MultiSelect } from "@/components/MultiSelect";
+import { getImportConfigForPath } from "@/config/importacoes";
 import { maskDate } from "@/lib/masks";
 import { getColaboradores, type Colaborador } from "@/data/colaboradores";
 import {
@@ -47,22 +50,11 @@ import {
   type StatusProjeto,
 } from "@/data/projetos";
 import { toast } from "sonner";
-
-const PROJETO_NEXT_STEP_KEY = "aurit:projetos:next-step-card";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 interface ObjetivoForm {
   id?: number;
   objetivoEspecifico: string;
-}
-
-interface ProjetoNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
 }
 
 interface FormState {
@@ -116,8 +108,21 @@ function resolverOrganizacaoId(
   organizacoes: OrganizacaoOption[],
   projetoFallback?: Projeto | null,
 ): string {
-  const projetoRaw = projeto as any;
-  const fallbackRaw = projetoFallback as any;
+  type ProjetoCompat = Projeto & {
+    organizacao?: {
+      id?: unknown;
+      organizacaoId?: unknown;
+      codigo?: unknown;
+    };
+    idOrganizacao?: unknown;
+    organizacao_id?: unknown;
+    organizacaoID?: unknown;
+    empresaId?: unknown;
+    configuracaoEmpresaId?: unknown;
+  };
+
+  const projetoRaw = projeto as ProjetoCompat | null | undefined;
+  const fallbackRaw = projetoFallback as ProjetoCompat | null | undefined;
 
   const idDireto = toStringId(projetoRaw?.organizacaoId);
 
@@ -133,8 +138,8 @@ function resolverOrganizacaoId(
 
   const idPorObjeto = toStringId(
     projetoRaw?.organizacao?.id ??
-    projetoRaw?.organizacao?.organizacaoId ??
-    projetoRaw?.organizacao?.codigo,
+      projetoRaw?.organizacao?.organizacaoId ??
+      projetoRaw?.organizacao?.codigo,
   );
 
   if (idPorObjeto) {
@@ -143,8 +148,8 @@ function resolverOrganizacaoId(
 
   const idPorObjetoFallback = toStringId(
     fallbackRaw?.organizacao?.id ??
-    fallbackRaw?.organizacao?.organizacaoId ??
-    fallbackRaw?.organizacao?.codigo,
+      fallbackRaw?.organizacao?.organizacaoId ??
+      fallbackRaw?.organizacao?.codigo,
   );
 
   if (idPorObjetoFallback) {
@@ -153,10 +158,10 @@ function resolverOrganizacaoId(
 
   const idAlternativo = toStringId(
     projetoRaw?.idOrganizacao ??
-    projetoRaw?.organizacao_id ??
-    projetoRaw?.organizacaoID ??
-    projetoRaw?.empresaId ??
-    projetoRaw?.configuracaoEmpresaId,
+      projetoRaw?.organizacao_id ??
+      projetoRaw?.organizacaoID ??
+      projetoRaw?.empresaId ??
+      projetoRaw?.configuracaoEmpresaId,
   );
 
   if (idAlternativo) {
@@ -165,10 +170,10 @@ function resolverOrganizacaoId(
 
   const idAlternativoFallback = toStringId(
     fallbackRaw?.idOrganizacao ??
-    fallbackRaw?.organizacao_id ??
-    fallbackRaw?.organizacaoID ??
-    fallbackRaw?.empresaId ??
-    fallbackRaw?.configuracaoEmpresaId,
+      fallbackRaw?.organizacao_id ??
+      fallbackRaw?.organizacaoID ??
+      fallbackRaw?.empresaId ??
+      fallbackRaw?.configuracaoEmpresaId,
   );
 
   if (idAlternativoFallback) {
@@ -213,26 +218,15 @@ function projetoToForm(
     objetivos:
       projeto.objetivos && projeto.objetivos.length > 0
         ? projeto.objetivos.map((objetivo) => ({
-          id: objetivo.id,
-          objetivoEspecifico: objetivo.objetivoEspecifico ?? "",
-        }))
+            id: objetivo.id,
+            objetivoEspecifico: objetivo.objetivoEspecifico ?? "",
+          }))
         : [{ objetivoEspecifico: "" }],
   };
 }
 
 function salvarProximaAcaoProjeto() {
-  const card: ProjetoNextStepCardData = {
-    titulo: "Após cadastrar o projeto, defina as metas previstas",
-    descricao:
-      "As metas ajudam a demonstrar o que será entregue, em qual quantidade e como a organização poderá comprovar os resultados em editais, relatórios e prestações de contas.",
-    acaoLabel: "Cadastrar metas",
-    acaoUrl: "/metas-projeto/novo",
-    acaoSecundariaLabel: "Ver projetos",
-    acaoSecundariaUrl: "/projetos",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(PROJETO_NEXT_STEP_KEY, JSON.stringify(card));
+  emitJourneyNextStep();
 }
 
 function parseBrDate(date: string) {
@@ -312,7 +306,7 @@ export default function ProjetoForm() {
 
     if (!existe) {
       options.unshift({
-        id: organizacaoId as any,
+        id: Number(organizacaoId),
         nome: `Organização ${organizacaoId}`,
       });
     }
@@ -329,17 +323,13 @@ export default function ProjetoForm() {
       try {
         setLoading(true);
 
-        const [
-          organizacoesData,
-          colaboradoresData,
-          projetoData,
-          projetosData,
-        ] = await Promise.all([
-          getOrganizacoes(),
-          getColaboradores(),
-          id ? getProjetoById(Number(id)) : Promise.resolve(null),
-          id ? getProjetos() : Promise.resolve([]),
-        ]);
+        const [organizacoesData, colaboradoresData, projetoData, projetosData] =
+          await Promise.all([
+            getOrganizacoes(),
+            getColaboradores(),
+            id ? getProjetoById(Number(id)) : Promise.resolve(null),
+            id ? getProjetos() : Promise.resolve([]),
+          ]);
 
         if (!active) return;
 
@@ -348,9 +338,8 @@ export default function ProjetoForm() {
 
         if (projetoData) {
           const projetoFallback =
-            projetosData.find(
-              (projeto) => Number(projeto.id) === Number(id),
-            ) ?? null;
+            projetosData.find((projeto) => Number(projeto.id) === Number(id)) ??
+            null;
 
           const formData = projetoToForm(
             projetoData,
@@ -423,9 +412,9 @@ export default function ProjetoForm() {
       objetivos: prev.objetivos.map((objetivo, index) =>
         index === idx
           ? {
-            ...objetivo,
-            objetivoEspecifico: value,
-          }
+              ...objetivo,
+              objetivoEspecifico: value,
+            }
           : objetivo,
       ),
     }));
@@ -517,7 +506,10 @@ export default function ProjetoForm() {
       return false;
     }
 
-    if (!formValidacao.areasAtuacao || formValidacao.areasAtuacao.length === 0) {
+    if (
+      !formValidacao.areasAtuacao ||
+      formValidacao.areasAtuacao.length === 0
+    ) {
       toast.error("Selecione ao menos uma área de atuação.");
       return false;
     }
@@ -608,411 +600,466 @@ export default function ProjetoForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/projetos")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" /> Voltar
-        </button>
+        <BackButton to="/projetos" />
 
         <PageTitle
-          title="Projeto"
-          tooltip="Cadastre e acompanhe os projetos culturais da organização, reunindo proposta, objetivos, público atendido, acessibilidade, local de execução, equipe, origem e período. Esses dados ajudam a estruturar atividades, cronogramas, relatórios, evidências e prestações de contas."
+          title={visualizando ? "Projetos" : editando ? "Projetos" : "Projetos"}
+          tooltip="Nesta página são cadastrados e acompanhados os projetos da organização, com informações sobre identificação, proposta, objetivos, público-alvo, acessibilidade, local e período de execução, situação atual, organização responsável e equipe envolvida. Esses dados apoiam o planejamento, a execução, o acompanhamento e a prestação de contas dos projetos."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/projetos")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
+          showImport={false}
         />
 
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={FileText} title="Dados principais">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel
-                  htmlFor="nomeProjeto"
-                  required
-                  tooltip="Informe o nome oficial ou principal do projeto, conforme será utilizado em documentos, relatórios e editais."
-                >
-                  Nome do Projeto
-                </FieldLabel>
+          <fieldset
+            disabled={visualizando}
+            className="space-y-5 border-0 p-0 disabled:opacity-100"
+          >
+            <FormSectionCard
+              icon={FileText}
+              title="Identificação do projeto"
+              description="Informe os principais dados utilizados para identificar e classificar o projeto."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field full>
+                  <FieldLabel
+                    htmlFor="nomeProjeto"
+                    required
+                    tooltip="Informe o nome pelo qual o projeto será identificado em cadastros, documentos, relatórios e editais."
+                  >
+                    Nome do Projeto
+                  </FieldLabel>
 
-                <Input
-                  id="nomeProjeto"
-                  value={form.nomeProjeto}
-                  onChange={(e) => set("nomeProjeto", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="descricao"
-                  required
-                  tooltip="Apresente o projeto de forma geral, explicando o contexto, a proposta, as principais ações previstas e a importância da iniciativa para o público e o território atendido."
-                >
-                  Descrição
-                </FieldLabel>
-
-                <Textarea
-                  id="descricao"
-                  value={form.descricao}
-                  onChange={(e) => set("descricao", e.target.value)}
-                  rows={4}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="objetivoGeral"
-                  required
-                  tooltip="Descreva o principal resultado que o projeto pretende alcançar, indicando o que será realizado, para quem, onde e qual transformação ou contribuição se espera gerar."
-                >
-                  Objetivo Geral
-                </FieldLabel>
-
-                <Textarea
-                  id="objetivoGeral"
-                  value={form.objetivoGeral}
-                  onChange={(e) => set("objetivoGeral", e.target.value)}
-                  rows={4}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="publicoAlvo"
-                  required
-                  tooltip="Descreva quem será diretamente atendido pelo projeto, informando faixa etária, perfil social, território, comunidade, grupo prioritário ou público específico."
-                >
-                  Público-alvo
-                </FieldLabel>
-
-                <Textarea
-                  id="publicoAlvo"
-                  value={form.publicoAlvo}
-                  onChange={(e) => set("publicoAlvo", e.target.value)}
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="acoesAcessibilidade"
-                  required
-                  tooltip="Descreva as medidas previstas para ampliar o acesso e a participação de diferentes públicos, considerando acessibilidade física, comunicacional, social, territorial ou econômica."
-                >
-                  Ações de Acessibilidade
-                </FieldLabel>
-
-                <Textarea
-                  id="acoesAcessibilidade"
-                  value={form.acoesAcessibilidade}
-                  onChange={(e) => set("acoesAcessibilidade", e.target.value)}
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="localExecucao"
-                  required
-                  tooltip="Informe o local ou território onde o projeto será realizado. Pode ser uma cidade, bairro, comunidade, escola, praça, sede da organização, equipamento público ou espaço cultural."
-                >
-                  Local de Execução
-                </FieldLabel>
-
-                <Input
-                  id="localExecucao"
-                  value={form.localExecucao}
-                  onChange={(e) => set("localExecucao", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="dataInicio"
-                  required
-                  tooltip="Informe a data prevista ou efetiva de início da execução do projeto."
-                >
-                  Data de Início do Projeto
-                </FieldLabel>
-
-                <Input
-                  id="dataInicio"
-                  value={form.dataInicio}
-                  onChange={(e) => set("dataInicio", maskDate(e.target.value))}
-                  inputMode="numeric"
-                  placeholder="dd/mm/aaaa"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="dataFim"
-                  required
-                  tooltip="Informe a data prevista ou efetiva de encerramento da execução do projeto."
-                >
-                  Data de Término do Projeto
-                </FieldLabel>
-
-                <Input
-                  id="dataFim"
-                  value={form.dataFim}
-                  onChange={(e) => set("dataFim", maskDate(e.target.value))}
-                  inputMode="numeric"
-                  placeholder="dd/mm/aaaa"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="status"
-                  required
-                  tooltip="Indique a situação atual do projeto no sistema. Use “Ativo” para projetos em execução ou acompanhamento, “Pendente” para projetos em organização ou conferência, “Concluído” para projetos finalizados conforme previsto e “Inativo” para projetos que não devem mais ser considerados ativos."
-                >
-                  Status do Projeto
-                </FieldLabel>
-
-                <Select
-                  value={form.status}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("status", value as StatusProjeto);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {statusProjetoOptions.map((status) => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="areasAtuacao"
-                  required
-                  tooltip="Selecione uma ou mais áreas de atuação relacionadas ao projeto. Use este campo para registrar projetos que dialogam com diferentes linguagens, políticas públicas ou frentes de trabalho."
-                >
-                  Áreas de Atuação
-                </FieldLabel>
-
-                <div className={bloqueado ? "pointer-events-none opacity-80" : ""}>
-                  <MultiSelect
-                    id="areasAtuacao"
-                    options={areasAtuacaoOptionsValues}
-                    value={form.areasAtuacao}
-                    onChange={(value) => {
-                      if (visualizando) return;
-                      set("areasAtuacao", value as AreaAtuacao[]);
-                    }}
-                    getOptionLabel={getAreaAtuacaoLabel}
-                    placeholder="Selecione as áreas de atuação"
+                  <Input
+                    id="nomeProjeto"
+                    value={form.nomeProjeto}
+                    onChange={(e) => set("nomeProjeto", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
                   />
-                </div>
-              </Field>
+                </Field>
 
-              <Field>
-                <FieldLabel
-                  htmlFor="origemProjeto"
-                  required
-                  tooltip="Indique como este projeto surgiu ou está sendo viabilizado. Ex.: edital público, recurso próprio, parceria, patrocínio, doação, ação voluntária ou iniciativa institucional."
-                >
-                  Origem do Projeto
-                </FieldLabel>
+                <Field>
+                  <FieldLabel
+                    htmlFor="organizacao"
+                    required
+                    tooltip="Informe a organização responsável pela realização e pelo acompanhamento do projeto."
+                  >
+                    Organização
+                  </FieldLabel>
 
-                <Select
-                  value={form.origemProjeto}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("origemProjeto", value as OrigemProjeto);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="origemProjeto">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
+                  <Select
+                    value={organizacaoSelectValue}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+                      set("organizacaoId", String(value));
+                    }}
+                    disabled={bloqueado || organizacoesComFallback.length === 0}
+                  >
+                    <SelectTrigger id="organizacao">
+                      <SelectValue placeholder="Selecione uma organização" />
+                    </SelectTrigger>
 
-                  <SelectContent>
-                    {origemProjetoOptions.map((origem) => (
-                      <SelectItem key={origem.value} value={origem.value}>
-                        {origem.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
+                    <SelectContent>
+                      {organizacoesComFallback.length === 0 ? (
+                        <SelectItem value="sem-organizacao" disabled>
+                          Nenhuma organização cadastrada
+                        </SelectItem>
+                      ) : (
+                        organizacoesComFallback.map((organizacao) => (
+                          <SelectItem
+                            key={String(organizacao.id)}
+                            value={String(organizacao.id)}
+                          >
+                            {organizacao.nome}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-          <Section icon={Target} title="Objetivos do projeto">
-            <div className="space-y-3">
-              {form.objetivos.map((objetivo, idx) => (
-                <div
-                  key={`${objetivo.id ?? "novo"}-${idx}`}
-                  className="flex gap-2 items-start"
-                >
-                  <div className="flex-1">
-                    <FieldLabel
-                      htmlFor={`objetivo-${idx}`}
-                      required
-                      tooltip="Descreva uma ação, etapa ou resultado específico que contribui para alcançar o objetivo geral do projeto."
-                    >
-                      {idx + 1}º Objetivo Específico
-                    </FieldLabel>
+                <Field>
+                  <FieldLabel
+                    htmlFor="areasAtuacao"
+                    required
+                    tooltip="Informe as áreas relacionadas às atividades e aos objetivos do projeto. É possível selecionar mais de uma opção."
+                  >
+                    Áreas de Atuação
+                  </FieldLabel>
 
-                    <Textarea
-                      id={`objetivo-${idx}`}
-                      value={objetivo.objetivoEspecifico}
-                      onChange={(e) => updateObjetivo(idx, e.target.value)}
-                      rows={2}
-                      disabled={bloqueado}
-                      readOnly={visualizando}
+                  <div
+                    className={
+                      bloqueado ? "pointer-events-none opacity-80" : ""
+                    }
+                  >
+                    <MultiSelect
+                      id="areasAtuacao"
+                      options={areasAtuacaoOptionsValues}
+                      value={form.areasAtuacao}
+                      onChange={(value) => {
+                        if (visualizando) return;
+                        set("areasAtuacao", value as AreaAtuacao[]);
+                      }}
+                      getOptionLabel={getAreaAtuacaoLabel}
+                      placeholder="Selecione as áreas de atuação"
                     />
                   </div>
+                </Field>
 
-                  {!visualizando && form.objetivos.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeObjetivo(idx)}
-                      aria-label={`Remover objetivo ${idx + 1}`}
-                      className="mt-7 rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
+                <Field>
+                  <FieldLabel
+                    htmlFor="origemProjeto"
+                    required
+                    tooltip="Informe como o projeto surgiu ou será viabilizado, considerando sua principal forma de origem ou financiamento."
+                  >
+                    Origem do Projeto
+                  </FieldLabel>
 
-              {!visualizando && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addObjetivo}
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Adicionar objetivo específico
-                </Button>
-              )}
-            </div>
-          </Section>
-
-          <Section icon={Users2} title="Equipe e responsável">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel
-                  htmlFor="organizacao"
-                  required
-                  tooltip="Selecione a organização responsável pelo projeto."
-                >
-                  Organização
-                </FieldLabel>
-
-                <Select
-                  value={organizacaoSelectValue}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("organizacaoId", String(value));
-                  }}
-                  disabled={bloqueado || organizacoesComFallback.length === 0}
-                >
-                  <SelectTrigger id="organizacao">
-                    <SelectValue placeholder="Selecione uma organização" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {organizacoesComFallback.length === 0 ? (
-                      <SelectItem value="sem-organizacao" disabled>
-                        Nenhuma organização cadastrada
-                      </SelectItem>
-                    ) : (
-                      organizacoesComFallback.map((organizacao) => (
-                        <SelectItem
-                          key={String(organizacao.id)}
-                          value={String(organizacao.id)}
-                        >
-                          {organizacao.nome}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="colaboradores"
-                  tooltip="Selecione os colaboradores que participam da elaboração, coordenação, execução, acompanhamento ou registro do projeto."
-                >
-                  Colaboradores
-                </FieldLabel>
-
-                <div
-                  className={visualizando ? "pointer-events-none opacity-80" : ""}
-                >
-                  <MultiSelect
-                    id="colaboradores"
-                    options={colaboradoresOptions}
-                    value={form.colaboradoresIds}
-                    onChange={(value) => {
+                  <Select
+                    value={form.origemProjeto}
+                    onValueChange={(value) => {
                       if (visualizando) return;
-                      set("colaboradoresIds", value.map(String));
+                      set("origemProjeto", value as OrigemProjeto);
                     }}
-                    getOptionLabel={colaboradorLabel}
-                    placeholder="Selecione os colaboradores"
-                  />
-                </div>
-              </Field>
-            </div>
-          </Section>
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="origemProjeto">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
 
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/projetos")}
-              disabled={saving}
+                    <SelectContent>
+                      {origemProjetoOptions.map((origem) => (
+                        <SelectItem key={origem.value} value={origem.value}>
+                          {origem.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={Target}
+              title="Proposta do projeto"
+              description="Descreva o que o projeto pretende realizar, qual é seu objetivo geral, quem será atendido diretamente e quais medidas de acessibilidade serão previstas para ampliar a participação do público."
             >
-              {visualizando ? "Voltar" : "Cancelar"}
-            </Button>
+              <div className="grid gap-4">
+                <Field>
+                  <FieldLabel
+                    htmlFor="descricao"
+                    required
+                    tooltip="Apresente o projeto de forma geral, explicando o contexto, a proposta, as principais ações previstas e sua importância para o público ou território atendido."
+                  >
+                    Descrição
+                  </FieldLabel>
 
-            {!visualizando && (
-              <Button type="submit" className="sm:min-w-32" disabled={saving}>
+                  <Textarea
+                    id="descricao"
+                    value={form.descricao}
+                    onChange={(e) => set("descricao", e.target.value)}
+                    rows={4}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="objetivoGeral"
+                    required
+                    tooltip="Informe o principal resultado que o projeto pretende alcançar, deixando claro o que será realizado e qual mudança ou contribuição se pretende gerar."
+                  >
+                    Objetivo Geral
+                  </FieldLabel>
+
+                  <Textarea
+                    id="objetivoGeral"
+                    value={form.objetivoGeral}
+                    onChange={(e) => set("objetivoGeral", e.target.value)}
+                    rows={4}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="publicoAlvo"
+                    required
+                    tooltip="Informe quem será atendido diretamente pelo projeto, considerando características como faixa etária, território, comunidade ou grupo específico."
+                  >
+                    Público-alvo
+                  </FieldLabel>
+
+                  <Textarea
+                    id="publicoAlvo"
+                    value={form.publicoAlvo}
+                    onChange={(e) => set("publicoAlvo", e.target.value)}
+                    rows={3}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="acoesAcessibilidade"
+                    required
+                    tooltip="Informe as medidas previstas para garantir ou ampliar a participação de pessoas com diferentes necessidades de acessibilidade."
+                  >
+                    Ações de Acessibilidade
+                  </FieldLabel>
+
+                  <Textarea
+                    id="acoesAcessibilidade"
+                    value={form.acoesAcessibilidade}
+                    onChange={(e) => set("acoesAcessibilidade", e.target.value)}
+                    rows={3}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={Target}
+              title="Objetivos específicos"
+              description="Registre separadamente os objetivos específicos que detalham o que o projeto pretende alcançar para contribuir com o objetivo geral. Adicione quantos objetivos forem necessários."
+            >
+              <div className="space-y-3">
+                {form.objetivos.map((objetivo, idx) => (
+                  <div
+                    key={`${objetivo.id ?? "novo"}-${idx}`}
+                    className="flex items-start gap-2"
+                  >
+                    <div className="flex-1">
+                      <FieldLabel
+                        htmlFor={`objetivo-${idx}`}
+                        required
+                        tooltip="Informe um resultado ou finalidade específica que o projeto pretende alcançar e que contribui diretamente para o objetivo geral."
+                      >
+                        {idx + 1}º Objetivo Específico
+                      </FieldLabel>
+
+                      <Textarea
+                        id={`objetivo-${idx}`}
+                        value={objetivo.objetivoEspecifico}
+                        onChange={(e) => updateObjetivo(idx, e.target.value)}
+                        rows={2}
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </div>
+
+                    {!visualizando && form.objetivos.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeObjetivo(idx)}
+                        aria-label={`Remover objetivo ${idx + 1}`}
+                        className="mt-7 rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                {!visualizando && (
+                  <Button
+                    type="button"
+                    variant="glassSecondary"
+                    onClick={addObjetivo}
+                    className="h-9 gap-2 px-4"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Adicionar objetivo específico
+                  </Button>
+                )}
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={CalendarClock}
+              title="Execução"
+              description="Informe o local onde o projeto será realizado, as datas previstas ou efetivas de início e término e a situação atual de sua execução."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field full>
+                  <FieldLabel
+                    htmlFor="localExecucao"
+                    required
+                    tooltip="Informe o principal local, espaço ou território onde as atividades do projeto serão realizadas."
+                  >
+                    Local de Execução
+                  </FieldLabel>
+
+                  <Input
+                    id="localExecucao"
+                    value={form.localExecucao}
+                    onChange={(e) => set("localExecucao", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataInicio"
+                    required
+                    tooltip="Informe a data prevista ou efetiva de início das atividades do projeto."
+                  >
+                    Data de Início
+                  </FieldLabel>
+
+                  <Input
+                    id="dataInicio"
+                    value={form.dataInicio}
+                    onChange={(e) =>
+                      set("dataInicio", maskDate(e.target.value))
+                    }
+                    inputMode="numeric"
+                    placeholder="dd/mm/aaaa"
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataFim"
+                    required
+                    tooltip="Informe a data prevista ou efetiva de encerramento das atividades do projeto."
+                  >
+                    Data de Término
+                  </FieldLabel>
+
+                  <Input
+                    id="dataFim"
+                    value={form.dataFim}
+                    onChange={(e) => set("dataFim", maskDate(e.target.value))}
+                    inputMode="numeric"
+                    placeholder="dd/mm/aaaa"
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="status"
+                    required
+                    tooltip="Informe a situação atual do projeto. Ativo indica projeto em andamento; Pendente, projeto em preparação ou conferência; Concluído, projeto finalizado; e Inativo, projeto que não está mais em execução ou acompanhamento."
+                  >
+                    Situação do Projeto
+                  </FieldLabel>
+
+                  <Select
+                    value={form.status}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+                      set("status", value as StatusProjeto);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {statusProjetoOptions.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={Users2}
+              title="Organização e equipe"
+              description="A organização responsável pelo projeto já foi definida na identificação. Informe aqui os colaboradores que participarão da elaboração, coordenação, execução, acompanhamento ou de outras atividades relacionadas ao projeto."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="colaboradores"
+                    tooltip="Informe os colaboradores que participam da elaboração, coordenação, execução, acompanhamento ou outras atividades relacionadas ao projeto."
+                  >
+                    Colaboradores
+                  </FieldLabel>
+
+                  <div
+                    className={
+                      visualizando ? "pointer-events-none opacity-80" : ""
+                    }
+                  >
+                    <MultiSelect
+                      id="colaboradores"
+                      options={colaboradoresOptions}
+                      value={form.colaboradoresIds}
+                      onChange={(value) => {
+                        if (visualizando) return;
+
+                        set("colaboradoresIds", value.map(String));
+                      }}
+                      getOptionLabel={colaboradorLabel}
+                      placeholder="Selecione os colaboradores"
+                    />
+                  </div>
+                </Field>
+              </div>
+            </FormSectionCard>
+          </fieldset>
+
+          {!visualizando && (
+            <div className="flex flex-col-reverse gap-2.5 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="glassSecondary"
+                className="h-9 px-4"
+                onClick={() => navigate("/projetos")}
+                disabled={saving}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                className="h-9 px-5"
+                disabled={saving}
+              >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {visualizando && (
+            <div className="flex pt-2 sm:justify-end">
+              <Button
+                type="button"
+                variant="glassSecondary"
+                className="h-9 px-4"
+                onClick={() => navigate("/projetos")}
+              >
+                Voltar
+              </Button>
+            </div>
+          )}
         </form>
         <WikiFloatingButton
           pageTitle="Projetos"
@@ -1020,30 +1067,6 @@ export default function ProjetoForm() {
         />
       </div>
     </AppLayout>
-  );
-}
-
-function Section({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: any;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
-      <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
-          {title}
-        </h2>
-      </div>
-
-      {children}
-    </Card>
   );
 }
 

@@ -22,11 +22,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -204,10 +200,13 @@ export async function getMetasProjeto(): Promise<MetaProjeto[]> {
 export async function getMetasProjetoByProjeto(
   projetoId: number,
 ): Promise<MetaProjeto[]> {
-  const response = await fetch(`${API_URL}/metas-projeto/projeto/${projetoId}`, {
-    method: "GET",
-    headers: getJsonHeaders(),
-  });
+  const response = await fetch(
+    `${API_URL}/metas-projeto/projeto/${projetoId}`,
+    {
+      method: "GET",
+      headers: getJsonHeaders(),
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await parseError(response));
@@ -363,15 +362,13 @@ export async function getPropostasEditalOptions(): Promise<
     .filter((item) => item.id);
 }
 
-export const projetoNomeMeta = (
-  id?: string,
-  projetos: ProjetoOption[] = [],
-) => (id ? projetos.find((p) => p.id === id)?.nome ?? "—" : "—");
+export const projetoNomeMeta = (id?: string, projetos: ProjetoOption[] = []) =>
+  id ? (projetos.find((p) => p.id === id)?.nome ?? "—") : "—";
 
 export const propostaNomeMeta = (
   id?: string,
   propostas: PropostaEditalOption[] = [],
-) => (id ? propostas.find((p) => p.id === id)?.nome ?? "—" : "—");
+) => (id ? (propostas.find((p) => p.id === id)?.nome ?? "—") : "—");
 
 export const formatQuantidade = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", {

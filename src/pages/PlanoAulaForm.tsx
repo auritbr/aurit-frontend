@@ -5,18 +5,25 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ClipboardList, FileText } from "lucide-react";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import { CalendarClock, Link2, FileText } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
+import { BackButton } from "@/components/BackButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { ImportDataButton } from "@/components/ImportDataButton";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { AccessDenied } from "@/components/AccessDenied";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -28,8 +35,10 @@ import { Switch } from "@/components/ui/switch";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { MultiSelect } from "@/components/MultiSelect";
+import { getImportConfigForPath } from "@/config/importacoes";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { toast } from "sonner";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 import {
   buildPlanoAulaPayload,
   createPlanoAula,
@@ -46,31 +55,8 @@ import {
   type TurmaOption,
 } from "@/data/planosAula";
 
-const PLANO_AULA_NEXT_STEP_KEY = "aurit:planos-aula:next-step-card";
-
-interface PlanoAulaNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
-}
-
 function salvarProximaAcaoPlanoAula() {
-  const card: PlanoAulaNextStepCardData = {
-    titulo: "Após cadastrar o plano de aula, organize as turmas",
-    descricao:
-      "As turmas ajudam a dividir uma atividade em grupos por horário, dia, faixa etária, nível, território ou responsável, facilitando matrículas, acompanhamento dos participantes e registro de presenças.",
-    acaoLabel: "Cadastrar turmas",
-    acaoUrl: "/turmas/novo",
-    acaoSecundariaLabel: "Ver planos de aula",
-    acaoSecundariaUrl: "/planos-aula",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(PLANO_AULA_NEXT_STEP_KEY, JSON.stringify(card));
+  emitJourneyNextStep();
 }
 
 interface FormState {
@@ -157,11 +143,25 @@ function pickText(...values: Array<unknown>): string {
   return "";
 }
 
-function getTurmaIdsFromRaw(raw: any): string[] {
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function normalizeStatusPlanoAula(value: unknown): StatusPlanoAula {
+  const status = pickText(value);
+
+  return statusPlanoAulaOptions.some((option) => option.value === status)
+    ? (status as StatusPlanoAula)
+    : "PLANEJADO";
+}
+
+function getTurmaIdsFromRaw(raw: Record<string, unknown>): string[] {
   const ids = [
     ...normalizeIds(raw.turmaIds),
     ...(Array.isArray(raw.turmas)
-      ? raw.turmas.map((turma: any) => normalizeId(turma?.id))
+      ? raw.turmas.map((turma) => normalizeId(asRecord(turma).id))
       : []),
     normalizeId(raw.turmaId ?? raw.turma),
   ];
@@ -169,24 +169,31 @@ function getTurmaIdsFromRaw(raw: any): string[] {
   return uniqueStringArray(ids);
 }
 
-function getTurmaNomesFromRaw(raw: any): string[] {
+function getTurmaNomesFromRaw(raw: Record<string, unknown>): string[] {
   const nomesFromArray = Array.isArray(raw.turmas)
     ? raw.turmas
-      .map((turma: any) => pickText(turma?.nomeTurma, turma?.nome))
-      .filter(Boolean)
+        .map((turma) => {
+          const turmaRecord = asRecord(turma);
+          return pickText(turmaRecord.nomeTurma, turmaRecord.nome);
+        })
+        .filter(Boolean)
     : [];
+  const turma = asRecord(raw.turma);
 
   const nomes = [
     ...(Array.isArray(raw.turmaNomes) ? raw.turmaNomes.filter(Boolean) : []),
     ...nomesFromArray,
-    pickText(raw.turmaNome, raw.turma?.nomeTurma, raw.turma?.nome),
+    pickText(raw.turmaNome, turma.nomeTurma, turma.nome),
   ];
 
   return nomes.filter(Boolean);
 }
 
 function mapPlanoAulaToForm(planoAula: PlanoAula): FormState {
-  const raw = planoAula as any;
+  const raw = planoAula as unknown as Record<string, unknown>;
+  const atividade = asRecord(raw.atividade);
+  const colaborador = asRecord(raw.colaborador);
+  const agente = asRecord(colaborador.agente);
 
   const atividadeId = normalizeId(raw.atividadeId ?? raw.atividade);
   const turmaIds = getTurmaIdsFromRaw(raw);
@@ -195,23 +202,23 @@ function mapPlanoAulaToForm(planoAula: PlanoAula): FormState {
 
   const atividadeNome = pickText(
     raw.atividadeNome,
-    raw.atividade?.nomeAtividade,
-    raw.atividade?.titulo,
-    raw.atividade?.nome,
+    atividade.nomeAtividade,
+    atividade.titulo,
+    atividade.nome,
   );
 
   const colaboradorNome = pickText(
     raw.colaboradorNome,
-    raw.colaborador?.nome,
-    raw.colaborador?.nomeCompleto,
-    raw.colaborador?.agente?.nome,
-    raw.colaborador?.agente?.nomeCompleto,
+    colaborador.nome,
+    colaborador.nomeCompleto,
+    agente.nome,
+    agente.nomeCompleto,
   );
 
   return {
     id: normalizeId(raw.id),
 
-    nomePlanoAula: raw.nomePlanoAula ?? "",
+    nomePlanoAula: pickText(raw.nomePlanoAula),
 
     atividadeId,
     atividadeNome,
@@ -222,13 +229,13 @@ function mapPlanoAulaToForm(planoAula: PlanoAula): FormState {
     colaboradorId,
     colaboradorNome,
 
-    dataInicio: raw.dataInicio ?? "",
-    dataFim: raw.dataFim ?? "",
+    dataInicio: pickText(raw.dataInicio),
+    dataFim: pickText(raw.dataFim),
     aulaReposicao: Boolean(raw.aulaReposicao),
-    statusPlanoAula: raw.statusPlanoAula ?? "PLANEJADO",
+    statusPlanoAula: normalizeStatusPlanoAula(raw.statusPlanoAula),
 
-    conteudo: raw.conteudo ?? "",
-    observacao: raw.observacao ?? "",
+    conteudo: pickText(raw.conteudo),
+    observacao: pickText(raw.observacao),
   };
 }
 
@@ -308,6 +315,8 @@ export default function PlanoAulaForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const duplicarId = !id ? searchParams.get("duplicar") : null;
 
   const visualizando = !!id && !location.pathname.endsWith("/editar");
   const isEdit = !!id && location.pathname.endsWith("/editar");
@@ -338,8 +347,8 @@ export default function PlanoAulaForm() {
   const atividadeAtualId = form.atividadeId || atividadeOriginalId;
   const atividadeFoiAlterada = Boolean(
     atividadeOriginalId &&
-    form.atividadeId &&
-    String(form.atividadeId) !== String(atividadeOriginalId),
+      form.atividadeId &&
+      String(form.atividadeId) !== String(atividadeOriginalId),
   );
 
   const atividadeSelectValue = atividadeAtualId;
@@ -419,7 +428,6 @@ export default function PlanoAulaForm() {
   }, [
     turmas,
     turmasDaAtividade,
-    form.turmaIds,
     form.turmaNomes,
     form.atividadeId,
     turmaIdsSelecionados,
@@ -467,10 +475,10 @@ export default function PlanoAulaForm() {
       turmasOptions,
       turmaId,
       form.turmaNomes[index] ||
-      existingPlanoAula?.turmas?.find(
-        (turma) => String(turma.id) === String(turmaId),
-      )?.nomeTurma ||
-      existingPlanoAula?.turmaNomes?.[index],
+        existingPlanoAula?.turmas?.find(
+          (turma) => String(turma.id) === String(turmaId),
+        )?.nomeTurma ||
+        existingPlanoAula?.turmaNomes?.[index],
     );
   };
 
@@ -503,7 +511,9 @@ export default function PlanoAulaForm() {
             getAtividadesPlanoAulaOptions(),
             getTurmasPlanoAulaOptions(),
             getColaboradoresPlanoAulaOptions(),
-            id ? getPlanoAulaById(Number(id)) : Promise.resolve(null),
+            id || duplicarId
+              ? getPlanoAulaById(Number(id ?? duplicarId))
+              : Promise.resolve(null),
           ]);
 
         if (!active) return;
@@ -564,12 +574,20 @@ export default function PlanoAulaForm() {
 
           setForm({
             ...mapped,
+            id: duplicarId ? "" : mapped.id,
+            nomePlanoAula: duplicarId
+              ? `Cópia de ${mapped.nomePlanoAula}`
+              : mapped.nomePlanoAula,
             atividadeId,
             atividadeNome,
             turmaIds,
             turmaNomes,
             colaboradorId,
             colaboradorNome,
+            dataInicio: duplicarId ? "" : mapped.dataInicio,
+            dataFim: duplicarId ? "" : mapped.dataFim,
+            aulaReposicao: duplicarId ? false : mapped.aulaReposicao,
+            statusPlanoAula: duplicarId ? "PLANEJADO" : mapped.statusPlanoAula,
           });
         } else {
           setExistingPlanoAula(null);
@@ -602,7 +620,7 @@ export default function PlanoAulaForm() {
     return () => {
       active = false;
     };
-  }, [id, navigate]);
+  }, [id, duplicarId, navigate]);
 
   function getFormComVinculos(): FormState {
     const atividadeId =
@@ -705,7 +723,9 @@ export default function PlanoAulaForm() {
       formComVinculos.statusPlanoAula !== "REALIZADO" &&
       formComVinculos.dataFim
     ) {
-      toast.error("Plano com data de fim preenchida deve estar como Concluído.");
+      toast.error(
+        "Plano com data de fim preenchida deve estar como Concluído.",
+      );
       return;
     }
 
@@ -754,299 +774,373 @@ export default function PlanoAulaForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/planos-aula")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" /> Voltar
-        </button>
+        <BackButton to="/planos-aula" />
 
         <PageTitle
-          title="Plano de Aula"
-          tooltip="Preencha os dados do plano de aula para organizar o conteúdo, o período, a atividade e o responsável."
+          title={
+            visualizando
+              ? "Planos de Aula"
+              : isEdit
+                ? "Planos de Aula"
+                : "Planos de Aula"
+          }
+          tooltip="Nesta página são cadastrados e organizados os planos de aula vinculados às atividades e turmas, com informações sobre conteúdo previsto, período de realização, situação e colaborador responsável. Esses registros ajudam a planejar o que será desenvolvido nos encontros e a acompanhar a realização das aulas."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/planos-aula")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
+          showImport={false}
         />
 
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
+        <FormLegend />
 
-        {!visualizando && <FormLegend />}
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-6">
-          <Card className="p-6">
-            <div className="mb-6 flex items-center gap-2 border-b pb-3">
-              <ClipboardList className="h-4 w-4 text-primary" />
-
-              <h2 className="text-sm font-semibold uppercase tracking-wide">
-                Vínculos e Período
-              </h2>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <FieldLabel required={!visualizando}>
-                  Nome do Plano de Aula
-                </FieldLabel>
-
-                <Input
-                  value={form.nomePlanoAula}
-                  onChange={(event) => set("nomePlanoAula", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <FieldLabel required={!visualizando}>Atividade</FieldLabel>
-
-                <Select
-                  value={atividadeSelectValue || undefined}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-
-                    const atividadeSelecionada = atividadesOptions.find(
-                      (atividade) => String(atividade.id) === String(value),
-                    );
-
-                    setForm((prev) => {
-                      const atividadeAnterior =
-                        prev.atividadeId ||
-                        String(existingPlanoAula?.atividadeId ?? "");
-
-                      const mudouAtividade =
-                        Boolean(atividadeAnterior) &&
-                        String(atividadeAnterior) !== String(value);
-
-                      return {
-                        ...prev,
-                        atividadeId: value,
-                        atividadeNome: atividadeSelecionada?.nomeAtividade ?? "",
-                        turmaIds: mudouAtividade ? [] : prev.turmaIds,
-                        turmaNomes: mudouAtividade ? [] : prev.turmaNomes,
-                      };
-                    });
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a atividade" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {atividadesOptions.map((atividade) => (
-                      <SelectItem key={atividade.id} value={atividade.id}>
-                        {atividade.nomeAtividade}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="turmas"
-                  required={!visualizando}
-                  tooltip="Selecione uma ou mais turmas vinculadas à atividade. As turmas ajudam a identificar para quais grupos, horários ou níveis este plano de aula será aplicado."
-                >
-                  Turmas
-                </FieldLabel>
-
-                {!atividadeSelectValue && (
-                  <p className="rounded-md border border-input bg-background px-3 py-3 text-sm text-muted-foreground">
-                    Selecione uma atividade primeiro para listar as turmas.
-                  </p>
-                )}
-
-                {atividadeSelectValue && turmasOptions.length === 0 && (
-                  <p className="rounded-md border border-input bg-background px-3 py-3 text-sm text-muted-foreground">
-                    Nenhuma turma encontrada para a atividade selecionada.
-                  </p>
-                )}
-
-                {atividadeSelectValue && turmasOptions.length > 0 && (
-                  <div
-                    className={
-                      visualizando ? "pointer-events-none opacity-80" : ""
-                    }
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <fieldset
+            disabled={visualizando}
+            className="space-y-5 border-0 p-0 disabled:opacity-100"
+          >
+            <FormSectionCard
+              icon={Link2}
+              title="Identificação e vínculo"
+              description="Estabeleça o contexto em que este plano de aula será aplicado, vinculando-o à atividade e às turmas correspondentes e identificando o responsável por sua condução."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field full>
+                  <FieldLabel
+                    htmlFor="atividade"
+                    required={!visualizando}
+                    tooltip="Informe a atividade à qual este plano de aula está relacionado."
                   >
-                    <MultiSelect
-                      id="turmas"
-                      options={turmasMultiSelectOptions}
-                      value={turmaIdsSelecionados}
-                      onChange={(value) => {
-                        if (visualizando) return;
+                    Atividade
+                  </FieldLabel>
 
-                        const turmaIds = value.map(String);
+                  <Select
+                    value={atividadeSelectValue || undefined}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
 
-                        setForm((prev) => ({
+                      const atividadeSelecionada = atividadesOptions.find(
+                        (atividade) => String(atividade.id) === String(value),
+                      );
+
+                      setForm((prev) => {
+                        const atividadeAnterior =
+                          prev.atividadeId ||
+                          String(existingPlanoAula?.atividadeId ?? "");
+
+                        const mudouAtividade =
+                          Boolean(atividadeAnterior) &&
+                          String(atividadeAnterior) !== String(value);
+
+                        return {
                           ...prev,
-                          turmaIds,
-                          turmaNomes: turmaIds.map((turmaId) =>
-                            getTurmaNome(turmasOptions, turmaId),
-                          ),
-                        }));
+                          atividadeId: value,
+                          atividadeNome:
+                            atividadeSelecionada?.nomeAtividade ?? "",
+                          turmaIds: mudouAtividade ? [] : prev.turmaIds,
+                          turmaNomes: mudouAtividade ? [] : prev.turmaNomes,
+                        };
+                      });
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="atividade">
+                      <SelectValue placeholder="Selecione a atividade" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {atividadesOptions.map((atividade) => (
+                        <SelectItem key={atividade.id} value={atividade.id}>
+                          {atividade.nomeAtividade}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field full>
+                  <FieldLabel
+                    htmlFor="turmas"
+                    required={!visualizando}
+                    tooltip="Informe as turmas nas quais este plano de aula será aplicado. É possível selecionar mais de uma turma vinculada à atividade."
+                  >
+                    Turmas
+                  </FieldLabel>
+
+                  {!atividadeSelectValue && (
+                    <p className="rounded-md border border-input bg-background px-3 py-3 text-sm text-muted-foreground">
+                      Selecione uma atividade primeiro para visualizar as turmas
+                      disponíveis.
+                    </p>
+                  )}
+
+                  {atividadeSelectValue && turmasOptions.length === 0 && (
+                    <p className="rounded-md border border-input bg-background px-3 py-3 text-sm text-muted-foreground">
+                      Nenhuma turma cadastrada para a atividade selecionada.
+                    </p>
+                  )}
+
+                  {atividadeSelectValue && turmasOptions.length > 0 && (
+                    <div
+                      className={
+                        visualizando ? "pointer-events-none opacity-80" : ""
+                      }
+                    >
+                      <MultiSelect
+                        id="turmas"
+                        options={turmasMultiSelectOptions}
+                        value={turmaIdsSelecionados}
+                        onChange={(value) => {
+                          if (visualizando) return;
+
+                          const turmaIds = value.map(String);
+
+                          setForm((prev) => ({
+                            ...prev,
+                            turmaIds,
+                            turmaNomes: turmaIds.map((turmaId) =>
+                              getTurmaNome(turmasOptions, turmaId),
+                            ),
+                          }));
+                        }}
+                        getOptionLabel={turmaLabel}
+                        placeholder="Selecione as turmas"
+                      />
+                    </div>
+                  )}
+
+                  {!!turmaIdsSelecionados.length && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Turmas selecionadas: {turmasSelecionadasTexto}
+                    </p>
+                  )}
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="nomePlanoAula"
+                    required={!visualizando}
+                    tooltip="Informe um nome curto e claro que permita identificar facilmente este plano de aula."
+                  >
+                    Nome do Plano de Aula
+                  </FieldLabel>
+
+                  <Input
+                    id="nomePlanoAula"
+                    value={form.nomePlanoAula}
+                    onChange={(event) =>
+                      set("nomePlanoAula", event.target.value)
+                    }
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="colaboradorResponsavel"
+                    required={!visualizando}
+                    tooltip="Informe o colaborador responsável pelo planejamento ou pela condução da aula."
+                  >
+                    Colaborador Responsável
+                  </FieldLabel>
+
+                  <Select
+                    value={colaboradorSelectValue || undefined}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+
+                      const colaboradorSelecionado = colaboradoresOptions.find(
+                        (colaborador) =>
+                          String(colaborador.id) === String(value),
+                      );
+
+                      setForm((prev) => ({
+                        ...prev,
+                        colaboradorId: value,
+                        colaboradorNome: colaboradorSelecionado?.nome ?? "",
+                      }));
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="colaboradorResponsavel">
+                      <SelectValue placeholder="Selecione o colaborador" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {colaboradoresOptions.map((colaborador) => (
+                        <SelectItem key={colaborador.id} value={colaborador.id}>
+                          {colaborador.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={FileText}
+              title="Conteúdo da aula"
+              description="Planeje o que será trabalhado durante a aula, registrando os conteúdos, temas, técnicas ou conhecimentos que orientarão sua realização."
+            >
+              <div className="space-y-4">
+                <Field>
+                  <FieldLabel
+                    htmlFor="conteudo"
+                    required={!visualizando}
+                    tooltip="Descreva os conteúdos, temas, técnicas ou conhecimentos que serão trabalhados durante a aula."
+                  >
+                    Conteúdo Previsto
+                  </FieldLabel>
+
+                  <Textarea
+                    id="conteudo"
+                    placeholder="Descreva o conteúdo previsto para a aula..."
+                    className="min-h-[120px]"
+                    value={form.conteudo}
+                    onChange={(event) => set("conteudo", event.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={CalendarClock}
+              title="Período e situação"
+              description="Organize quando este plano será aplicado e acompanhe sua realização, indicando também quando se tratar da reposição de uma aula."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataInicio"
+                    required={!visualizando}
+                    tooltip="Informe a data prevista ou efetiva de início deste plano de aula."
+                  >
+                    Data de Início
+                  </FieldLabel>
+
+                  <Input
+                    id="dataInicio"
+                    type="date"
+                    value={form.dataInicio}
+                    onChange={(event) => set("dataInicio", event.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataFim"
+                    tooltip="Informe a data de término quando o plano abranger mais de um encontro ou período."
+                  >
+                    Data de Término
+                  </FieldLabel>
+
+                  <Input
+                    id="dataFim"
+                    type="date"
+                    value={form.dataFim}
+                    onChange={(event) => set("dataFim", event.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <div className="flex items-center gap-2 pt-4">
+                    <Switch
+                      id="aulaReposicao"
+                      checked={form.aulaReposicao}
+                      onCheckedChange={(checked) => {
+                        if (visualizando) return;
+                        set("aulaReposicao", checked);
                       }}
-                      getOptionLabel={turmaLabel}
-                      placeholder="Selecione as turmas"
+                      disabled={bloqueado}
                     />
+
+                    <FieldLabel
+                      htmlFor="aulaReposicao"
+                      tooltip="Ative esta opção quando o plano corresponder a uma aula realizada para substituir ou repor um encontro que não ocorreu na data originalmente prevista."
+                    >
+                      Aula de Reposição?
+                    </FieldLabel>
                   </div>
-                )}
+                </Field>
 
-                {!!turmaIdsSelecionados.length && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Turmas selecionadas: {turmasSelecionadasTexto}
-                  </p>
-                )}
-              </Field>
+                <Field>
+                  <FieldLabel
+                    htmlFor="statusPlanoAula"
+                    required={!visualizando}
+                    tooltip="Informe a situação atual do plano de aula. Planejado indica aula prevista; Realizado, aula concluída; e Cancelado, aula que não será realizada."
+                  >
+                    Situação do Plano de Aula
+                  </FieldLabel>
 
-              <div className="sm:col-span-2">
-                <FieldLabel required={!visualizando}>
-                  Colaborador Responsável
-                </FieldLabel>
+                  <Select
+                    value={form.statusPlanoAula}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+                      set("statusPlanoAula", value as StatusPlanoAula);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="statusPlanoAula">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
 
-                <Select
-                  value={colaboradorSelectValue || undefined}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-
-                    const colaboradorSelecionado = colaboradoresOptions.find(
-                      (colaborador) => String(colaborador.id) === String(value),
-                    );
-
-                    setForm((prev) => ({
-                      ...prev,
-                      colaboradorId: value,
-                      colaboradorNome: colaboradorSelecionado?.nome ?? "",
-                    }));
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o colaborador" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {colaboradoresOptions.map((colaborador) => (
-                      <SelectItem key={colaborador.id} value={colaborador.id}>
-                        {colaborador.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    <SelectContent>
+                      {statusPlanoAulaOptions.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
               </div>
+            </FormSectionCard>
 
-              <div>
-                <FieldLabel required={!visualizando}>Data de Início</FieldLabel>
+            <FormSectionCard
+              icon={FileText}
+              title="Observações"
+              description="Registre somente informações complementares que sejam importantes para compreender, preparar ou realizar este plano de aula e que ainda não tenham sido informadas nos campos anteriores."
+            >
+              <div className="space-y-4">
+                <Field>
+                  <FieldLabel
+                    htmlFor="observacao"
+                    tooltip="Registre informações complementares relevantes para o planejamento ou realização da aula."
+                  >
+                    Observações
+                  </FieldLabel>
 
-                <Input
-                  type="date"
-                  value={form.dataInicio}
-                  onChange={(event) => set("dataInicio", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
+                  <Textarea
+                    id="observacao"
+                    placeholder="Informações complementares..."
+                    value={form.observacao}
+                    onChange={(event) => set("observacao", event.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
               </div>
+            </FormSectionCard>
+          </fieldset>
 
-              <div>
-                <FieldLabel>Data de Fim</FieldLabel>
-
-                <Input
-                  type="date"
-                  value={form.dataFim}
-                  onChange={(event) => set("dataFim", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-4">
-                <Switch
-                  checked={form.aulaReposicao}
-                  onCheckedChange={(checked) => {
-                    if (visualizando) return;
-                    set("aulaReposicao", checked);
-                  }}
-                  disabled={bloqueado}
-                />
-
-                <FieldLabel>Aula de Reposição?</FieldLabel>
-              </div>
-
-              <div>
-                <FieldLabel required={!visualizando}>Status</FieldLabel>
-
-                <Select
-                  value={form.statusPlanoAula}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("statusPlanoAula", value as StatusPlanoAula);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {statusPlanoAulaOptions.map((status) => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="mb-6 flex items-center gap-2 border-b pb-3">
-              <FileText className="h-4 w-4 text-primary" />
-
-              <h2 className="text-sm font-semibold uppercase tracking-wide">
-                Conteúdo e Observações
-              </h2>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <FieldLabel required={!visualizando}>
-                  Conteúdo previsto
-                </FieldLabel>
-
-                <Textarea
-                  placeholder="Descreva o conteúdo previsto para a aula..."
-                  className="min-h-[120px]"
-                  value={form.conteudo}
-                  onChange={(event) => set("conteudo", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </div>
-
-              <div>
-                <FieldLabel>Observações</FieldLabel>
-
-                <Textarea
-                  placeholder="Informações complementares..."
-                  value={form.observacao}
-                  onChange={(event) => set("observacao", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </div>
-            </div>
-          </Card>
-
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/planos-aula")}
               disabled={saving}
             >
@@ -1054,7 +1148,12 @@ export default function PlanoAulaForm() {
             </Button>
 
             {!visualizando && (
-              <Button type="submit" disabled={saving || loading}>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                className="h-9 px-5"
+                disabled={saving || loading}
+              >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
             )}
@@ -1062,7 +1161,7 @@ export default function PlanoAulaForm() {
         </form>
         <WikiFloatingButton
           pageTitle="Plano de Aula"
-          href="https://www.aurit.com.br/wiki/execucao/plano-aula"
+          href="/wiki/execucao/plano-de-aula"
         />
       </div>
     </AppLayout>

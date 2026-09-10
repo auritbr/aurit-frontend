@@ -1,22 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
-  FileText,
-  Paperclip,
-  Tag,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import {
+  CalendarDays,
+  Camera,
+  Images,
   Link2,
-  Info,
-  Upload,
-  X,
-  FolderKanban,
+  MapPin,
+  Target,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BackButton } from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -26,1044 +30,1009 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { ImportDataButton } from "@/components/ImportDataButton";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { HelpTooltip } from "@/components/HelpTooltip";
 import {
-  buildEvidenciaPayload,
-  createEmptyEvidencia,
-  createEvidenciaExecucao,
-  getAcoesDivulgacaoOptions,
-  getAtividadesOptions,
-  getEvidenciaExecucaoById,
-  getEventosCulturaisOptions,
-  getEvidenciaArquivoDownloadUrl,
-  getNomeArquivoEvidencia,
-  getPresencasOptions,
+  EvidenciaImagensUploader,
+  type NovaImagemEvidencia,
+} from "@/components/evidencias/EvidenciaImagensUploader";
+import { EvidenciaLinksEditor } from "@/components/evidencias/EvidenciaLinksEditor";
+import { EvidenciaGaleria } from "@/components/evidencias/EvidenciaGaleria";
+import { EvidenciaResumoContexto } from "@/components/evidencias/EvidenciaResumoContexto";
+import { getImportConfigForPath } from "@/config/importacoes";
+import { useImportFormFill } from "@/hooks/useImportFormFill";
+import {
+  createEvidenciaFotografica,
+  getAtividadesEvidenciaOptions,
+  getEvidenciaFotograficaById,
+  getEvidenciaImagemUrl,
+  getEventosEvidenciaOptions,
+  getPlanosAulaEvidenciaOptions,
   getProjetosOptions,
-  getPropostasEditalOptions,
-  getTurmasOptions,
-  tiposEvidencia,
-  tiposVinculoEvidencia,
-  updateEvidenciaExecucao,
-  type Evidencia,
-  type OptionItem,
-  type TipoEvidencia,
-  type TipoVinculoEvidencia,
+  getTurmasEvidenciaOptions,
+  updateEvidenciaFotografica,
+  type ContextoEvidencia,
+  type EvidenciaImagem,
+  type EvidenciaLink,
+  type EvidenciaFotograficaRequest,
 } from "@/data/evidencias";
-import { toast } from "sonner";
 
-const MAX_FILE_MB = 10;
-const EVIDENCIA_NEXT_STEP_KEY = "aurit:evidencias:next-step-card";
-
-interface EvidenciaNextStepCardData {
-  titulo: string;
+interface FormState {
+  contexto: ContextoEvidencia | "";
+  projetoId: string;
+  atividadeId: string;
+  turmaId: string;
+  planoAulaId: string;
+  eventoCulturalId: string;
   descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
 }
 
-function salvarProximaAcaoEvidencia() {
-  const card: EvidenciaNextStepCardData = {
-    titulo: "Após organizar as evidências, registre os editais",
-    descricao:
-      "O cadastro de editais ajuda a acompanhar as oportunidades em que a organização participou ou pretende participar, registrando informações como nome do edital, status, data de abertura, data de encerramento, órgão responsável e situação do processo.",
-    acaoLabel: "Cadastrar edital",
-    acaoUrl: "/editais/novo",
-    acaoSecundariaLabel: "Ver evidências",
-    acaoSecundariaUrl: "/evidencias",
-    variante: "pendente",
-  };
+const initialState: FormState = {
+  contexto: "",
+  projetoId: "",
+  atividadeId: "",
+  turmaId: "",
+  planoAulaId: "",
+  eventoCulturalId: "",
+  descricao: "",
+};
 
-  sessionStorage.setItem(EVIDENCIA_NEXT_STEP_KEY, JSON.stringify(card));
-}
+const tooltip =
+  "Nesta página são registradas fotografias e links utilizados para comprovar a realização de aulas e eventos culturais. Relacione a evidência aos cadastros já existentes no Sistema Aurit para manter cada material vinculado corretamente à execução do projeto.";
 
-function isUrl(value: string) {
+const TOOLTIP_CONTEXTO =
+  "Selecione se a evidência foi produzida durante uma aula ou um evento cultural. Essa escolha define quais informações serão solicitadas nas próximas etapas.";
+
+const TOOLTIP_PROJETO =
+  "Selecione o projeto ao qual esta evidência pertence. Serão apresentados somente os registros relacionados ao projeto escolhido nas etapas seguintes.";
+
+const TOOLTIP_ATIVIDADE =
+  "Selecione a atividade em que a aula foi realizada. As opções apresentadas correspondem às atividades vinculadas ao projeto selecionado.";
+
+const TOOLTIP_TURMA =
+  "Selecione a turma em que a evidência foi produzida. Serão apresentadas somente as turmas vinculadas à atividade escolhida.";
+
+const TOOLTIP_PLANO_AULA =
+  "Selecione o plano de aula correspondente ao encontro registrado nas fotografias. A data da aula será preenchida automaticamente a partir desse cadastro.";
+
+const TOOLTIP_DATA_AULA =
+  "Esta data é preenchida automaticamente a partir do Plano de Aula selecionado e identifica quando o encontro registrado ocorreu.";
+
+const TOOLTIP_EVENTO =
+  "Selecione o evento cultural em que a evidência foi produzida. As informações do evento serão recuperadas automaticamente do cadastro existente.";
+
+const TOOLTIP_DESCRICAO =
+  "Descreva o que está sendo comprovado por esta evidência. Informe, de forma breve, o momento registrado, a atividade realizada ou outra informação que ajude a compreender as fotografias e os links anexados.";
+
+const contextos = [
+  { value: "AULA", label: "Aula" },
+  { value: "EVENTO_CULTURAL", label: "Evento Cultural" },
+] as const;
+
+const dataBR = (value?: string | null) => {
+  if (!value) return "";
+
+  const [a, m, d] = value.slice(0, 10).split("-");
+
+  return a && m && d ? `${d}/${m}/${a}` : value;
+};
+
+const periodo = (inicio?: string | null, fim?: string | null) =>
+  !inicio
+    ? "—"
+    : !fim || fim === inicio
+      ? dataBR(inicio)
+      : `${dataBR(inicio)} a ${dataBR(fim)}`;
+
+const urlValida = (value: string) => {
   try {
-    new URL(value);
-    return true;
+    const url = new URL(value);
+
+    return url.protocol === "http:" || url.protocol === "https:";
   } catch {
     return false;
   }
-}
-
-function normalizeOption(item: OptionItem): OptionItem {
-  return {
-    ...item,
-    id: String(item.id),
-    nome: item.nome?.trim() || `Registro ${item.id}`,
-    projetoId:
-      item.projetoId !== null && item.projetoId !== undefined
-        ? String(item.projetoId)
-        : item.projetoId,
-  };
-}
-
-function normalizeOptions(items: OptionItem[]) {
-  return (items ?? [])
-    .filter(
-      (item) =>
-        item.id !== null &&
-        item.id !== undefined &&
-        String(item.id).trim() !== "",
-    )
-    .map(normalizeOption);
-}
-
-function filtrarPorProjeto(items: OptionItem[], projetoId: string) {
-  const projeto = String(projetoId || "").trim();
-
-  if (!projeto) return items;
-
-  return items.filter(
-    (item) => !item.projetoId || String(item.projetoId) === projeto,
-  );
-}
-
-function withSelectedOption(
-  items: OptionItem[],
-  allItems: OptionItem[],
-  selectedId: string,
-  fallbackPrefix: string,
-) {
-  const selected = String(selectedId || "").trim();
-
-  const normalizados = normalizeOptions(items);
-  const todosNormalizados = normalizeOptions(allItems);
-
-  if (selected && !normalizados.some((item) => String(item.id) === selected)) {
-    const found = todosNormalizados.find((item) => String(item.id) === selected);
-
-    normalizados.push(
-      found ?? {
-        id: selected,
-        nome: `${fallbackPrefix} vinculada #${selected}`,
-      },
-    );
-  }
-
-  return normalizados;
-}
+};
 
 export default function EvidenciaForm() {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { id } = useParams();
 
-  const visualizando = !!id && !location.pathname.endsWith("/editar");
-  const editando = !!id && location.pathname.endsWith("/editar");
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const evidenciaId = id ? Number(id) : undefined;
+  const isView = !!id && !location.pathname.endsWith("/editar");
+  const isEdit = !!id && !isView;
 
-  const [form, setForm] = useState<Evidencia>(() => createEmptyEvidencia());
-  const [existingEvidencia, setExistingEvidencia] =
-    useState<Evidencia | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [arquivoFile, setArquivoFile] = useState<File | null>(null);
+  const [form, setForm] = useState<FormState>(initialState);
+  const [existingImages, setExistingImages] = useState<EvidenciaImagem[]>([]);
+  const [newImages, setNewImages] = useState<NovaImagemEvidencia[]>([]);
+  const [removedImageIds, setRemovedImageIds] = useState<number[]>([]);
+  const [links, setLinks] = useState<EvidenciaLink[]>([]);
 
-  const [projetos, setProjetos] = useState<OptionItem[]>([]);
-  const [propostasEdital, setPropostasEdital] = useState<OptionItem[]>([]);
-  const [atividades, setAtividades] = useState<OptionItem[]>([]);
-  const [turmas, setTurmas] = useState<OptionItem[]>([]);
-  const [eventos, setEventos] = useState<OptionItem[]>([]);
-  const [acoes, setAcoes] = useState<OptionItem[]>([]);
-  const [presencas, setPresencas] = useState<OptionItem[]>([]);
+  useImportFormFill("evidencias", setForm);
 
-  const bloqueado = loading || visualizando;
+  const detailQ = useQuery({
+    queryKey: ["evidencias", "detalhes", evidenciaId],
+    queryFn: () => getEvidenciaFotograficaById(evidenciaId!),
+    enabled: !!evidenciaId,
+    retry: false,
+  });
 
-  const set = <K extends keyof Evidencia>(key: K, value: Evidencia[K]) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const projetosQ = useQuery({
+    queryKey: ["evidencias", "projetos"],
+    queryFn: getProjetosOptions,
+    retry: false,
+  });
 
-  const projetoSelectValue =
-    String(form.projeto || existingEvidencia?.projeto || "");
+  const atividadesQ = useQuery({
+    queryKey: ["evidencias", "atividades", form.projetoId],
+    queryFn: () => getAtividadesEvidenciaOptions(Number(form.projetoId)),
+    enabled: form.contexto === "AULA" && !!form.projetoId,
+    retry: false,
+  });
 
-  const projetoOriginalAtivo =
-    !!existingEvidencia &&
-    (!form.projeto ||
-      String(form.projeto) === String(existingEvidencia.projeto || ""));
+  const turmasQ = useQuery({
+    queryKey: ["evidencias", "turmas", form.atividadeId],
+    queryFn: () => getTurmasEvidenciaOptions(Number(form.atividadeId)),
+    enabled: form.contexto === "AULA" && !!form.atividadeId,
+    retry: false,
+  });
 
-  const tipoVinculoSelectValue = String(
-    form.tipoVinculoEvidencia ||
-    existingEvidencia?.tipoVinculoEvidencia ||
-    "",
-  ) as TipoVinculoEvidencia | "";
+  const planosQ = useQuery({
+    queryKey: ["evidencias", "planos", form.atividadeId, form.turmaId],
+    queryFn: () =>
+      getPlanosAulaEvidenciaOptions(
+        Number(form.atividadeId),
+        Number(form.turmaId),
+      ),
+    enabled: form.contexto === "AULA" && !!form.atividadeId && !!form.turmaId,
+    retry: false,
+  });
 
-  const tv = tipoVinculoSelectValue;
-
-  const propostaEditalSelectValue = String(
-    form.propostaEdital ||
-    (projetoOriginalAtivo ? existingEvidencia?.propostaEdital : "") ||
-    "",
-  );
-
-  const atividadeSelectValue = String(
-    form.atividade ||
-    (projetoOriginalAtivo ? existingEvidencia?.atividade : "") ||
-    "",
-  );
-
-  const turmaSelectValue = String(
-    form.turma || (projetoOriginalAtivo ? existingEvidencia?.turma : "") || "",
-  );
-
-  const eventoCulturalSelectValue = String(
-    form.eventoCultural ||
-    (projetoOriginalAtivo ? existingEvidencia?.eventoCultural : "") ||
-    "",
-  );
-
-  const acaoDivulgacaoSelectValue = String(
-    form.acaoDivulgacao ||
-    (projetoOriginalAtivo ? existingEvidencia?.acaoDivulgacao : "") ||
-    "",
-  );
-
-  const presencaSelectValue = String(
-    form.presenca ||
-    (projetoOriginalAtivo ? existingEvidencia?.presenca : "") ||
-    "",
-  );
+  const eventosQ = useQuery({
+    queryKey: ["evidencias", "eventos", form.projetoId],
+    queryFn: () => getEventosEvidenciaOptions(Number(form.projetoId)),
+    enabled: form.contexto === "EVENTO_CULTURAL" && !!form.projetoId,
+    retry: false,
+  });
 
   useEffect(() => {
-    let active = true;
+    const item = detailQ.data;
 
-    async function carregarTudo() {
-      try {
-        setLoading(true);
+    if (!item) return;
 
-        const [
-          projetosData,
-          propostasEditalData,
-          atividadesData,
-          turmasData,
-          eventosData,
-          acoesData,
-          presencasData,
-          registroData,
-        ] = await Promise.all([
-          getProjetosOptions(),
-          getPropostasEditalOptions(),
-          getAtividadesOptions(),
-          getTurmasOptions(),
-          getEventosCulturaisOptions(),
-          getAcoesDivulgacaoOptions(),
-          getPresencasOptions(),
-          id ? getEvidenciaExecucaoById(Number(id)) : Promise.resolve(null),
-        ]);
+    setForm({
+      contexto: item.contexto,
+      projetoId: String(item.projeto.id),
+      atividadeId: item.atividade ? String(item.atividade.id) : "",
+      turmaId: item.turma ? String(item.turma.id) : "",
+      planoAulaId: item.planoAula ? String(item.planoAula.id) : "",
+      eventoCulturalId: item.eventoCultural
+        ? String(item.eventoCultural.id)
+        : "",
+      descricao: item.descricao ?? "",
+    });
 
-        if (!active) return;
+    setExistingImages(item.imagens ?? []);
+    setLinks(item.links ?? []);
+    setRemovedImageIds([]);
+    setNewImages([]);
+  }, [detailQ.data]);
 
-        const projetosNormalizados = normalizeOptions(projetosData);
-        const propostasNormalizadas = normalizeOptions(propostasEditalData);
-        const atividadesNormalizadas = normalizeOptions(atividadesData);
-        const turmasNormalizadas = normalizeOptions(turmasData);
-        const eventosNormalizados = normalizeOptions(eventosData);
-        const acoesNormalizadas = normalizeOptions(acoesData);
-        const presencasNormalizadas = normalizeOptions(presencasData);
+  useEffect(() => {
+    const error =
+      detailQ.error ??
+      projetosQ.error ??
+      atividadesQ.error ??
+      turmasQ.error ??
+      planosQ.error ??
+      eventosQ.error;
 
-        setProjetos(projetosNormalizados);
-        setPropostasEdital(propostasNormalizadas);
-        setAtividades(atividadesNormalizadas);
-        setTurmas(turmasNormalizadas);
-        setEventos(eventosNormalizados);
-        setAcoes(acoesNormalizadas);
-        setPresencas(presencasNormalizadas);
+    if (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar os dados da evidência.",
+      );
+    }
+  }, [
+    detailQ.error,
+    projetosQ.error,
+    atividadesQ.error,
+    turmasQ.error,
+    planosQ.error,
+    eventosQ.error,
+  ]);
 
-        if (registroData) {
-          const registroNormalizado: Evidencia = {
-            ...registroData,
-            id: registroData.id,
-            projeto: String(registroData.projeto || ""),
-            propostaEdital: String(registroData.propostaEdital || ""),
-            atividade: String(registroData.atividade || ""),
-            turma: String(registroData.turma || ""),
-            eventoCultural: String(registroData.eventoCultural || ""),
-            acaoDivulgacao: String(registroData.acaoDivulgacao || ""),
-            presenca: String(registroData.presenca || ""),
-            tipoVinculoEvidencia: registroData.tipoVinculoEvidencia,
-            urlArquivo: registroData.urlArquivo ?? "",
-          };
+  const projetos = projetosQ.data ?? [];
+  const atividades = atividadesQ.data ?? [];
+  const turmas = turmasQ.data ?? [];
+  const planos = planosQ.data ?? [];
+  const eventos = eventosQ.data ?? [];
 
-          setExistingEvidencia(registroNormalizado);
-          setForm(registroNormalizado);
-        } else {
-          setExistingEvidencia(null);
-          setForm(createEmptyEvidencia());
+  const plano =
+    planos.find((item) => item.id === form.planoAulaId) ??
+    (detailQ.data?.planoAula
+      ? {
+          id: String(detailQ.data.planoAula.id),
+          nome: detailQ.data.planoAula.nome,
+          dataInicio: detailQ.data.planoAula.dataInicio,
+          dataFim: detailQ.data.planoAula.dataFim ?? undefined,
+          turmaIds: detailQ.data.planoAula.turmas.map((t) => String(t.id)),
         }
-      } catch (error) {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Erro ao carregar evidência.",
+      : undefined);
+
+  const evento =
+    eventos.find((item) => item.id === form.eventoCulturalId) ??
+    (detailQ.data?.eventoCultural
+      ? {
+          id: String(detailQ.data.eventoCultural.id),
+          nome: detailQ.data.eventoCultural.nome,
+          dataInicio: detailQ.data.eventoCultural.dataInicio,
+          dataFim: detailQ.data.eventoCultural.dataFim ?? undefined,
+          descricao: detailQ.data.eventoCultural.descricao ?? undefined,
+          local: detailQ.data.eventoCultural.local ?? undefined,
+          status: detailQ.data.eventoCultural.status ?? undefined,
+        }
+      : undefined);
+
+  const projetoNome =
+    projetos.find((p) => p.id === form.projetoId)?.nome ??
+    detailQ.data?.projeto.nome ??
+    "—";
+
+  const atividadeNome =
+    atividades.find((a) => a.id === form.atividadeId)?.nome ??
+    detailQ.data?.atividade?.nome ??
+    "—";
+
+  const turmaNome =
+    turmas.find((t) => t.id === form.turmaId)?.nome ??
+    detailQ.data?.turma?.nome ??
+    "—";
+
+  const imageQueries = useQueries({
+    queries: existingImages.map((image) => ({
+      queryKey: ["evidencias", evidenciaId, "imagem", image.id],
+      queryFn: () => getEvidenciaImagemUrl(evidenciaId!, image.id),
+      enabled: !!evidenciaId,
+      retry: false,
+      staleTime: 4 * 60 * 1000,
+    })),
+  });
+
+  const existingImagesWithUrls = existingImages.map((image, index) => ({
+    ...image,
+    visualizacaoUrl: imageQueries[index]?.data,
+  }));
+
+  const gallery = existingImages.map((image, index) => ({
+    id: image.id,
+    nome: image.nomeOriginal,
+    url: imageQueries[index]?.data,
+  }));
+
+  const setContexto = (contexto: ContextoEvidencia) =>
+    setForm((prev) => ({
+      ...prev,
+      contexto,
+      atividadeId: "",
+      turmaId: "",
+      planoAulaId: "",
+      eventoCulturalId: "",
+    }));
+
+  const setProjeto = (projetoId: string) =>
+    setForm((prev) => ({
+      ...prev,
+      projetoId,
+      atividadeId: "",
+      turmaId: "",
+      planoAulaId: "",
+      eventoCulturalId: "",
+    }));
+
+  const setAtividade = (atividadeId: string) =>
+    setForm((prev) => ({
+      ...prev,
+      atividadeId,
+      turmaId: "",
+      planoAulaId: "",
+    }));
+
+  const setTurma = (turmaId: string) =>
+    setForm((prev) => ({
+      ...prev,
+      turmaId,
+      planoAulaId: "",
+    }));
+
+  const removeExisting = (imageId: number) => {
+    setExistingImages((prev) => prev.filter((image) => image.id !== imageId));
+
+    setRemovedImageIds((prev) => [...new Set([...prev, imageId])]);
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!form.contexto) {
+        throw new Error("Selecione o contexto da evidência.");
+      }
+
+      if (!form.projetoId) {
+        throw new Error("Selecione um projeto.");
+      }
+
+      if (
+        form.contexto === "AULA" &&
+        (!form.atividadeId || !form.turmaId || !form.planoAulaId)
+      ) {
+        throw new Error("Selecione a atividade, a turma e o plano de aula.");
+      }
+
+      if (form.contexto === "EVENTO_CULTURAL" && !form.eventoCulturalId) {
+        throw new Error("Selecione um evento cultural.");
+      }
+
+      if (existingImages.length + newImages.length > 10) {
+        throw new Error("É possível adicionar até 10 imagens por registro.");
+      }
+
+      const validLinks = links.filter(
+        (link) => (link.titulo ?? "").trim() || link.url.trim(),
+      );
+
+      if (validLinks.some((link) => !urlValida(link.url.trim()))) {
+        throw new Error(
+          "Informe um endereço válido começando com http:// ou https://.",
         );
-
-        if (id) {
-          navigate("/evidencias");
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    void carregarTudo();
-
-    return () => {
-      active = false;
-    };
-  }, [id, navigate]);
-
-  const projetosComSelecao = useMemo(
-    () => withSelectedOption(projetos, projetos, projetoSelectValue, "Projeto"),
-    [projetos, projetoSelectValue],
-  );
-
-  const propostasFiltradas = useMemo(() => {
-    const filtradas = filtrarPorProjeto(propostasEdital, projetoSelectValue);
-
-    return withSelectedOption(
-      filtradas,
-      propostasEdital,
-      propostaEditalSelectValue,
-      "Proposta",
-    );
-  }, [propostasEdital, projetoSelectValue, propostaEditalSelectValue]);
-
-  const atividadesFiltradas = useMemo(() => {
-    const filtradas = filtrarPorProjeto(atividades, projetoSelectValue);
-
-    return withSelectedOption(
-      filtradas,
-      atividades,
-      atividadeSelectValue,
-      "Atividade",
-    );
-  }, [atividades, projetoSelectValue, atividadeSelectValue]);
-
-  const turmasFiltradas = useMemo(() => {
-    const filtradas = filtrarPorProjeto(turmas, projetoSelectValue);
-
-    return withSelectedOption(filtradas, turmas, turmaSelectValue, "Turma");
-  }, [turmas, projetoSelectValue, turmaSelectValue]);
-
-  const eventosFiltrados = useMemo(() => {
-    const filtrados = filtrarPorProjeto(eventos, projetoSelectValue);
-
-    return withSelectedOption(
-      filtrados,
-      eventos,
-      eventoCulturalSelectValue,
-      "Evento",
-    );
-  }, [eventos, projetoSelectValue, eventoCulturalSelectValue]);
-
-  const acoesFiltradas = useMemo(() => {
-    const filtradas = filtrarPorProjeto(acoes, projetoSelectValue);
-
-    return withSelectedOption(
-      filtradas,
-      acoes,
-      acaoDivulgacaoSelectValue,
-      "Ação",
-    );
-  }, [acoes, projetoSelectValue, acaoDivulgacaoSelectValue]);
-
-  const presencasFiltradas = useMemo(() => {
-    const filtradas = filtrarPorProjeto(presencas, projetoSelectValue);
-
-    return withSelectedOption(
-      filtradas,
-      presencas,
-      presencaSelectValue,
-      "Presença",
-    );
-  }, [presencas, projetoSelectValue, presencaSelectValue]);
-
-  function setProjeto(projetoId: string) {
-    setForm((prev) => ({
-      ...prev,
-      projeto: String(projetoId),
-      propostaEdital: "",
-      atividade: "",
-      turma: "",
-      eventoCultural: "",
-      acaoDivulgacao: "",
-      presenca: "",
-    }));
-  }
-
-  function setTipoVinculo(tipo: TipoVinculoEvidencia) {
-    setForm((prev) => ({
-      ...prev,
-      tipoVinculoEvidencia: tipo,
-      propostaEdital:
-        tipo === "PROPOSTA_EDITAL" ? propostaEditalSelectValue : "",
-      atividade: tipo === "ATIVIDADE" ? atividadeSelectValue : "",
-      turma: tipo === "TURMA" ? turmaSelectValue : "",
-      eventoCultural:
-        tipo === "EVENTO_CULTURAL" ? eventoCulturalSelectValue : "",
-      acaoDivulgacao:
-        tipo === "ACAO_DIVULGACAO" ? acaoDivulgacaoSelectValue : "",
-      presenca: tipo === "PRESENCA" ? presencaSelectValue : "",
-    }));
-  }
-
-  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    if (visualizando) return;
-
-    const file = event.target.files?.[0];
-
-    if (!file) return;
-
-    const sizeMB = file.size / (1024 * 1024);
-
-    if (sizeMB > MAX_FILE_MB) {
-      toast.error("O arquivo deve ter no máximo 10 MB.");
-      event.target.value = "";
-      return;
-    }
-
-    setArquivoFile(file);
-    set("urlArquivo", file.name);
-  }
-
-  function removeArquivo() {
-    if (visualizando) return;
-
-    setArquivoFile(null);
-    set("urlArquivo", "");
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  }
-
-  function montarEvidenciaParaEnvio(): Evidencia {
-    return {
-      ...form,
-      projeto: projetoSelectValue,
-      tipoVinculoEvidencia: tipoVinculoSelectValue as TipoVinculoEvidencia,
-      propostaEdital: propostaEditalSelectValue,
-      atividade: atividadeSelectValue,
-      turma: turmaSelectValue,
-      eventoCultural: eventoCulturalSelectValue,
-      acaoDivulgacao: acaoDivulgacaoSelectValue,
-      presenca: presencaSelectValue,
-    };
-  }
-
-  function validar(evidencia: Evidencia) {
-    if (!evidencia.tituloEvidencia.trim()) {
-      toast.error("Informe o título da evidência.");
-      return false;
-    }
-
-    if (!evidencia.tipoEvidencia) {
-      toast.error("Selecione o tipo de evidência.");
-      return false;
-    }
-
-    if (!evidencia.tipoVinculoEvidencia) {
-      toast.error("Selecione o tipo de vínculo.");
-      return false;
-    }
-
-    if (!evidencia.projeto) {
-      toast.error("Selecione o projeto.");
-      return false;
-    }
-
-    if (
-      evidencia.tipoVinculoEvidencia === "PROPOSTA_EDITAL" &&
-      !evidencia.propostaEdital
-    ) {
-      toast.error("Selecione a proposta de edital correspondente.");
-      return false;
-    }
-
-    if (evidencia.tipoVinculoEvidencia === "ATIVIDADE" && !evidencia.atividade) {
-      toast.error("Selecione a atividade correspondente.");
-      return false;
-    }
-
-    if (evidencia.tipoVinculoEvidencia === "TURMA" && !evidencia.turma) {
-      toast.error("Selecione a turma correspondente.");
-      return false;
-    }
-
-    if (
-      evidencia.tipoVinculoEvidencia === "EVENTO_CULTURAL" &&
-      !evidencia.eventoCultural
-    ) {
-      toast.error("Selecione o evento cultural correspondente.");
-      return false;
-    }
-
-    if (
-      evidencia.tipoVinculoEvidencia === "ACAO_DIVULGACAO" &&
-      !evidencia.acaoDivulgacao
-    ) {
-      toast.error("Selecione a ação de divulgação correspondente.");
-      return false;
-    }
-
-    if (evidencia.tipoVinculoEvidencia === "PRESENCA" && !evidencia.presenca) {
-      toast.error("Selecione a presença correspondente.");
-      return false;
-    }
-
-    if (!evidencia.urlArquivo.trim() && !evidencia.urlPublicacao.trim()) {
-      toast.error("Informe pelo menos um arquivo ou link de publicação.");
-      return false;
-    }
-
-    if (evidencia.urlPublicacao.trim() && !isUrl(evidencia.urlPublicacao.trim())) {
-      toast.error("Informe um link válido com http:// ou https://.");
-      return false;
-    }
-
-    return true;
-  }
-
-  async function handleAbrirArquivo() {
-    if (!form.id) {
-      toast.error("Evidência não identificada.");
-      return;
-    }
-
-    if (!form.urlArquivo) {
-      toast.info("Nenhum arquivo anexado.");
-      return;
-    }
-
-    try {
-      const urlTemporaria = await getEvidenciaArquivoDownloadUrl(Number(form.id));
-      window.open(urlTemporaria, "_blank");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erro ao abrir arquivo.",
-      );
-    }
-  }
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-
-    if (visualizando) return;
-
-    const evidenciaParaEnvio = montarEvidenciaParaEnvio();
-
-    if (!validar(evidenciaParaEnvio)) return;
-
-    try {
-      setLoading(true);
-
-      const payload = buildEvidenciaPayload(evidenciaParaEnvio);
-
-      if (editando && id) {
-        await updateEvidenciaExecucao(Number(id), payload, arquivoFile);
-        toast.success("Evidência atualizada com sucesso.");
-      } else {
-        await createEvidenciaExecucao(payload, arquivoFile);
-        salvarProximaAcaoEvidencia();
-        toast.success("Evidência cadastrada com sucesso.");
       }
 
-      navigate("/evidencias", { replace: true });
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erro ao salvar evidência.",
+      const payload: EvidenciaFotograficaRequest = {
+        tituloEvidencia: null,
+        contexto: form.contexto,
+        tipoEvidencia: "FOTO",
+        projetoId: Number(form.projetoId),
+        atividadeId: form.contexto === "AULA" ? Number(form.atividadeId) : null,
+        turmaId: form.contexto === "AULA" ? Number(form.turmaId) : null,
+        planoAulaId: form.contexto === "AULA" ? Number(form.planoAulaId) : null,
+        eventoCulturalId:
+          form.contexto === "EVENTO_CULTURAL"
+            ? Number(form.eventoCulturalId)
+            : null,
+        descricao: form.descricao.trim() || null,
+        links: validLinks.map((link) => ({
+          titulo: link.titulo?.trim() || null,
+          url: link.url.trim(),
+        })),
+        removerImagemIds: removedImageIds,
+      };
+
+      const files = newImages.map((image) => image.file);
+
+      return isEdit && evidenciaId
+        ? updateEvidenciaFotografica(evidenciaId, payload, files)
+        : createEvidenciaFotografica(payload, files);
+    },
+
+    onSuccess: async (saved) => {
+      queryClient.setQueriesData<
+        import("@/data/evidencias").EvidenciaFotografica[]
+      >(
+        {
+          queryKey: ["evidencias", "fotograficas"],
+        },
+        (current) =>
+          current
+            ? [saved, ...current.filter((item) => item.id !== saved.id)]
+            : [saved],
       );
-    } finally {
-      setLoading(false);
-    }
+
+      await queryClient.invalidateQueries({
+        queryKey: ["evidencias", "fotograficas"],
+        refetchType: "none",
+      });
+
+      toast.success(
+        isEdit
+          ? "Evidência atualizada com sucesso."
+          : "Evidência registrada com sucesso.",
+      );
+
+      navigate("/evidencias");
+    },
+
+    onError: (error) =>
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível registrar a evidência.",
+      ),
+  });
+
+  if (isView) {
+    return (
+      <AppLayout>
+        <div className="container max-w-4xl py-6 sm:py-8">
+          <BackButton to="/evidencias" />
+
+          <FormHeader />
+
+          <FormLegend />
+
+          {detailQ.isLoading ? (
+            <Loading text="Carregando evidência..." />
+          ) : detailQ.isError || !detailQ.data ? (
+            <FormSectionCard icon={Camera} title="Evidência não encontrada">
+              <p className="text-[13px] text-muted-foreground">
+                Este registro não está mais disponível para a organização
+                selecionada.
+              </p>
+            </FormSectionCard>
+          ) : (
+            <div className="space-y-5">
+              <FormSectionCard
+                icon={Target}
+                title="Contexto do registro"
+                description="Consulte os vínculos da evidência com os cadastros utilizados para identificar onde e quando este registro foi produzido."
+              >
+                <EvidenciaResumoContexto
+                  title={form.contexto === "AULA" ? "Aula" : "Evento Cultural"}
+                  items={
+                    form.contexto === "AULA"
+                      ? [
+                          {
+                            label: "Projeto",
+                            value: projetoNome,
+                          },
+                          {
+                            label: "Atividade",
+                            value: atividadeNome,
+                          },
+                          {
+                            label: "Turma",
+                            value: turmaNome,
+                          },
+                          {
+                            label: "Plano de Aula",
+                            value: plano?.nome ?? "—",
+                          },
+                          {
+                            label: "Data da aula",
+                            value: dataBR(plano?.dataInicio) || "—",
+                          },
+                        ]
+                      : [
+                          {
+                            label: "Projeto",
+                            value: projetoNome,
+                          },
+                          {
+                            label: "Evento Cultural",
+                            value: evento?.nome ?? "—",
+                          },
+                          {
+                            label: "Data",
+                            value: periodo(evento?.dataInicio, evento?.dataFim),
+                          },
+                          {
+                            label: "Local",
+                            value: evento?.local ?? "—",
+                          },
+                          {
+                            label: "Descrição do evento",
+                            value: evento?.descricao ?? "—",
+                          },
+                        ]
+                  }
+                />
+
+                {form.descricao.trim() && (
+                  <div className="mt-4">
+                    <h3 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Descrição da Evidência
+                    </h3>
+
+                    <p className="mt-1.5 whitespace-pre-line text-[13.5px] leading-relaxed">
+                      {form.descricao}
+                    </p>
+                  </div>
+                )}
+              </FormSectionCard>
+
+              <FormSectionCard
+                icon={Images}
+                title="Fotografias"
+                description="Consulte as fotografias anexadas para comprovar a realização da ação registrada."
+              >
+                <EvidenciaGaleria imagens={gallery} />
+              </FormSectionCard>
+
+              <FormSectionCard
+                icon={Link2}
+                title="Links relacionados"
+                description="Consulte os links adicionados como complemento da comprovação desta evidência."
+              >
+                <LinksView links={links} />
+              </FormSectionCard>
+
+              <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 px-4"
+                  onClick={() => navigate("/evidencias")}
+                >
+                  Voltar
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <WikiFloatingButton pageTitle="Evidências" sections={wiki} />
+      </AppLayout>
+    );
   }
 
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/evidencias")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
+        <BackButton to="/evidencias" />
+
+        <FormHeader />
+
+        <FormLegend />
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+
+            if (!saveMutation.isPending) {
+              saveMutation.mutate();
+            }
+          }}
+          className="space-y-5"
         >
-          <ArrowLeft className="h-4 w-4" /> Voltar
-        </button>
+          <FormSectionCard
+            icon={Target}
+            title="Onde esta evidência foi produzida"
+            description="Identifique primeiro o tipo de ação e o projeto em que este registro foi produzido. A partir dessas informações, o Sistema Aurit apresentará os cadastros relacionados para completar o vínculo da evidência."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SelectField
+                id="contexto"
+                label="Contexto da Evidência"
+                tooltip={TOOLTIP_CONTEXTO}
+                value={form.contexto}
+                onChange={(v) => setContexto(v as ContextoEvidencia)}
+                placeholder="Selecione o contexto"
+                options={contextos.map((item) => ({
+                  id: item.value,
+                  nome: item.label,
+                }))}
+                required
+              />
 
-        <div className="mb-5 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-              Evidência
-            </h1>
-
-            <HelpTooltip
-              text="Registre e organize evidências da execução do projeto e da proposta de edital, como fotos, vídeos, listas de presença, relatórios, materiais gráficos, documentos e links de publicações. Vincule cada evidência ao item que ela comprova para facilitar relatórios, comprovações e prestação de contas."
-              label="Evidências de Execução"
-              size="md"
-              side="bottom"
-              align="start"
-            />
-          </div>
-        </div>
-
-        <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-          <Info
-            className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"
-            strokeWidth={2.2}
-          />
-
-          <p className="text-[13px] leading-relaxed text-foreground">
-            Registre aqui fotos, vídeos, listas de presença, documentos,
-            materiais gráficos e links que{" "}
-            <span className="font-semibold">comprovem a execução</span> das
-            ações do projeto. Sempre vincule cada evidência ao item
-            correspondente.
-          </p>
-        </div>
-
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Você está visualizando estas informações. Para fazer alterações,
-            clique em <span className="font-semibold">Editar</span> no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!visualizando && <FormLegend />}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={FileText} title="Identificação da evidência">
-            <div className="space-y-4">
-              <Field>
-                <FieldLabel
-                  htmlFor="tituloEvidencia"
+              {form.contexto && (
+                <SelectField
+                  id="projetoId"
+                  label="Projeto"
+                  tooltip={TOOLTIP_PROJETO}
+                  value={form.projetoId}
+                  onChange={setProjeto}
+                  placeholder={
+                    projetosQ.isLoading
+                      ? "Carregando projetos..."
+                      : "Selecione um projeto"
+                  }
+                  options={projetos}
+                  disabled={projetosQ.isLoading}
                   required
-                  tooltip="Informe um título claro para identificar o que esta evidência comprova. Ex.: Fotos da Oficina de Violão — Maio de 2026."
-                >
-                  Título da Evidência
-                </FieldLabel>
-
-                <Input
-                  id="tituloEvidencia"
-                  value={form.tituloEvidencia}
-                  onChange={(event) =>
-                    set("tituloEvidencia", event.target.value)
-                  }
-                  disabled={bloqueado}
-                  readOnly={visualizando}
                 />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="observacaoEvidencia"
-                  tooltip="Registre informações complementares sobre a evidência, como contexto, data, local, atividade relacionada, participantes, conteúdo registrado ou observações úteis para relatórios."
-                >
-                  Observação
-                </FieldLabel>
-
-                <Textarea
-                  id="observacaoEvidencia"
-                  value={form.observacaoEvidencia}
-                  onChange={(event) =>
-                    set("observacaoEvidencia", event.target.value)
-                  }
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+              )}
             </div>
-          </Section>
+          </FormSectionCard>
 
-          <Section icon={Paperclip} title="Arquivo e publicação">
-            <div className="space-y-4">
-              <Field>
-                <FieldLabel tooltip="Anexe o arquivo que comprova a execução da ação, como foto, vídeo, PDF, lista de presença, certificado, relatório, print, material gráfico ou documento.">
-                  Arquivo da Evidência
-                </FieldLabel>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
-                  onChange={handleFileChange}
-                  disabled={bloqueado}
+          {form.contexto === "AULA" && (
+            <FormSectionCard
+              icon={CalendarDays}
+              title="Encontro registrado"
+              description="Identifique a atividade, a turma e o plano de aula correspondentes ao encontro em que a evidência foi produzida."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <SelectField
+                  id="atividadeId"
+                  label="Atividade"
+                  tooltip={TOOLTIP_ATIVIDADE}
+                  value={form.atividadeId}
+                  onChange={setAtividade}
+                  placeholder={
+                    !form.projetoId
+                      ? "Selecione primeiro um projeto"
+                      : atividadesQ.isLoading
+                        ? "Carregando atividades..."
+                        : "Selecione uma atividade"
+                  }
+                  options={atividades}
+                  disabled={!form.projetoId || atividadesQ.isLoading}
+                  required
                 />
 
-                {!form.urlArquivo ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      !visualizando && fileInputRef.current?.click()
-                    }
-                    disabled={visualizando}
-                    className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border bg-secondary/30 px-4 py-6 text-sm text-muted-foreground transition-colors hover:bg-secondary/60 disabled:cursor-not-allowed"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Clique para anexar um arquivo até 10 MB
-                  </button>
-                ) : (
-                  <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-secondary/40 px-3 py-2.5">
-                    <div className="min-w-0 flex items-center gap-2">
-                      <Paperclip className="h-4 w-4 flex-shrink-0 text-primary" />
+                <SelectField
+                  id="turmaId"
+                  label="Turma"
+                  tooltip={TOOLTIP_TURMA}
+                  value={form.turmaId}
+                  onChange={setTurma}
+                  placeholder={
+                    !form.atividadeId
+                      ? "Selecione primeiro uma atividade"
+                      : turmasQ.isLoading
+                        ? "Carregando turmas..."
+                        : "Selecione uma turma"
+                  }
+                  options={turmas}
+                  disabled={!form.atividadeId || turmasQ.isLoading}
+                  required
+                />
 
-                      <span className="truncate text-sm text-foreground">
-                        {arquivoFile?.name ||
-                          getNomeArquivoEvidencia(form.urlArquivo)}
-                      </span>
-                    </div>
+                <SelectField
+                  id="planoAulaId"
+                  label="Plano de Aula"
+                  tooltip={TOOLTIP_PLANO_AULA}
+                  value={form.planoAulaId}
+                  onChange={(v) =>
+                    setForm((p) => ({
+                      ...p,
+                      planoAulaId: v,
+                    }))
+                  }
+                  placeholder={
+                    !form.turmaId
+                      ? "Selecione primeiro uma turma"
+                      : planosQ.isLoading
+                        ? "Carregando planos de aula..."
+                        : "Selecione um plano de aula"
+                  }
+                  options={planos.map((p) => ({
+                    id: p.id,
+                    nome: `${dataBR(p.dataInicio)} — ${p.nome || "Aula"}`,
+                  }))}
+                  disabled={!form.turmaId || planosQ.isLoading}
+                  required
+                />
 
-                    <div className="flex flex-shrink-0 items-center gap-1">
-                      {visualizando && !!form.urlArquivo && (
-                        <button
-                          type="button"
-                          onClick={handleAbrirArquivo}
-                          className="inline-flex h-7 items-center rounded border border-border px-2 text-xs text-primary hover:bg-primary/5"
-                        >
-                          Ver arquivo
-                        </button>
-                      )}
+                {form.planoAulaId && (
+                  <div>
+                    <FieldLabel htmlFor="dataAula" tooltip={TOOLTIP_DATA_AULA}>
+                      Data da aula
+                    </FieldLabel>
 
-                      {!visualizando && (
-                        <>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            Substituir
-                          </Button>
-
-                          <button
-                            type="button"
-                            onClick={removeArquivo}
-                            aria-label="Remover arquivo"
-                            className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
+                    <Input
+                      id="dataAula"
+                      value={dataBR(plano?.dataInicio) || "—"}
+                      readOnly
+                      tabIndex={-1}
+                      className="bg-muted/40 text-muted-foreground"
+                    />
                   </div>
                 )}
 
-                <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  Formatos aceitos: imagens, vídeos, PDF e documentos. Tamanho
-                  máximo: 10 MB.
-                </p>
-              </Field>
+                {form.planoAulaId && (
+                  <div className="sm:col-span-2">
+                    <EvidenciaResumoContexto
+                      title="Contexto selecionado"
+                      items={[
+                        {
+                          label: "Projeto",
+                          value: projetoNome,
+                        },
+                        {
+                          label: "Atividade",
+                          value: atividadeNome,
+                        },
+                        {
+                          label: "Turma",
+                          value: turmaNome,
+                        },
+                        {
+                          label: "Plano de Aula",
+                          value: plano?.nome ?? "—",
+                        },
+                        {
+                          label: "Data da Aula",
+                          value: dataBR(plano?.dataInicio) || "—",
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
+              </div>
+            </FormSectionCard>
+          )}
 
-              <Field>
-                <FieldLabel
-                  htmlFor="urlPublicacao"
-                  tooltip="Informe o link de publicação, notícia, postagem, vídeo, página, matéria ou registro online relacionado à evidência, quando houver."
-                >
-                  Link da Publicação
-                </FieldLabel>
-
-                <div className="relative">
-                  <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-                  <Input
-                    id="urlPublicacao"
-                    type="url"
-                    value={form.urlPublicacao}
-                    onChange={(event) =>
-                      set("urlPublicacao", event.target.value)
-                    }
-                    className="pl-9"
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </div>
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Tag} title="Tipo da evidência">
-            <Field>
-              <FieldLabel
-                htmlFor="tipoEvidencia"
-                required
-                tooltip="Selecione o tipo de registro que está sendo cadastrado como evidência."
-              >
-                Tipo de Evidência
-              </FieldLabel>
-
-              <Select
-                value={String(form.tipoEvidencia || "")}
-                onValueChange={(value) =>
-                  set("tipoEvidencia", value as TipoEvidencia)
-                }
-                disabled={bloqueado}
-              >
-                <SelectTrigger id="tipoEvidencia">
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {tiposEvidencia.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          </Section>
-
-          <Section icon={FolderKanban} title="Projeto">
-            <Field>
-              <FieldLabel
-                htmlFor="projeto"
-                required
-                tooltip="Selecione o projeto ao qual esta evidência pertence."
-              >
-                Projeto
-              </FieldLabel>
-
-              <Select
-                value={projetoSelectValue}
-                onValueChange={setProjeto}
-                disabled={bloqueado}
-              >
-                <SelectTrigger id="projeto">
-                  <SelectValue placeholder="Selecione o projeto" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {projetosComSelecao.map((item) => (
-                    <SelectItem key={String(item.id)} value={String(item.id)}>
-                      {item.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          </Section>
-
-          <Section icon={Link2} title="Vínculo da evidência">
-            <div className="mb-4 flex items-start gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-              <Info
-                className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
-                strokeWidth={2.2}
-              />
-
-              <span>
-                Escolha apenas um vínculo específico para indicar o que esta
-                evidência comprova. O sistema aceita somente um vínculo por
-                evidência.
-              </span>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="tipoVinculoEvidencia"
-                  required
-                  tooltip="Selecione qual parte da execução esta evidência comprova."
-                >
-                  Tipo de Vínculo
-                </FieldLabel>
-
-                <Select
-                  value={String(tipoVinculoSelectValue || "")}
-                  onValueChange={(value) =>
-                    setTipoVinculo(value as TipoVinculoEvidencia)
-                  }
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="tipoVinculoEvidencia">
-                    <SelectValue placeholder="Selecione o tipo de vínculo" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {tiposVinculoEvidencia.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              {tv === "PROPOSTA_EDITAL" && (
-                <VinculoSelect
-                  id="propostaEdital"
-                  label="Proposta de Edital"
-                  value={propostaEditalSelectValue}
-                  options={propostasFiltradas}
-                  disabled={bloqueado || !projetoSelectValue}
-                  onChange={(value) => set("propostaEdital", value)}
-                />
-              )}
-
-              {tv === "ATIVIDADE" && (
-                <VinculoSelect
-                  id="atividade"
-                  label="Atividade"
-                  value={atividadeSelectValue}
-                  options={atividadesFiltradas}
-                  disabled={bloqueado || !projetoSelectValue}
-                  onChange={(value) => set("atividade", value)}
-                />
-              )}
-
-              {tv === "TURMA" && (
-                <VinculoSelect
-                  id="turma"
-                  label="Turma"
-                  value={turmaSelectValue}
-                  options={turmasFiltradas}
-                  disabled={bloqueado || !projetoSelectValue}
-                  onChange={(value) => set("turma", value)}
-                />
-              )}
-
-              {tv === "EVENTO_CULTURAL" && (
-                <VinculoSelect
-                  id="eventoCultural"
+          {form.contexto === "EVENTO_CULTURAL" && (
+            <FormSectionCard
+              icon={MapPin}
+              title="Evento registrado"
+              description="Identifique o evento cultural correspondente para relacionar corretamente as evidências ao registro já existente no Sistema Aurit."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <SelectField
+                  id="eventoCulturalId"
                   label="Evento Cultural"
-                  value={eventoCulturalSelectValue}
-                  options={eventosFiltrados}
-                  disabled={bloqueado || !projetoSelectValue}
-                  onChange={(value) => set("eventoCultural", value)}
+                  tooltip={TOOLTIP_EVENTO}
+                  value={form.eventoCulturalId}
+                  onChange={(v) =>
+                    setForm((p) => ({
+                      ...p,
+                      eventoCulturalId: v,
+                    }))
+                  }
+                  placeholder={
+                    !form.projetoId
+                      ? "Selecione primeiro um projeto"
+                      : eventosQ.isLoading
+                        ? "Carregando eventos..."
+                        : "Selecione um evento"
+                  }
+                  options={eventos.map((e) => ({
+                    id: e.id,
+                    nome: `${
+                      dataBR(e.dataInicio) ? `${dataBR(e.dataInicio)} — ` : ""
+                    }${e.nome}`,
+                  }))}
+                  disabled={!form.projetoId || eventosQ.isLoading}
+                  required
                 />
-              )}
 
-              {tv === "ACAO_DIVULGACAO" && (
-                <VinculoSelect
-                  id="acaoDivulgacao"
-                  label="Ação de Divulgação"
-                  value={acaoDivulgacaoSelectValue}
-                  options={acoesFiltradas}
-                  disabled={bloqueado || !projetoSelectValue}
-                  onChange={(value) => set("acaoDivulgacao", value)}
+                {evento && (
+                  <div className="sm:col-span-2">
+                    <EvidenciaResumoContexto
+                      title="Evento selecionado"
+                      items={[
+                        {
+                          label: "Nome",
+                          value: evento.nome,
+                        },
+                        {
+                          label: "Data",
+                          value: periodo(evento.dataInicio, evento.dataFim),
+                        },
+                        {
+                          label: "Local",
+                          value: evento.local ?? "—",
+                        },
+                        {
+                          label: "Descrição",
+                          value: evento.descricao ?? "—",
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
+              </div>
+            </FormSectionCard>
+          )}
+
+          {form.contexto && (
+            <>
+              <FormSectionCard
+                icon={Camera}
+                title="Descrição da evidência"
+                description="Registre uma breve explicação sobre o que aparece nas evidências e qual momento da execução está sendo demonstrado."
+              >
+                <FieldLabel htmlFor="descricao" tooltip={TOOLTIP_DESCRICAO}>
+                  Descrição da Evidência
+                </FieldLabel>
+
+                <Textarea
+                  id="descricao"
+                  value={form.descricao}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      descricao: e.target.value,
+                    }))
+                  }
+                  rows={4}
                 />
-              )}
+              </FormSectionCard>
 
-              {tv === "PRESENCA" && (
-                <VinculoSelect
-                  id="presenca"
-                  label="Presença"
-                  value={presencaSelectValue}
-                  options={presencasFiltradas}
-                  disabled={bloqueado || !projetoSelectValue}
-                  onChange={(value) => set("presenca", value)}
+              <FormSectionCard
+                icon={Images}
+                title="Fotografias"
+                description="Adicione fotografias quando estiverem disponíveis. Elas também podem ser incluídas depois, ao editar a evidência."
+              >
+                <EvidenciaImagensUploader
+                  imagensAtuais={existingImagesWithUrls}
+                  onRemoverAtual={removeExisting}
+                  novasImagens={newImages}
+                  onChangeNovas={setNewImages}
+                  disabled={saveMutation.isPending}
                 />
-              )}
-            </div>
-          </Section>
+              </FormSectionCard>
 
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+              <FormSectionCard
+                icon={Link2}
+                title="Links relacionados"
+                description="Adicione, quando houver, links que complementem a comprovação da ação, como publicações, vídeos, matérias ou outros conteúdos relacionados."
+              >
+                <EvidenciaLinksEditor
+                  links={links}
+                  onChange={setLinks}
+                  disabled={saveMutation.isPending}
+                />
+              </FormSectionCard>
+            </>
+          )}
+
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/evidencias")}
-              disabled={loading}
+              disabled={saveMutation.isPending}
             >
-              {visualizando ? "Voltar" : "Cancelar"}
+              Cancelar
             </Button>
 
-            {!visualizando && (
-              <Button type="submit" className="sm:min-w-32" disabled={loading}>
-                {loading ? "Salvando..." : "Salvar"}
-              </Button>
-            )}
+            <Button
+              type="submit"
+              variant="glassPrimary"
+              className="h-9 px-5"
+              disabled={saveMutation.isPending}
+            >
+              {saveMutation.isPending ? "Salvando..." : "Salvar"}
+            </Button>
           </div>
         </form>
-        <WikiFloatingButton
-          pageTitle="Evidências de Execução"
-          href="https://www.aurit.com.br/wiki/evidencias/evidencias-de-execucao"
-        />
       </div>
+
+      <WikiFloatingButton
+        pageTitle="Evidências"
+        href="/wiki/evidencias/evidencias-de-execucao"
+      />
     </AppLayout>
   );
 }
 
-function VinculoSelect({
-  id,
-  label,
-  value,
-  options,
-  disabled,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  options: OptionItem[];
-  disabled: boolean;
-  onChange: (value: string) => void;
-}) {
+function FormHeader() {
+  const config = getImportConfigForPath("/evidencias");
+  const { pathname } = useLocation();
+
+  const showImport = pathname.endsWith("/novo") || pathname.endsWith("/editar");
+
   return (
-    <Field>
-      <FieldLabel htmlFor={id} required>
-        {label}
-      </FieldLabel>
-
-      <Select
-        value={String(value || "")}
-        onValueChange={onChange}
-        disabled={disabled}
-      >
-        <SelectTrigger id={id}>
-          <SelectValue placeholder={`Selecione ${label.toLowerCase()}`} />
-        </SelectTrigger>
-
-        <SelectContent className="max-h-72">
-          {options.map((item) => (
-            <SelectItem key={String(item.id)} value={String(item.id)}>
-              {item.nome}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </Field>
+    <ListPageHeader
+      title="Evidências"
+      tooltip={tooltip}
+      actions={
+        showImport && config ? (
+          <ImportDataButton
+            config={config}
+            canFillForm
+            variant="glassSecondary"
+          />
+        ) : undefined
+      }
+    />
   );
 }
 
-function Section({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: any;
-  title: string;
-  children: React.ReactNode;
-}) {
+function Loading({ text }: { text: string }) {
   return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
-
-      {children}
-    </Card>
-  );
-}
-
-function Field({
-  children,
-  full,
-  className,
-}: {
-  children: React.ReactNode;
-  full?: boolean;
-  className?: string;
-}) {
-  return (
-    <div className={`${full ? "sm:col-span-2" : ""} ${className ?? ""}`}>
-      {children}
+    <div className="rounded-[18px] border border-border/70 bg-card/70 px-6 py-12 text-center text-sm text-muted-foreground">
+      {text}
     </div>
   );
 }
+
+function SelectField({
+  id,
+  label,
+  tooltip,
+  value,
+  onChange,
+  placeholder,
+  options,
+  disabled,
+  required,
+}: {
+  id: string;
+  label: string;
+  tooltip?: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  options: Array<{
+    id: string;
+    nome: string;
+  }>;
+  disabled?: boolean;
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <FieldLabel htmlFor={id} required={required} tooltip={tooltip}>
+        {label}
+      </FieldLabel>
+
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger id={id}>
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+
+        <SelectContent>
+          {options.length ? (
+            options.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                {item.nome}
+              </SelectItem>
+            ))
+          ) : (
+            <div className="px-2 py-2 text-[12.5px] text-muted-foreground">
+              Nenhum registro disponível.
+            </div>
+          )}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function LinksView({ links }: { links: EvidenciaLink[] }) {
+  if (!links.length) {
+    return (
+      <p className="text-[13px] text-muted-foreground">
+        Nenhum link relacionado.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="space-y-2.5">
+      {links.map((link, index) => (
+        <li
+          key={link.id ?? index}
+          className="flex flex-col gap-1 rounded-[12px] border border-border/60 bg-background/60 px-3.5 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span className="break-words text-[13px] font-medium">
+            {link.titulo?.trim() || "Link relacionado"}
+          </span>
+
+          <a
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[13px] font-medium text-primary hover:underline"
+          >
+            Abrir link
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const wiki = [
+  {
+    title: "Para que serve?",
+    content:
+      "Registrar fotografias e links que comprovam aulas e eventos culturais.",
+  },
+  {
+    title: "Fotografias",
+    content: "Até 10 imagens de 5 MB em JPEG, JPG, PNG ou WEBP.",
+  },
+  {
+    title: "Informações automáticas",
+    content:
+      "Data da aula, nome, local e descrição do evento vêm dos cadastros existentes.",
+  },
+];

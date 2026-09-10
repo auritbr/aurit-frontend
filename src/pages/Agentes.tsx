@@ -1,30 +1,40 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Search,
-  Plus,
-  Eye,
-  Pencil,
-  Trash2,
-  FileText,
-  UserCog,
-  FileSignature,
-} from "lucide-react";
-import { exportTermoAgentePdf } from "@/lib/pdfExporters";
+import { Search, Plus, FileSignature, RotateCcw, Loader2 } from "lucide-react";
+import { downloadAgenteReport } from "@/lib/individualReportDownload";
 import { AppLayout } from "@/components/AppLayout";
-import { PageTitle } from "@/components/PageTitle";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { TablePagination } from "@/components/TablePagination";
-import { SortableHeader } from "@/components/SortableHeader";
-import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
-import { useSortableData } from "@/hooks/useSortableData";
-import { copyTableFromRef } from "@/lib/copyTableDom";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { DataTableEmptyState } from "@/components/list/DataTableEmptyState";
+import { SortableTh } from "@/components/list/SortableTh";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+  useSessionBoolean,
+} from "@/components/AdvancedSearchPanel";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+import { FieldLabel } from "@/components/FieldLabel";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
+import { DocumentActionButton } from "@/components/DocumentActionButton";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -36,6 +46,7 @@ import {
   deleteAgente,
   tipoAgenteLabels,
   type Agente,
+  type TipoAgente,
 } from "@/data/agentes";
 import {
   AlertDialog,
@@ -49,19 +60,63 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
-type SortKey = "tipo" | "nomePrincipal" | "representante" | "documento";
+const tipoAgenteOptions = (Object.keys(tipoAgenteLabels) as TipoAgente[]).map(
+  (value) => ({
+    value,
+    label: tipoAgenteLabels[value],
+  }),
+);
+
+const sortByOptions = [
+  { value: "nomePrincipal", label: "Nome / Razão social" },
+  { value: "documento", label: "CPF/CNPJ" },
+  { value: "representante", label: "Representante" },
+  { value: "tipo", label: "Vínculo (tipo de agente)" },
+] as const;
+
+type SortBy = (typeof sortByOptions)[number]["value"];
+type SortDir = "asc" | "desc";
+
+const sortDirLabels: Record<SortDir, string> = { asc: "A–Z", desc: "Z–A" };
+
+interface AgentesFiltros {
+  nome: string;
+  documento: string;
+  representante: string;
+  tipo: string[];
+  sortBy: SortBy;
+  sortDir: SortDir;
+}
+
+const emptyFiltros: AgentesFiltros = {
+  nome: "",
+  documento: "",
+  representante: "",
+  tipo: [],
+  sortBy: "nomePrincipal",
+  sortDir: "asc",
+};
+
+const normalize = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+const labelOf = (
+  options: readonly { value: string; label: string }[],
+  value: string,
+) => options.find((option) => option.value === value)?.label || value;
 
 const AGENTE_NEXT_STEP_KEY = "aurit:agentes:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
 
 interface AgenteNextStepCardData {
   titulo: string;
-  descricao: string;
   acaoLabel: string;
   acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+  variante?: "pendente" | "atencao" | "concluido";
 }
 
 function onlyDigits(value?: string | null) {
@@ -75,10 +130,7 @@ function formatCpf(value: string) {
     return value || "—";
   }
 
-  return digits.replace(
-    /^(\d{3})(\d{3})(\d{3})(\d{2})$/,
-    "$1.$2.$3-$4",
-  );
+  return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
 }
 
 function formatCnpj(value: string) {
@@ -116,18 +168,22 @@ function formatDocumentoAgente(value?: string | null) {
 export default function Agentes() {
   const navigate = useNavigate();
 
-  const [search, setSearch] = useState("");
   const [items, setItems] = useState<Agente[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useSessionBoolean(
+    "agentes:pesquisa-avancada",
+    false,
+  );
+  const [draft, setDraft] = useState<AgentesFiltros>(emptyFiltros);
+  const [filtros, setFiltros] = useState<AgentesFiltros>(emptyFiltros);
+  const [searching, setSearching] = useState(false);
   const [nextStepCard, setNextStepCard] =
     useState<AgenteNextStepCardData | null>(null);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
-
-  const tableRef = useRef<HTMLTableElement>(null);
 
   const podeVisualizar = permissoes.VISUALIZAR;
   const podeCriar = permissoes.CRIAR;
@@ -142,9 +198,8 @@ export default function Agentes() {
       try {
         setLoadingPermissoes(true);
 
-        const data = await getPermissoesUsuarioLogadoPorModulo(
-          "AGENTES_CULTURAIS",
-        );
+        const data =
+          await getPermissoesUsuarioLogadoPorModulo("AGENTES_CULTURAIS");
 
         if (!active) return;
 
@@ -217,60 +272,157 @@ export default function Agentes() {
     }
   }
 
-  const filtered = useMemo(() => {
-    const s = search.toLowerCase().trim();
-    const sDigits = onlyDigits(s);
+  const setDraftField = <K extends keyof AgentesFiltros>(
+    key: K,
+    value: AgentesFiltros[K],
+  ) => setDraft((prev) => ({ ...prev, [key]: value }));
 
-    if (!s) return items;
-
-    return items.filter((a) => {
-      const documentoOriginal = a.documento ?? "";
-      const documentoFormatado = formatDocumentoAgente(documentoOriginal);
-      const documentoDigits = onlyDigits(documentoOriginal);
-
-      return (
-        a.nomePrincipal.toLowerCase().includes(s) ||
-        (a.representante ?? "").toLowerCase().includes(s) ||
-        documentoOriginal.toLowerCase().includes(s) ||
-        documentoFormatado.toLowerCase().includes(s) ||
-        (!!sDigits && documentoDigits.includes(sDigits)) ||
-        (tipoAgenteLabels[a.tipo] ?? "").toLowerCase().includes(s)
-      );
-    });
-  }, [search, items]);
-
-
-  const { sortConfig, sortedItems, handleSort } = useSortableData(
-    filtered,
-    (item, key: SortKey) => {
-      switch (key) {
-        case "tipo":
-          return tipoAgenteLabels[item.tipo] ?? "";
-        case "nomePrincipal":
-          return item.nomePrincipal;
-        case "representante":
-          return item.representante ?? "";
-        case "documento":
-          return formatDocumentoAgente(item.documento);
-        default:
-          return "";
-      }
-    },
-  );
-
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sortedItems, 25, search);
-
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
-
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
-    }
-
-    toast.success("Dados copiados com sucesso.");
+  const applyFiltros = (next: AgentesFiltros) => {
+    setDraft(next);
+    setSearching(true);
+    setFiltros(next);
+    window.setTimeout(() => setSearching(false), 180);
   };
+
+  const handleSearch = (event?: React.FormEvent) => {
+    event?.preventDefault();
+    if (!searching) applyFiltros(draft);
+  };
+
+  const handleClearFiltros = () => applyFiltros(emptyFiltros);
+
+  const filtered = useMemo(() => {
+    const nome = normalize(filtros.nome);
+    const documento = onlyDigits(filtros.documento);
+    const representante = normalize(filtros.representante);
+
+    const result = items.filter((agente) => {
+      if (nome && !normalize(agente.nomePrincipal).includes(nome)) return false;
+      if (documento && !onlyDigits(agente.documento).includes(documento))
+        return false;
+      if (
+        representante &&
+        !normalize(agente.representante ?? "").includes(representante)
+      )
+        return false;
+      if (filtros.tipo.length && !filtros.tipo.includes(agente.tipo))
+        return false;
+      return true;
+    });
+
+    const sortValue = (agente: Agente) => {
+      switch (filtros.sortBy) {
+        case "documento":
+          return agente.documento ?? "";
+        case "representante":
+          return agente.representante ?? "";
+        case "tipo":
+          return labelOf(tipoAgenteOptions, agente.tipo);
+        default:
+          return agente.nomePrincipal ?? "";
+      }
+    };
+
+    return [...result].sort((a, b) => {
+      const compare = String(sortValue(a)).localeCompare(
+        String(sortValue(b)),
+        "pt-BR",
+        {
+          sensitivity: "base",
+        },
+      );
+      return filtros.sortDir === "asc" ? compare : -compare;
+    });
+  }, [items, filtros]);
+
+  const activeFilters = useMemo<ActiveFilterItem[]>(() => {
+    const list: ActiveFilterItem[] = [];
+    const removeText = (key: "nome" | "documento" | "representante") =>
+      applyFiltros({ ...filtros, [key]: "" });
+
+    if (filtros.nome.trim()) {
+      list.push({
+        id: "nome",
+        label: "Nome",
+        value: filtros.nome.trim(),
+        onRemove: () => removeText("nome"),
+      });
+    }
+    if (filtros.documento.trim()) {
+      list.push({
+        id: "documento",
+        label: "CPF/CNPJ",
+        value: filtros.documento.trim(),
+        onRemove: () => removeText("documento"),
+      });
+    }
+    if (filtros.representante.trim()) {
+      list.push({
+        id: "representante",
+        label: "Função/responsabilidade",
+        value: filtros.representante.trim(),
+        onRemove: () => removeText("representante"),
+      });
+    }
+    filtros.tipo.forEach((value) => {
+      list.push({
+        id: `tipo-${value}`,
+        label: "Vínculo",
+        value: labelOf(tipoAgenteOptions, value),
+        onRemove: () =>
+          applyFiltros({
+            ...filtros,
+            tipo: filtros.tipo.filter((item) => item !== value),
+          }),
+      });
+    });
+    if (
+      filtros.sortBy !== emptyFiltros.sortBy ||
+      filtros.sortDir !== emptyFiltros.sortDir
+    ) {
+      list.push({
+        id: "ordenacao",
+        label: "Ordenação",
+        value: `${labelOf(sortByOptions, filtros.sortBy)} · ${sortDirLabels[filtros.sortDir]}`,
+        onRemove: () =>
+          applyFiltros({
+            ...filtros,
+            sortBy: emptyFiltros.sortBy,
+            sortDir: emptyFiltros.sortDir,
+          }),
+      });
+    }
+    return list;
+  }, [filtros]);
+
+  const activeCount = activeFilters.length;
+  const filtrosKey = JSON.stringify(filtros);
+  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
+    usePagination(filtered, 25, filtrosKey);
+
+  const toggleSort = (key: SortBy) => {
+    setCurrentPage(1);
+    applyFiltros({
+      ...filtros,
+      sortBy: key,
+      sortDir:
+        filtros.sortBy === key && filtros.sortDir === "asc" ? "desc" : "asc",
+    });
+  };
+
+  const exportColumns = [
+    { header: "Tipo de agente", key: "tipoLabel" },
+    { header: "Nome / Razão social", key: "nomePrincipal" },
+    { header: "Representante", key: "representante" },
+    { header: "Documento", key: "documentoFormatado" },
+  ];
+
+  const getExportData = () =>
+    filtered.map((item) => ({
+      ...item,
+      tipoLabel: tipoAgenteLabels[item.tipo],
+      documentoFormatado: formatDocumentoAgente(item.documento),
+    }));
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
@@ -306,9 +458,9 @@ export default function Agentes() {
       setGeneratingPdfId(id);
 
       const agenteDetalhado = await getAgenteDetalhadoById(Number(id));
-      exportTermoAgentePdf(agenteDetalhado);
+      await downloadAgenteReport(agenteDetalhado);
 
-      toast.success("Termo do agente gerado com sucesso.");
+      toast.success("PDF do agente gerado com sucesso.");
     } catch (error) {
       console.error(error);
       toast.error(
@@ -318,6 +470,16 @@ export default function Agentes() {
       setGeneratingPdfId(null);
     }
   };
+
+  if (loadingPermissoes) {
+    return (
+      <AppLayout>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!podeVisualizar) {
     return (
@@ -330,286 +492,339 @@ export default function Agentes() {
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
-        <PageTitle
-          title="Agente Cultural"
-          tooltip="Cadastre o agente cultural responsável pela iniciativa. Esse cadastro identifica quem representa a ação cultural no sistema e pode ser utilizado em projetos, editais, documentos e prestações de contas."
-        />
-
-        {nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
-        )}
-
-        <div className="rounded border border-border bg-card">
-          <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-            <div className="relative max-w-md flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-9 pl-9"
-                aria-label="Buscar agente"
-              />
-            </div>
-
-            {podeCriar && (
+        <ListPageHeader
+          text-justify
+          title="Agentes Culturais"
+          tooltip="Nesta página é cadastrado o agente cultural responsável pela iniciativa ou atuação cultural. O agente pode ser uma pessoa, grupo ou organização e pode representar a iniciativa, participar da execução de projetos e responder pelas informações e prestações de contas."
+          objective="Cadastre o agente cultural responsável pela iniciativa ou atuação cultural. Esses dados poderão ser utilizados em projetos, editais, prestações de contas e outras áreas do sistema."
+          actions={
+            podeCriar ? (
               <Button
+                type="button"
+                variant="glassPrimary"
                 onClick={() => navigate("/agentes/novo")}
-                className="h-9 gap-2"
+                className="h-9 gap-2 px-4"
               >
                 <Plus className="h-4 w-4" />
-                Cadastrar Agente
+                Cadastrar agente
               </Button>
-            )}
-          </div>
+            ) : undefined
+          }
+        />
 
-          <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th
-                    className="w-[150px] px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    data-no-copy
-                  >
-                    Ações
-                  </th>
-
-                  <SortableHeader
-                    label="Tipo de agente"
-                    sortKey="tipo"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+        <div className="space-y-4">
+          <AdvancedSearchPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            activeCount={activeCount}
+          >
+            <form onSubmit={handleSearch} noValidate>
+              <SearchFilterGrid>
+                <div>
+                  <FieldLabel htmlFor="filtroNome">
+                    Nome / Razão social
+                  </FieldLabel>
+                  <Input
+                    id="filtroNome"
+                    value={draft.nome}
+                    onChange={(event) =>
+                      setDraftField("nome", event.target.value)
+                    }
+                    placeholder="Digite o nome ou razão social"
+                    className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
                   />
-
-                  <SortableHeader
-                    label="Nome / Razão Social"
-                    sortKey="nomePrincipal"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Representante"
-                    sortKey="representante"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Documento"
-                    sortKey="documento"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  {podeGerarPdf && (
-                    <th
-                      className="w-[170px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy
-                    >
-                      Gerar
-                    </th>
-                  )}
-                </tr>
-              </thead>
-
-              <tbody>
-                {paginated.map((a) => (
-                  <tr
-                    key={a.id}
-                    className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                  >
-                    <td className="whitespace-nowrap px-6 py-2.5">
-                      <div className="flex items-center gap-1">
-                        <TableActionIcon
-                          icon={Eye}
-                          label="Visualizar"
-                          onClick={() => navigate(`/agentes/${a.id}`)}
-                        />
-
-                        {podeEditar && (
-                          <TableActionIcon
-                            icon={Pencil}
-                            label="Editar"
-                            onClick={() => navigate(`/agentes/${a.id}/editar`)}
-                          />
-                        )}
-
-                        {podeExcluir && (
-                          <TableActionIcon
-                            icon={Trash2}
-                            label="Excluir"
-                            variant="danger"
-                            onClick={() => setConfirmDelete(a.id)}
-                          />
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                      {tipoAgenteLabels[a.tipo]}
-                    </td>
-
-                    <td className="px-6 py-2.5">
-                      <TableCellText text={a.nomePrincipal} bold>
-                        {a.nomePrincipal}
-                      </TableCellText>
-                    </td>
-
-                    <td className="px-6 py-2.5">
-                      {a.representante ? (
-                        <TableCellText text={a.representante}>
-                          {a.representante}
-                        </TableCellText>
-                      ) : (
-                        <span className="text-[13px] text-muted-foreground">
-                          —
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                      {formatDocumentoAgente(a.documento)}
-                    </td>
-
-                    {podeGerarPdf && (
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleGerarPdfAgente(a.id)}
-                          disabled={generatingPdfId === a.id}
-                          className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                        >
-                          <FileSignature className="h-3.5 w-3.5" />
-                          {generatingPdfId === a.id
-                            ? "Gerando..."
-                            : "Gerar termo"}
-                        </Button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-
-                {paginated.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={podeGerarPdf ? 6 : 5}
-                      className="px-5 py-16 text-center"
-                    >
-                      <UserCog className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                      <p className="mt-3 text-sm text-muted-foreground">
-                        Nenhum agente encontrado.
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="divide-y divide-border md:hidden">
-            {paginated.length === 0 ? (
-              <div className="p-10 text-center">
-                <UserCog className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nenhum agente encontrado.
-                </p>
-              </div>
-            ) : (
-              paginated.map((a) => (
-                <div key={a.id} className="p-4">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1">
-                      <TableActionIcon
-                        icon={Eye}
-                        label="Visualizar"
-                        onClick={() => navigate(`/agentes/${a.id}`)}
-                      />
-
-                      {podeEditar && (
-                        <TableActionIcon
-                          icon={Pencil}
-                          label="Editar"
-                          onClick={() => navigate(`/agentes/${a.id}/editar`)}
-                        />
-                      )}
-
-                      <TableActionIcon
-                        icon={FileText}
-                        label="Abrir contrato"
-                        onClick={() => navigate(`/agentes/${a.id}/contratos`)}
-                      />
-
-                      {podeExcluir && (
-                        <TableActionIcon
-                          icon={Trash2}
-                          label="Excluir"
-                          variant="danger"
-                          onClick={() => setConfirmDelete(a.id)}
-                        />
-                      )}
-                    </div>
-
-                    {podeGerarPdf && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void handleGerarPdfAgente(a.id)}
-                        disabled={generatingPdfId === a.id}
-                        className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                      >
-                        <FileSignature className="h-3.5 w-3.5" />
-                        {generatingPdfId === a.id ? "Gerando..." : "Termo"}
-                      </Button>
-                    )}
-                  </div>
-
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                    {tipoAgenteLabels[a.tipo]}
-                  </p>
-
-                  <p className="mt-0.5 font-medium text-foreground">
-                    {a.nomePrincipal}
-                  </p>
-
-                  {a.representante && (
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Rep.: {a.representante}
-                    </p>
-                  )}
-
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formatDocumentoAgente(a.documento)}
-                  </p>
                 </div>
-              ))
-            )}
-          </div>
+                <div>
+                  <FieldLabel htmlFor="filtroDocumento">CPF/CNPJ</FieldLabel>
+                  <Input
+                    id="filtroDocumento"
+                    value={draft.documento}
+                    onChange={(event) =>
+                      setDraftField("documento", event.target.value)
+                    }
+                    placeholder="Digite o CPF ou CNPJ"
+                    inputMode="numeric"
+                    className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroRepresentante">
+                    Representante
+                  </FieldLabel>
+                  <Input
+                    id="filtroRepresentante"
+                    value={draft.representante}
+                    onChange={(event) =>
+                      setDraftField("representante", event.target.value)
+                    }
+                    placeholder="Digite o nome do representante"
+                    className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroTipo">Vínculo</FieldLabel>
+                  <FilterMultiSelect
+                    id="filtroTipo"
+                    options={tipoAgenteOptions}
+                    value={draft.tipo}
+                    onChange={(value) => setDraftField("tipo", value)}
+                    placeholder="Todos os vínculos"
+                    summaryNoun="vínculos selecionados"
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroSortBy">Ordenar por</FieldLabel>
+                  <Select
+                    value={draft.sortBy}
+                    onValueChange={(value) =>
+                      setDraftField("sortBy", value as SortBy)
+                    }
+                  >
+                    <SelectTrigger
+                      id="filtroSortBy"
+                      className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortByOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroSortDir">Ordem</FieldLabel>
+                  <Select
+                    value={draft.sortDir}
+                    onValueChange={(value) =>
+                      setDraftField("sortDir", value as SortDir)
+                    }
+                  >
+                    <SelectTrigger
+                      id="filtroSortDir"
+                      className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">{sortDirLabels.asc}</SelectItem>
+                      <SelectItem value="desc">{sortDirLabels.desc}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </SearchFilterGrid>
 
-          <TablePagination
-            totalItems={sortedItems.length}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            onCopy={handleCopy}
+              <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 gap-2 px-4"
+                  onClick={handleClearFiltros}
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden /> Limpar filtros
+                </Button>
+                <Button
+                  type="submit"
+                  variant="glassPrimary"
+                  className="h-9 gap-2 px-5"
+                  disabled={searching}
+                  aria-busy={searching}
+                >
+                  {searching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Search className="h-4 w-4" aria-hidden />
+                  )}
+                  {searching ? "Pesquisando..." : "Pesquisar"}
+                </Button>
+              </div>
+            </form>
+          </AdvancedSearchPanel>
+
+          <ActiveFilters
+            items={activeFilters}
+            onClearAll={handleClearFiltros}
           />
+
+          <DataTableCard>
+            <DataTableToolbar
+              total={filtered.length}
+              reportTo="/relatorios/agentes"
+              exportColumns={exportColumns}
+              getExportData={getExportData}
+              exportFilename="agentes-culturais"
+              canExport={permissoes.BAIXAR}
+            />
+            {filtered.length === 0 ? (
+              <DataTableEmptyState
+                emptyTitle="Nenhum agente cultural cadastrado."
+                createLabel="Cadastrar agente"
+                onCreate={
+                  podeCriar ? () => navigate("/agentes/novo") : undefined
+                }
+                activeCount={activeCount}
+                onReviewSearch={() => setPanelOpen(true)}
+                onClearFilters={handleClearFiltros}
+              />
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
+                        <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Ações
+                        </th>
+                        <SortableTh
+                          sortKey="tipo"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Tipo de agente
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="nomePrincipal"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Nome / Razão social
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="representante"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Representante
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="documento"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Documento
+                        </SortableTh>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginated.map((agente) => (
+                        <tr
+                          key={agente.id}
+                          className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
+                        >
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <RowActionsDropdown
+                              reportEndpoint={
+                                podeGerarPdf
+                                  ? `/agentes/${agente.id}/relatorio`
+                                  : undefined
+                              }
+                              reportFilename={`agente-${agente.id}.pdf`}
+                              viewTo={`/agentes/${agente.id}`}
+                              editTo={
+                                podeEditar
+                                  ? `/agentes/${agente.id}/editar`
+                                  : undefined
+                              }
+                              onDelete={
+                                podeExcluir
+                                  ? () => setConfirmDelete(agente.id)
+                                  : undefined
+                              }
+                            />
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <TableCellText text={tipoAgenteLabels[agente.tipo]}>
+                              {tipoAgenteLabels[agente.tipo]}
+                            </TableCellText>
+                          </td>
+                          <td className="px-6 py-2.5">
+                            <TableCellText text={agente.nomePrincipal} bold>
+                              {agente.nomePrincipal}
+                            </TableCellText>
+                          </td>
+                          <td className="px-6 py-2.5">
+                            {agente.representante ? (
+                              <TableCellText text={agente.representante}>
+                                {agente.representante}
+                              </TableCellText>
+                            ) : (
+                              <span className="text-[13px] text-muted-foreground">
+                                —
+                              </span>
+                            )}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
+                            {formatDocumentoAgente(agente.documento)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="divide-y divide-border md:hidden">
+                  {paginated.map((agente) => (
+                    <div key={agente.id} className="p-4">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <RowActionsDropdown
+                          reportEndpoint={
+                            podeGerarPdf
+                              ? `/agentes/${agente.id}/relatorio`
+                              : undefined
+                          }
+                          reportFilename={`agente-${agente.id}.pdf`}
+                          viewTo={`/agentes/${agente.id}`}
+                          editTo={
+                            podeEditar
+                              ? `/agentes/${agente.id}/editar`
+                              : undefined
+                          }
+                          onDelete={
+                            podeExcluir
+                              ? () => setConfirmDelete(agente.id)
+                              : undefined
+                          }
+                        />
+                      </div>
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                        {tipoAgenteLabels[agente.tipo]}
+                      </p>
+                      <p className="mt-0.5 font-medium text-foreground">
+                        {agente.nomePrincipal}
+                      </p>
+                      {agente.representante && (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Rep.: {agente.representante}
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {formatDocumentoAgente(agente.documento)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <DataTablePagination
+                  totalItems={filtered.length}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  entityLabel="registro"
+                  entityLabelPlural="registros"
+                  pageSizeLabel="Registros por página"
+                  loading={loading}
+                />
+              </>
+            )}
+          </DataTableCard>
         </div>
       </div>
 
@@ -620,19 +835,13 @@ export default function Agentes() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir agente?</AlertDialogTitle>
-
             <AlertDialogDescription>
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
-
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete}>
               Sim, excluir
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -641,7 +850,7 @@ export default function Agentes() {
 
       <WikiFloatingButton
         pageTitle="Agentes Culturais"
-        href="https://www.aurit.com.br/wiki/institucional/agentes-culturais"
+        href="/wiki/institucional/agentes-culturais"
       />
     </AppLayout>
   );

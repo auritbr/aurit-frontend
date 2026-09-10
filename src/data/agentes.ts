@@ -1,4 +1,11 @@
-import { maskCPF, maskDate, maskPhone, maskRG, maskCEP } from "@/lib/masks";
+import {
+  maskCNPJ,
+  maskCPF,
+  maskDate,
+  maskPhone,
+  maskRG,
+  maskCEP,
+} from "@/lib/masks";
 import { getJsonHeaders } from "@/lib/apiHeaders";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
@@ -94,14 +101,14 @@ export const tipoAgenteLabels: Record<TipoAgente, string> = {
 
 export const tipoAgenteDescricoes: Record<TipoAgente, string> = {
   PESSOA_FISICA:
-    "Pessoa que atua individualmente na cultura, sem CNPJ, como artista, produtor, educador, oficineiro ou profissional cultural.",
-  MEI: "Microempreendedor Individual com CNPJ próprio, utilizado para formalizar atividades culturais de forma simplificada.",
+    "Pessoa que atua individualmente na área cultural, sem CNPJ, como artista, produtor, educador, oficineiro ou outro profissional da cultura.",
+  MEI: "Microempreendedor Individual com CNPJ próprio, utilizado para formalizar atividades profissionais e culturais de forma simplificada.",
   PESSOA_JURIDICA_COM_FINS_LUCRATIVOS:
-    "Empresa com CNPJ e finalidade lucrativa, como produtora, agência cultural, escola livre, prestadora de serviço ou negócio criativo.",
+    "Empresa com CNPJ que exerce atividades com finalidade lucrativa, como produtora, agência cultural, escola livre, prestadora de serviços ou negócio criativo.",
   PESSOA_JURIDICA_SEM_FINS_LUCRATIVOS:
-    "Organização com CNPJ voltada a atividades sociais, culturais, educativas ou comunitárias, sem distribuição de lucro. Ex.: ONGs, associações, institutos ou pontos de cultura.",
+    "Organização com CNPJ que desenvolve atividades sociais, culturais, educativas ou comunitárias sem distribuição de lucros, como associações, institutos e organizações da sociedade civil.",
   GRUPO_COLETIVO:
-    "Grupo de pessoas que realiza ações culturais de forma coletiva, geralmente sem CNPJ formalizado. Ex.: coletivo cultural, grupo artístico, companhia, roda, movimento ou rede comunitária.",
+    "Grupo de pessoas que desenvolve atividades culturais de forma coletiva, geralmente sem CNPJ próprio, como coletivo cultural, grupo artístico, companhia, movimento ou rede comunitária.",
 };
 
 export interface AgenteResponseDTO {
@@ -216,14 +223,14 @@ export function mapAgenteDetalhado(
     ...dto,
     nomeCompleto: normalizeNullable(dto.nomeCompleto),
     dataNascimento: toDisplayDate(dto.dataNascimento),
-    cpf: normalizeNullable(dto.cpf),
-    rg: normalizeNullable(dto.rg),
-    telefone: normalizeNullable(dto.telefone),
+    cpf: maskCPF(normalizeNullable(dto.cpf)),
+    rg: maskRG(normalizeNullable(dto.rg)),
+    telefone: maskPhone(normalizeNullable(dto.telefone)),
     email: normalizeNullable(dto.email),
 
     razaoSocial: normalizeNullable(dto.razaoSocial),
     nomeFantasia: normalizeNullable(dto.nomeFantasia),
-    cnpj: normalizeNullable(dto.cnpj),
+    cnpj: maskCNPJ(normalizeNullable(dto.cnpj)),
     dataFundacao: toDisplayDate(dto.dataFundacao),
 
     nomeColetivo: normalizeNullable(dto.nomeColetivo),
@@ -231,9 +238,11 @@ export function mapAgenteDetalhado(
 
     nomeRepresentante: normalizeNullable(dto.nomeRepresentante),
     dataNascimentoRepresentante: toDisplayDate(dto.dataNascimentoRepresentante),
-    cpfRepresentante: normalizeNullable(dto.cpfRepresentante),
-    rgRepresentante: normalizeNullable(dto.rgRepresentante),
-    telefoneRepresentante: normalizeNullable(dto.telefoneRepresentante),
+    cpfRepresentante: maskCPF(normalizeNullable(dto.cpfRepresentante)),
+    rgRepresentante: maskRG(normalizeNullable(dto.rgRepresentante)),
+    telefoneRepresentante: maskPhone(
+      normalizeNullable(dto.telefoneRepresentante),
+    ),
     emailRepresentante: normalizeNullable(dto.emailRepresentante),
 
     cep: normalizeNullable(dto.cep),

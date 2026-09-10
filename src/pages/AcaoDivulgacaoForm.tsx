@@ -7,21 +7,23 @@ import {
 } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   Megaphone,
   Target,
   Link2,
-  PackageCheck,
+  ClipboardList,
+  Accessibility,
   type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BackButton } from "@/components/BackButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
-import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -32,6 +34,7 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
+import { getImportConfigForPath } from "@/config/importacoes";
 import {
   buildAcaoDivulgacaoPayload,
   createAcaoDivulgacao,
@@ -45,8 +48,7 @@ import {
 } from "@/data/acoesDivulgacao";
 import { toast } from "sonner";
 
-const ACAO_DIVULGACAO_NEXT_STEP_KEY =
-  "aurit:acoes-divulgacao:next-step-card";
+const ACAO_DIVULGACAO_NEXT_STEP_KEY = "aurit:acoes-divulgacao:next-step-card";
 
 interface AcaoDivulgacaoNextStepCardData {
   titulo: string;
@@ -71,10 +73,7 @@ function salvarProximaAcaoDivulgacao() {
     variante: "pendente",
   };
 
-  sessionStorage.setItem(
-    ACAO_DIVULGACAO_NEXT_STEP_KEY,
-    JSON.stringify(card),
-  );
+  sessionStorage.setItem(ACAO_DIVULGACAO_NEXT_STEP_KEY, JSON.stringify(card));
 }
 
 interface FormState {
@@ -349,231 +348,279 @@ export default function AcaoDivulgacaoForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/acoes-divulgacao")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </button>
+        <BackButton to="/acoes-divulgacao" />
 
-        <PageTitle
-          title="Ação de Divulgação"
-          tooltip="Registre a ação de divulgação vinculada à proposta de edital, descrevendo sua finalidade, forma de realização, acessibilidade, resultados esperados e produtos gerados."
+        <ListPageHeader
+          title="Ações de Divulgação"
+          tooltip="Nesta página são registradas e acompanhadas as ações de divulgação do projeto apresentado ao edital, com informações sobre sua finalidade, forma de realização, acessibilidade, resultados esperados, produtos previstos e situação atual."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/acoes-divulgacao")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
         />
 
-        {!visualizando && <FormLegend />}
-
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar.
-          </div>
-        )}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          <fieldset
+            disabled={visualizando}
+            className="space-y-5 border-0 p-0 disabled:opacity-100"
+          >
+            {/* 1 — Vínculo da ação */}
+            <Section
+              icon={Link2}
+              title="Vínculo da ação"
+              description="Defina a qual projeto apresentado ao edital esta ação de divulgação pertence, para que seu planejamento e seus resultados fiquem relacionados ao contexto correto."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="propostaEdital"
+                    required
+                    tooltip="Selecione o projeto apresentado ao edital ao qual esta ação de divulgação está relacionada."
+                  >
+                    Proposta de Edital
+                  </FieldLabel>
 
-          <Section icon={Megaphone} title="Identificação da ação">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel htmlFor="nomeAcao" required>
-                  Nome da Ação
-                </FieldLabel>
+                  <Select
+                    value={propostaSelectValue}
+                    onValueChange={(v) =>
+                      set("propostaEditalId", normalizeId(v))
+                    }
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="propostaEdital">
+                      <SelectValue placeholder="Selecione a proposta de edital" />
+                    </SelectTrigger>
 
-                <Input
-                  id="nomeAcao"
-                  value={form.nomeAcao}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                  onChange={(e) => set("nomeAcao", e.target.value)}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="objetivoAcao"
-                  required
-                  tooltip="Explique o objetivo da ação, como ampliar o público, dar visibilidade ao projeto, fortalecer a comunicação ou registrar atividades realizadas."
-                >
-                  Objetivo da Ação
-                </FieldLabel>
-
-                <Textarea
-                  id="objetivoAcao"
-                  value={form.objetivoAcao}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                  onChange={(e) => set("objetivoAcao", e.target.value)}
-                  rows={3}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel htmlFor="descricaoAcao" required>
-                  Descrição da Ação
-                </FieldLabel>
-
-                <Textarea
-                  id="descricaoAcao"
-                  value={form.descricaoAcao}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                  onChange={(e) => set("descricaoAcao", e.target.value)}
-                  rows={4}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="realizacaoAcao"
-                  required
-                  tooltip="Descreva como a ação será realizada na prática: etapas, responsáveis, dinâmica, canais utilizados e forma de execução."
-                >
-                  Realização da Ação
-                </FieldLabel>
-
-                <Textarea
-                  id="realizacaoAcao"
-                  value={form.realizacaoAcao}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                  onChange={(e) => set("realizacaoAcao", e.target.value)}
-                  rows={4}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Target} title="Acessibilidade, resultados e produtos">
-            <div className="grid sm:grid-cols-2 gap-4">
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="acoesAcessibilidade"
-                  required
-                  tooltip="Descreva as medidas de acessibilidade adotadas na ação. Ex.: legendas, audiodescrição, linguagem simples, comunicação acessível ou formatos alternativos."
-                >
-                  Ações de Acessibilidade
-                </FieldLabel>
-
-                <Textarea
-                  id="acoesAcessibilidade"
-                  value={form.acoesAcessibilidade}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                  onChange={(e) => set("acoesAcessibilidade", e.target.value)}
-                  rows={3}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="resultadoEsperado"
-                  required
-                  tooltip="Informe os resultados esperados com a ação, como alcance de público, engajamento, visibilidade, mobilização ou geração de registros."
-                >
-                  Resultado Esperado
-                </FieldLabel>
-
-                <Textarea
-                  id="resultadoEsperado"
-                  value={form.resultadoEsperado}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                  onChange={(e) => set("resultadoEsperado", e.target.value)}
-                  rows={3}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="produtosGerados"
-                  required
-                  tooltip="Informe quais produtos ou registros serão gerados pela ação. Ex.: cards, vídeos, cartazes, publicações, releases, relatórios, fotografias ou materiais impressos."
-                >
-                  Produtos Gerados
-                </FieldLabel>
-
-                <Textarea
-                  id="produtosGerados"
-                  value={form.produtosGerados}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                  onChange={(e) => set("produtosGerados", e.target.value)}
-                  rows={3}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Link2} title="Vínculo e acompanhamento">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel htmlFor="propostaEdital" required>
-                  Proposta de Edital
-                </FieldLabel>
-
-                <Select
-                  value={propostaSelectValue}
-                  onValueChange={(v) =>
-                    set("propostaEditalId", normalizeId(v))
-                  }
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="propostaEdital">
-                    <SelectValue placeholder="Selecione a proposta de edital" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {propostasComFallback.length === 0 ? (
-                      <SelectItem value="sem-proposta" disabled>
-                        Nenhuma proposta disponível
-                      </SelectItem>
-                    ) : (
-                      propostasComFallback.map((proposta) => (
-                        <SelectItem
-                          key={normalizeId(proposta.id)}
-                          value={normalizeId(proposta.id)}
-                        >
-                          {proposta.nome}
+                    <SelectContent>
+                      {propostasComFallback.length === 0 ? (
+                        <SelectItem value="sem-proposta" disabled>
+                          Nenhuma proposta disponível
                         </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
+                      ) : (
+                        propostasComFallback.map((proposta) => (
+                          <SelectItem
+                            key={normalizeId(proposta.id)}
+                            value={normalizeId(proposta.id)}
+                          >
+                            {proposta.nome}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </Section>
 
-              <Field>
-                <FieldLabel htmlFor="status" required>
-                  Status
-                </FieldLabel>
+            {/* 2 — Dados principais */}
+            <Section
+              icon={Megaphone}
+              title="Dados principais"
+              description="Apresente a ação de divulgação, deixando claro o que será realizado, qual é sua finalidade e o que será comunicado ao público."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field full>
+                  <FieldLabel
+                    htmlFor="nomeAcao"
+                    required
+                    tooltip="Informe um nome curto e objetivo que permita identificar facilmente a ação de divulgação."
+                  >
+                    Nome da Ação
+                  </FieldLabel>
 
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => set("status", v as AcaoStatusApi)}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
+                  <Input
+                    id="nomeAcao"
+                    value={form.nomeAcao}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                    onChange={(e) => set("nomeAcao", e.target.value)}
+                  />
+                </Field>
 
-                  <SelectContent>
-                    {statusAcao.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
+                <Field full>
+                  <FieldLabel
+                    htmlFor="objetivoAcao"
+                    required
+                    tooltip="Descreva o que se pretende alcançar com a ação, como ampliar o público, divulgar o projeto, mobilizar participantes ou fortalecer sua visibilidade."
+                  >
+                    Objetivo da Ação
+                  </FieldLabel>
 
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+                  <Textarea
+                    id="objetivoAcao"
+                    value={form.objetivoAcao}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                    onChange={(e) => set("objetivoAcao", e.target.value)}
+                    rows={3}
+                  />
+                </Field>
+
+                <Field full>
+                  <FieldLabel
+                    htmlFor="descricaoAcao"
+                    required
+                    tooltip="Apresente as principais características da ação de divulgação, indicando o conteúdo que será comunicado, o público a que se destina e outras informações relevantes."
+                  >
+                    Descrição da Ação
+                  </FieldLabel>
+
+                  <Textarea
+                    id="descricaoAcao"
+                    value={form.descricaoAcao}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                    onChange={(e) => set("descricaoAcao", e.target.value)}
+                    rows={4}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            {/* 3 — Realização e acessibilidade */}
+            <Section
+              icon={Accessibility}
+              title="Realização e acessibilidade"
+              description="Planeje como a ação será colocada em prática e quais medidas serão adotadas para tornar sua comunicação acessível a diferentes públicos."
+            >
+              <div className="space-y-4">
+                <Field>
+                  <FieldLabel
+                    htmlFor="realizacaoAcao"
+                    required
+                    tooltip="Descreva como a ação será realizada na prática, incluindo etapas, responsáveis, canais de divulgação, estratégias utilizadas e forma de execução."
+                  >
+                    Realização da Ação
+                  </FieldLabel>
+
+                  <Textarea
+                    id="realizacaoAcao"
+                    value={form.realizacaoAcao}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                    onChange={(e) => set("realizacaoAcao", e.target.value)}
+                    rows={4}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="acoesAcessibilidade"
+                    required
+                    tooltip="Descreva as medidas adotadas para tornar a comunicação acessível a diferentes públicos, como legendas, audiodescrição, Libras, linguagem simples, contraste adequado ou formatos alternativos."
+                  >
+                    Ações de Acessibilidade
+                  </FieldLabel>
+
+                  <Textarea
+                    id="acoesAcessibilidade"
+                    value={form.acoesAcessibilidade}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                    onChange={(e) => set("acoesAcessibilidade", e.target.value)}
+                    rows={3}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            {/* 4 — Resultados e produtos */}
+            <Section
+              icon={Target}
+              title="Resultados e produtos"
+              description="Defina o que se espera alcançar com a ação e quais materiais, conteúdos ou registros deverão resultar de sua realização."
+            >
+              <div className="space-y-4">
+                <Field>
+                  <FieldLabel
+                    htmlFor="resultadoEsperado"
+                    required
+                    tooltip="Descreva os resultados que se espera alcançar com a ação, como alcance de público, engajamento, mobilização, aumento da visibilidade ou fortalecimento da comunicação do projeto."
+                  >
+                    Resultado Esperado
+                  </FieldLabel>
+
+                  <Textarea
+                    id="resultadoEsperado"
+                    value={form.resultadoEsperado}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                    onChange={(e) => set("resultadoEsperado", e.target.value)}
+                    rows={3}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="produtosGerados"
+                    required
+                    tooltip="Informe os materiais, conteúdos ou registros previstos como resultado desta ação, como cards, vídeos, cartazes, publicações, releases, fotografias ou materiais impressos."
+                  >
+                    Produtos Gerados
+                  </FieldLabel>
+
+                  <Textarea
+                    id="produtosGerados"
+                    value={form.produtosGerados}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                    onChange={(e) => set("produtosGerados", e.target.value)}
+                    rows={3}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            {/* 5 — Situação da ação */}
+            <Section
+              icon={ClipboardList}
+              title="Situação da ação"
+              description="Acompanhe em que momento da realização esta ação de divulgação se encontra e mantenha sua situação atualizada conforme ela avança."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="status"
+                    required
+                    tooltip="Informe a situação atual da ação de divulgação para acompanhar seu andamento."
+                  >
+                    Situação da Ação
+                  </FieldLabel>
+
+                  <Select
+                    value={form.status}
+                    onValueChange={(v) => set("status", v as AcaoStatusApi)}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="Selecione a situação" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {statusAcao.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </Section>
+          </fieldset>
+
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/acoes-divulgacao")}
               disabled={loading || saving}
             >
@@ -583,7 +630,8 @@ export default function AcaoDivulgacaoForm() {
             {!visualizando && (
               <Button
                 type="submit"
-                className="sm:min-w-32"
+                variant="glassPrimary"
+                className="h-9 px-5"
                 disabled={loading || saving}
               >
                 {saving ? "Salvando..." : "Salvar"}
@@ -602,26 +650,20 @@ export default function AcaoDivulgacaoForm() {
 }
 
 function Section({
-  icon: Icon,
+  icon,
   title,
+  description,
   children,
 }: {
   icon: LucideIcon;
   title: string;
+  description?: string;
   children: ReactNode;
 }) {
   return (
-    <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
-      <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
-          {title}
-        </h2>
-      </div>
-
+    <FormSectionCard icon={icon} title={title} description={description}>
       {children}
-    </Card>
+    </FormSectionCard>
   );
 }
 

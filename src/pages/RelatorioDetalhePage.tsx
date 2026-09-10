@@ -12,11 +12,11 @@ import {
   RelatorioLoading,
 } from "@/components/relatorios/RelatorioComponents";
 import { RelatorioDataTable } from "@/components/relatorios/RelatorioDataTable";
+import { RelatorioDetalheCharts } from "@/components/relatorios/RelatorioDetalheCharts";
 import { findRelatorioBySlug } from "@/data/relatoriosCatalogo";
 import {
   formatDateBR,
   formatValorRelatorio,
-  getColunasRelatorio,
   getRelatorioDetalhado,
   RelatorioIndisponivelError,
   resolveRelatorioSlug,
@@ -29,25 +29,14 @@ import {
   permissoesVazias,
   type PermissoesModulo,
 } from "@/lib/permissoes";
-import type { RelatorioColumn } from "@/lib/relatorioExporters";
+import type { RelatorioColumn } from "@/lib/relatorioExports";
+import {
+  configureGenericReportColumns,
+  isDefaultGenericReportColumn,
+} from "@/report/general/reportColumnConfig";
+import { REPORT_DATA_INVALIDATED_EVENT } from "@/lib/reportDataInvalidation";
 
 type Row = Record<string, unknown>;
-
-const SLUGS_COM_ENDERECO = new Set([
-  "participantes",
-  "colaboradores",
-  "integrantes",
-]);
-
-const SLUGS_COM_AGENTE = new Set([
-  "editais",
-  "propostas-editais",
-  "resultados-propostas",
-  "habilitacoes-propostas",
-  "equipe-edital",
-  "planejamento-financeiro",
-  "aplicacao-de-recursos",
-]);
 
 export default function RelatorioDetalhePage() {
   const { slug: rawSlug = "" } = useParams<{ slug: string }>();
@@ -87,7 +76,9 @@ export default function RelatorioDetalhePage() {
 
         setPermissoes(permissoesVazias);
       } finally {
-        if (active) setLoadingPermissoes(false);
+        if (active) {
+          setLoadingPermissoes(false);
+        }
       }
     }
 
@@ -118,26 +109,7 @@ export default function RelatorioDetalhePage() {
     try {
       const result = await getRelatorioDetalhado<Row>(slug);
 
-      const registrosNormalizados = normalizarRegistrosParaExibicao(
-        slug,
-        result.registros ?? [],
-      );
-
-      const linhasNormalizadas = normalizarRegistrosParaExibicao(
-        slug,
-        result.linhas ?? [],
-      );
-
-      setData({
-        ...result,
-        registros: registrosNormalizados,
-        linhas: linhasNormalizadas,
-        colunas: normalizarColunasParaExibicao(
-          slug,
-          result.colunas ?? [],
-          registrosNormalizados,
-        ),
-      });
+      setData(result);
     } catch (err) {
       if (err instanceof RelatorioIndisponivelError) {
         setUnavailable(true);
@@ -165,44 +137,38 @@ export default function RelatorioDetalhePage() {
     void fetchData();
   }, [fetchData]);
 
-  const columns = useMemo<RelatorioColumn<Row>[]>(() => {
-    const registros = data?.registros ?? [];
+  useEffect(() => {
+    const refresh = () => void fetchData();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
 
-    const meta = normalizarColunasParaExibicao(
+    window.addEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [fetchData]);
+
+  const columns = useMemo<RelatorioColumn<Row>[]>(() => {
+    return configureGenericReportColumns(
       slug,
       data?.colunas ?? [],
-      registros,
+      data?.registros ?? [],
+    ).map((coluna) =>
+      buildColumnFromMeta(
+        coluna,
+        !isDefaultGenericReportColumn(
+          slug,
+          coluna.chave,
+          coluna.visivelPorPadrao !== false,
+        ),
+      ),
     );
-
-    if (meta.length > 0) {
-      return meta.map((coluna) => buildColumnFromMeta(coluna));
-    }
-
-    const colunasManuais = getColunasRelatorio(slug, registros);
-
-    if (colunasManuais.length > 0) {
-      return normalizarColunasParaExibicao(slug, colunasManuais, registros).map(
-        (coluna) => buildColumnFromMeta(coluna),
-      );
-    }
-
-    const sample = registros[0];
-
-    if (sample) {
-      return Object.keys(sample)
-        .filter((key) => !isCampoTecnico(key))
-        .filter((key) => !isCampoRelacionalOculto(slug, key))
-        .map((key) =>
-          buildColumnFromMeta({
-            chave: key,
-            label: prettyLabel(key),
-            visivelPorPadrao: true,
-          }),
-        );
-    }
-
-    return [];
-  }, [data, slug]);
+  }, [data?.colunas, data?.registros, slug]);
 
   if (!podeVisualizar) {
     return (
@@ -224,7 +190,7 @@ export default function RelatorioDetalhePage() {
             Voltar para Relatórios
           </Link>
 
-          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center">
+          <div className="mt-6 rounded-[16px] border border-dashed border-border/70 bg-card/65 p-10 text-center shadow-[0_2px_12px_-8px_hsl(215_28%_17%_/_0.16)] backdrop-blur-md">
             <p className="text-sm font-medium text-foreground">
               Relatório não encontrado.
             </p>
@@ -247,11 +213,11 @@ export default function RelatorioDetalhePage() {
   }
 
   const title = getTituloRelatorioParaExibicao(slug, data?.titulo, item.title);
-  const description = getDescricaoRelatorioParaExibicao(
-    slug,
-    data?.descricao,
-    item.description,
-  );
+
+  // Textos de interface pertencem ao frontend. O backend fornece somente os
+  // dados, metadados de colunas e identificação técnica do relatório.
+  const description = item.description;
+
   const rows = data?.registros ?? [];
 
   const enablePdfExport = podeGerarPdf && rows.length > 0 && columns.length > 0;
@@ -272,7 +238,7 @@ export default function RelatorioDetalhePage() {
         {loading && !data && <RelatorioLoading />}
 
         {!loading && unavailable && (
-          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center">
+          <div className="rounded-[16px] border border-dashed border-border/70 bg-card/65 p-10 text-center shadow-[0_2px_12px_-8px_hsl(215_28%_17%_/_0.16)] backdrop-blur-md">
             <p className="text-sm font-medium text-foreground">
               Endpoint deste relatório ainda não disponível
             </p>
@@ -287,34 +253,34 @@ export default function RelatorioDetalhePage() {
 
         {!loading && !unavailable && data && (
           <>
-            {data.resumo?.map((grupo, index) => (
-              <GrupoIndicadores key={index} grupo={grupo} />
-            ))}
+            {data.resumo
+              ?.filter((grupo) => !isResumoTotal(grupo))
+              .map((grupo, index) => (
+                <GrupoIndicadores key={index} grupo={grupo} />
+              ))}
+
+            <RelatorioDetalheCharts slug={slug} rows={rows} />
 
             <RelatorioDataTable
-              reportName={title}
+              reportName={item.slug}
               organizacaoNome={data.nomeEmpresa}
               dataGeracao={
                 data.dataGeracao ? formatDateBR(data.dataGeracao) : undefined
               }
               rows={rows}
               columns={columns}
-              searchPlaceholder={item.searchPlaceholder ?? "Buscar..."}
               emptyMessage="Nenhum registro encontrado para este relatório. Quando houver dados cadastrados no sistema, eles aparecerão aqui."
               indicadoresPdf={data.resumo?.[0]?.indicadores
                 ?.slice(0, 8)
                 .map((indicador) => ({
                   label: indicador.label,
-                  valor: formatValorRelatorio(
-                    indicador.valor,
-                    indicador.chave,
-                  ),
+                  valor: formatValorRelatorio(indicador.valor, indicador.chave),
                 }))}
               enablePdfExport={enablePdfExport}
             />
 
             {!podeGerarPdf && rows.length > 0 && (
-              <div className="mt-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <div className="mt-4 rounded-[14px] border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 shadow-[0_2px_10px_-8px_hsl(var(--foreground)/0.16)] backdrop-blur-md dark:text-amber-300">
                 Você pode visualizar este relatório, mas não possui permissão
                 para gerar PDF.
               </div>
@@ -326,15 +292,31 @@ export default function RelatorioDetalhePage() {
   );
 }
 
-function buildColumnFromMeta(meta: RelatorioColunaMeta): RelatorioColumn<Row> {
+function isResumoTotal(grupo: {
+  titulo: string;
+  indicadores: Array<{ chave: string }>;
+}) {
+  return (
+    grupo.titulo.trim().toLowerCase() === "resumo" &&
+    grupo.indicadores.length === 1 &&
+    ["total", "total_registros", "totalregistros"].includes(
+      grupo.indicadores[0].chave.toLowerCase(),
+    )
+  );
+}
+
+function buildColumnFromMeta(
+  meta: RelatorioColunaMeta,
+  hiddenByDefault: boolean,
+): RelatorioColumn<Row> {
   return {
     key: meta.chave,
     label: meta.label || prettyLabel(meta.chave),
-    hiddenByDefault: meta.visivelPorPadrao === false,
-    accessor: (row) =>
-      formatValorRelatorio(getValorColuna(row, meta.chave), meta.chave),
-    render: (row) =>
-      formatValorRelatorio(getValorColuna(row, meta.chave), meta.chave),
+    hiddenByDefault,
+
+    accessor: (row) => formatValorRelatorio(row[meta.chave], meta.chave),
+
+    render: (row) => formatValorRelatorio(row[meta.chave], meta.chave),
   };
 }
 
@@ -348,193 +330,6 @@ function getTituloRelatorioParaExibicao(
   }
 
   return tituloBackend || tituloCatalogo;
-}
-
-function getDescricaoRelatorioParaExibicao(
-  slug: string,
-  descricaoBackend: string | undefined,
-  descricaoCatalogo: string,
-): string {
-  if (slug === "aplicacao-de-recursos") {
-    return descricaoCatalogo;
-  }
-
-  return descricaoBackend || descricaoCatalogo;
-}
-
-function normalizarRegistrosParaExibicao(slug: string, registros: Row[]): Row[] {
-  return registros.map((registro) => {
-    const row: Row = {};
-
-    Object.entries(registro).forEach(([key, value]) => {
-      if (isCampoTecnico(key)) return;
-
-      row[key] = value;
-    });
-
-    return normalizarAliasesRelatorio(slug, row);
-  });
-}
-
-function normalizarAliasesRelatorio(slug: string, row: Row): Row {
-  const normalized: Row = { ...row };
-
-  const agente =
-    row.agente ??
-    row.agente_responsavel ??
-    row.agenteResponsavel ??
-    row.nome_agente ??
-    row.nomeAgente ??
-    row.agente_cultural ??
-    row.agenteCultural;
-
-  if (
-    SLUGS_COM_AGENTE.has(slug) &&
-    agente !== null &&
-    agente !== undefined &&
-    String(agente).trim()
-  ) {
-    normalized.agente = agente;
-  }
-
-  const numeroInscricao =
-    row.numero_inscricao ??
-    row.numeroInscricao ??
-    row.inscricao ??
-    row.numero_de_inscricao ??
-    row.numeroDeInscricao;
-
-  if (
-    slug === "editais" &&
-    numeroInscricao !== null &&
-    numeroInscricao !== undefined &&
-    String(numeroInscricao).trim()
-  ) {
-    normalized.numero_inscricao = numeroInscricao;
-  }
-
-  return normalized;
-}
-
-function normalizarColunasParaExibicao(
-  slug: string,
-  colunas: RelatorioColunaMeta[],
-  registros: Row[],
-): RelatorioColunaMeta[] {
-  const manuais = getColunasRelatorio(slug, registros);
-  const origem = colunas.length > 0 ? colunas : manuais;
-
-  const map = new Map<string, RelatorioColunaMeta>();
-
-  origem.forEach((coluna) => {
-    if (isCampoTecnico(coluna.chave)) return;
-    if (isCampoRelacionalOculto(slug, coluna.chave)) return;
-
-    map.set(coluna.chave, {
-      ...coluna,
-      label: coluna.label || prettyLabel(coluna.chave),
-    });
-  });
-
-  manuais.forEach((coluna) => {
-    if (isCampoTecnico(coluna.chave)) return;
-    if (isCampoRelacionalOculto(slug, coluna.chave)) return;
-
-    const existente = map.get(coluna.chave);
-
-    map.set(coluna.chave, {
-      ...coluna,
-      ...existente,
-      label: existente?.label || coluna.label || prettyLabel(coluna.chave),
-      tipo: existente?.tipo || coluna.tipo,
-      visivelPorPadrao:
-        existente?.visivelPorPadrao ?? coluna.visivelPorPadrao ?? true,
-    });
-  });
-
-  return Array.from(map.values());
-}
-
-function isCampoRelacionalOculto(slug: string, key: string): boolean {
-  if (slug !== "participantes") return false;
-
-  return [
-    "vinculos",
-    "participanteAtividades",
-    "vinculosAtividades",
-    "participante_atividades",
-    "vinculos_atividades",
-    "matriculas",
-  ].includes(key);
-}
-
-function getValorColuna(row: Row, chave: string): unknown {
-  if (chave === "endereco") {
-    return montarEndereco(row);
-  }
-
-  if (Object.prototype.hasOwnProperty.call(row, chave)) {
-    return row[chave];
-  }
-
-  const snake = camelToSnake(chave);
-
-  if (Object.prototype.hasOwnProperty.call(row, snake)) {
-    return row[snake];
-  }
-
-  const camel = snakeToCamel(chave);
-
-  if (Object.prototype.hasOwnProperty.call(row, camel)) {
-    return row[camel];
-  }
-
-  return undefined;
-}
-
-function montarEndereco(row: Row): string {
-  const partes = [
-    row.logradouro,
-    row.numero,
-    row.complemento,
-    row.bairro,
-    row.cidade,
-    row.estado,
-    row.cep,
-  ]
-    .map((value) =>
-      value === null || value === undefined ? "" : String(value).trim(),
-    )
-    .filter(Boolean);
-
-  return partes.length > 0 ? partes.join(", ") : "—";
-}
-
-function isCampoTecnico(key: string): boolean {
-  const normalized = key.toLowerCase();
-
-  return (
-    normalized === "id" ||
-    normalized.endsWith("id") ||
-    normalized.endsWith("_id") ||
-    normalized === "ordem" ||
-    normalized.includes("organizacaoid") ||
-    normalized.includes("organizacao_id") ||
-    normalized.includes("usuarioid") ||
-    normalized.includes("usuario_id") ||
-    normalized.includes("configuracaoempresaid") ||
-    normalized.includes("configuracao_empresa_id")
-  );
-}
-
-function camelToSnake(value: string): string {
-  return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-}
-
-function snakeToCamel(value: string): string {
-  return value.replace(/_([a-z])/g, (_, letter: string) =>
-    letter.toUpperCase(),
-  );
 }
 
 function prettyLabel(key: string): string {

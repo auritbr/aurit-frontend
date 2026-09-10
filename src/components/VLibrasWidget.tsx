@@ -54,7 +54,7 @@ export default function VLibras() {
       createContainer();
 
       const existingScript = document.getElementById(
-        SCRIPT_ID
+        SCRIPT_ID,
       ) as HTMLScriptElement | null;
 
       if (existingScript) {

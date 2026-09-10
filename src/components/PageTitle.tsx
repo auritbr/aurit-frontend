@@ -11,24 +11,43 @@ interface PageTitleProps {
   showImport?: boolean;
 }
 
-export function PageTitle({ title, tooltip, description, actions, showImport }: PageTitleProps) {
+export function PageTitle({
+  title,
+  tooltip,
+  description,
+  actions,
+  showImport,
+}: PageTitleProps) {
   const { pathname } = useLocation();
-  const isFormRoute = pathname.endsWith("/novo") || pathname.endsWith("/editar");
+  const isFormRoute =
+    pathname.endsWith("/novo") || pathname.endsWith("/editar");
   const displayImport = showImport ?? isFormRoute;
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-border">
+    <div className="flex flex-col gap-3 mb-5 pb-4 border-b border-border">
       <div>
         <div className="flex items-center gap-2">
           <h1 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
             {title}
           </h1>
-          <HelpTooltip text={tooltip} label={title} size="md" side="bottom" align="start" />
-          <ImportDataTitleAction show={displayImport} />
+          <HelpTooltip
+            text={tooltip}
+            label={title}
+            size="md"
+            side="bottom"
+            align="start"
+          />
         </div>
-        {description && <p className="mt-1 text-muted-foreground text-sm">{description}</p>}
+        {description && (
+          <p className="mt-1 text-muted-foreground text-sm">{description}</p>
+        )}
       </div>
-      {actions && <div className="flex gap-2">{actions}</div>}
+      {(actions || displayImport) && (
+        <div className="flex flex-wrap justify-start gap-2">
+          {actions}
+          {!actions && <ImportDataTitleAction show={displayImport} />}
+        </div>
+      )}
     </div>
   );
 }

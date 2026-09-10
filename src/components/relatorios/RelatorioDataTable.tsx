@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Inbox } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +13,8 @@ import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/hooks/usePagination";
 import { ColumnSelector } from "./ColumnSelector";
 import { RelatorioExportButtons } from "./RelatorioExportButtons";
-import type { RelatorioColumn } from "@/lib/relatorioExporters";
+import type { RelatorioColumn } from "@/lib/relatorioExports";
+import { downloadGeneralReportPdf } from "@/lib/generalReportPdf";
 
 interface RelatorioDataTableProps<T> {
   reportName: string;
@@ -87,6 +88,18 @@ export function RelatorioDataTable<T>({
       .filter((column) => !column.hiddenByDefault)
       .map((column) => column.key),
   );
+  const initializedReport = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!columns.length || initializedReport.current === reportName) return;
+
+    initializedReport.current = reportName;
+    setVisibleKeys(
+      columns
+        .filter((column) => !column.hiddenByDefault)
+        .map((column) => column.key),
+    );
+  }, [columns, reportName]);
 
   const visibleColumns = useMemo(
     () => columns.filter((column) => visibleKeys.includes(column.key)),
@@ -102,8 +115,8 @@ export function RelatorioDataTable<T>({
     usePagination(filtered, 25, search);
 
   return (
-    <section className="rounded-lg border border-border bg-card shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
+    <section className="overflow-hidden rounded-[16px] border border-border/70 bg-card/75 shadow-[0_2px_12px_-8px_hsl(215_28%_17%_/_0.18)] backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
+      <div className="flex flex-col gap-3 border-b border-border/60 p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative w-full lg:max-w-xs">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
@@ -111,7 +124,7 @@ export function RelatorioDataTable<T>({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={searchPlaceholder}
-            className="h-9 pl-8 text-sm"
+            className="h-9 rounded-[10px] border-border/70 bg-background/70 pl-8 text-sm backdrop-blur-sm"
           />
         </div>
 
@@ -124,6 +137,17 @@ export function RelatorioDataTable<T>({
             dataGeracao={dataGeracao}
             indicadoresPdf={indicadoresPdf}
             showPdf={enablePdfExport}
+            showCopy={false}
+            onPdf={
+              enablePdfExport
+                ? () =>
+                    downloadGeneralReportPdf({
+                      slug: reportName,
+                      columns: visibleColumns.map((column) => column.key),
+                      search,
+                    })
+                : undefined
+            }
           />
 
           <ColumnSelector

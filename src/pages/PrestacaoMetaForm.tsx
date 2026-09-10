@@ -1,21 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
+  AlertTriangle,
   Link2,
   BarChart3,
   ClipboardCheck,
   Paperclip,
-  Info,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BackButton } from "@/components/BackButton";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { FormMultiSelect } from "@/components/FormMultiSelect";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { StatusPill } from "@/components/StatusPill";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -25,9 +30,7 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { HelpTooltip } from "@/components/HelpTooltip";
-import { ImportDataTitleAction } from "@/components/PageTitle";
-import { MultiSelect } from "@/components/MultiSelect";
+import { getImportConfigForPath } from "@/config/importacoes";
 import {
   getPrestacaoMetaById,
   createPrestacaoMeta,
@@ -69,15 +72,28 @@ function salvarProximaAcaoPrestacaoMeta() {
     variante: "pendente",
   };
 
-  sessionStorage.setItem(
-    PRESTACAO_META_NEXT_STEP_KEY,
-    JSON.stringify(card),
-  );
+  sessionStorage.setItem(PRESTACAO_META_NEXT_STEP_KEY, JSON.stringify(card));
+}
+
+function parseNumeroDecimal(value: string): number | undefined {
+  const normalized = value.trim().replace(/\./g, "").replace(",", ".");
+  if (!normalized) return undefined;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function formatPercentual(value?: number): string {
+  if (value === undefined || !Number.isFinite(value)) return "";
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
 }
 
 interface FormState {
   metaProjeto: string;
   quantidadeExecutada: string;
+  percentualExecutado: string;
   observacaoCumprimento: string;
   statusCumprimentoMeta: StatusCumprimentoMeta | "";
   justificativaNaoCumprimentoIntegral: string;
@@ -87,6 +103,7 @@ interface FormState {
 const initial: FormState = {
   metaProjeto: "",
   quantidadeExecutada: "",
+  percentualExecutado: "",
   observacaoCumprimento: "",
   statusCumprimentoMeta: "",
   justificativaNaoCumprimentoIntegral: "",
@@ -133,7 +150,7 @@ export default function PrestacaoMetaForm() {
         const metaId = String(itemData?.metaProjeto ?? "");
         const evidenciasIds = (itemData?.evidencias ?? []).map(String);
 
-        const metasNormalizadas = (metasData ?? [])
+        const metasNormalizadas: MetaProjetoOption[] = (metasData ?? [])
           .filter(
             (item) =>
               item.id !== null &&
@@ -143,6 +160,7 @@ export default function PrestacaoMetaForm() {
           .map((item) => ({
             id: String(item.id),
             tituloMeta: item.tituloMeta?.trim() || `Meta ${item.id}`,
+            quantidadePrevista: item.quantidadePrevista,
           }));
 
         const evidenciasNormalizadas = (evidenciasData ?? [])
@@ -185,6 +203,10 @@ export default function PrestacaoMetaForm() {
           setForm({
             metaProjeto: metaId,
             quantidadeExecutada: itemData.quantidadeExecutada ?? "",
+            percentualExecutado:
+              itemData.percentualExecutado == null
+                ? ""
+                : String(itemData.percentualExecutado).replace(".", ","),
             observacaoCumprimento: itemData.observacaoCumprimento ?? "",
             statusCumprimentoMeta: itemData.statusCumprimentoMeta ?? "",
             justificativaNaoCumprimentoIntegral:
@@ -223,16 +245,51 @@ export default function PrestacaoMetaForm() {
     }));
   };
 
+  const handleSituacaoChange = (value: StatusCumprimentoMeta) => {
+    setForm((prev) => ({
+      ...prev,
+      statusCumprimentoMeta: value,
+      justificativaNaoCumprimentoIntegral:
+        value === "CUMPRIDA_PARCIALMENTE" || value === "NAO_CUMPRIDA"
+          ? prev.justificativaNaoCumprimentoIntegral
+          : "",
+    }));
+  };
+
   const isParcial = form.statusCumprimentoMeta === "CUMPRIDA_PARCIALMENTE";
   const isNaoCumprida = form.statusCumprimentoMeta === "NAO_CUMPRIDA";
   const isIntegral = form.statusCumprimentoMeta === "CUMPRIDA_INTEGRALMENTE";
 
   const justificativaObrigatoria = isParcial || isNaoCumprida;
 
-  const mostrarJustificativa =
-    form.statusCumprimentoMeta !== "" && !isIntegral;
+  const mostrarJustificativa = form.statusCumprimentoMeta !== "" && !isIntegral;
 
   const quantidadeObrigatoria = isIntegral || isParcial;
+
+  const metaSelecionada = metas.find(
+    (item) => String(item.id) === String(form.metaProjeto),
+  );
+  const quantidadePrevista = metaSelecionada?.quantidadePrevista;
+  const quantidadeExecutadaNumero = parseNumeroDecimal(
+    form.quantidadeExecutada,
+  );
+  const percentualCalculado =
+    quantidadePrevista !== undefined &&
+    quantidadePrevista > 0 &&
+    quantidadeExecutadaNumero !== undefined
+      ? (quantidadeExecutadaNumero / quantidadePrevista) * 100
+      : undefined;
+  const percentualNumero =
+    percentualCalculado ??
+    (form.percentualExecutado.trim()
+      ? Number(form.percentualExecutado.replace(",", "."))
+      : undefined);
+
+  const alertaCoerencia =
+    percentualNumero !== undefined &&
+    Number.isFinite(percentualNumero) &&
+    ((percentualNumero >= 100 && isNaoCumprida) ||
+      (percentualNumero === 0 && isIntegral));
 
   const metasComSelecao = useMemo(() => {
     const normalizadas = metas.map((item) => ({
@@ -243,9 +300,7 @@ export default function PrestacaoMetaForm() {
 
     if (
       form.metaProjeto &&
-      !normalizadas.some(
-        (item) => String(item.id) === String(form.metaProjeto),
-      )
+      !normalizadas.some((item) => String(item.id) === String(form.metaProjeto))
     ) {
       normalizadas.push({
         id: String(form.metaProjeto),
@@ -260,15 +315,13 @@ export default function PrestacaoMetaForm() {
     const normalizadas = evidencias.map((item) => ({
       ...item,
       id: String(item.id),
-      tituloEvidencia:
-        item.tituloEvidencia?.trim() || `Evidência ${item.id}`,
+      tituloEvidencia: item.tituloEvidencia?.trim() || `Evidência ${item.id}`,
     }));
 
     const faltantes = form.evidencias
       .filter(
         (id) =>
-          id &&
-          !normalizadas.some((item) => String(item.id) === String(id)),
+          id && !normalizadas.some((item) => String(item.id) === String(id)),
       )
       .map((id) => ({
         id: String(id),
@@ -299,7 +352,11 @@ export default function PrestacaoMetaForm() {
   }, [form.statusCumprimentoMeta]);
 
   const evidenciasOptions = useMemo(
-    () => evidenciasComSelecao.map((item) => String(item.id)),
+    () =>
+      evidenciasComSelecao.map((item) => ({
+        value: String(item.id),
+        label: item.tituloEvidencia,
+      })),
     [evidenciasComSelecao],
   );
 
@@ -327,6 +384,16 @@ export default function PrestacaoMetaForm() {
     if (quantidadeObrigatoria && !form.quantidadeExecutada.trim()) {
       toast.error(
         "Informe a quantidade executada quando a meta estiver cumprida ou parcialmente cumprida.",
+      );
+      return;
+    }
+
+    if (
+      percentualNumero !== undefined &&
+      (!Number.isFinite(percentualNumero) || percentualNumero < 0)
+    ) {
+      toast.error(
+        "Informe um percentual executado válido, sem valores negativos.",
       );
       return;
     }
@@ -361,7 +428,7 @@ export default function PrestacaoMetaForm() {
         id: id ?? "",
         metaProjeto: metaProjetoId,
         quantidadeExecutada: form.quantidadeExecutada.trim(),
-        percentualExecutado: undefined,
+        percentualExecutado: percentualNumero,
         observacaoCumprimento: form.observacaoCumprimento,
         statusCumprimentoMeta: form.statusCumprimentoMeta,
         justificativaNaoCumprimentoIntegral:
@@ -395,123 +462,109 @@ export default function PrestacaoMetaForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/prestacao-metas")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </button>
+        <BackButton to="/prestacao-metas" />
+        <ListPageHeader
+          title={
+            visualizando
+              ? "Cumprimento de Metas"
+              : editando
+                ? "Cumprimento de Metas"
+                : "Cumprimento de Metas"
+          }
+          tooltip="Nesta página é registrado e avaliado o cumprimento das metas previstas no projeto, comparando o que foi planejado com os resultados alcançados. Também podem ser vinculadas evidências já cadastradas para comprovar a execução e os resultados de cada meta."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/prestacao-metas")!}
+                canFillForm
+              />
+            )
+          }
+        />
 
-        <div className="mb-5 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
-              Cumprimento de Metas
-            </h1>
-
-            <HelpTooltip
-              text="Acompanhe o cumprimento das metas previstas no projeto, comparando o que foi planejado com o que foi executado. Informe a quantidade realizada, o status de cumprimento, observações e evidências que comprovem a execução."
-              label="Cumprimento de Metas"
-              size="md"
-              side="bottom"
-              align="start"
-            />
-            <ImportDataTitleAction show={!visualizando} />
-          </div>
-        </div>
-
-        <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-          <Info
-            className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"
-            strokeWidth={2.2}
-          />
-
-          <p className="text-[13px] leading-relaxed text-foreground">
-            Use esta página para{" "}
-            <span className="font-semibold">comparar</span> o que foi planejado
-            com o que foi executado. Selecione a meta prevista, informe o
-            resultado alcançado e vincule evidências que comprovem a execução.
-          </p>
-        </div>
-
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={Link2} title="Vínculo da meta">
-            <Field>
-              <FieldLabel
-                htmlFor="metaProjeto"
-                required
-                tooltip="Selecione a meta prevista no projeto que será comparada com o resultado executado."
-              >
-                Meta do Projeto
-              </FieldLabel>
-
-              {visualizando ? (
-                <Input
-                  id="metaProjeto"
-                  value={metaSelecionadaNome || "—"}
-                  disabled
-                  readOnly
-                  className="bg-muted/40 cursor-not-allowed"
-                />
-              ) : (
-                <Select
-                  key={`meta-${form.metaProjeto}-${metasComSelecao.length}`}
-                  value={String(form.metaProjeto || "")}
-                  onValueChange={(value) => set("metaProjeto", String(value))}
-                  disabled={bloqueado}
+          <Section
+            icon={Link2}
+            title="Vínculo da meta"
+            description="Defina qual meta será objeto desta prestação, para que o resultado realizado possa ser comparado com o que foi originalmente previsto no projeto."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="metaProjeto"
+                  required
+                  tooltip="Selecione a meta do projeto que será avaliada neste registro. Os resultados informados abaixo deverão corresponder ao que estava previsto nessa meta."
                 >
-                  <SelectTrigger id="metaProjeto">
-                    <SelectValue placeholder="Selecione a meta" />
-                  </SelectTrigger>
+                  Meta do Projeto
+                </FieldLabel>
 
-                  <SelectContent className="max-h-72">
-                    {metasComSelecao.length === 0 ? (
-                      <SelectItem value="sem-meta" disabled>
-                        Nenhuma meta cadastrada
-                      </SelectItem>
-                    ) : (
-                      metasComSelecao.map((meta) => (
-                        <SelectItem
-                          key={String(meta.id)}
-                          value={String(meta.id)}
-                        >
-                          {meta.tituloMeta}
+                {visualizando ? (
+                  <Input
+                    id="metaProjeto"
+                    value={metaSelecionadaNome || "—"}
+                    disabled
+                    readOnly
+                    className="bg-muted/40 cursor-not-allowed"
+                  />
+                ) : (
+                  <Select
+                    key={`meta-${form.metaProjeto}-${metasComSelecao.length}`}
+                    value={String(form.metaProjeto || "")}
+                    onValueChange={(value) => set("metaProjeto", String(value))}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="metaProjeto">
+                      <SelectValue placeholder="Selecione a meta" />
+                    </SelectTrigger>
+
+                    <SelectContent className="max-h-72">
+                      {metasComSelecao.length === 0 ? (
+                        <SelectItem value="sem-meta" disabled>
+                          Nenhuma meta cadastrada
                         </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              )}
-            </Field>
+                      ) : (
+                        metasComSelecao.map((meta) => (
+                          <SelectItem
+                            key={String(meta.id)}
+                            value={String(meta.id)}
+                          >
+                            {meta.tituloMeta}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
+            </div>
           </Section>
 
-          <Section icon={BarChart3} title="Resultado executado">
-            <div className="space-y-4">
+          <Section
+            icon={BarChart3}
+            title="Resultado alcançado"
+            description="Registre o resultado efetivamente alcançado para que o sistema possa compará-lo com a quantidade prevista na meta e demonstrar o nível de execução."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="quantidadeExecutada"
                   required={quantidadeObrigatoria}
-                  tooltip="Informe a quantidade efetivamente realizada em relação à meta prevista. Como este campo é textual, você pode informar valores com unidade. Ex.: 8 oficinas, 120 participantes, 3 apresentações, 10 encontros realizados."
+                  tooltip="Informe o resultado realizado em quantidade, usando a mesma referência da meta sempre que possível. Ex.: 8 oficinas realizadas, 120 participantes atendidos ou 3 apresentações realizadas."
                 >
                   Quantidade Executada
                 </FieldLabel>
 
                 <Input
                   id="quantidadeExecutada"
+                  inputMode="decimal"
                   value={form.quantidadeExecutada}
                   onChange={(e) =>
-                    set("quantidadeExecutada", e.target.value)
+                    set(
+                      "quantidadeExecutada",
+                      e.target.value.replace(/[^\d,.]/g, "").replace(".", ","),
+                    )
                   }
                   disabled={bloqueado}
                   readOnly={visualizando}
@@ -520,34 +573,61 @@ export default function PrestacaoMetaForm() {
 
               <Field>
                 <FieldLabel
-                  htmlFor="observacaoCumprimento"
-                  tooltip="Registre informações sobre o cumprimento da meta, explicando resultados alcançados, ajustes realizados, dificuldades, justificativas ou diferenças entre o previsto e o executado."
+                  htmlFor="percentualExecutado"
+                  tooltip="Calculado automaticamente dividindo a quantidade executada pela quantidade prevista na meta e multiplicando o resultado por 100."
                 >
-                  Observação sobre o Cumprimento
+                  Percentual Executado
                 </FieldLabel>
 
-                <Textarea
-                  id="observacaoCumprimento"
-                  value={form.observacaoCumprimento}
-                  onChange={(e) => set("observacaoCumprimento", e.target.value)}
-                  rows={3}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
+                <div className="relative">
+                  <Input
+                    id="percentualExecutado"
+                    value={formatPercentual(percentualNumero)}
+                    className="pr-8"
+                    disabled
+                    readOnly
+                  />
+
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">
+                    %
+                  </span>
+                </div>
+
+                {quantidadePrevista !== undefined && quantidadePrevista > 0 ? (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Calculado sobre a quantidade prevista de{" "}
+                    {quantidadePrevista.toLocaleString("pt-BR")}.
+                  </p>
+                ) : (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    A meta selecionada precisa ter uma quantidade prevista maior
+                    que zero para calcular o percentual.
+                  </p>
+                )}
+
+                {percentualNumero !== undefined && percentualNumero > 100 && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Percentual acima de 100% indica que a meta foi superada.
+                  </p>
+                )}
               </Field>
             </div>
           </Section>
 
-          <Section icon={ClipboardCheck} title="Cumprimento da meta">
+          <Section
+            icon={ClipboardCheck}
+            title="Avaliação do cumprimento"
+            description="Avalie o cumprimento da meta com base no resultado alcançado e registre as informações necessárias para explicar diferenças entre o que foi previsto e o que foi realizado."
+          >
             <div className="space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
                   <FieldLabel
                     htmlFor="statusCumprimentoMeta"
                     required
-                    tooltip="Selecione a situação da meta: Cumprida Integralmente quando foi realizada conforme previsto, Cumprida Parcialmente quando apenas parte foi executada, Não cumprida quando não foi realizada e Não se aplica quando a meta não fizer parte deste cumprimento."
+                    tooltip="Selecione a situação que melhor representa o resultado alcançado em comparação com a meta prevista. Considere a quantidade realizada, o percentual executado e demais resultados registrados."
                   >
-                    Status de Cumprimento
+                    Situação do Cumprimento
                   </FieldLabel>
 
                   {visualizando ? (
@@ -562,15 +642,12 @@ export default function PrestacaoMetaForm() {
                     <Select
                       value={form.statusCumprimentoMeta}
                       onValueChange={(value) =>
-                        set(
-                          "statusCumprimentoMeta",
-                          value as StatusCumprimentoMeta,
-                        )
+                        handleSituacaoChange(value as StatusCumprimentoMeta)
                       }
                       disabled={bloqueado}
                     >
                       <SelectTrigger id="statusCumprimentoMeta">
-                        <SelectValue placeholder="Selecione o status" />
+                        <SelectValue placeholder="Selecione a situação" />
                       </SelectTrigger>
 
                       <SelectContent>
@@ -582,34 +659,49 @@ export default function PrestacaoMetaForm() {
                       </SelectContent>
                     </Select>
                   )}
+
+                  {form.statusCumprimentoMeta && (
+                    <div className="mt-2">
+                      <StatusPill
+                        status={form.statusCumprimentoMeta}
+                        context="cumprimento-meta"
+                        ariaLabelPrefix="Situação do cumprimento"
+                      />
+                    </div>
+                  )}
                 </Field>
               </div>
+
+              {alertaCoerencia && (
+                <p className="flex items-start gap-2 rounded-[12px] border border-amber-200/70 bg-amber-50/60 px-3 py-2 text-xs leading-relaxed text-amber-800">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                  O percentual informado parece não corresponder à situação
+                  selecionada. Revise os dados antes de salvar.
+                </p>
+              )}
 
               {mostrarJustificativa && (
                 <Field>
                   <FieldLabel
                     htmlFor="justificativaNaoCumprimentoIntegral"
                     required={justificativaObrigatoria}
-                    tooltip="Explique o motivo pelo qual a meta não foi cumprida integralmente, informando dificuldades, alterações, impedimentos, remanejamentos ou fatores que impactaram a execução prevista."
+                    tooltip="Explique por que a meta não foi alcançada integralmente. Informe, quando aplicável, dificuldades encontradas, mudanças ocorridas durante a execução ou outras situações que tenham afetado o resultado."
                   >
-                    Justificativa quando não cumprida integralmente
+                    Justificativa do não cumprimento integral
                   </FieldLabel>
 
                   <Textarea
                     id="justificativaNaoCumprimentoIntegral"
                     value={form.justificativaNaoCumprimentoIntegral}
                     onChange={(e) =>
-                      set(
-                        "justificativaNaoCumprimentoIntegral",
-                        e.target.value,
-                      )
+                      set("justificativaNaoCumprimentoIntegral", e.target.value)
                     }
                     placeholder={
                       isParcial
                         ? "Explique por que a meta foi cumprida apenas parcialmente..."
                         : isNaoCumprida
                           ? "Explique por que a meta não foi cumprida..."
-                          : "Registre observações relevantes..."
+                          : "Registre a justificativa..."
                     }
                     rows={3}
                     className={
@@ -622,18 +714,36 @@ export default function PrestacaoMetaForm() {
                   />
                 </Field>
               )}
+
+              <Field>
+                <FieldLabel
+                  htmlFor="observacaoCumprimento"
+                  tooltip="Descreva informações importantes sobre o resultado alcançado, como diferenças entre o previsto e o realizado, ajustes feitos durante a execução, dificuldades encontradas ou resultados que mereçam destaque."
+                >
+                  Observações sobre o Cumprimento
+                </FieldLabel>
+
+                <Textarea
+                  id="observacaoCumprimento"
+                  value={form.observacaoCumprimento}
+                  onChange={(e) => set("observacaoCumprimento", e.target.value)}
+                  rows={3}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
             </div>
           </Section>
 
-          <Section icon={Paperclip} title="Evidências">
-            <p className="mb-3 text-xs leading-5 text-muted-foreground">
-              Selecione as evidências que comprovam o cumprimento desta meta.
-            </p>
-
+          <Section
+            icon={Paperclip}
+            title="Evidências"
+            description="Selecione as evidências já cadastradas que comprovam a execução e os resultados alcançados nesta meta."
+          >
             <Field>
               <FieldLabel
                 htmlFor="evidencias"
-                tooltip="Vincule as evidências que comprovam o cumprimento desta meta, como fotos, listas de presença, relatórios, vídeos, documentos, materiais gráficos ou links de publicação."
+                tooltip="Selecione as evidências já cadastradas no sistema que ajudam a comprovar a execução e os resultados desta meta, como fotos, listas de presença, relatórios, vídeos, documentos, materiais gráficos ou links de publicações."
               >
                 Evidências
               </FieldLabel>
@@ -657,43 +767,69 @@ export default function PrestacaoMetaForm() {
                     </span>
                   )}
                 </div>
+              ) : evidenciasOptions.length === 0 ? (
+                <div className="rounded-[12px] border border-border/60 bg-muted/25 px-3 py-2.5">
+                  <p className="text-[13px] text-muted-foreground">
+                    Nenhuma evidência disponível para vinculação.
+                  </p>
+
+                  <Button
+                    type="button"
+                    variant="glassSecondary"
+                    className="mt-2 h-8 px-3 text-[13px]"
+                    onClick={() => navigate("/evidencias")}
+                  >
+                    Cadastrar evidência
+                  </Button>
+                </div>
               ) : (
-                <MultiSelect
+                <FormMultiSelect
                   id="evidencias"
                   options={evidenciasOptions}
                   value={form.evidencias}
                   onChange={(value) =>
-                    set(
-                      "evidencias",
-                      value.filter(Boolean).map(String),
-                    )
+                    set("evidencias", value.filter(Boolean).map(String))
                   }
-                  getOptionLabel={evidenciaLabel}
+                  placeholder="Selecione uma ou mais evidências"
+                  searchPlaceholder="Pesquisar evidência..."
+                  emptyMessage="Nenhuma evidência encontrada."
                 />
               )}
             </Field>
           </Section>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/prestacao-metas")}
-              disabled={saving}
-            >
-              {visualizando ? "Voltar" : "Cancelar"}
-            </Button>
-
-            {!visualizando && (
+          {visualizando ? (
+            <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="glassSecondary"
+                className="h-9 px-4"
+                onClick={() => navigate("/prestacao-metas")}
+              >
+                Voltar
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="glassSecondary"
+                className="h-9 px-4"
+                onClick={() => navigate("/prestacao-metas")}
+                disabled={saving}
+              >
+                Cancelar
+              </Button>
               <Button
                 type="submit"
-                className="sm:min-w-40"
+                variant="glassPrimary"
+                className="h-9 px-5"
                 disabled={loading || saving}
               >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </form>
         <WikiFloatingButton
           pageTitle="Cumprimento de Metas"
@@ -707,27 +843,27 @@ export default function PrestacaoMetaForm() {
 function Section({
   icon: Icon,
   title,
+  description,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
-      <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
-          {title}
-        </h2>
-      </div>
-
+    <FormSectionCard icon={Icon} title={title} description={description}>
       {children}
-    </Card>
+    </FormSectionCard>
   );
 }
 
-function Field({ children }: { children: React.ReactNode }) {
-  return <div>{children}</div>;
+function Field({
+  children,
+  full,
+}: {
+  children: React.ReactNode;
+  full?: boolean;
+}) {
+  return <div className={full ? "sm:col-span-2" : ""}>{children}</div>;
 }

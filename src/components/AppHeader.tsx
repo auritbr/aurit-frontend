@@ -1,23 +1,12 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  ChevronDown,
-  LogOut,
-  User as UserIcon,
-} from "lucide-react";
-import { AuritLogo } from "@/components/AuritLogo";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Link, useNavigate } from "react-router-dom";
+import { CircleHelp, PanelLeft, Settings } from "lucide-react";
+import { useSidebar } from "@/components/ui/sidebar";
 import { AlertasPopover } from "@/components/AlertasPopover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { toast } from "sonner";
-
+import { usuarioTemPermissao } from "@/lib/permissoes";
+import { userRoleLabel, type UserRole } from "@/data/usuarios";
 import {
   getUsuarioLogado,
   limparSessaoUsuario,
@@ -26,25 +15,52 @@ import {
 
 type HeaderUser = {
   name: string;
-  email: string;
+  perfil: string;
+  iniciais: string;
 };
 
 function mapUsuarioToHeaderUser(usuario?: UsuarioLogado | null): HeaderUser {
   return {
     name: usuario?.name?.trim() || "Usuário",
-    email: usuario?.login?.trim() || "",
+    perfil:
+      userRoleLabel[usuario?.userRole as UserRole] ?? usuario?.userRole ?? "",
+    iniciais: (usuario?.name ?? "Usuário")
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((parte) => parte[0])
+      .join("")
+      .toUpperCase(),
   };
+}
+
+function SidebarToggle() {
+  const { state, isMobile, toggleSidebar } = useSidebar();
+  const expanded = isMobile ? false : state === "expanded";
+
+  return (
+    <button
+      type="button"
+      onClick={toggleSidebar}
+      aria-label={expanded ? "Recolher menu lateral" : "Expandir menu lateral"}
+      aria-expanded={expanded}
+      aria-controls="app-sidebar"
+      className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-[11px] border border-border/70 bg-card/70 text-muted-foreground backdrop-blur-md shadow-[inset_0_1px_0_0_hsl(0_0%_100%_/_0.5)] transition-[background-color,color,transform] duration-150 hover:bg-card hover:text-foreground active:scale-[0.96] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+    >
+      <PanelLeft className="h-[17px] w-[17px]" strokeWidth={1.9} />
+    </button>
+  );
 }
 
 export function AppHeader() {
   const navigate = useNavigate();
-
   const [user, setUser] = useState<HeaderUser>({
     name: "",
-    email: "",
+    perfil: "",
+    iniciais: "",
   });
-
   const [loadingUser, setLoadingUser] = useState(true);
+  const [podeConfigurar, setPodeConfigurar] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -52,29 +68,25 @@ export function AppHeader() {
     async function loadUser() {
       try {
         setLoadingUser(true);
-
         const usuario = await getUsuarioLogado();
-
-        if (!active) return;
-
-        setUser(mapUsuarioToHeaderUser(usuario));
+        if (active) {
+          setUser(mapUsuarioToHeaderUser(usuario));
+          setPodeConfigurar(
+            await usuarioTemPermissao("USUARIOS", "VISUALIZAR").catch(
+              () => false,
+            ),
+          );
+        }
       } catch (error) {
         console.error("Erro ao buscar usuário logado:", error);
-
         limparSessaoUsuario();
-
-        if (active) {
-          navigate("/login", { replace: true });
-        }
+        if (active) navigate("/login", { replace: true });
       } finally {
-        if (active) {
-          setLoadingUser(false);
-        }
+        if (active) setLoadingUser(false);
       }
     }
 
     void loadUser();
-
     return () => {
       active = false;
     };
@@ -86,62 +98,54 @@ export function AppHeader() {
     navigate("/login", { replace: true });
   };
 
+  const displayName = loadingUser ? "Carregando..." : user.name;
+  const displayPerfil = loadingUser ? "" : user.perfil;
+  const wikiUrl = "https://www.aurit.com.br/wiki";
+  const configuracoesPath = "/usuario";
+
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-card px-4">
-      <div className="flex items-center gap-3">
-        <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-
-        <div className="h-5 w-px bg-border" />
-
-        <div className="flex items-center">
-          <AuritLogo size="md" withBackground={false} />
-        </div>
+    <header className="sticky left-0 right-0 top-0 z-40 flex h-[var(--app-header-height)] w-full flex-shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-card/85 px-3 backdrop-blur-xl supports-[backdrop-filter]:bg-card/75 shadow-[0_1px_2px_-1px_hsl(215_28%_17%_/_0.08),inset_0_1px_0_0_hsl(0_0%_100%_/_0.45)] sm:px-4">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <SidebarToggle />
+        <div className="hidden h-5 w-px bg-border/70 sm:block" />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-2">
+        <a
+          href={wikiUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Central de Ajuda da Aurit"
+          title="Central de Ajuda da Aurit"
+          className="header-action-glass inline-flex h-[34px] items-center gap-1.5 rounded-[11px] px-2.5"
+        >
+          <CircleHelp className="h-[17px] w-[17px]" strokeWidth={1.9} />
+          <span className="hidden text-[12.5px] font-medium lg:inline">
+            Ajuda
+          </span>
+        </a>
+        {podeConfigurar ? (
+          <Link
+            to={configuracoesPath}
+            aria-label="Configurações"
+            title="Configurações"
+            className="header-action-glass inline-flex h-[34px] items-center gap-1.5 rounded-[11px] px-2.5"
+          >
+            <Settings className="h-[17px] w-[17px]" strokeWidth={1.9} />
+            <span className="hidden text-[12.5px] font-medium lg:inline">
+              Configurações
+            </span>
+          </Link>
+        ) : null}
         <AlertasPopover />
-
-        <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 rounded px-2 py-1.5 transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-primary-soft">
-              <UserIcon className="h-4 w-4 text-primary" strokeWidth={2} />
-            </div>
-
-            <div className="hidden text-left leading-tight sm:block">
-              <p className="text-xs font-medium text-foreground">
-                {loadingUser ? "Carregando..." : user.name}
-              </p>
-
-              <p className="text-[11px] text-muted-foreground">
-                {loadingUser ? "" : user.email}
-              </p>
-            </div>
-
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="font-normal">
-              <p className="text-sm font-medium text-foreground">
-                {loadingUser ? "Carregando..." : user.name}
-              </p>
-
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {loadingUser ? "" : user.email}
-              </p>
-            </DropdownMenuLabel>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onClick={handleLogout}
-              className="cursor-pointer text-destructive focus:text-destructive"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sair
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="mx-0.5 hidden h-5 w-px bg-border/70 sm:block" />
+        <UserProfileMenu
+          name={displayName}
+          perfil={displayPerfil}
+          iniciais={user.iniciais}
+          settingsPath={podeConfigurar ? configuracoesPath : undefined}
+          onLogout={handleLogout}
+        />
       </div>
     </header>
   );

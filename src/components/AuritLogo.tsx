@@ -68,7 +68,12 @@ export function AuritLogo({
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       {mark}
-      <span className={cn("font-semibold tracking-tight text-foreground", textSize[size])}>
+      <span
+        className={cn(
+          "font-semibold tracking-tight text-foreground",
+          textSize[size],
+        )}
+      >
         Aurit
       </span>
     </span>

@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { invalidateFinancialData } from "@/lib/financialDataInvalidation";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -22,11 +23,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -63,6 +60,32 @@ export const produtoGeradoLabel = (value?: string | null) =>
   value ??
   "—";
 
+export const statusPrestacaoContasOptions = [
+  { value: "NAO_INICIADA", label: "Não iniciada" },
+  { value: "EM_ELABORACAO", label: "Em elaboração" },
+  { value: "AGUARDANDO_DOCUMENTOS", label: "Aguardando documentos" },
+  { value: "PRONTA_PARA_ENVIO", label: "Pronta para envio" },
+  { value: "ENVIADA", label: "Enviada" },
+  { value: "EM_ANALISE", label: "Em análise" },
+  { value: "APROVADA", label: "Aprovada" },
+  { value: "APROVADA_COM_RESSALVAS", label: "Aprovada com ressalvas" },
+  { value: "REPROVADA", label: "Reprovada" },
+] as const;
+
+export type StatusPrestacaoContas =
+  (typeof statusPrestacaoContasOptions)[number]["value"];
+
+export const statusPrestacaoContasLabel = (value?: string | null) =>
+  statusPrestacaoContasOptions.find((option) => option.value === value)
+    ?.label ??
+  value ??
+  "—";
+
+export const situacaoIndicaAnalise = (value?: string | null) =>
+  ["EM_ANALISE", "APROVADA", "APROVADA_COM_RESSALVAS", "REPROVADA"].includes(
+    value ?? "",
+  );
+
 export function produtosGeradosTexto(values?: string[] | null) {
   if (!values || values.length === 0) return "—";
 
@@ -88,6 +111,10 @@ export interface PrestacaoContasDTO {
   id?: number | string | null;
 
   dataEntrega?: string | null;
+  dataAnalise?: string | null;
+  parecerPrestacaoContas?: string | null;
+  observacaoAnalise?: string | null;
+  statusPrestacaoContas?: StatusPrestacaoContas | null;
 
   resumoResultados?: string | null;
   outrosProdutosGerados?: string | null;
@@ -98,9 +125,6 @@ export interface PrestacaoContasDTO {
 
   prestacaoMetasIds?: Array<number | string> | null;
   prestacaoMetas?: PrestacaoContasMetaDTO[] | null;
-
-  equipeProjetoIds?: Array<number | string> | null;
-  acoesDivulgacaoIds?: Array<number | string> | null;
 
   propostaEditalId?: number | string | null;
   tituloPropostaEdital?: string | null;
@@ -126,28 +150,6 @@ export interface PrestacaoContasDTO {
     razaoSocial?: string | null;
     nome?: string | null;
   } | null;
-
-  equipeProjeto?: Array<{
-    id?: number | string | null;
-    funcaoProjeto?: string | null;
-    colaboradorId?: number | string | null;
-    integranteId?: number | string | null;
-    colaborador?: {
-      id?: number | string | null;
-      nomeCompleto?: string | null;
-      nome?: string | null;
-    } | null;
-    integrante?: {
-      id?: number | string | null;
-      nomeCompleto?: string | null;
-      nome?: string | null;
-    } | null;
-  }> | null;
-
-  acoesDivulgacao?: Array<{
-    id?: number | string | null;
-    nomeAcao?: string | null;
-  }> | null;
 }
 
 export interface PrestacaoMetaForm {
@@ -160,6 +162,10 @@ export interface PrestacaoContas {
   propostaEdital: string;
   agente: string;
   dataEntrega: string;
+  dataAnalise: string;
+  parecerPrestacaoContas: string;
+  observacaoAnalise: string;
+  statusPrestacaoContas: StatusPrestacaoContas | "";
 
   prestacaoMetas: PrestacaoMetaForm[];
   produtosGerados: ProdutoGerado[];
@@ -168,9 +174,6 @@ export interface PrestacaoContas {
   disponibilizacaoProdutosPublico: string;
   resultadosGeradosProjeto: string;
   resumoResultados: string;
-
-  equipeProjeto: string[];
-  acoesDivulgacao: string[];
 }
 
 export interface PropostaEditalOption {
@@ -343,36 +346,22 @@ function extractPrestacaoMetas(dto: PrestacaoContasDTO): PrestacaoMetaForm[] {
     .filter((item) => item.id);
 }
 
-function extractEquipeIds(dto: PrestacaoContasDTO) {
-  if (Array.isArray(dto.equipeProjetoIds)) {
-    return uniqueStrings(dto.equipeProjetoIds.map(toIdString));
-  }
-
-  return extractIdsFromObjects(dto.equipeProjeto);
-}
-
-function extractAcoesIds(dto: PrestacaoContasDTO) {
-  if (Array.isArray(dto.acoesDivulgacaoIds)) {
-    return uniqueStrings(dto.acoesDivulgacaoIds.map(toIdString));
-  }
-
-  return extractIdsFromObjects(dto.acoesDivulgacao);
-}
-
 export function createEmptyPrestacaoContas(): PrestacaoContas {
   return {
     id: "",
     propostaEdital: "",
     agente: "",
     dataEntrega: "",
+    dataAnalise: "",
+    parecerPrestacaoContas: "",
+    observacaoAnalise: "",
+    statusPrestacaoContas: "",
     prestacaoMetas: [],
     produtosGerados: [],
     outrosProdutosGerados: "",
     disponibilizacaoProdutosPublico: "",
     resultadosGeradosProjeto: "",
     resumoResultados: "",
-    equipeProjeto: [],
-    acoesDivulgacao: [],
   };
 }
 
@@ -405,15 +394,16 @@ export function mapPrestacao(dto: PrestacaoContasDTO): PrestacaoContas {
     propostaEdital: toIdString(propostaId),
     agente: toIdString(agenteId),
     dataEntrega: isoOrEmpty(dto.dataEntrega),
+    dataAnalise: isoOrEmpty(dto.dataAnalise),
+    parecerPrestacaoContas: dto.parecerPrestacaoContas ?? "",
+    observacaoAnalise: dto.observacaoAnalise ?? "",
+    statusPrestacaoContas: dto.statusPrestacaoContas ?? "",
     prestacaoMetas: extractPrestacaoMetas(dto),
     produtosGerados: (dto.produtosGerados ?? []) as ProdutoGerado[],
     outrosProdutosGerados: dto.outrosProdutosGerados ?? "",
-    disponibilizacaoProdutosPublico:
-      dto.disponibilizacaoProdutosPublico ?? "",
+    disponibilizacaoProdutosPublico: dto.disponibilizacaoProdutosPublico ?? "",
     resultadosGeradosProjeto: dto.resultadosGeradosProjeto ?? "",
     resumoResultados: dto.resumoResultados ?? "",
-    equipeProjeto: extractEquipeIds(dto),
-    acoesDivulgacao: extractAcoesIds(dto),
   };
 }
 
@@ -423,6 +413,10 @@ export function buildPrestacaoPayload(
   return {
     id: prestacao.id ? Number(prestacao.id) : undefined,
     dataEntrega: prestacao.dataEntrega || null,
+    dataAnalise: prestacao.dataAnalise || null,
+    parecerPrestacaoContas: prestacao.parecerPrestacaoContas.trim() || null,
+    observacaoAnalise: prestacao.observacaoAnalise.trim() || null,
+    statusPrestacaoContas: prestacao.statusPrestacaoContas || null,
     propostaEditalId: prestacao.propostaEdital
       ? Number(prestacao.propostaEdital)
       : null,
@@ -431,15 +425,11 @@ export function buildPrestacaoPayload(
       prestacao.prestacaoMetas.map((meta) => meta.id),
     ),
     produtosGerados: prestacao.produtosGerados,
-    outrosProdutosGerados:
-      prestacao.outrosProdutosGerados.trim() || null,
+    outrosProdutosGerados: prestacao.outrosProdutosGerados.trim() || null,
     disponibilizacaoProdutosPublico:
       prestacao.disponibilizacaoProdutosPublico.trim() || null,
-    resultadosGeradosProjeto:
-      prestacao.resultadosGeradosProjeto.trim() || null,
+    resultadosGeradosProjeto: prestacao.resultadosGeradosProjeto.trim() || null,
     resumoResultados: prestacao.resumoResultados.trim() || null,
-    equipeProjetoIds: normalizeNumberList(prestacao.equipeProjeto),
-    acoesDivulgacaoIds: normalizeNumberList(prestacao.acoesDivulgacao),
   };
 }
 
@@ -490,7 +480,9 @@ export async function createPrestacaoContas(
 
   const data: PrestacaoContasDTO = await response.json();
 
-  return mapPrestacao(data);
+  const prestacao = mapPrestacao(data);
+  invalidateFinancialData("prestacao-contas");
+  return prestacao;
 }
 
 export async function updatePrestacaoContas(
@@ -509,7 +501,9 @@ export async function updatePrestacaoContas(
 
   const data: PrestacaoContasDTO = await response.json();
 
-  return mapPrestacao(data);
+  const prestacao = mapPrestacao(data);
+  invalidateFinancialData("prestacao-contas");
+  return prestacao;
 }
 
 export async function deletePrestacaoContas(id: number): Promise<void> {
@@ -521,6 +515,7 @@ export async function deletePrestacaoContas(id: number): Promise<void> {
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
+  invalidateFinancialData("prestacao-contas");
 }
 
 export async function getPropostasEditalOptions(): Promise<
@@ -672,8 +667,7 @@ export async function getEquipeProjetoOptions(): Promise<
       .map((item) => {
         const id = toIdString(item.id);
         const nome =
-          pickFirstText(item.nomeCompleto, item.nome) ||
-          `Colaborador ${id}`;
+          pickFirstText(item.nomeCompleto, item.nome) || `Colaborador ${id}`;
 
         return id ? [id, nome] : null;
       })
@@ -698,9 +692,7 @@ export async function getEquipeProjetoOptions(): Promise<
       const colaboradorId = toIdString(
         item.colaboradorId ?? item.colaborador?.id,
       );
-      const integranteId = toIdString(
-        item.integranteId ?? item.integrante?.id,
-      );
+      const integranteId = toIdString(item.integranteId ?? item.integrante?.id);
       const propostaEditalId = toIdString(
         item.propostaEditalId ?? item.propostaEdital?.id,
       );

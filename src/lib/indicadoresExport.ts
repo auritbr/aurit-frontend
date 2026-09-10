@@ -17,6 +17,13 @@ type ExportData = {
     atividade: string;
     turma: string;
     status: string;
+    genero?: string;
+    racaCor?: string;
+    faixaRenda?: string;
+    cadunico?: string;
+    tipoDeficiencia?: string;
+    tipoNeurodivergencia?: string;
+    bolsaFamilia?: string;
   };
   total: number;
   indicadores: ExportSection[];
@@ -44,6 +51,16 @@ export function exportToCSV(data: ExportData) {
   linhas.push(["Atividade", data.filtros.atividade]);
   linhas.push(["Turma", data.filtros.turma]);
   linhas.push(["Status da matrícula", data.filtros.status]);
+  linhas.push(["Gênero", data.filtros.genero ?? "Todos"]);
+  linhas.push(["Raça/cor", data.filtros.racaCor ?? "Todas"]);
+  linhas.push(["Faixa de renda", data.filtros.faixaRenda ?? "Todas"]);
+  linhas.push(["CadÚnico", data.filtros.cadunico ?? "Todos"]);
+  linhas.push(["Tipo de deficiência", data.filtros.tipoDeficiencia ?? "Todas"]);
+  linhas.push([
+    "Tipo de neurodivergência",
+    data.filtros.tipoNeurodivergencia ?? "Todas",
+  ]);
+  linhas.push(["Bolsa Família", data.filtros.bolsaFamilia ?? "Todos"]);
   linhas.push(["Total de participantes", String(data.total)]);
   linhas.push([]);
 
@@ -78,13 +95,23 @@ export function exportToCSV(data: ExportData) {
 }
 
 export function exportToExcel(data: ExportData) {
-  const linhas: any[][] = [];
+  const linhas: Array<Array<string | number>> = [];
 
   linhas.push(["Relatório", "Indicadores Sociodemográficos"]);
   linhas.push(["Ano", data.filtros.ano]);
   linhas.push(["Atividade", data.filtros.atividade]);
   linhas.push(["Turma", data.filtros.turma]);
   linhas.push(["Status da matrícula", data.filtros.status]);
+  linhas.push(["Gênero", data.filtros.genero ?? "Todos"]);
+  linhas.push(["Raça/cor", data.filtros.racaCor ?? "Todas"]);
+  linhas.push(["Faixa de renda", data.filtros.faixaRenda ?? "Todas"]);
+  linhas.push(["CadÚnico", data.filtros.cadunico ?? "Todos"]);
+  linhas.push(["Tipo de deficiência", data.filtros.tipoDeficiencia ?? "Todas"]);
+  linhas.push([
+    "Tipo de neurodivergência",
+    data.filtros.tipoNeurodivergencia ?? "Todas",
+  ]);
+  linhas.push(["Bolsa Família", data.filtros.bolsaFamilia ?? "Todos"]);
   linhas.push(["Total de participantes", data.total]);
   linhas.push([]);
 
@@ -93,11 +120,7 @@ export function exportToExcel(data: ExportData) {
     linhas.push(["Categoria", "Quantidade", "Percentual"]);
 
     secao.itens.forEach((item) => {
-      linhas.push([
-        item.label,
-        item.count,
-        Number(item.percentual) / 100,
-      ]);
+      linhas.push([item.label, item.count, Number(item.percentual) / 100]);
     });
 
     linhas.push([]);
@@ -109,123 +132,4 @@ export function exportToExcel(data: ExportData) {
   XLSX.utils.book_append_sheet(workbook, worksheet, "Indicadores");
 
   XLSX.writeFile(workbook, "indicadores-sociodemograficos.xlsx");
-}
-
-export function exportToPDF(data: ExportData) {
-  const janela = window.open("", "_blank");
-
-  if (!janela) return;
-
-  const html = `
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="UTF-8" />
-        <title>Indicadores Sociodemográficos</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            padding: 32px;
-            color: #111;
-          }
-
-          h1 {
-            font-size: 22px;
-            margin-bottom: 16px;
-          }
-
-          h2 {
-            font-size: 16px;
-            margin-top: 28px;
-            margin-bottom: 10px;
-          }
-
-          .info {
-            margin-bottom: 20px;
-            font-size: 13px;
-            line-height: 1.6;
-          }
-
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 18px;
-            font-size: 12px;
-          }
-
-          th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-          }
-
-          th {
-            background: #f2f2f2;
-          }
-
-          .total {
-            font-weight: bold;
-            margin-top: 8px;
-          }
-
-          @media print {
-            body {
-              padding: 24px;
-            }
-          }
-        </style>
-      </head>
-
-      <body>
-        <h1>Indicadores Sociodemográficos</h1>
-
-        <div class="info">
-          <div><strong>Ano:</strong> ${data.filtros.ano}</div>
-          <div><strong>Atividade:</strong> ${data.filtros.atividade}</div>
-          <div><strong>Turma:</strong> ${data.filtros.turma}</div>
-          <div><strong>Status da matrícula:</strong> ${data.filtros.status}</div>
-          <div class="total"><strong>Total de participantes:</strong> ${data.total}</div>
-        </div>
-
-        ${data.indicadores
-      .map(
-        (secao) => `
-              <h2>${secao.title}</h2>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Categoria</th>
-                    <th>Quantidade</th>
-                    <th>Percentual</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${secao.itens
-            .map(
-              (item) => `
-                        <tr>
-                          <td>${item.label}</td>
-                          <td>${item.count}</td>
-                          <td>${item.percentual.toFixed(2)}%</td>
-                        </tr>
-                      `,
-            )
-            .join("")}
-                </tbody>
-              </table>
-            `,
-      )
-      .join("")}
-      </body>
-    </html>
-  `;
-
-  janela.document.open();
-  janela.document.write(html);
-  janela.document.close();
-
-  janela.onload = () => {
-    janela.focus();
-    janela.print();
-  };
 }

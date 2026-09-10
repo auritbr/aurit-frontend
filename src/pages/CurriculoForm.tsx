@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, User, GraduationCap, Sparkles, Info } from "lucide-react";
+import { User, GraduationCap, Sparkles } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
+import { BackButton } from "@/components/BackButton";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -18,6 +20,7 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { CurriculoItemList } from "@/components/CurriculoItemList";
+import { getImportConfigForPath } from "@/config/importacoes";
 import {
   cleanList,
   createCurriculo,
@@ -32,22 +35,10 @@ import {
   type CurriculoFormData,
 } from "@/data/curriculos";
 import { toast } from "sonner";
-
-const CURRICULO_NEXT_STEP_KEY = "aurit:curriculos:next-step-card";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 function salvarProximaAcaoCurriculo() {
-  const card = {
-    titulo: "Após organizar o currículo, escreva a trajetória cultural do colaborador",
-    descricao:
-      "A trajetória cultural valoriza a história, os saberes e a prática do colaborador no campo cultural, mostrando como sua atuação foi construída ao longo do tempo e quais contribuições ela gera para a cultura, a comunidade e o território.",
-    acaoLabel: "Cadastrar trajetórias",
-    acaoUrl: "/trajetorias-culturais/novo",
-    acaoSecundariaLabel: "Ver currículos",
-    acaoSecundariaUrl: "/curriculos",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(CURRICULO_NEXT_STEP_KEY, JSON.stringify(card));
+  emitJourneyNextStep();
 }
 
 function resolveNomeColaborador(dto?: CurriculoDTO | null) {
@@ -258,214 +249,217 @@ export default function CurriculoForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/curriculos")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </button>
+        <BackButton to="/curriculos" />
 
         <PageTitle
-          title="Currículo"
-          tooltip="Organize a trajetória do colaborador, reunindo formação, experiências, competências e atuações relevantes para projetos, editais e documentos institucionais."
+          title="Currículos"
+          tooltip="Nesta página é preenchido o currículo do colaborador com informações sobre formação acadêmica, atuação profissional, experiências socioculturais, atividades formativas e competências. Esses dados ajudam a demonstrar sua trajetória e experiência em projetos, editais e outras ações da organização."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/curriculos")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
+          showImport={false}
         />
 
-        <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-          <Info
-            className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"
-            strokeWidth={2.2}
-          />
-
-          <p className="text-[13px] leading-relaxed text-foreground">
-            Preencha as informações com base na{" "}
-            <span className="font-semibold">trajetória real</span> do
-            colaborador. Registre formações, experiências e atuações de forma
-            objetiva, evitando exageros ou informações que não possam ser
-            comprovadas quando necessário.
-          </p>
-        </div>
-
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={User} title="Identificação">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
-                <FieldLabel
-                  htmlFor="colaborador"
-                  required
-                  tooltip="Selecione o colaborador ao qual este currículo pertence. Cada colaborador deve possuir apenas um currículo principal no sistema."
-                >
-                  Colaborador
-                </FieldLabel>
+          <fieldset
+            disabled={visualizando}
+            className="space-y-5 border-0 p-0 disabled:opacity-100"
+          >
+            <FormSectionCard
+              icon={User}
+              title="Vínculo do currículo"
+              description="Selecione o colaborador ao qual este currículo pertence."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="colaborador"
+                    required
+                    tooltip="Informe o colaborador ao qual as experiências, formações e demais informações deste currículo se referem. Cada colaborador deve possuir apenas um currículo principal."
+                  >
+                    Colaborador
+                  </FieldLabel>
 
-                <Select
-                  value={colaboradorSelectValue}
-                  onValueChange={(v) => {
-                    if (visualizando) return;
+                  <Select
+                    value={colaboradorSelectValue}
+                    onValueChange={(v) => {
+                      if (visualizando) return;
 
-                    const colaboradorSelecionado = colaboradoresOptions.find(
-                      (c) => String(c.id) === String(v),
-                    );
+                      const colaboradorSelecionado = colaboradoresOptions.find(
+                        (c) => String(c.id) === String(v),
+                      );
 
-                    setForm((prev) => ({
-                      ...prev,
-                      colaboradorId: v,
-                      colaboradorNome:
-                        colaboradorSelecionado?.nome ??
-                        prev.colaboradorNome,
-                    }));
-                  }}
-                  disabled={bloqueado || colaboradoresOptions.length === 0}
-                >
-                  <SelectTrigger id="colaborador">
-                    <SelectValue placeholder="Selecione um colaborador" />
-                  </SelectTrigger>
+                      setForm((prev) => ({
+                        ...prev,
+                        colaboradorId: v,
+                        colaboradorNome:
+                          colaboradorSelecionado?.nome ?? prev.colaboradorNome,
+                      }));
+                    }}
+                    disabled={bloqueado || colaboradoresOptions.length === 0}
+                  >
+                    <SelectTrigger id="colaborador">
+                      <SelectValue placeholder="Selecione um colaborador" />
+                    </SelectTrigger>
 
-                  <SelectContent className="max-h-72">
-                    {colaboradoresOptions.length === 0 ? (
-                      <SelectItem value="sem-colaborador" disabled>
-                        Nenhum colaborador cadastrado
-                      </SelectItem>
-                    ) : (
-                      colaboradoresOptions.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.nome}
+                    <SelectContent className="max-h-72">
+                      {colaboradoresOptions.length === 0 ? (
+                        <SelectItem value="sem-colaborador" disabled>
+                          Nenhum colaborador cadastrado
                         </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
+                      ) : (
+                        colaboradoresOptions.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nome}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </FormSectionCard>
 
-          <Section icon={GraduationCap} title="Formação e atuação">
-            <div className="grid grid-cols-1 gap-5">
-              <Field>
-                <FieldLabel
-                  htmlFor="formacaoAcademica"
-                  tooltip="Registre as formações do colaborador, incluindo formação acadêmica, técnica, cursos livres, oficinas ou formações reconhecidas pela trajetória. Adicione cada formação separadamente, com nome da formação, instituição, grupo, mestre responsável e ano, quando houver. Ex.: Bacharel em Música – Universidade X, 2012."
-                >
-                  Formação Acadêmica
-                </FieldLabel>
+            <FormSectionCard
+              icon={GraduationCap}
+              title="Formação e atuação profissional"
+              description="Registre a formação acadêmica e as principais experiências profissionais do colaborador, começando pelas mais recentes."
+            >
+              <div className="grid grid-cols-1 gap-5">
+                <Field>
+                  <FieldLabel
+                    htmlFor="formacaoAcademica"
+                    required
+                    tooltip="Informe cada formação acadêmica separadamente, começando pela mais recente. Indique o curso ou área de formação, a instituição e, quando possível, o ano de conclusão."
+                  >
+                    Formação Acadêmica
+                  </FieldLabel>
 
-                <CurriculoItemList
-                  id="formacaoAcademica"
-                  values={form.formacaoAcademica}
-                  onChange={(v) => set("formacaoAcademica", v)}
-                  placeholder="Ex.: Bacharel em Música – Universidade X, 2012"
-                  disabled={bloqueado}
-                />
-              </Field>
+                  <CurriculoItemList
+                    id="formacaoAcademica"
+                    values={form.formacaoAcademica}
+                    onChange={(v) => set("formacaoAcademica", v)}
+                    placeholder="Ex.: Bacharelado em Música – Universidade X, 2012"
+                    disabled={bloqueado}
+                  />
+                </Field>
 
-              <Field>
-                <FieldLabel
-                  htmlFor="atuacaoProfissional"
-                  tooltip="Registre as principais atuações profissionais e culturais do colaborador. Adicione cada experiência separadamente, informando função exercida, instituição, grupo, projeto ou contexto de atuação e período. Ex.: Professor de música no Colégio X, desde 2019."
-                >
-                  Atuação Profissional
-                </FieldLabel>
+                <Field>
+                  <FieldLabel
+                    htmlFor="atuacaoProfissional"
+                    required
+                    tooltip="Informe cada experiência profissional separadamente, começando pela mais recente. Indique a função exercida, a organização ou local de atuação e o período correspondente."
+                  >
+                    Atuação Profissional
+                  </FieldLabel>
 
-                <CurriculoItemList
-                  id="atuacaoProfissional"
-                  values={form.atuacaoProfissional}
-                  onChange={(v) => set("atuacaoProfissional", v)}
-                  placeholder="Ex.: Professor de música no Colégio X, desde 2019"
-                  disabled={bloqueado}
-                />
-              </Field>
-            </div>
-          </Section>
+                  <CurriculoItemList
+                    id="atuacaoProfissional"
+                    values={form.atuacaoProfissional}
+                    onChange={(v) => set("atuacaoProfissional", v)}
+                    placeholder="Ex.: Professor de música – Colégio X, desde 2019"
+                    disabled={bloqueado}
+                  />
+                </Field>
+              </div>
+            </FormSectionCard>
 
-          <Section icon={Sparkles} title="Experiências e competências">
-            <div className="grid grid-cols-1 gap-5">
-              <Field>
-                <FieldLabel
-                  htmlFor="experienciasRelevantes"
-                  tooltip="Registre experiências importantes para demonstrar a trajetória do colaborador, mesmo que não sejam empregos formais. Inclua projetos, grupos, coletivos, espetáculos, oficinas, ações culturais, prêmios, parcerias ou participações relevantes. Ex.: Integrante de coletivo cultural com atuação em teatro e música."
-                >
-                  Experiências Relevantes
-                </FieldLabel>
+            <FormSectionCard
+              icon={Sparkles}
+              title="Experiências e competências"
+              description="Registre atuações socioculturais, atividades formativas, outras experiências relevantes e as principais habilidades desenvolvidas ao longo da trajetória do colaborador."
+            >
+              <div className="grid grid-cols-1 gap-5">
+                <Field>
+                  <FieldLabel
+                    htmlFor="atuacaoSociocultural"
+                    required
+                    tooltip="Informe cada experiência de atuação em projetos, grupos, comunidades, movimentos ou ações de caráter social e cultural, começando pelas mais recentes."
+                  >
+                    Atuação Sociocultural
+                  </FieldLabel>
 
-                <CurriculoItemList
-                  id="experienciasRelevantes"
-                  values={form.experienciasRelevantes}
-                  onChange={(v) => set("experienciasRelevantes", v)}
-                  placeholder="Ex.: Integrante de coletivo cultural"
-                  disabled={bloqueado}
-                />
-              </Field>
+                  <CurriculoItemList
+                    id="atuacaoSociocultural"
+                    values={form.atuacaoSociocultural}
+                    onChange={(v) => set("atuacaoSociocultural", v)}
+                    placeholder="Ex.: Oficinas culturais para jovens da comunidade"
+                    disabled={bloqueado}
+                  />
+                </Field>
 
-              <Field>
-                <FieldLabel
-                  htmlFor="atividadesFormativasParticipacoes"
-                  tooltip="Registre cursos, oficinas, capacitações, festivais, congressos, seminários, encontros, mostras ou eventos dos quais o colaborador participou como aluno, participante, convidado, oficineiro, palestrante ou artista. Ex.: Festival de Música e Educação – 2019."
-                >
-                  Atividades Formativas e Participações
-                </FieldLabel>
+                <Field>
+                  <FieldLabel
+                    htmlFor="atividadesFormativasParticipacoes"
+                    required
+                    tooltip="Informe cursos livres, oficinas, capacitações, seminários, congressos, festivais e outras atividades que contribuíram para a formação ou trajetória do colaborador, começando pelas mais recentes."
+                  >
+                    Atividades Formativas e Participações
+                  </FieldLabel>
 
-                <CurriculoItemList
-                  id="atividadesFormativasParticipacoes"
-                  values={form.atividadesFormativasParticipacoes}
-                  onChange={(v) =>
-                    set("atividadesFormativasParticipacoes", v)
-                  }
-                  placeholder="Ex.: Festival de Música e Educação – 2019"
-                  disabled={bloqueado}
-                />
-              </Field>
+                  <CurriculoItemList
+                    id="atividadesFormativasParticipacoes"
+                    values={form.atividadesFormativasParticipacoes}
+                    onChange={(v) =>
+                      set("atividadesFormativasParticipacoes", v)
+                    }
+                    placeholder="Ex.: Oficina de produção cultural – 2024"
+                    disabled={bloqueado}
+                  />
+                </Field>
 
-              <Field>
-                <FieldLabel
-                  htmlFor="habilidadesCompetencias"
-                  tooltip="Liste habilidades técnicas, artísticas, pedagógicas, culturais ou administrativas do colaborador. Adicione uma habilidade por item. Ex.: regência coral, produção cultural, educação musical."
-                >
-                  Habilidades e Competências
-                </FieldLabel>
+                <Field>
+                  <FieldLabel
+                    htmlFor="experienciasRelevantes"
+                    required
+                    tooltip="Informe outras experiências importantes para a trajetória do colaborador que ainda não tenham sido registradas nos campos anteriores. Cadastre cada experiência separadamente, começando pelas mais recentes."
+                  >
+                    Experiências Relevantes
+                  </FieldLabel>
 
-                <CurriculoItemList
-                  id="habilidadesCompetencias"
-                  values={form.habilidadesCompetencias}
-                  onChange={(v) => set("habilidadesCompetencias", v)}
-                  placeholder="Ex.: Regência coral"
-                  disabled={bloqueado}
-                />
-              </Field>
+                  <CurriculoItemList
+                    id="experienciasRelevantes"
+                    values={form.experienciasRelevantes}
+                    onChange={(v) => set("experienciasRelevantes", v)}
+                    placeholder="Ex.: Integrante de coletivo cultural com atuação em teatro e música"
+                    disabled={bloqueado}
+                  />
+                </Field>
 
-              <Field>
-                <FieldLabel
-                  htmlFor="atuacaoSociocultural"
-                  tooltip="Registre atuações do colaborador em ações culturais, educativas, comunitárias, sociais ou territoriais, especialmente aquelas voltadas à formação, inclusão, acesso à cultura, memória, identidade ou desenvolvimento local. Ex.: ações culturais voltadas à formação de jovens, fortalecimento comunitário, acesso à cultura ou valorização de identidades locais."
-                >
-                  Atuação Sociocultural
-                </FieldLabel>
+                <Field>
+                  <FieldLabel
+                    htmlFor="habilidadesCompetencias"
+                    required
+                    tooltip="Informe as principais habilidades e competências desenvolvidas pelo colaborador ao longo de sua formação, atuação profissional e demais experiências."
+                  >
+                    Habilidades e Competências
+                  </FieldLabel>
 
-                <CurriculoItemList
-                  id="atuacaoSociocultural"
-                  values={form.atuacaoSociocultural}
-                  onChange={(v) => set("atuacaoSociocultural", v)}
-                  placeholder="Ex.: Ações culturais voltadas à formação de jovens"
-                  disabled={bloqueado}
-                />
-              </Field>
-            </div>
-          </Section>
+                  <CurriculoItemList
+                    id="habilidadesCompetencias"
+                    values={form.habilidadesCompetencias}
+                    onChange={(v) => set("habilidadesCompetencias", v)}
+                    placeholder="Ex.: Regência coral"
+                    disabled={bloqueado}
+                  />
+                </Field>
+              </div>
+            </FormSectionCard>
+          </fieldset>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/curriculos")}
               disabled={loading}
             >
@@ -473,7 +467,13 @@ export default function CurriculoForm() {
             </Button>
 
             {!visualizando && (
-              <Button type="submit" className="sm:min-w-32" disabled={loading}>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                className="h-9 px-5"
+                disabled={loading || loadingInitialData}
+                aria-busy={loading}
+              >
                 {loading ? "Salvando..." : "Salvar"}
               </Button>
             )}
@@ -481,34 +481,10 @@ export default function CurriculoForm() {
         </form>
         <WikiFloatingButton
           pageTitle="Currículos"
-          href="https://www.aurit.com.br/wiki/trajetorias/curriculos"
+          href="/wiki/pessoas/curriculos"
         />
       </div>
     </AppLayout>
-  );
-}
-
-function Section({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: any;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
-      <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
-          {title}
-        </h2>
-      </div>
-
-      {children}
-    </Card>
   );
 }
 

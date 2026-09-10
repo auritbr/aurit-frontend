@@ -1,30 +1,37 @@
 import {
-  FileBarChart2,
   Building2,
   UserCog,
   ScrollText,
   Users,
   UsersRound,
   FolderKanban,
-  CalendarRange,
+  CalendarDays,
   GraduationCap,
   ClipboardCheck,
   Megaphone,
   ImageIcon,
   FileSignature,
+  UserRoundCog,
   FileText,
   UsersIcon,
   MessageSquare,
-  Wallet,
   PiggyBank,
   Target,
   FileCheck2,
   Boxes,
   PackageOpen,
-  BookUser,
-  Sparkles,
+  CalendarClock,
   ShieldCheck,
   Award,
+  Activity,
+  ArrowRightLeft,
+  Banknote,
+  CircleDollarSign,
+  HandCoins,
+  HeartHandshake,
+  Landmark,
+  Receipt,
+  WalletCards,
   type LucideIcon,
 } from "lucide-react";
 
@@ -39,425 +46,581 @@ export interface RelatorioCatalogoItem {
   icon: LucideIcon;
   plano: RelatorioPlano;
   tooltip: string;
-  searchPlaceholder?: string;
 }
 
 export interface RelatorioCatalogoGrupo {
   id: string;
   titulo: string;
+  descricao: string;
   itens: RelatorioCatalogoItem[];
 }
 
 export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
   {
-    id: "visao-geral",
-    titulo: "Visão Geral",
-    itens: [
-      {
-        slug: "geral",
-        title: "Relatório Geral",
-        description:
-          "Reúne os principais indicadores da organização em uma visão única, facilitando a leitura rápida da estrutura, execução, documentação, financeiro, editais, prestação de contas e patrimônio.",
-        icon: FileBarChart2,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para ter uma visão ampla da organização e identificar rapidamente o volume de cadastros, atividades, documentos, movimentações, editais e registros institucionais.",
-      },
-    ],
-  },
-  {
     id: "institucional",
     titulo: "Institucional",
+    descricao:
+      "Informações relacionadas à identificação institucional, representação, documentação e agentes culturais vinculados à organização ou iniciativa.",
     itens: [
-      {
-        slug: "organizacao",
-        title: "Dados Institucionais",
-        description:
-          "Apresenta os dados institucionais cadastrados, como razão social, CNPJ, contatos, território de atuação, histórico, endereço e classificações culturais.",
-        icon: Building2,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para revisar as informações institucionais que identificam a organização e apoiam cadastros, editais, documentos oficiais e prestações de contas.",
-        searchPlaceholder: "Buscar por razão social, CNPJ, cidade...",
-      },
+      // TODO: adicionar "Dados Institucionais" quando o relatório estiver implementado.
+
       {
         slug: "diretoria",
         title: "Diretoria",
         description:
-          "Lista os membros da diretoria, seus cargos, contatos, período de mandato, situação atual e observações registradas.",
+          "Reúne os membros cadastrados na diretoria e permite consultar seus cargos, períodos de mandato, situação, contatos e demais informações registradas.",
         icon: UserCog,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar quem representa formalmente a organização, verificar mandatos e manter dados de contato e cargos atualizados.",
-        searchPlaceholder: "Buscar por nome, cargo, status...",
+          "Use este relatório para verificar quem faz ou fez parte da diretoria, qual cargo cada pessoa ocupa ou ocupou e durante qual período esteve vinculada à administração.",
       },
       {
         slug: "documentos",
         title: "Documentos",
         description:
-          "Organiza os documentos institucionais por tipo, status, emissão, validade, órgão emissor e arquivo vinculado.",
+          "Reúne os documentos institucionais cadastrados e permite consultar seu tipo, órgão emissor, datas de emissão e validade e situação.",
         icon: ScrollText,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar a situação documental da organização, identificar documentos vencidos, pendentes ou sem arquivo e se preparar melhor para editais e habilitações.",
-        searchPlaceholder: "Buscar por tipo, status, órgão emissor...",
+          "Use este relatório para localizar documentos, acompanhar seus períodos de validade e identificar registros que precisam ser atualizados ou consultados em processos institucionais.",
       },
       {
         slug: "agentes",
         title: "Agentes Culturais",
         description:
-          "Apresenta os agentes culturais cadastrados, incluindo pessoas físicas, pessoas jurídicas, MEIs e coletivos, com dados de identificação, contato e endereço.",
+          "Reúne os agentes culturais cadastrados, sejam pessoas, organizações, MEIs ou coletivos, e apresenta suas principais informações de identificação, contato e localização.",
         icon: UsersIcon,
         plano: "pago",
         tooltip:
-          "Use este relatório para consultar os agentes culturais que podem ser vinculados a projetos, propostas, habilitações, equipes e processos institucionais.",
-        searchPlaceholder: "Buscar por nome, documento, tipo...",
+          "Use este relatório para localizar os agentes culturais registrados no sistema e consultar os dados utilizados quando eles são vinculados a projetos, propostas e outros processos.",
       },
     ],
   },
+
   {
-    id: "pessoas",
-    titulo: "Pessoas",
+    id: "pessoas-trajetorias",
+    titulo: "Pessoas e Trajetórias",
+    descricao:
+      "Informações cadastrais, de vínculo, participação e trajetória das pessoas relacionadas à organização ou iniciativa.",
     itens: [
       {
         slug: "colaboradores",
         title: "Colaboradores",
         description:
-          "Apresenta colaboradores vinculados à organização, com função, carga horária, tipo de vínculo, atuação, contatos, endereço e status.",
-        icon: UserCog,
+          "Reúne os colaboradores cadastrados e permite consultar suas funções, tipos de vínculo, períodos de atuação, carga horária, contatos e situação atual.",
+        icon: UserRoundCog,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar a equipe colaboradora, conferir vínculos ativos, funções, carga horária e dados que podem apoiar projetos, propostas e comprovação de capacidade técnica.",
-        searchPlaceholder: "Buscar por nome, função, e-mail, status...",
+          "Use este relatório para acompanhar quem trabalha ou presta serviços, identificar a função exercida e consultar como e durante qual período cada colaborador está vinculado.",
       },
       {
         slug: "integrantes",
         title: "Integrantes",
         description:
-          "Lista os integrantes formais da organização, com dados pessoais, função, entrada, saída, contatos, endereço e situação atual.",
+          "Reúne os integrantes cadastrados e permite consultar suas funções, tipos de vínculo, períodos de participação, contatos e situação.",
         icon: UsersRound,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar quem compõe formalmente a organização, verificar funções, períodos de participação e situação de cada integrante.",
-        searchPlaceholder: "Buscar por nome, função, cidade, status...",
+          "Use este relatório para acompanhar quem faz parte da organização ou iniciativa, identificar como cada integrante participa de sua atuação e consultar seus períodos e tipos de vínculo.",
       },
       {
         slug: "participantes-geral",
         title: "Participantes",
         description:
-          "Reúne participantes cadastrados, com dados pessoais, contatos, responsáveis, endereço e status de acompanhamento.",
+          "Reúne os dados cadastrais das pessoas atendidas, incluindo informações pessoais, contatos, responsáveis, endereço, documentos e situação.",
         icon: Users,
-        plano: "gratis",
-        tooltip:
-          "Use este relatório para consultar o público atendido pela organização, apoiar registros de participação e manter dados de contato, responsáveis e endereço organizados.",
-        searchPlaceholder: "Buscar por nome, CPF, cidade, bairro, status...",
-      },
-    ],
-  },
-  {
-    id: "trajetorias",
-    titulo: "Trajetórias",
-    itens: [
-      {
-        slug: "curriculos",
-        title: "Currículos",
-        description:
-          "Organiza os currículos dos colaboradores por seções, experiências, formações, competências e atuações relevantes.",
-        icon: BookUser,
         plano: "pago",
         tooltip:
-          "Use este relatório para reunir informações curriculares da equipe e fortalecer propostas, editais, portfólios institucionais e comprovação de capacidade de execução.",
-        searchPlaceholder: "Buscar por colaborador, formação, competência...",
+          "Use este relatório para consultar o cadastro do público atendido e localizar informações dos participantes e de seus responsáveis, quando houver.",
       },
-      {
-        slug: "trajetorias-culturais",
-        title: "Trajetórias Culturais",
-        description:
-          "Apresenta as trajetórias culturais registradas, destacando experiências, linguagens, vivências, aprendizados e contribuições territoriais.",
-        icon: Sparkles,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para consultar narrativas de trajetória cultural e apoiar a apresentação institucional da equipe em projetos, editais e materiais de credibilidade.",
-        searchPlaceholder: "Buscar por colaborador, área, território...",
-      },
+
+      // TODO: adicionar "Currículos" quando o relatório estiver implementado.
+      // TODO: adicionar "Trajetórias Culturais" quando o relatório estiver implementado.
     ],
   },
+
   {
-    id: "projetos",
-    titulo: "Projetos",
+    id: "projetos-planejamento",
+    titulo: "Projetos e Planejamento",
+    descricao:
+      "Informações para acompanhar o planejamento dos projetos, os resultados pretendidos e as etapas previstas para sua realização.",
     itens: [
       {
         slug: "projetos",
         title: "Projetos",
         description:
-          "Apresenta os projetos cadastrados, com objetivos, público-alvo, acessibilidade, local de execução, período, área de atuação e status.",
+          "Reúne os projetos cadastrados e permite consultar suas informações de identificação, objetivos, público, acessibilidade, local de realização, período, área de atuação e situação.",
         icon: FolderKanban,
         plano: "pago",
         tooltip:
-          "Use este relatório para consultar a carteira de projetos da organização, acompanhar dados estratégicos e verificar a situação geral de cada iniciativa.",
-        searchPlaceholder: "Buscar por nome, status, área de atuação...",
+          "Use este relatório para consultar o planejamento geral de cada projeto e acompanhar o que será realizado, quem pretende atender, onde acontecerá, durante qual período e em que situação se encontra.",
       },
       {
         slug: "metas-projeto",
         title: "Metas do Projeto",
         description:
-          "Lista as metas previstas para projetos ou propostas, com descrição, quantidade esperada, forma de comprovação e vínculo correspondente.",
+          "Reúne as metas definidas para os projetos e permite consultar o que deve ser realizado, a quantidade prevista e a forma estabelecida para comprovar seu cumprimento.",
         icon: Target,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar o que foi planejado, conferir metas previstas e organizar informações que ajudam na execução e na prestação de contas.",
-        searchPlaceholder: "Buscar por meta, projeto, proposta...",
+          "Use este relatório para verificar quais resultados foram definidos para cada projeto e como o cumprimento de cada meta deverá ser acompanhado e comprovado.",
       },
       {
         slug: "cronogramas",
         title: "Cronograma do Projeto",
         description:
-          "Organiza as etapas de cronograma vinculadas a projetos, atividades, eventos culturais e ações de divulgação.",
-        icon: CalendarRange,
+          "Reúne as etapas previstas para a execução dos projetos e permite consultar seus períodos, situação e vínculos com atividades, eventos e ações de divulgação.",
+        icon: CalendarClock,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar prazos, etapas e status do planejamento, facilitando a visualização do que precisa ser executado e quando.",
-        searchPlaceholder: "Buscar por etapa, projeto, status...",
+          "Use este relatório para acompanhar a sequência prevista do projeto, verificar quando cada etapa deve ocorrer e identificar quais ações estão relacionadas a ela.",
       },
     ],
   },
+
   {
     id: "execucao",
     titulo: "Execução",
+    descricao:
+      "Informações para acompanhar como as ações planejadas são organizadas e realizadas durante a execução dos projetos.",
     itens: [
       {
         slug: "atividades",
         title: "Atividades",
         description:
-          "Lista as atividades vinculadas aos projetos, com descrição, público beneficiado, local, período, vagas, tipo e status.",
-        icon: CalendarRange,
+          "Reúne as atividades cadastradas e permite consultar o projeto relacionado, tipo de atividade, público previsto, local, período de realização, quantidade de vagas e situação.",
+        icon: Activity,
         plano: "gratis",
         tooltip:
-          "Use este relatório para acompanhar as ações executadas ou planejadas nos projetos, conferindo local, período, público, vagas e situação de cada atividade.",
-        searchPlaceholder: "Buscar por atividade, projeto, status...",
-      },
-      {
-        slug: "planos-aula",
-        title: "Plano de Aula",
-        description:
-          "Lista os planos de aula vinculados a atividades e turmas, com conteúdo previsto, observações, período, responsável, aula de reposição e status.",
-        icon: ClipboardCheck,
-        plano: "gratis",
-        tooltip:
-          "Use este relatório para consultar o planejamento pedagógico das atividades, revisar conteúdos previstos e apoiar registros de execução.",
-        searchPlaceholder: "Buscar por atividade, turma, conteúdo...",
+          "Use este relatório para acompanhar as atividades planejadas ou realizadas e verificar a qual projeto pertencem, quando e onde acontecem e para qual público foram organizadas.",
       },
       {
         slug: "turmas",
         title: "Turmas",
         description:
-          "Apresenta as turmas criadas para as atividades, com nome, descrição, dias de realização, horários, atividade vinculada, projeto e status.",
+          "Reúne as turmas vinculadas às atividades e permite consultar seus períodos de funcionamento, horários, dias de realização, quantidade de vagas, responsáveis e situação.",
         icon: GraduationCap,
         plano: "gratis",
         tooltip:
-          "Use este relatório para organizar os grupos de atendimento, acompanhar horários e verificar a distribuição das turmas dentro das atividades.",
-        searchPlaceholder: "Buscar por turma, atividade, projeto...",
+          "Use este relatório para acompanhar como o atendimento está organizado em turmas, consultar horários e vagas e identificar quem é responsável por sua realização.",
       },
-    ],
-  },
-  {
-    id: "acoes-culturais",
-    titulo: "Ações Culturais",
-    itens: [
+      {
+        slug: "planos-aula",
+        title: "Plano de Aula",
+        description:
+          "Reúne os planos de aula vinculados às atividades e turmas e permite consultar conteúdos previstos, responsáveis, períodos de realização, reposições e situação.",
+        icon: ClipboardCheck,
+        plano: "gratis",
+        tooltip:
+          "Use este relatório para acompanhar o planejamento das aulas, identificar em qual atividade e turma cada plano será utilizado e verificar quando e por quem deverá ser realizado.",
+      },
+
+      // TODO: adicionar "Presenças" quando o relatório estiver implementado.
+
       {
         slug: "eventos-culturais",
         title: "Eventos Culturais",
         description:
-          "Lista eventos culturais vinculados aos projetos, com local, período, objetivo, acessibilidade, resultado esperado, produto gerado e status.",
-        icon: CalendarRange,
+          "Reúne os eventos culturais cadastrados e permite consultar projetos relacionados, período e local de realização, público, recursos de acessibilidade, resultados e situação.",
+        icon: CalendarDays,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar a programação cultural da organização, consultar eventos realizados ou planejados e organizar dados de execução e resultado.",
-        searchPlaceholder: "Buscar por evento, projeto, local, status...",
+          "Use este relatório para acompanhar os eventos culturais planejados ou realizados, verificar quando e onde aconteceram, quais projetos estão relacionados e quais resultados foram registrados.",
       },
     ],
   },
+
   {
     id: "evidencias",
     titulo: "Evidências",
+    descricao:
+      "Materiais registrados para demonstrar e comprovar a realização das ações desenvolvidas pela organização ou iniciativa.",
     itens: [
       {
         slug: "evidencias",
-        title: "Evidências de Execução",
+        title: "Evidências",
         description:
-          "Reúne evidências como arquivos, links, fotos, vídeos, documentos, publicações e vínculos com propostas, atividades, turmas, eventos, ações de divulgação ou presenças.",
+          "Reúne arquivos, links e outros materiais utilizados como comprovação e permite identificar a qual projeto, atividade, turma, evento, ação de divulgação ou outro registro cada evidência está vinculada.",
         icon: ImageIcon,
         plano: "pago",
         tooltip:
-          "Use este relatório para localizar e organizar comprovações de execução, facilitando relatórios institucionais, prestação de contas e demonstração de resultados.",
-        searchPlaceholder: "Buscar por título, tipo, projeto, vínculo...",
+          "Use este relatório para localizar os materiais que demonstram a realização das ações e verificar a qual parte da execução cada evidência foi relacionada.",
       },
     ],
   },
+
   {
-    id: "editais",
-    titulo: "Editais",
+    id: "editais-propostas",
+    titulo: "Editais e Propostas",
+    descricao:
+      "Informações para acompanhar oportunidades, projetos apresentados, equipes, planejamento, habilitação e resultados dos processos de seleção.",
     itens: [
       {
         slug: "editais",
         title: "Editais",
         description:
-          "Lista editais acompanhados pela organização, com nome, número, órgão responsável, datas, valores, esfera, status e observações.",
+          "Reúne os editais cadastrados e permite consultar órgãos responsáveis, esfera, períodos de inscrição, valores disponíveis e situação de cada oportunidade.",
         icon: FileSignature,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar oportunidades e processos seletivos cadastrados, verificando status, prazos, resultados e dados essenciais de cada edital.",
-        searchPlaceholder: "Buscar por nome, órgão, status...",
+          "Use este relatório para acompanhar oportunidades de interesse, consultar seus prazos e valores e verificar a situação de cada edital cadastrado.",
       },
       {
         slug: "propostas-editais",
         title: "Propostas de Edital",
         description:
-          "Apresenta propostas vinculadas a editais, com título, resumo, justificativa, metodologia, acessibilidade, impacto esperado, valores e status.",
+          "Reúne os projetos apresentados aos editais e permite consultar suas informações de planejamento, organização proponente, projeto de referência, valores solicitados, data de submissão e situação.",
         icon: FileText,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar propostas submetidas ou planejadas, consultar informações centrais do projeto e verificar vínculos com edital e projeto base.",
-        searchPlaceholder: "Buscar por título, edital, status...",
+          "Use este relatório para acompanhar os projetos preparados ou apresentados aos editais, verificar a qual oportunidade estão relacionados, quanto foi solicitado e em que situação se encontram.",
       },
       {
         slug: "equipe-edital",
         title: "Equipe da Proposta",
         description:
-          "Lista a equipe vinculada às propostas de edital, com função no projeto, carga horária, valor previsto, justificativa e mini biografia.",
+          "Reúne as pessoas vinculadas às equipes dos projetos apresentados aos editais e permite consultar suas funções, carga horária prevista, valores e informações relacionadas à experiência de cada integrante.",
         icon: UsersIcon,
         plano: "pago",
         tooltip:
-          "Use este relatório para revisar a composição da equipe das propostas, conferir funções, dedicação prevista, valores e informações úteis para editais.",
-        searchPlaceholder: "Buscar por nome, função, proposta...",
+          "Use este relatório para verificar quem compõe a equipe de cada proposta, qual função foi prevista para cada pessoa, sua dedicação e os valores relacionados à participação no projeto.",
       },
       {
         slug: "planos-comunicacao",
         title: "Plano de Comunicação",
         description:
-          "Organiza os registros do plano de comunicação, incluindo formato, quantidade, local de circulação, período, status e ação de divulgação vinculada.",
+          "Reúne os planos de comunicação vinculados aos projetos apresentados aos editais e permite consultar estratégias, públicos, períodos, quantidades previstas e situação.",
         icon: MessageSquare,
         plano: "pago",
         tooltip:
-          "Use este relatório para detalhar a comunicação prevista ou executada nas propostas, acompanhando formatos, entregas, locais de circulação e situação dos registros.",
-        searchPlaceholder: "Buscar por formato, local, status...",
+          "Use este relatório para verificar como a comunicação de cada projeto foi planejada, quais estratégias estão previstas, para quais públicos e em quais períodos deverão ser realizadas.",
       },
       {
         slug: "acoes-divulgacao",
         title: "Ações de Divulgação",
         description:
-          "Apresenta ações de divulgação vinculadas aos projetos ou propostas, com objetivo, estratégias, período, acessibilidade, produtos gerados e status.",
+          "Reúne as ações utilizadas para divulgar projetos e propostas e permite consultar sua realização, estratégias, recursos de acessibilidade, materiais produzidos, resultados e situação.",
         icon: Megaphone,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar como os projetos e propostas estão sendo comunicados, quais estratégias foram planejadas e quais materiais ou produtos foram gerados.",
-        searchPlaceholder: "Buscar por ação, estratégia, projeto...",
+          "Use este relatório para acompanhar como cada projeto está sendo divulgado, verificar os meios utilizados e consultar os materiais e resultados registrados em cada ação.",
       },
       {
         slug: "aplicacao-de-recursos",
         title: "Aplicação de Recursos",
         description:
-          "Apresenta os itens previstos para aplicação de recursos da proposta, com justificativa, quantidade, unidade de medida, valor unitário, valor total e vínculos com equipe ou edital.",
+          "Reúne os itens previstos para utilização dos recursos dos projetos apresentados aos editais e permite consultar classificação, quantidade, valores, período previsto e vínculos com integrantes da equipe.",
         icon: PiggyBank,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar a aplicação prevista dos recursos, revisar valores, justificar despesas e apoiar a coerência entre orçamento, equipe e execução.",
-        searchPlaceholder: "Buscar por item, proposta, equipe...",
-      },
-      {
-        slug: "resultados-propostas",
-        title: "Resultado da Proposta",
-        description:
-          "Apresenta os resultados das propostas inscritas em editais, com status, pontuação, relatório de avaliação e informações de recurso quando houver.",
-        icon: Award,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para acompanhar a situação final das propostas, conferir pontuação, consultar relatório de avaliação e organizar recursos interpostos.",
-        searchPlaceholder: "Buscar por proposta, edital, status, pontuação...",
+          "Use este relatório para entender como os recursos de cada proposta foram planejados, consultar os itens previstos e verificar quanto foi destinado a cada tipo de gasto.",
       },
       {
         slug: "habilitacoes-propostas",
         title: "Habilitação Documental",
         description:
-          "Organiza a etapa de habilitação documental das propostas, com agente responsável, prazos, envio de documentação, status e observações.",
+          "Reúne o acompanhamento da documentação exigida nos processos de habilitação das propostas e permite consultar responsáveis, documentos, datas de envio, situação e demais registros do processo.",
         icon: ShieldCheck,
         plano: "pago",
         tooltip:
-          "Use este relatório para controlar a fase documental após a proposta, acompanhar prazos de habilitação e reduzir riscos de pendências em editais.",
-        searchPlaceholder: "Buscar por proposta, agente, status...",
+          "Use este relatório para acompanhar os documentos exigidos em cada processo de habilitação, verificar o que foi enviado e identificar registros ou providências que ainda precisam de acompanhamento.",
+      },
+      {
+        slug: "resultados-propostas",
+        title: "Resultado da Proposta",
+        description:
+          "Reúne os resultados dos projetos apresentados aos editais e permite consultar situação, pontuação, avaliação, data do resultado e informações sobre recurso quando houver.",
+        icon: Award,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para verificar o resultado de cada proposta, consultar a avaliação recebida e acompanhar informações sobre recurso quando houver.",
       },
     ],
   },
+
   {
     id: "financeiro",
     titulo: "Financeiro",
+    descricao:
+      "Informações para acompanhar os recursos da organização ou iniciativa, desde o controle das contas até pagamentos, recebimentos, doações, movimentações e conferências bancárias.",
     itens: [
+      // TODO: adicionar "Controle Financeiro" quando o relatório estiver implementado.
+
       {
-        slug: "financeiro",
-        title: "Controle Financeiro",
+        slug: "saldos-contas-bancarias",
+        title: "Contas Bancárias",
         description:
-          "Apresenta movimentações financeiras com tipo de operação, valor, status, forma de pagamento, pessoa ou fornecedor, comprovante e vínculos com projetos, atividades, eventos ou ações.",
-        icon: Wallet,
+          "Reúne as contas bancárias cadastradas e apresenta o saldo de cada uma conforme as entradas, saídas e transferências registradas no sistema.",
+        icon: Landmark,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar receitas e despesas, verificar comprovantes, consultar vínculos financeiros e apoiar a organização de prestações de contas.",
-        searchPlaceholder: "Buscar por descrição, pessoa, documento, status...",
+          "Use este relatório para consultar as contas bancárias utilizadas pela organização e entender como os recursos estão distribuídos entre elas.",
+      },
+      {
+        slug: "fornecedores-pagamentos",
+        title: "Fornecedores",
+        description:
+          "Relaciona os fornecedores cadastrados com os pagamentos registrados para cada um deles e permite acompanhar valores, datas e informações das despesas relacionadas.",
+        icon: HandCoins,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para consultar os fornecedores cadastrados e verificar movimentações financeiras e pagamentos relacionados a cada um deles.",
+      },
+      {
+        slug: "doadores",
+        title: "Doadores",
+        description:
+          "Relaciona os doadores cadastrados com as doações registradas e permite acompanhar a quantidade de contribuições, os tipos de doação e os valores ou itens recebidos.",
+        icon: HeartHandshake,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para consultar o histórico de contribuições de cada doador e acompanhar quem tem apoiado a organização ou iniciativa por meio de doações.",
+      },
+      {
+        slug: "parceiros",
+        title: "Parceiros",
+        description:
+          "Relaciona os parceiros cadastrados com os registros financeiros vinculados às parcerias e permite consultar valores recebidos ou pagamentos realizados.",
+        icon: UsersRound,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar os parceiros e verificar quais valores recebidos ou pagos foram relacionados a cada parceria.",
+      },
+      {
+        slug: "contas-pagar",
+        title: "Contas a Pagar",
+        description:
+          "Reúne as despesas cadastradas e permite acompanhar valores, datas de vencimento, pagamentos realizados e situações pendentes ou vencidas.",
+        icon: Receipt,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para verificar o que ainda precisa ser pago, identificar despesas próximas do vencimento ou vencidas e consultar pagamentos já realizados.",
+      },
+      {
+        slug: "contas-receber",
+        title: "Contas a Receber",
+        description:
+          "Reúne as receitas cadastradas e permite acompanhar valores, datas de vencimento, recebimentos realizados e situações pendentes ou vencidas.",
+        icon: Banknote,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para verificar os valores que ainda precisam ser recebidos, identificar recebimentos próximos do vencimento ou vencidos e consultar o que já entrou.",
+      },
+      {
+        slug: "doacoes-recebidas",
+        title: "Doações",
+        description:
+          "Reúne as doações financeiras e não financeiras cadastradas e permite consultar doadores, valores ou quantidades, datas de recebimento, destinação e situação.",
+        icon: HeartHandshake,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar as doações recebidas, identificar quem realizou cada contribuição e verificar os valores, itens ou serviços e suas respectivas destinações.",
+      },
+      {
+        slug: "transferencias-bancarias",
+        title: "Transferências Bancárias",
+        description:
+          "Reúne as transferências realizadas entre contas bancárias e permite consultar conta de origem, conta de destino, data, valor, forma e situação.",
+        icon: WalletCards,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar os valores movimentados entre as próprias contas e verificar de onde cada recurso saiu e para onde foi transferido.",
+      },
+      {
+        slug: "movimentacoes-financeiras",
+        title: "Movimentações Bancárias",
+        description:
+          "Reúne as entradas e saídas registradas nas contas bancárias e permite identificar a conta movimentada, a data, o valor e a origem de cada registro.",
+        icon: ArrowRightLeft,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para consultar o histórico das movimentações bancárias e identificar a origem de cada entrada e saída registrada.",
+      },
+      {
+        slug: "conciliacao-bancaria",
+        title: "Conciliação Bancária",
+        description:
+          "Reúne as conciliações realizadas entre as movimentações registradas na Aurit e os extratos bancários e apresenta o que já foi conferido e o que ainda precisa de revisão.",
+        icon: ClipboardCheck,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar a conferência das contas bancárias e identificar movimentações que ainda precisam ser verificadas para confirmar se os registros correspondem aos extratos.",
+      },
+      {
+        slug: "fluxo-caixa",
+        title: "Fluxo de Caixa",
+        description:
+          "Relaciona as entradas e saídas já realizadas com os valores previstos para os próximos períodos e apresenta como essas movimentações alteram o saldo ao longo do tempo.",
+        icon: CircleDollarSign,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para comparar o que já entrou e saiu com os valores que ainda estão previstos e acompanhar como essas movimentações podem afetar o saldo.",
       },
     ],
   },
+
   {
     id: "prestacao-contas",
     titulo: "Prestação de Contas",
+    descricao:
+      "Informações para acompanhar a preparação das prestações de contas e demonstrar a execução dos projetos, o cumprimento das metas e os resultados alcançados.",
     itens: [
-      {
-        slug: "prestacoes-contas",
-        title: "Prestação de Contas",
-        description:
-          "Apresenta prestações de contas vinculadas a propostas, com período, datas de envio e aprovação, status, pareceres e observações gerais.",
-        icon: FileCheck2,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para acompanhar o andamento das prestações de contas, verificar prazos, status, pareceres e informações necessárias para controle institucional.",
-        searchPlaceholder: "Buscar por proposta, status, período...",
-      },
       {
         slug: "prestacoes-metas",
         title: "Cumprimento de Metas",
         description:
-          "Organiza o cumprimento das metas, comparando quantidade prevista e executada, status, justificativas e informações de comprovação.",
+          "Relaciona as metas previstas com as quantidades efetivamente realizadas e apresenta seu percentual de execução, situação de cumprimento e informações registradas para demonstrar os resultados.",
         icon: Target,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar resultados entregues, identificar metas cumpridas ou pendentes e apoiar a comprovação objetiva da execução do projeto.",
-        searchPlaceholder: "Buscar por meta, status, prestação...",
+          "Use este relatório para comparar o que foi previsto com o que foi realizado em cada meta e identificar resultados cumpridos, parcialmente cumpridos ou que ainda precisam de acompanhamento ou justificativa.",
+      },
+      {
+        slug: "prestacoes-contas",
+        title: "Prestação de Contas",
+        description:
+          "Reúne as prestações de contas cadastradas e permite consultar propostas relacionadas, responsáveis, datas de entrega, metas avaliadas, produtos apresentados, análises e situação.",
+        icon: FileCheck2,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar a preparação e a situação das prestações de contas e consultar os registros utilizados para demonstrar a execução e os resultados dos projetos.",
       },
     ],
   },
+
   {
     id: "patrimonio",
     titulo: "Patrimônio",
+    descricao:
+      "Informações para acompanhar os bens da organização ou iniciativa, suas características, situação, conservação e os empréstimos realizados.",
     itens: [
       {
         slug: "patrimonios",
-        title: "Patrimônio",
+        title: "Patrimônios",
         description:
-          "Lista bens patrimoniais cadastrados, com número de patrimônio, descrição, aquisição, valor, marca, modelo, série, nota fiscal, conservação e status.",
+          "Reúne os bens patrimoniais cadastrados e permite consultar sua identificação, características, data e valor de aquisição, estado de conservação e situação atual.",
         icon: Boxes,
         plano: "pago",
         tooltip:
-          "Use este relatório para controlar os bens da organização, acompanhar estado de conservação, documentação, valor estimado e situação de uso.",
-        searchPlaceholder: "Buscar por nome, nº patrimonial, marca, modelo...",
+          "Use este relatório para localizar os bens cadastrados, consultar suas principais características e acompanhar valor, conservação e situação atual.",
       },
       {
         slug: "emprestimos",
         title: "Empréstimos",
         description:
-          "Apresenta empréstimos de bens patrimoniais, com patrimônio vinculado, destinatário, datas, contexto de uso, estado inicial, devolução e status.",
+          "Reúne os empréstimos de bens patrimoniais e permite consultar destinatários, datas de retirada e devolução, finalidade de utilização, condições de conservação e situação.",
         icon: PackageOpen,
         plano: "pago",
         tooltip:
-          "Use este relatório para acompanhar a saída temporária de bens, identificar responsáveis, controlar devoluções e registrar a conservação antes e depois do empréstimo.",
-        searchPlaceholder: "Buscar por bem, destinatário, status...",
+          "Use este relatório para verificar quais bens foram emprestados, quem está responsável por cada um, quando devem ser devolvidos e em quais condições foram entregues ou recebidos de volta.",
+      },
+    ],
+  },
+
+  /*
+   * =============================================================
+   * RELATÓRIOS GERENCIAIS
+   *
+   * Ficam por último porque são análises transversais que cruzam
+   * informações dos módulos anteriores.
+   * =============================================================
+   */
+
+  {
+    id: "relatorios-gerenciais",
+    titulo: "Relatórios Gerenciais",
+    descricao:
+      "Análises consolidadas que relacionam informações de diferentes áreas para acompanhar o planejamento, a execução, o público atendido, os resultados e a regularidade da organização ou iniciativa.",
+    itens: [
+      {
+        slug: "geral-projetos",
+        title: "Geral de Projetos",
+        description:
+          "Reúne os projetos em uma visão consolidada, relacionando situação, período de execução, áreas de atuação, responsáveis, metas, atividades e eventos vinculados.",
+        icon: FolderKanban,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar vários projetos em conjunto, comparar o andamento de cada um e identificar o que está planejado, em execução ou concluído.",
+      },
+      {
+        slug: "execucao-atividades",
+        title: "Execução das Atividades",
+        description:
+          "Relaciona as atividades com os projetos, turmas, vagas disponíveis, participantes vinculados, registros de frequência e colaboradores envolvidos em sua realização.",
+        icon: Activity,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para verificar como as atividades estão sendo executadas, quantas pessoas estão vinculadas, quanto das vagas disponíveis está preenchido e como está a frequência dos participantes.",
+      },
+      {
+        slug: "turmas-atendimento",
+        title: "Turmas e Atendimento",
+        description:
+          "Relaciona as turmas com suas atividades, participantes, vagas disponíveis, percentual de vagas preenchidas, horários e registros de presença.",
+        icon: GraduationCap,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar o atendimento realizado em cada turma, verificar quantas vagas estão disponíveis ou preenchidas e entender como os participantes estão distribuídos entre as atividades.",
+      },
+      {
+        slug: "metas-resultados",
+        title: "Metas e Resultados",
+        description:
+          "Relaciona as metas previstas nos projetos com as quantidades executadas, o percentual alcançado, a situação de cumprimento e os registros utilizados para demonstrar os resultados.",
+        icon: Target,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para comparar o que foi planejado com o que foi realizado e identificar metas cumpridas, parcialmente cumpridas ou que ainda precisam de acompanhamento.",
+      },
+      {
+        slug: "cronograma-prazos",
+        title: "Cronograma e Prazos",
+        description:
+          "Reúne as etapas previstas nos cronogramas dos projetos e relaciona seus períodos, vínculos e situação ao longo da execução.",
+        icon: CalendarClock,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para acompanhar quando cada etapa está prevista, verificar o que já começou ou foi concluído e identificar prazos que precisam de atenção.",
+      },
+      {
+        slug: "impacto-social-cultural",
+        title: "Impacto Social e Cultural",
+        description:
+          "Relaciona informações do público atendido com sua participação nas atividades, turmas e demais ações, considerando características sociais e registros de frequência.",
+        icon: UsersRound,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para compreender quem está sendo atendido, como esse público participa das ações e qual é o alcance social e cultural da organização ou iniciativa.",
+      },
+      {
+        slug: "institucional-organizacao",
+        title: "Institucional da Organização",
+        description:
+          "Reúne informações institucionais com dados sobre a estrutura administrativa, a composição da diretoria, os cargos e os períodos de mandato registrados.",
+        icon: Building2,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para consultar em uma única visão as principais informações institucionais e, quando houver diretoria cadastrada, acompanhar quem exerce cada função e durante qual período.",
+      },
+      {
+        slug: "regularidade-documental",
+        title: "Regularidade Documental",
+        description:
+          "Reúne os documentos institucionais e permite acompanhar suas datas de emissão e validade, situação atual e demais informações registradas.",
+        icon: ShieldCheck,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para identificar documentos válidos, próximos do vencimento ou vencidos e acompanhar quais registros precisam de atualização.",
+      },
+      {
+        slug: "receitas-despesas-categoria",
+        title: "Receitas e Despesas por Categoria",
+        description:
+          "Agrupa as entradas e saídas conforme suas classificações financeiras e permite comparar quanto foi recebido ou utilizado em cada categoria.",
+        icon: PiggyBank,
+        plano: "pago",
+        tooltip:
+          "Use este relatório para entender de onde vêm os recursos e em quais tipos de despesas os valores da organização ou iniciativa estão sendo utilizados.",
       },
     ],
   },

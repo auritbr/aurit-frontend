@@ -4,12 +4,18 @@ import { Loader2 } from "lucide-react";
 
 import { getStoredUserRole, isAuthenticated } from "@/lib/auth";
 import {
+  getTipoPlanoAtual,
+  isPlanoPagoOuCortesia,
+  moduloExigePlanoPago,
+} from "@/lib/plano";
+import {
   usuarioTemPermissao,
   type AcaoPermissao,
   type ModuloPermissao,
 } from "@/lib/permissoes";
 
 import { AppLayout } from "@/components/AppLayout";
+import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 
 export interface RequiredPermission {
@@ -29,9 +35,13 @@ export default function ProtectedRouteWithPermission({
   allowedRoles,
 }: ProtectedRouteWithPermissionProps) {
   const location = useLocation();
+  const requiredModule = requiredPermission?.modulo;
+  const requiredAction = requiredPermission?.acao;
+  const allowedRolesKey = allowedRoles?.join(",") ?? "";
 
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState<boolean | null>(null);
+  const [blockedByPlan, setBlockedByPlan] = useState(false);
   const [logged, setLogged] = useState(false);
 
   useEffect(() => {
@@ -39,6 +49,7 @@ export default function ProtectedRouteWithPermission({
 
     async function verificarAcesso() {
       try {
+        setBlockedByPlan(false);
         const authenticated = isAuthenticated();
 
         if (!active) return;
@@ -52,21 +63,37 @@ export default function ProtectedRouteWithPermission({
 
         const userRole = getStoredUserRole();
 
-        if (allowedRoles && allowedRoles.length > 0) {
-          if (!userRole || !allowedRoles.includes(userRole)) {
+        const perfisPermitidos = allowedRolesKey.split(",").filter(Boolean);
+
+        if (perfisPermitidos.length > 0) {
+          if (!userRole || !perfisPermitidos.includes(userRole)) {
             setAllowed(false);
             return;
           }
         }
 
-        if (!requiredPermission) {
+        if (!requiredModule || !requiredAction) {
           setAllowed(true);
           return;
         }
 
+        if (moduloExigePlanoPago(requiredModule)) {
+          const plano = await getTipoPlanoAtual();
+
+          if (!active) return;
+
+          // Falha fechada: sem confirmação de plano pago/cortesia, o recurso
+          // restrito não é montado e nenhuma chamada da página é disparada.
+          if (!isPlanoPagoOuCortesia(plano)) {
+            setBlockedByPlan(true);
+            setAllowed(false);
+            return;
+          }
+        }
+
         const permitido = await usuarioTemPermissao(
-          requiredPermission.modulo,
-          requiredPermission.acao,
+          requiredModule,
+          requiredAction,
         );
 
         if (!active) return;
@@ -90,11 +117,7 @@ export default function ProtectedRouteWithPermission({
     return () => {
       active = false;
     };
-  }, [
-    requiredPermission?.modulo,
-    requiredPermission?.acao,
-    allowedRoles?.join(","),
-  ]);
+  }, [requiredModule, requiredAction, allowedRolesKey]);
 
   if (loading) {
     return (
@@ -112,7 +135,7 @@ export default function ProtectedRouteWithPermission({
   if (allowed === false) {
     return (
       <AppLayout>
-        <AccessNotPermitted />
+        {blockedByPlan ? <AccessNotPermitted /> : <AccessDenied />}
       </AppLayout>
     );
   }

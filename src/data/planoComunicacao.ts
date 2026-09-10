@@ -1,4 +1,3 @@
-import type { Status } from "@/components/StatusPill";
 import { getJsonHeaders } from "@/lib/apiHeaders";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
@@ -15,11 +14,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -125,20 +120,23 @@ export function estrategiasPlanoComunicacaoTexto(
 }
 
 export type StatusPlanoComunicacao =
-  | "ATIVO"
-  | "INATIVO"
-  | "PENDENTE"
-  | "CONCLUIDO";
+  | "PLANEJADO"
+  | "EM_EXECUCAO"
+  | "CONCLUIDO"
+  | "CANCELADO";
 
 export interface PlanoComunicacaoDTO {
   id?: number;
   nomePlano: string;
+  objetivoComunicacao: string;
+  publicoAlvoComunicacao: string;
   quantidade: string;
   localCirculacaoComunicacao: string;
   formatoPlanoComunicacao: string;
   dataInicio: string;
   dataFim: string;
-  status: StatusPlanoComunicacao;
+  statusPlanoComunicacao: StatusPlanoComunicacao;
+  status?: StatusPlanoComunicacao;
   estrategiasDivulgacao?: Array<EstrategiaDivulgacao | string>;
   propostaEditalId: number | null;
   nomePropostaEdital?: string | null;
@@ -150,6 +148,8 @@ export interface PlanoComunicacaoDTO {
 export interface PlanoComunicacao {
   id: string;
   nomePlano: string;
+  objetivoComunicacao: string;
+  publicoAlvoComunicacao: string;
   quantidade: string;
   localCirculacaoComunicacao: string;
   formatoPlanoComunicacao: string;
@@ -196,17 +196,17 @@ interface OrganizacaoApiResponse {
 
 export const statusPlanoComunicacaoOptions: {
   value: StatusPlanoComunicacao;
-  label: Status;
+  label: string;
 }[] = [
-    { value: "ATIVO", label: "Ativo" },
-    { value: "INATIVO", label: "Inativo" },
-    { value: "PENDENTE", label: "Pendente" },
-    { value: "CONCLUIDO", label: "Concluído" },
-  ];
+  { value: "PLANEJADO", label: "Planejado" },
+  { value: "EM_EXECUCAO", label: "Em execução" },
+  { value: "CONCLUIDO", label: "Concluído" },
+  { value: "CANCELADO", label: "Cancelado" },
+];
 
 export const statusPlanoComunicacaoLabel = (
   value?: StatusPlanoComunicacao | "" | null,
-): Status | "—" =>
+): string =>
   statusPlanoComunicacaoOptions.find((item) => item.value === value)?.label ??
   "—";
 
@@ -228,6 +228,8 @@ export function createEmptyPlanoComunicacao(): PlanoComunicacao {
   return {
     id: "",
     nomePlano: "",
+    objetivoComunicacao: "",
+    publicoAlvoComunicacao: "",
     quantidade: "",
     localCirculacaoComunicacao: "",
     formatoPlanoComunicacao: "",
@@ -243,7 +245,9 @@ export function createEmptyPlanoComunicacao(): PlanoComunicacao {
   };
 }
 
-export function mapPlanoComunicacao(dto: PlanoComunicacaoDTO): PlanoComunicacao {
+export function mapPlanoComunicacao(
+  dto: PlanoComunicacaoDTO,
+): PlanoComunicacao {
   const estrategias = Array.isArray(dto.estrategiasDivulgacao)
     ? dto.estrategiasDivulgacao
     : [];
@@ -251,12 +255,14 @@ export function mapPlanoComunicacao(dto: PlanoComunicacaoDTO): PlanoComunicacao 
   return {
     id: String(dto.id ?? ""),
     nomePlano: dto.nomePlano ?? "",
+    objetivoComunicacao: dto.objetivoComunicacao ?? "",
+    publicoAlvoComunicacao: dto.publicoAlvoComunicacao ?? "",
     quantidade: dto.quantidade ?? "",
     localCirculacaoComunicacao: dto.localCirculacaoComunicacao ?? "",
     formatoPlanoComunicacao: dto.formatoPlanoComunicacao ?? "",
     dataInicio: dto.dataInicio ?? "",
     dataFim: dto.dataFim ?? "",
-    status: dto.status ?? "",
+    status: dto.statusPlanoComunicacao ?? dto.status ?? "",
     estrategiasDivulgacao: estrategias as EstrategiaDivulgacao[],
     propostaEdital:
       dto.propostaEditalId != null ? String(dto.propostaEditalId) : "",
@@ -273,14 +279,18 @@ export function buildPlanoComunicacaoPayload(
   return {
     id: value.id ? Number(value.id) : undefined,
     nomePlano: value.nomePlano.trim(),
+    objetivoComunicacao: value.objetivoComunicacao.trim(),
+    publicoAlvoComunicacao: value.publicoAlvoComunicacao.trim(),
     quantidade: value.quantidade.trim(),
     localCirculacaoComunicacao: value.localCirculacaoComunicacao.trim(),
     formatoPlanoComunicacao: value.formatoPlanoComunicacao.trim(),
     dataInicio: value.dataInicio,
     dataFim: value.dataFim,
-    status: value.status as StatusPlanoComunicacao,
+    statusPlanoComunicacao: value.status as StatusPlanoComunicacao,
     estrategiasDivulgacao: value.estrategiasDivulgacao,
-    propostaEditalId: value.propostaEdital ? Number(value.propostaEdital) : null,
+    propostaEditalId: value.propostaEdital
+      ? Number(value.propostaEdital)
+      : null,
     organizacaoId: value.organizacao ? Number(value.organizacao) : null,
   };
 }

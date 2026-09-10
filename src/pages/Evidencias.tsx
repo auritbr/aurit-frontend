@@ -1,43 +1,50 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Search,
-  Plus,
-  Pencil,
-  Trash2,
+  CalendarDays,
   Camera,
-  ExternalLink,
-  Paperclip,
-  Eye,
-  ShieldCheck,
-  FileDown,
-  Target
+  GraduationCap,
+  Images,
+  Link2,
+  MapPin,
+  Plus,
+  RotateCcw,
+  Search,
 } from "lucide-react";
-
-import { PageInfoCard } from "@/components/PageInfoCard";
+import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
-import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { SortableTh } from "@/components/list/SortableTh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { HelpTooltip } from "@/components/HelpTooltip";
-import { TableActionIcon } from "@/components/TableActionIcon";
-import { TableCellText } from "@/components/TableCellText";
-import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { TablePagination } from "@/components/TablePagination";
-import { SortableHeader } from "@/components/SortableHeader";
-import { NextStepCard } from "@/components/NextStepCard";
-import { usePagination } from "@/hooks/usePagination";
-import { useSortableData } from "@/hooks/useSortableData";
-import { copyTableFromRef } from "@/lib/copyTableDom";
-import { isPlanoAccessDenied } from "@/lib/access";
-import { exportEvidenciaExecucaoPdf } from "@/lib/pdfExporters";
 import {
-  getPermissoesUsuarioLogadoPorModulo,
-  permissoesVazias,
-  type PermissoesModulo,
-} from "@/lib/permissoes";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FieldLabel } from "@/components/FieldLabel";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+  useSessionBoolean,
+} from "@/components/AdvancedSearchPanel";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
+import { SummaryStatCard } from "@/components/SummaryStatCard";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { usePagination } from "@/hooks/usePagination";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,816 +55,918 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { isPlanoAccessDenied } from "@/lib/access";
+import {
+  getPermissoesUsuarioLogadoPorModulo,
+  permissoesVazias,
+  type PermissoesModulo,
+} from "@/lib/permissoes";
 import {
   deleteEvidenciaExecucao,
-  getAcoesDivulgacaoOptions,
+  getAtividadesEvidenciaOptions,
   getAtividadesOptions,
-  getEvidenciasExecucao,
-  getEvidenciaArquivoDownloadUrl,
+  getEvidenciasFotograficas,
   getEventosCulturaisOptions,
-  getPresencasOptions,
+  getEventosEvidenciaOptions,
   getProjetosOptions,
-  getPropostasEditalOptions,
+  getTurmasEvidenciaOptions,
   getTurmasOptions,
-  optionName,
-  tipoEvidenciaLabel,
-  tipoVinculoLabel,
-  vinculoRelacionadoTexto,
-  type Evidencia,
+  type ContextoEvidencia,
+  type EvidenciaFotografica,
   type OptionItem,
 } from "@/data/evidencias";
-import { toast } from "sonner";
 
-type SortKey = "titulo" | "tipoEvidencia" | "tipoVinculo" | "projeto" | "vinculo";
-
-const EVIDENCIA_NEXT_STEP_KEY = "aurit:evidencias:next-step-card";
-const NEXT_STEP_DURATION_MS = 60_000;
-
-interface EvidenciaNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+const tooltip =
+  "Nesta página são registradas fotografias e links que comprovam a execução das aulas e dos eventos culturais da organização.";
+const objetivo =
+  "Registre e organize evidências de aulas e eventos culturais, mantendo cada material conectado ao projeto e ao cadastro correspondente.";
+const contextos = [
+  { value: "AULA", label: "Aula" },
+  { value: "EVENTO_CULTURAL", label: "Evento Cultural" },
+] as const;
+const sortByOptions = [
+  { value: "data", label: "Data" },
+  { value: "contexto", label: "Contexto" },
+  { value: "projeto", label: "Projeto" },
+  { value: "referencia", label: "Referência" },
+  { value: "imagens", label: "Quantidade de imagens" },
+] as const;
+type SortBy = (typeof sortByOptions)[number]["value"];
+type SortDir = "asc" | "desc";
+interface Filtros {
+  busca: string;
+  contexto: string[];
+  projeto: string[];
+  atividade: string[];
+  turma: string[];
+  evento: string[];
+  dataInicio: string;
+  dataFim: string;
+  sortBy: SortBy;
+  sortDir: SortDir;
 }
+const emptyFiltros: Filtros = {
+  busca: "",
+  contexto: [],
+  projeto: [],
+  atividade: [],
+  turma: [],
+  evento: [],
+  dataInicio: "",
+  dataFim: "",
+  sortBy: "data",
+  sortDir: "desc",
+};
+const normalize = (v: string) =>
+  v
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+const dataBR = (v?: string | null) => {
+  if (!v) return "";
+  const [a, m, d] = v.slice(0, 10).split("-");
+  return a && m && d ? `${d}/${m}/${a}` : v;
+};
+const contextoLabel = (v: ContextoEvidencia) =>
+  v === "AULA" ? "Aula" : "Evento Cultural";
+const countText = (n: number, singular: string, plural: string) =>
+  `${n} ${n === 1 ? singular : plural}`;
+const refs = (item: EvidenciaFotografica) =>
+  item.contexto === "AULA"
+    ? ([
+        item.atividade?.nome,
+        item.turma?.nome,
+        item.planoAula
+          ? `${dataBR(item.planoAula.dataInicio)} — ${item.planoAula.nome}`
+          : "",
+      ].filter(Boolean) as string[])
+    : ([item.eventoCultural?.nome, item.eventoCultural?.local].filter(
+        Boolean,
+      ) as string[]);
+const filterOption = (item: OptionItem) => ({
+  value: String(item.id),
+  label: item.nome,
+});
 
 export default function EvidenciasPage() {
   const navigate = useNavigate();
-  const tableRef = useRef<HTMLTableElement>(null);
-
-  const [search, setSearch] = useState("");
-  const [items, setItems] = useState<Evidencia[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingPermissoes, setLoadingPermissoes] = useState(true);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
-    null,
-  );
-  const [nextStepCard, setNextStepCard] =
-    useState<EvidenciaNextStepCardData | null>(null);
+  const queryClient = useQueryClient();
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
-
-  const [projetos, setProjetos] = useState<OptionItem[]>([]);
-  const [propostasEdital, setPropostasEdital] = useState<OptionItem[]>([]);
-  const [atividades, setAtividades] = useState<OptionItem[]>([]);
-  const [turmas, setTurmas] = useState<OptionItem[]>([]);
-  const [eventos, setEventos] = useState<OptionItem[]>([]);
-  const [acoes, setAcoes] = useState<OptionItem[]>([]);
-  const [presencas, setPresencas] = useState<OptionItem[]>([]);
-
-  const podeVisualizar = permissoes.VISUALIZAR;
-  const podeCriar = permissoes.CRIAR;
-  const podeEditar = permissoes.EDITAR;
-  const podeExcluir = permissoes.EXCLUIR;
-  const podeBaixar = permissoes.BAIXAR || permissoes.GERAR_PDF;
-  const podeGerarPdf = permissoes.GERAR_PDF || permissoes.BAIXAR;
+  const [loadingPermissoes, setLoadingPermissoes] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [panelOpen, setPanelOpen] = useSessionBoolean(
+    "evidencias:pesquisa-avancada",
+    false,
+  );
+  const [draft, setDraft] = useState<Filtros>(emptyFiltros);
+  const [filtros, setFiltros] = useState<Filtros>(emptyFiltros);
 
   useEffect(() => {
     let active = true;
-
-    async function carregarPermissoes() {
-      try {
-        setLoadingPermissoes(true);
-
-        const data = await getPermissoesUsuarioLogadoPorModulo("EVIDENCIAS");
-
-        if (!active) return;
-
-        setPermissoes(data);
-      } catch (error) {
-        console.error(error);
-
-        if (!active) return;
-
-        setPermissoes(permissoesVazias);
-      } finally {
-        if (active) setLoadingPermissoes(false);
-      }
-    }
-
-    void carregarPermissoes();
-
+    getPermissoesUsuarioLogadoPorModulo("EVIDENCIAS")
+      .then((p) => active && setPermissoes(p))
+      .catch(() => active && setPermissoes(permissoesVazias))
+      .finally(() => active && setLoadingPermissoes(false));
     return () => {
       active = false;
     };
   }, []);
-
+  const podeVisualizar = permissoes.VISUALIZAR;
+  const projetoFiltroId =
+    draft.projeto.length === 1 ? Number(draft.projeto[0]) : undefined;
+  const atividadeFiltroId =
+    draft.atividade.length === 1 ? Number(draft.atividade[0]) : undefined;
+  const projetosQ = useQuery({
+    queryKey: ["evidencias", "projetos"],
+    queryFn: getProjetosOptions,
+    enabled: podeVisualizar,
+    retry: false,
+  });
+  const atividadesQ = useQuery({
+    queryKey: ["evidencias", "atividades", "filtro", projetoFiltroId],
+    queryFn: () =>
+      projetoFiltroId
+        ? getAtividadesEvidenciaOptions(projetoFiltroId)
+        : getAtividadesOptions(),
+    enabled: podeVisualizar && panelOpen,
+    retry: false,
+  });
+  const turmasQ = useQuery({
+    queryKey: ["evidencias", "turmas", "filtro", atividadeFiltroId],
+    queryFn: () =>
+      atividadeFiltroId
+        ? getTurmasEvidenciaOptions(atividadeFiltroId)
+        : getTurmasOptions(),
+    enabled: podeVisualizar && panelOpen,
+    retry: false,
+  });
+  const eventosQ = useQuery({
+    queryKey: ["evidencias", "eventos", "filtro", projetoFiltroId],
+    queryFn: () =>
+      projetoFiltroId
+        ? getEventosEvidenciaOptions(projetoFiltroId)
+        : getEventosCulturaisOptions(),
+    enabled: podeVisualizar && panelOpen,
+    retry: false,
+  });
+  const evidenciasQ = useQuery({
+    queryKey: ["evidencias", "fotograficas", filtros],
+    queryFn: () =>
+      getEvidenciasFotograficas({
+        contexto:
+          filtros.contexto.length === 1
+            ? (filtros.contexto[0] as ContextoEvidencia)
+            : undefined,
+        projetoId:
+          filtros.projeto.length === 1 ? Number(filtros.projeto[0]) : undefined,
+        atividadeId:
+          filtros.atividade.length === 1
+            ? Number(filtros.atividade[0])
+            : undefined,
+        turmaId:
+          filtros.turma.length === 1 ? Number(filtros.turma[0]) : undefined,
+        eventoCulturalId:
+          filtros.evento.length === 1 ? Number(filtros.evento[0]) : undefined,
+        dataInicio: filtros.dataInicio || undefined,
+        dataFim: filtros.dataFim || undefined,
+      }),
+    enabled: podeVisualizar,
+    retry: false,
+  });
   useEffect(() => {
-    const raw = sessionStorage.getItem(EVIDENCIA_NEXT_STEP_KEY);
+    const error = evidenciasQ.error ?? projetosQ.error;
+    if (!error) return;
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Não foi possível carregar as evidências.";
+    if (isPlanoAccessDenied(message)) setAccessDenied(true);
+    else toast.error(message);
+  }, [evidenciasQ.error, projetosQ.error]);
 
-    if (!raw) return;
+  const projetos = projetosQ.data ?? [];
+  const atividades = atividadesQ.data ?? [];
+  const turmas = turmasQ.data ?? [];
+  const eventos = eventosQ.data ?? [];
+  const contextoOptions = contextos.map((c) => ({ ...c }));
+  const projetoOptions = projetos.map(filterOption);
+  const atividadeOptions = atividades.map(filterOption);
+  const turmaOptions = turmas.map(filterOption);
+  const eventoOptions = eventos.map(filterOption);
 
-    try {
-      const parsed = JSON.parse(raw) as EvidenciaNextStepCardData;
-      setNextStepCard(parsed);
-    } catch {
-      setNextStepCard(null);
-    }
-
-    sessionStorage.removeItem(EVIDENCIA_NEXT_STEP_KEY);
-
-    const timer = window.setTimeout(() => {
-      setNextStepCard(null);
-    }, NEXT_STEP_DURATION_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (loadingPermissoes) return;
-
-    if (!podeVisualizar) {
-      setLoading(false);
-      return;
-    }
-
-    void carregarDados();
-  }, [loadingPermissoes, podeVisualizar]);
-
-  async function carregarDados() {
-    try {
-      setLoading(true);
-      setAccessDeniedMessage(null);
-
-      const [
-        evidenciasData,
-        projetosData,
-        propostasEditalData,
-        atividadesData,
-        turmasData,
-        eventosData,
-        acoesData,
-        presencasData,
-      ] = await Promise.all([
-        getEvidenciasExecucao(),
-        getProjetosOptions(),
-        getPropostasEditalOptions(),
-        getAtividadesOptions(),
-        getTurmasOptions(),
-        getEventosCulturaisOptions(),
-        getAcoesDivulgacaoOptions(),
-        getPresencasOptions(),
-      ]);
-
-      setItems(evidenciasData);
-      setProjetos(projetosData);
-      setPropostasEdital(propostasEditalData);
-      setAtividades(atividadesData);
-      setTurmas(turmasData);
-      setEventos(eventosData);
-      setAcoes(acoesData);
-      setPresencas(presencasData);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Erro ao carregar evidências.";
-
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        return;
+  const setDraftField = <K extends keyof Filtros>(key: K, value: Filtros[K]) =>
+    setDraft((prev) => {
+      const next = { ...prev, [key]: value } as Filtros;
+      if (key === "projeto") {
+        next.atividade = [];
+        next.turma = [];
+        next.evento = [];
       }
-
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const filtered = useMemo(() => {
-    const term = search.toLowerCase().trim();
-
-    if (!term) return items;
-
-    return items.filter((item) => {
-      const projeto = optionName(projetos, item.projeto);
-      const propostaEdital = optionName(propostasEdital, item.propostaEdital);
-
-      const vinculo = vinculoRelacionadoTexto(item, {
-        propostasEdital,
-        atividades,
-        turmas,
-        eventos,
-        acoes,
-        presencas,
-      });
-
-      return [
-        item.tituloEvidencia,
-        tipoEvidenciaLabel(item.tipoEvidencia),
-        tipoVinculoLabel(item.tipoVinculoEvidencia),
-        projeto,
-        propostaEdital,
-        vinculo,
-        item.observacaoEvidencia,
-        item.urlPublicacao,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(term);
+      if (key === "atividade") next.turma = [];
+      return next;
     });
-  }, [
-    search,
-    items,
-    projetos,
-    propostasEdital,
-    atividades,
-    turmas,
-    eventos,
-    acoes,
-    presencas,
-  ]);
-
-
-  const { sortConfig, sortedItems, handleSort } = useSortableData(
-    filtered,
-    (item, key: SortKey) => {
-      switch (key) {
-        case "titulo":
-          return item.tituloEvidencia?.trim() || "(Sem título)";
-        case "tipoEvidencia":
-          return tipoEvidenciaLabel(item.tipoEvidencia);
-        case "tipoVinculo":
-          return tipoVinculoLabel(item.tipoVinculoEvidencia);
-        case "projeto":
-          return optionName(projetos, item.projeto);
-        case "vinculo":
-          return vinculoRelacionadoTexto(item, {
-            propostasEdital,
-            atividades,
-            turmas,
-            eventos,
-            acoes,
-            presencas,
-          });
-        default:
-          return "";
-      }
-    },
-  );
-
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sortedItems, 25, search);
-
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
-
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
-    }
-
-    toast.success("Dados copiados com sucesso.");
+  const apply = (next: Filtros) => {
+    setDraft(next);
+    setFiltros(next);
+    setCurrentPage(1);
   };
-
-  async function handleDelete() {
-    if (!confirmDelete) return;
-
-    if (!podeExcluir) {
-      toast.error("Você não possui permissão para remover evidências.");
+  const filtered = useMemo(() => {
+    const search = normalize(filtros.busca);
+    const base = (evidenciasQ.data ?? []).filter((item) => {
+      if (
+        search &&
+        !normalize(
+          `${contextoLabel(item.contexto)} ${item.projeto?.nome ?? ""} ${refs(item).join(" ")} ${item.descricao ?? ""}`,
+        ).includes(search)
+      )
+        return false;
+      if (filtros.contexto.length && !filtros.contexto.includes(item.contexto))
+        return false;
+      if (
+        filtros.projeto.length &&
+        !filtros.projeto.includes(String(item.projeto?.id))
+      )
+        return false;
+      if (
+        filtros.atividade.length &&
+        !filtros.atividade.includes(String(item.atividade?.id))
+      )
+        return false;
+      if (
+        filtros.turma.length &&
+        !filtros.turma.includes(String(item.turma?.id))
+      )
+        return false;
+      if (
+        filtros.evento.length &&
+        !filtros.evento.includes(String(item.eventoCultural?.id))
+      )
+        return false;
+      return true;
+    });
+    const value = (item: EvidenciaFotografica): string | number =>
+      filtros.sortBy === "contexto"
+        ? contextoLabel(item.contexto)
+        : filtros.sortBy === "projeto"
+          ? (item.projeto?.nome ?? "")
+          : filtros.sortBy === "referencia"
+            ? refs(item).join(" ")
+            : filtros.sortBy === "imagens"
+              ? item.quantidadeImagens
+              : (item.dataReferencia ?? "");
+    return [...base].sort((a, b) => {
+      const x = value(a);
+      const y = value(b);
+      const c =
+        typeof x === "number" && typeof y === "number"
+          ? x - y
+          : String(x).localeCompare(String(y), "pt-BR", {
+              sensitivity: "base",
+            });
+      return filtros.sortDir === "asc" ? c : -c;
+    });
+  }, [evidenciasQ.data, filtros]);
+  const stats = useMemo(
+    () => ({
+      total: filtered.length,
+      imagens: filtered.reduce((s, i) => s + i.quantidadeImagens, 0),
+      aulas: new Set(
+        filtered
+          .filter((i) => i.contexto === "AULA")
+          .map((i) => i.planoAula?.id),
+      ).size,
+      eventos: new Set(
+        filtered
+          .filter((i) => i.contexto === "EVENTO_CULTURAL")
+          .map((i) => i.eventoCultural?.id),
+      ).size,
+    }),
+    [filtered],
+  );
+  const optionsByKey = {
+    contexto: contextoOptions,
+    projeto: projetoOptions,
+    atividade: atividadeOptions,
+    turma: turmaOptions,
+    evento: eventoOptions,
+  };
+  const activeFilters = (() => {
+    const list: ActiveFilterItem[] = [];
+    if (filtros.busca.trim())
+      list.push({
+        id: "busca",
+        label: "Pesquisa",
+        value: filtros.busca.trim(),
+        onRemove: () => apply({ ...filtros, busca: "" }),
+      });
+    (Object.keys(optionsByKey) as Array<keyof typeof optionsByKey>).forEach(
+      (key) =>
+        filtros[key].forEach((v) =>
+          list.push({
+            id: `${key}-${v}`,
+            label:
+              key === "evento"
+                ? "Evento cultural"
+                : `${key[0].toUpperCase()}${key.slice(1)}`,
+            value: optionsByKey[key].find((o) => o.value === v)?.label ?? v,
+            onRemove: () =>
+              apply({ ...filtros, [key]: filtros[key].filter((x) => x !== v) }),
+          }),
+        ),
+    );
+    if (filtros.dataInicio || filtros.dataFim)
+      list.push({
+        id: "periodo",
+        label: "Período",
+        value: `${dataBR(filtros.dataInicio) || "início"} até ${dataBR(filtros.dataFim) || "hoje"}`,
+        onRemove: () => apply({ ...filtros, dataInicio: "", dataFim: "" }),
+      });
+    return list;
+  })() satisfies ActiveFilterItem[];
+  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
+    usePagination(filtered, 25, JSON.stringify(filtros));
+  const toggleSort = (key: SortBy) =>
+    apply({
+      ...filtros,
+      sortBy: key,
+      sortDir:
+        filtros.sortBy === key && filtros.sortDir === "asc" ? "desc" : "asc",
+    });
+  const excluir = useMutation({
+    mutationFn: deleteEvidenciaExecucao,
+    onSuccess: async () => {
       setConfirmDelete(null);
-      return;
-    }
-
-    try {
-      await deleteEvidenciaExecucao(Number(confirmDelete));
-
-      setItems((prev) => prev.filter((item) => item.id !== confirmDelete));
-      toast.success("Evidência removida com sucesso.");
-      setConfirmDelete(null);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Erro ao remover evidência.";
-
-      if (isPlanoAccessDenied(message)) {
-        setAccessDeniedMessage(message);
-        setConfirmDelete(null);
-        return;
-      }
-
-      toast.error(message);
-    }
-  }
-
-  async function handleAbrirArquivo(item: Evidencia) {
-    if (!podeBaixar) {
-      toast.error("Você não possui permissão para abrir arquivos de evidências.");
-      return;
-    }
-
-    if (!item.urlArquivo) {
-      toast.info("Nenhum arquivo disponível para esta evidência.");
-      return;
-    }
-
-    try {
-      const urlTemporaria = await getEvidenciaArquivoDownloadUrl(Number(item.id));
-      window.open(urlTemporaria, "_blank");
-    } catch (error) {
+      toast.success("Evidência excluída com sucesso.");
+      await queryClient.invalidateQueries({ queryKey: ["evidencias"] });
+    },
+    onError: (e) =>
       toast.error(
-        error instanceof Error ? error.message : "Erro ao abrir arquivo.",
-      );
-    }
-  }
-
-  async function handleExportPdf(item: Evidencia) {
-    if (!podeGerarPdf) {
-      toast.error("Você não possui permissão para gerar PDF.");
-      return;
-    }
-
-    const projeto = optionName(projetos, item.projeto);
-
-    const vinculoRelacionado = vinculoRelacionadoTexto(item, {
-      propostasEdital,
-      atividades,
-      turmas,
-      eventos,
-      acoes,
-      presencas,
-    });
-
-    await exportEvidenciaExecucaoPdf({
-      id: item.id,
-      tituloEvidencia: item.tituloEvidencia?.trim() || "(Sem título)",
-      observacaoEvidencia: item.observacaoEvidencia,
-
-      urlArquivo: item.urlArquivo
-        ? await getEvidenciaArquivoDownloadUrl(Number(item.id))
-        : "",
-      urlPublicacao: item.urlPublicacao,
-
-      tipoEvidencia: tipoEvidenciaLabel(item.tipoEvidencia),
-
-      projeto,
-
-      tipoVinculoEvidencia: tipoVinculoLabel(item.tipoVinculoEvidencia),
-      vinculoRelacionado,
-
-      propostaEdital: optionName(propostasEdital, item.propostaEdital),
-      atividade: optionName(atividades, item.atividade),
-      turma: optionName(turmas, item.turma),
-      eventoCultural: optionName(eventos, item.eventoCultural),
-      acaoDivulgacao: optionName(acoes, item.acaoDivulgacao),
-      presenca: optionName(presencas, item.presenca),
-    });
-  }
-
-  if (!podeVisualizar) {
+        e instanceof Error
+          ? e.message
+          : "Não foi possível excluir a evidência.",
+      ),
+  });
+  const exportColumns = [
+    { header: "Contexto", key: "contexto" },
+    { header: "Projeto", key: "projeto" },
+    { header: "Referência", key: "referencia" },
+    { header: "Data", key: "data" },
+    { header: "Imagens", key: "imagens" },
+    { header: "Links", key: "links" },
+  ];
+  const getExportData = () =>
+    filtered.map((i) => ({
+      contexto: contextoLabel(i.contexto),
+      projeto: i.projeto?.nome ?? "—",
+      referencia: refs(i).join(" · "),
+      data: dataBR(i.dataReferencia) || "—",
+      imagens: i.quantidadeImagens,
+      links: i.quantidadeLinks,
+    }));
+  const inputClass =
+    "h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm";
+  if (loadingPermissoes)
+    return (
+      <AppLayout>
+        <div className="container py-12 text-center text-sm text-muted-foreground">
+          Carregando...
+        </div>
+      </AppLayout>
+    );
+  if (!podeVisualizar)
     return (
       <AppLayout>
         <AccessNotPermitted />
       </AppLayout>
     );
-  }
-
-  if (accessDeniedMessage) {
+  if (accessDenied)
     return (
       <AppLayout>
         <AccessDenied />
       </AppLayout>
     );
-  }
 
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
-        <PageTitle
-          title="Evidências de Execução"
-          tooltip="Registre e organize evidências da execução do projeto e da proposta de edital, como fotos, vídeos, listas de presença, relatórios, materiais gráficos, documentos e links de publicações. Vincule cada evidência ao item que ela comprova para facilitar relatórios, comprovações e prestação de contas."
-        />
-
-        {nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
-        )}
-
-        <PageInfoCard
-          description="Registre aqui fotos, vídeos, listas de presença, documentos, materiais
-          gráficos e links que comprovem a execução das ações do projeto. Sempre
-          vincule cada evidência ao item correspondente, como proposta de edital,
-          atividade, turma, presença, evento cultural ou ação de divulgação."
-          icon={Target}
-        />
-
-        <div className="rounded border border-border bg-card">
-          <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-            <div className="relative max-w-md flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className="h-9 pl-9"
-                aria-label="Buscar evidência"
-              />
-            </div>
-
-            {podeCriar && (
+        <ListPageHeader
+          title="Evidências"
+          tooltip={tooltip}
+          objective={objetivo}
+          actions={
+            permissoes.CRIAR ? (
               <Button
+                variant="glassPrimary"
+                className="h-9 gap-2 px-4"
                 onClick={() => navigate("/evidencias/novo")}
-                className="h-9 gap-2 self-start"
-                disabled={loading}
               >
                 <Plus className="h-4 w-4" />
-                Cadastrar Evidência
+                Nova evidência
               </Button>
-            )}
-          </div>
-
-          <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[1320px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    data-no-copy
-                  >
-                    Ações
-                  </th>
-
-                  <SortableHeader
-                    label="Título"
-                    sortKey="titulo"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Tipo de evidência"
-                    sortKey="tipoEvidencia"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Tipo de vínculo"
-                    sortKey="tipoVinculo"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Projeto"
-                    sortKey="projeto"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Vínculo relacionado"
-                    sortKey="vinculo"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <th
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    data-no-copy
-                  >
-                    Arquivo
-                  </th>
-
-                  <th
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    data-no-copy
-                  >
-                    Link da publicação
-                  </th>
-
-                  {podeGerarPdf && (
-                    <th
-                      className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy
-                    >
-                      Documento
-                    </th>
-                  )}
-                </tr>
-              </thead>
-
-              <tbody>
-                {paginated.map((item) => {
-                  const titulo =
-                    item.tituloEvidencia?.trim() || "(Sem título)";
-                  const projeto = optionName(projetos, item.projeto);
-                  const vinculo = vinculoRelacionadoTexto(item, {
-                    propostasEdital,
-                    atividades,
-                    turmas,
-                    eventos,
-                    acoes,
-                    presencas,
-                  });
-
-                  return (
-                    <tr
-                      key={item.id}
-                      className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                    >
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <div className="flex items-center gap-1">
-                          <TableActionIcon
-                            icon={Eye}
-                            label="Visualizar"
-                            onClick={() => navigate(`/evidencias/${item.id}`)}
-                          />
-
-                          {podeEditar && (
-                            <TableActionIcon
-                              icon={Pencil}
-                              label="Editar"
-                              onClick={() =>
-                                navigate(`/evidencias/${item.id}/editar`)
-                              }
-                            />
-                          )}
-
-                          {podeExcluir && (
-                            <TableActionIcon
-                              icon={Trash2}
-                              label="Excluir"
-                              variant="danger"
-                              onClick={() => setConfirmDelete(item.id)}
-                            />
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={titulo} bold>
-                          {titulo}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText
-                          text={tipoEvidenciaLabel(item.tipoEvidencia)}
-                          muted
-                        >
-                          {tipoEvidenciaLabel(item.tipoEvidencia)}
-                        </TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <TableCellText
-                          text={tipoVinculoLabel(item.tipoVinculoEvidencia)}
-                          muted
-                        >
-                          {tipoVinculoLabel(item.tipoVinculoEvidencia)}
-                        </TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={projeto} muted>
-                          {projeto}
-                        </TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={vinculo}>{vinculo}</TableCellText>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        {podeBaixar && item.urlArquivo ? (
-                          <button
-                            type="button"
-                            onClick={() => void handleAbrirArquivo(item)}
-                            className="inline-flex items-center gap-1.5 text-[13px] text-primary hover:underline"
-                          >
-                            <Paperclip className="h-3.5 w-3.5" />
-                            Ver arquivo
-                          </button>
-                        ) : (
-                          <span className="text-[13px] text-muted-foreground">
-                            —
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        {podeBaixar && item.urlPublicacao ? (
-                          <a
-                            href={item.urlPublicacao}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-[13px] text-primary hover:underline"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                            Abrir link
-                          </a>
-                        ) : (
-                          <span className="text-[13px] text-muted-foreground">
-                            —
-                          </span>
-                        )}
-                      </td>
-
-                      {podeGerarPdf && (
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void handleExportPdf(item)}
-                            className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                          >
-                            <FileDown className="h-3.5 w-3.5" />
-                            Gerar ficha
-                          </Button>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-
-                {paginated.length === 0 && (
-                  <EmptyRow colspan={podeGerarPdf ? 9 : 8} />
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="divide-y divide-border md:hidden">
-            {paginated.length === 0 ? (
-              <div className="p-10 text-center">
-                <Camera className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nenhuma evidência encontrada.
-                </p>
-              </div>
-            ) : (
-              paginated.map((item) => {
-                const vinculo = vinculoRelacionadoTexto(item, {
-                  propostasEdital,
-                  atividades,
-                  turmas,
-                  eventos,
-                  acoes,
-                  presencas,
-                });
-
-                return (
-                  <div key={item.id} className="p-4">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1">
-                        <TableActionIcon
-                          icon={Eye}
-                          label="Visualizar"
-                          onClick={() => navigate(`/evidencias/${item.id}`)}
-                        />
-
-                        {podeEditar && (
-                          <TableActionIcon
-                            icon={Pencil}
-                            label="Editar"
-                            onClick={() =>
-                              navigate(`/evidencias/${item.id}/editar`)
-                            }
-                          />
-                        )}
-
-                        {podeExcluir && (
-                          <TableActionIcon
-                            icon={Trash2}
-                            label="Excluir"
-                            variant="danger"
-                            onClick={() => setConfirmDelete(item.id)}
-                          />
-                        )}
-                      </div>
-
-                      {podeGerarPdf && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleExportPdf(item)}
-                          className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                        >
-                          <FileDown className="h-3.5 w-3.5" />
-                          PDF
-                        </Button>
-                      )}
-                    </div>
-
-                    <p className="font-medium text-foreground">
-                      {item.tituloEvidencia?.trim() || "(Sem título)"}
-                    </p>
-
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {tipoEvidenciaLabel(item.tipoEvidencia)} ·{" "}
-                      {tipoVinculoLabel(item.tipoVinculoEvidencia)}
-                    </p>
-
-                    <p className="mt-2 text-sm text-foreground">
-                      {optionName(projetos, item.projeto)}
-                    </p>
-
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Vínculo: {vinculo}
-                    </p>
-
-                    <div className="mt-2 flex flex-wrap gap-3 text-xs">
-                      {podeBaixar && item.urlArquivo && (
-                        <button
-                          type="button"
-                          onClick={() => void handleAbrirArquivo(item)}
-                          className="inline-flex items-center gap-1 text-primary hover:underline"
-                        >
-                          <Paperclip className="h-3.5 w-3.5" />
-                          Arquivo
-                        </button>
-                      )}
-
-                      {podeBaixar && item.urlPublicacao && (
-                        <a
-                          href={item.urlPublicacao}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          Publicação
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          <TablePagination
-            totalItems={sortedItems.length}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            onCopy={handleCopy}
+            ) : undefined
+          }
+        />
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <SummaryStatCard
+            title="Evidências registradas"
+            value={stats.total}
+            icon={Camera}
+          />
+          <SummaryStatCard
+            title="Registros fotográficos"
+            value={stats.imagens}
+            icon={Images}
+            variant="info"
+          />
+          <SummaryStatCard
+            title="Aulas com evidências"
+            value={stats.aulas}
+            icon={GraduationCap}
+            variant="success"
+          />
+          <SummaryStatCard
+            title="Eventos com evidências"
+            value={stats.eventos}
+            icon={MapPin}
+            variant="warning"
           />
         </div>
+        <div className="space-y-4">
+          <AdvancedSearchPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            activeCount={activeFilters.length}
+          >
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                apply(draft);
+              }}
+            >
+              <SearchFilterGrid>
+                <Field id="filtroBusca" label="Pesquisa">
+                  <Input
+                    id="filtroBusca"
+                    value={draft.busca}
+                    onChange={(e) => setDraftField("busca", e.target.value)}
+                    placeholder="Projeto, atividade, turma, evento ou descrição"
+                    className={inputClass}
+                  />
+                </Field>
+                <Multi
+                  id="filtroContexto"
+                  label="Contexto"
+                  options={contextoOptions}
+                  value={draft.contexto}
+                  onChange={(v) => setDraftField("contexto", v)}
+                  placeholder="Todos os contextos"
+                />
+                <Multi
+                  id="filtroProjeto"
+                  label="Projeto"
+                  options={projetoOptions}
+                  value={draft.projeto}
+                  onChange={(v) => setDraftField("projeto", v)}
+                  placeholder={
+                    projetosQ.isLoading
+                      ? "Carregando projetos..."
+                      : "Todos os projetos"
+                  }
+                />
+                <Multi
+                  id="filtroAtividade"
+                  label="Atividade"
+                  options={atividadeOptions}
+                  value={draft.atividade}
+                  onChange={(v) => setDraftField("atividade", v)}
+                  placeholder={
+                    atividadesQ.isLoading
+                      ? "Carregando atividades..."
+                      : "Todas as atividades"
+                  }
+                />
+                <Multi
+                  id="filtroTurma"
+                  label="Turma"
+                  options={turmaOptions}
+                  value={draft.turma}
+                  onChange={(v) => setDraftField("turma", v)}
+                  placeholder={
+                    turmasQ.isLoading
+                      ? "Carregando turmas..."
+                      : "Todas as turmas"
+                  }
+                />
+                <Multi
+                  id="filtroEvento"
+                  label="Evento cultural"
+                  options={eventoOptions}
+                  value={draft.evento}
+                  onChange={(v) => setDraftField("evento", v)}
+                  placeholder={
+                    eventosQ.isLoading
+                      ? "Carregando eventos..."
+                      : "Todos os eventos"
+                  }
+                />
+                <Field id="filtroDataInicio" label="Período — de">
+                  <Input
+                    id="filtroDataInicio"
+                    type="date"
+                    value={draft.dataInicio}
+                    onChange={(e) =>
+                      setDraftField("dataInicio", e.target.value)
+                    }
+                    className={inputClass}
+                  />
+                </Field>
+                <Field id="filtroDataFim" label="Período — até">
+                  <Input
+                    id="filtroDataFim"
+                    type="date"
+                    value={draft.dataFim}
+                    onChange={(e) => setDraftField("dataFim", e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field id="filtroSortBy" label="Ordenar por">
+                  <Select
+                    value={draft.sortBy}
+                    onValueChange={(v) => setDraftField("sortBy", v as SortBy)}
+                  >
+                    <SelectTrigger id="filtroSortBy" className={inputClass}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortByOptions.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field id="filtroSortDir" label="Ordem">
+                  <Select
+                    value={draft.sortDir}
+                    onValueChange={(v) =>
+                      setDraftField("sortDir", v as SortDir)
+                    }
+                  >
+                    <SelectTrigger id="filtroSortDir" className={inputClass}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">Crescente</SelectItem>
+                      <SelectItem value="desc">Decrescente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </SearchFilterGrid>
+              <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 gap-2 px-4"
+                  onClick={() => apply(emptyFiltros)}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Limpar filtros
+                </Button>
+                <Button
+                  type="submit"
+                  variant="glassPrimary"
+                  className="h-9 gap-2 px-5"
+                  disabled={evidenciasQ.isFetching}
+                >
+                  <Search className="h-4 w-4" />
+                  {evidenciasQ.isFetching ? "Pesquisando..." : "Pesquisar"}
+                </Button>
+              </div>
+            </form>
+          </AdvancedSearchPanel>
+          <ActiveFilters
+            items={activeFilters}
+            onClearAll={() => apply(emptyFiltros)}
+          />
+          <DataTableCard>
+            <DataTableToolbar
+              total={filtered.length}
+              reportTo="/relatorios/evidencias"
+              exportColumns={exportColumns}
+              getExportData={getExportData}
+              exportFilename="evidencias-de-execucao"
+              canExport={permissoes.BAIXAR || permissoes.GERAR_PDF}
+            />
+            {evidenciasQ.isLoading ? (
+              <div className="px-6 py-12 text-center text-sm text-muted-foreground">
+                Carregando evidências...
+              </div>
+            ) : !filtered.length ? (
+              <Empty
+                filtered={!!activeFilters.length}
+                onCreate={
+                  permissoes.CRIAR
+                    ? () => navigate("/evidencias/novo")
+                    : undefined
+                }
+              />
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border/60 bg-muted/45">
+                        <th className="w-[110px] px-5 py-2.5 text-left text-[11px] font-semibold uppercase text-muted-foreground">
+                          Ações
+                        </th>
+                        {(
+                          [
+                            "contexto",
+                            "projeto",
+                            "referencia",
+                            "data",
+                            "imagens",
+                          ] as SortBy[]
+                        ).map((k) => (
+                          <SortableTh
+                            key={k}
+                            sortKey={k}
+                            activeKey={filtros.sortBy}
+                            dir={filtros.sortDir}
+                            onSort={toggleSort}
+                          >
+                            {k === "referencia"
+                              ? "Referência"
+                              : k === "imagens"
+                                ? "Imagens"
+                                : `${k[0].toUpperCase()}${k.slice(1)}`}
+                          </SortableTh>
+                        ))}
+                        <th className="px-5 py-2.5 text-left text-[11px] font-semibold uppercase text-muted-foreground">
+                          Links
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginated.map((i) => (
+                        <DesktopRow
+                          key={i.id}
+                          item={i}
+                          navigate={navigate}
+                          edit={permissoes.EDITAR}
+                          remove={
+                            permissoes.EXCLUIR ? setConfirmDelete : undefined
+                          }
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="divide-y divide-border md:hidden">
+                  {paginated.map((i) => (
+                    <MobileRow
+                      key={i.id}
+                      item={i}
+                      navigate={navigate}
+                      edit={permissoes.EDITAR}
+                      remove={permissoes.EXCLUIR ? setConfirmDelete : undefined}
+                    />
+                  ))}
+                </div>
+                <DataTablePagination
+                  totalItems={filtered.length}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  entityLabel="evidência"
+                  entityLabelPlural="evidências"
+                />
+              </>
+            )}
+          </DataTableCard>
+        </div>
       </div>
-
       <AlertDialog
-        open={!!confirmDelete}
-        onOpenChange={(open) => !open && setConfirmDelete(null)}
+        open={confirmDelete !== null}
+        onOpenChange={(o) => !o && setConfirmDelete(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover evidência?</AlertDialogTitle>
-
+            <AlertDialogTitle>Excluir evidência?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita.
+              As fotografias e os links deste registro serão removidos. Esta
+              ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
-
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-
             <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive hover:bg-destructive/90"
+              disabled={excluir.isPending}
+              onClick={() =>
+                confirmDelete !== null && excluir.mutate(confirmDelete)
+              }
             >
-              Sim, remover
+              {excluir.isPending ? "Excluindo..." : "Sim, excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
-
+      </AlertDialog>{" "}
       <WikiFloatingButton
-        pageTitle="Evidências de Execução"
-        href="https://www.aurit.com.br/wiki/evidencias/evidencias-de-execucao"
+        pageTitle="Evidências"
+        href="/wiki/evidencias/evidencias-de-execucao"
       />
     </AppLayout>
   );
 }
 
-function EmptyRow({ colspan }: { colspan: number }) {
+function Field({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
-    <tr>
-      <td colSpan={colspan} className="px-5 py-16 text-center">
-        <Camera className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-        <p className="mt-3 text-sm text-muted-foreground">
-          Nenhuma evidência encontrada.
-        </p>
+    <div>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      {children}
+    </div>
+  );
+}
+function Multi({
+  id,
+  label,
+  options,
+  value,
+  onChange,
+  placeholder,
+}: {
+  id: string;
+  label: string;
+  options: { value: string; label: string }[];
+  value: string[];
+  onChange: (v: string[]) => void;
+  placeholder: string;
+}) {
+  return (
+    <Field id={id} label={label}>
+      <FilterMultiSelect
+        id={id}
+        options={options}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        summaryNoun="itens selecionados"
+        searchable
+      />
+    </Field>
+  );
+}
+function Badge({ value }: { value: ContextoEvidencia }) {
+  const Icon = value === "AULA" ? CalendarDays : MapPin;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-[12px] font-medium backdrop-blur-sm">
+      <Icon className="h-3.5 w-3.5 text-primary" />
+      {contextoLabel(value)}
+    </span>
+  );
+}
+function DesktopRow({
+  item,
+  navigate,
+  edit,
+  remove,
+}: {
+  item: EvidenciaFotografica;
+  navigate: ReturnType<typeof useNavigate>;
+  edit: boolean;
+  remove?: (id: number) => void;
+}) {
+  const lines = refs(item);
+  return (
+    <tr className="border-b border-border/50 last:border-0 hover:bg-muted/25">
+      <td className="px-5 py-2.5">
+        <RowActionsDropdown
+          reportEndpoint={`/evidencias-execucao/${item.id}/relatorio`}
+          reportFilename={`evidencia-${item.id}.pdf`}
+          onView={() => navigate(`/evidencias/${item.id}`)}
+          onEdit={
+            edit ? () => navigate(`/evidencias/${item.id}/editar`) : undefined
+          }
+          onDelete={remove ? () => remove(item.id) : undefined}
+        />
+      </td>
+      <td className="px-5 py-2.5">
+        <Badge value={item.contexto} />
+      </td>
+      <td className="px-5 py-2.5 text-[13px] text-muted-foreground">
+        {item.projeto?.nome ?? "—"}
+      </td>
+      <td className="px-5 py-2.5">
+        <p className="text-[13px] font-medium">{lines[0] ?? "—"}</p>
+        {lines.slice(1).map((l) => (
+          <p key={l} className="text-[12px] text-muted-foreground">
+            {l}
+          </p>
+        ))}
+      </td>
+      <td className="px-5 py-2.5 text-[13px] text-muted-foreground">
+        {dataBR(item.dataReferencia) || "—"}
+      </td>
+      <td className="px-5 py-2.5 text-[13px] text-muted-foreground">
+        {countText(item.quantidadeImagens, "imagem", "imagens")}
+      </td>
+      <td className="px-5 py-2.5 text-[13px] text-muted-foreground">
+        {countText(item.quantidadeLinks, "link", "links")}
       </td>
     </tr>
   );
 }
+function MobileRow(props: Parameters<typeof DesktopRow>[0]) {
+  const { item, navigate, edit, remove } = props;
+  const lines = refs(item);
+  return (
+    <div className="p-4">
+      <div className="mb-3 flex justify-between">
+        <RowActionsDropdown
+          reportEndpoint={`/evidencias-execucao/${item.id}/relatorio`}
+          reportFilename={`evidencia-${item.id}.pdf`}
+          onView={() => navigate(`/evidencias/${item.id}`)}
+          onEdit={
+            edit ? () => navigate(`/evidencias/${item.id}/editar`) : undefined
+          }
+          onDelete={remove ? () => remove(item.id) : undefined}
+        />
+        <Badge value={item.contexto} />
+      </div>
+      <p className="text-sm font-medium">{lines[0] ?? "—"}</p>
+      {lines.slice(1).map((l) => (
+        <p key={l} className="text-xs text-muted-foreground">
+          {l}
+        </p>
+      ))}
+      <p className="mt-2 text-xs text-muted-foreground">
+        {item.projeto?.nome ?? "—"} · {dataBR(item.dataReferencia) || "—"}
+      </p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {countText(item.quantidadeImagens, "imagem", "imagens")} ·{" "}
+        {countText(item.quantidadeLinks, "link", "links")}
+      </p>
+    </div>
+  );
+}
+function Empty({
+  filtered,
+  onCreate,
+}: {
+  filtered: boolean;
+  onCreate?: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
+      <span className="flex h-11 w-11 items-center justify-center rounded-full border bg-muted/40">
+        <Camera className="h-5 w-5" />
+      </span>
+      <div>
+        <p className="text-sm font-semibold">
+          {filtered
+            ? "Nenhum resultado encontrado"
+            : "Nenhuma evidência registrada"}
+        </p>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          {filtered
+            ? "Revise os filtros utilizados ou limpe a pesquisa."
+            : "Registre fotografias e links relacionados às aulas e eventos culturais."}
+        </p>
+      </div>
+      {onCreate && (
+        <Button
+          variant="glassPrimary"
+          className="h-9 gap-2 px-4"
+          onClick={onCreate}
+        >
+          <Plus className="h-4 w-4" />
+          Nova evidência
+        </Button>
+      )}
+    </div>
+  );
+}
+const wiki = [
+  {
+    title: "Para que serve?",
+    content:
+      "Reunir fotografias e links que comprovam aulas e eventos culturais.",
+  },
+  {
+    title: "Fotografias",
+    content: "Até 10 imagens de 5 MB nos formatos JPEG, JPG, PNG ou WEBP.",
+  },
+];

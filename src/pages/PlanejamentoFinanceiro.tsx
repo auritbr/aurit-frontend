@@ -1,36 +1,55 @@
 import {
   useEffect,
+  useCallback,
   useMemo,
-  useRef,
   useState,
   type FormEvent,
   type ReactNode,
 } from "react";
 import {
-  ArrowLeft,
+  CalendarRange,
   Calculator,
-  Eye,
   FileText,
-  FolderKanban,
   Landmark,
-  Pencil,
   Plus,
+  RotateCcw,
   Search,
-  Trash2,
   UsersRound,
-  ShieldCheck,
   Info,
   X,
   FileDown,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BackButton } from "@/components/BackButton";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
+import { PageObjective } from "@/components/PageObjective";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { StatusPill } from "@/components/StatusPill";
+import { DataTableEmptyState } from "@/components/list/DataTableEmptyState";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+  useSessionBoolean,
+} from "@/components/AdvancedSearchPanel";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { DocumentActionButton } from "@/components/DocumentActionButton";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -42,19 +61,14 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { HelpTooltip } from "@/components/HelpTooltip";
-import { ImportDataTitleAction } from "@/components/PageTitle";
-import { TablePagination } from "@/components/TablePagination";
 import { SortableHeader } from "@/components/SortableHeader";
-import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
 import { useSortableData } from "@/hooks/useSortableData";
-import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
-import { exportPlanejamentoFinanceiroPdf } from "@/lib/pdfExporters";
+import { getImportConfigForPath } from "@/config/importacoes";
+import { downloadPlanejamentoFinanceiroReport as exportPlanejamentoFinanceiroPdf } from "@/lib/individualReportDownload";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -74,6 +88,8 @@ import {
   buildPlanejamentoFinanceiroPayload,
   createEmptyPlanejamentoFinanceiro,
   createPlanejamentoFinanceiro,
+  classificacaoPlanejamentoLabel,
+  classificacaoPlanejamentoOptions,
   deletePlanejamentoFinanceiro,
   formatCurrencyBR,
   formatCurrencyInput,
@@ -94,8 +110,19 @@ import {
   type PropostaEditalOption,
 } from "@/data/planejamentoFinanceiro";
 import { toast } from "sonner";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
-type SortKey = "item" | "inicio" | "fim" | "quantidade" | "unidade" | "valorUnitario" | "valorTotal" | "proposta" | "equipe";
+type SortKey =
+  | "item"
+  | "classificacao"
+  | "inicio"
+  | "fim"
+  | "quantidade"
+  | "unidade"
+  | "valorUnitario"
+  | "valorTotal"
+  | "proposta"
+  | "equipe";
 
 type FormMode = "create" | "edit" | "view";
 
@@ -108,27 +135,23 @@ interface PlanejamentoFinanceiroNextStepCardData {
   descricao: string;
   acaoLabel: string;
   acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+  variante?: "pendente" | "atencao" | "concluido";
 }
 
 function criarProximaAcaoPlanejamentoFinanceiro(): PlanejamentoFinanceiroNextStepCardData {
   return {
-    titulo:
-      "Após estruturar a aplicação de recursos, registre o resultado da proposta",
+    titulo: "Registre o resultado da proposta",
     descricao:
-      "O resultado da proposta permite acompanhar a situação da candidatura após a análise do edital, registrando se foi aprovada, não classificada ou suplente, além de registrar datas, observações e informações importantes para o histórico institucional.",
+      "Depois de estruturar a aplicação dos recursos, informe a situação da proposta após a análise do edital.",
     acaoLabel: "Cadastrar resultado",
     acaoUrl: "/resultados-propostas/novo",
-    acaoSecundariaLabel: "Ver aplicação de recursos",
-    acaoSecundariaUrl: "/planejamento-financeiro",
     variante: "pendente",
   };
 }
 
 const requiredFields: Array<[keyof PlanejamentoFinanceiroData, string]> = [
   ["nomePlanejamento", "Item da aplicação"],
+  ["classificacaoPlanejamentoFinanceiro", "Classificação"],
   ["justificativaPlanejamento", "Justificativa"],
   ["dataInicio", "Data de início"],
   ["dataFim", "Data de fim"],
@@ -159,8 +182,6 @@ const buildTotalValue = (quantidade: string, valorUnitario: string) => {
 };
 
 export default function PlanejamentoFinanceiro() {
-  const tableRef = useRef<HTMLTableElement>(null);
-
   const [items, setItems] = useState<PlanejamentoFinanceiroData[]>([]);
   const [propostasEditais, setPropostasEditais] = useState<
     PropostaEditalOption[]
@@ -172,11 +193,33 @@ export default function PlanejamentoFinanceiro() {
   const [mode, setMode] = useState<FormMode>("create");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [classificacoesFiltro, setClassificacoesFiltro] = useState<string[]>(
+    [],
+  );
+  const [classificacoesAplicadas, setClassificacoesAplicadas] = useState<
+    string[]
+  >([]);
+  const [equipesFiltro, setEquipesFiltro] = useState<string[]>([]);
+  const [equipesAplicadas, setEquipesAplicadas] = useState<string[]>([]);
+  const [inicioFiltro, setInicioFiltro] = useState("");
+  const [inicioAplicado, setInicioAplicado] = useState("");
+  const [fimFiltro, setFimFiltro] = useState("");
+  const [fimAplicado, setFimAplicado] = useState("");
+  const [valorMinFiltro, setValorMinFiltro] = useState("");
+  const [valorMinAplicado, setValorMinAplicado] = useState("");
+  const [valorMaxFiltro, setValorMaxFiltro] = useState("");
+  const [valorMaxAplicado, setValorMaxAplicado] = useState("");
+  const [panelOpen, setPanelOpen] = useSessionBoolean(
+    "aplicacao-recursos:pesquisa-avancada",
+    false,
+  );
   const [showForm, setShowForm] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
     null,
   );
@@ -203,8 +246,7 @@ export default function PlanejamentoFinanceiro() {
   const invalidQuantidade =
     !!form.quantidade && (!quantidadeNumero || quantidadeNumero <= 0);
 
-  const invalidValorUnitario =
-    !!form.valorUnitario && valorUnitarioNumero <= 0;
+  const invalidValorUnitario = !!form.valorUnitario && valorUnitarioNumero <= 0;
 
   const invalidValorTotal =
     !!form.valorTotal &&
@@ -254,9 +296,7 @@ export default function PlanejamentoFinanceiro() {
     if (!raw) return;
 
     try {
-      const parsed = JSON.parse(
-        raw,
-      ) as PlanejamentoFinanceiroNextStepCardData;
+      const parsed = JSON.parse(raw) as PlanejamentoFinanceiroNextStepCardData;
 
       setNextStepCard(parsed);
     } catch {
@@ -290,12 +330,13 @@ export default function PlanejamentoFinanceiro() {
       setLoading(true);
       setAccessDeniedMessage(null);
 
-      const [planejamentosData, propostasData, equipesData] =
-        await Promise.all([
+      const [planejamentosData, propostasData, equipesData] = await Promise.all(
+        [
           getPlanejamentosFinanceiros(),
           getPropostasEditalOptions(),
           getEquipesEditalOptions(),
-        ]);
+        ],
+      );
 
       setItems(planejamentosData);
       setPropostasEditais(propostasData);
@@ -355,32 +396,63 @@ export default function PlanejamentoFinanceiro() {
     });
   };
 
-  const propostaEditalNome = (id?: string) =>
-    id
-      ? propostasEditais.find((entry) => entry.id === id)?.tituloProjeto ?? "—"
-      : "—";
+  const propostaEditalNome = useCallback(
+    (id?: string) =>
+      id
+        ? (propostasEditais.find((entry) => entry.id === id)?.tituloProjeto ??
+          "—")
+        : "—",
+    [propostasEditais],
+  );
 
-  const equipeNome = (id?: string) => {
-    if (!id) return "Sem vínculo com equipe";
+  const equipeNome = useCallback(
+    (id?: string) => {
+      if (!id) return "Sem vínculo com equipe";
 
-    const equipe = equipesEdital.find((entry) => entry.id === id);
+      const equipe = equipesEdital.find((entry) => entry.id === id);
 
-    if (!equipe) return "—";
+      if (!equipe) return "—";
 
-    return equipe.funcao ? `${equipe.nome} — ${equipe.funcao}` : equipe.nome;
-  };
+      return equipe.funcao ? `${equipe.nome} — ${equipe.funcao}` : equipe.nome;
+    },
+    [equipesEdital],
+  );
 
   const filtered = useMemo(() => {
     const term = search.toLowerCase().trim();
 
-    if (!term) return items;
-
     return items.filter((item) => {
+      if (
+        classificacoesAplicadas.length > 0 &&
+        !classificacoesAplicadas.includes(
+          item.classificacaoPlanejamentoFinanceiro,
+        )
+      ) {
+        return false;
+      }
+      if (
+        equipesAplicadas.length > 0 &&
+        !equipesAplicadas.includes(item.equipeEditalId)
+      )
+        return false;
+      if (inicioAplicado && item.dataInicio < inicioAplicado) return false;
+      if (fimAplicado && item.dataFim > fimAplicado) return false;
+      const valorTotal = parseCurrencyInput(item.valorTotal);
+      if (valorMinAplicado && valorTotal < parseCurrencyInput(valorMinAplicado))
+        return false;
+      if (valorMaxAplicado && valorTotal > parseCurrencyInput(valorMaxAplicado))
+        return false;
+
+      if (!term) return true;
+
       const proposta = propostaEditalNome(item.propostaEditalId);
       const equipe = equipeNome(item.equipeEditalId);
 
       return [
         item.nomePlanejamento,
+        classificacaoPlanejamentoLabel(
+          item.classificacaoPlanejamentoFinanceiro,
+        ),
         item.justificativaPlanejamento,
         formatDateBr(item.dataInicio),
         formatDateBr(item.dataFim),
@@ -395,8 +467,133 @@ export default function PlanejamentoFinanceiro() {
         .toLowerCase()
         .includes(term);
     });
-  }, [items, propostasEditais, equipesEdital, search]);
+  }, [
+    items,
+    propostaEditalNome,
+    equipeNome,
+    search,
+    classificacoesAplicadas,
+    equipesAplicadas,
+    inicioAplicado,
+    fimAplicado,
+    valorMinAplicado,
+    valorMaxAplicado,
+  ]);
 
+  const aplicarPesquisa = (event?: FormEvent) => {
+    event?.preventDefault();
+    setSearch(searchInput.trim());
+    setClassificacoesAplicadas(classificacoesFiltro);
+    setEquipesAplicadas(equipesFiltro);
+    setInicioAplicado(inicioFiltro);
+    setFimAplicado(fimFiltro);
+    setValorMinAplicado(valorMinFiltro);
+    setValorMaxAplicado(valorMaxFiltro);
+  };
+
+  const limparPesquisa = () => {
+    setSearchInput("");
+    setSearch("");
+    setClassificacoesFiltro([]);
+    setClassificacoesAplicadas([]);
+    setEquipesFiltro([]);
+    setEquipesAplicadas([]);
+    setInicioFiltro("");
+    setInicioAplicado("");
+    setFimFiltro("");
+    setFimAplicado("");
+    setValorMinFiltro("");
+    setValorMinAplicado("");
+    setValorMaxFiltro("");
+    setValorMaxAplicado("");
+  };
+
+  const activeFilters: ActiveFilterItem[] = [];
+  if (search) {
+    activeFilters.push({
+      id: "busca",
+      label: "Nome do item",
+      value: search,
+      onRemove: () => {
+        setSearch("");
+        setSearchInput("");
+      },
+    });
+  }
+  classificacoesAplicadas.forEach((value) =>
+    activeFilters.push({
+      id: `classificacao-${value}`,
+      label: "Classificação",
+      value: classificacaoPlanejamentoLabel(value),
+      onRemove: () => {
+        const next = classificacoesAplicadas.filter((item) => item !== value);
+        setClassificacoesAplicadas(next);
+        setClassificacoesFiltro(next);
+      },
+    }),
+  );
+  equipesAplicadas.forEach((value) =>
+    activeFilters.push({
+      id: `equipe-${value}`,
+      label: "Integrante da equipe",
+      value: equipeNome(value),
+      onRemove: () => {
+        const next = equipesAplicadas.filter((item) => item !== value);
+        setEquipesAplicadas(next);
+        setEquipesFiltro(next);
+      },
+    }),
+  );
+  const addSimpleFilter = (
+    id: string,
+    label: string,
+    value: string,
+    display: string,
+    clear: () => void,
+  ) => {
+    if (value)
+      activeFilters.push({ id, label, value: display, onRemove: clear });
+  };
+  addSimpleFilter(
+    "inicio",
+    "Início a partir de",
+    inicioAplicado,
+    formatDateBr(inicioAplicado),
+    () => {
+      setInicioAplicado("");
+      setInicioFiltro("");
+    },
+  );
+  addSimpleFilter(
+    "fim",
+    "Término até",
+    fimAplicado,
+    formatDateBr(fimAplicado),
+    () => {
+      setFimAplicado("");
+      setFimFiltro("");
+    },
+  );
+  addSimpleFilter(
+    "valor-min",
+    "Valor total mínimo",
+    valorMinAplicado,
+    formatCurrencyBR(parseCurrencyInput(valorMinAplicado)),
+    () => {
+      setValorMinAplicado("");
+      setValorMinFiltro("");
+    },
+  );
+  addSimpleFilter(
+    "valor-max",
+    "Valor total máximo",
+    valorMaxAplicado,
+    formatCurrencyBR(parseCurrencyInput(valorMaxAplicado)),
+    () => {
+      setValorMaxAplicado("");
+      setValorMaxFiltro("");
+    },
+  );
 
   const { sortConfig, sortedItems, handleSort } = useSortableData(
     filtered,
@@ -404,6 +601,10 @@ export default function PlanejamentoFinanceiro() {
       switch (key) {
         case "item":
           return item.nomePlanejamento;
+        case "classificacao":
+          return classificacaoPlanejamentoLabel(
+            item.classificacaoPlanejamentoFinanceiro,
+          );
         case "inicio":
           return item.dataInicio ?? "";
         case "fim":
@@ -429,25 +630,36 @@ export default function PlanejamentoFinanceiro() {
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
     usePagination(sortedItems, 25, search);
 
-  const totalPlanejado = useMemo(
-    () =>
-      filtered.reduce(
-        (total, item) => total + parseCurrencyInput(item.valorTotal),
-        0,
+  const exportColumns = [
+    { header: "Item", key: "item" },
+    { header: "Classificação", key: "classificacao" },
+    { header: "Justificativa", key: "justificativa" },
+    { header: "Quantidade", key: "quantidade" },
+    { header: "Unidade de medida", key: "unidade" },
+    { header: "Valor unitário", key: "valorUnitario" },
+    { header: "Valor total", key: "valorTotal" },
+    { header: "Data de início", key: "inicio" },
+    { header: "Data de término", key: "fim" },
+    { header: "Proposta", key: "proposta" },
+    { header: "Integrante da equipe", key: "equipe" },
+  ];
+
+  const getExportData = () =>
+    sortedItems.map((item) => ({
+      item: item.nomePlanejamento,
+      classificacao: classificacaoPlanejamentoLabel(
+        item.classificacaoPlanejamentoFinanceiro,
       ),
-    [filtered],
-  );
-
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
-
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
-    }
-
-    toast.success("Dados copiados com sucesso.");
-  };
+      justificativa: item.justificativaPlanejamento,
+      quantidade: item.quantidade,
+      unidade: unidadeMedidaLabel(item.unidadeMedida),
+      valorUnitario: formatCurrencyBR(parseCurrencyInput(item.valorUnitario)),
+      valorTotal: formatCurrencyBR(parseCurrencyInput(item.valorTotal)),
+      inicio: formatDateBr(item.dataInicio),
+      fim: formatDateBr(item.dataFim),
+      proposta: propostaEditalNome(item.propostaEditalId),
+      equipe: equipeNome(item.equipeEditalId),
+    }));
 
   const handleNew = () => {
     if (!podeCriar) {
@@ -566,11 +778,7 @@ export default function PlanejamentoFinanceiro() {
           JSON.stringify(card),
         );
 
-        setNextStepCard(card);
-
-        window.setTimeout(() => {
-          setNextStepCard(null);
-        }, NEXT_STEP_DURATION_MS);
+        emitJourneyNextStep();
       }
 
       toast.success(
@@ -642,24 +850,33 @@ export default function PlanejamentoFinanceiro() {
       return;
     }
 
-    await exportPlanejamentoFinanceiroPdf({
-      id: item.id,
+    try {
+      setGeneratingPdfId(item.id);
 
-      nomePlanejamento: item.nomePlanejamento,
-      justificativaPlanejamento: item.justificativaPlanejamento,
+      await exportPlanejamentoFinanceiroPdf({
+        id: item.id,
 
-      dataInicio: formatDateBr(item.dataInicio),
-      dataFim: formatDateBr(item.dataFim),
+        nomePlanejamento: item.nomePlanejamento,
+        classificacaoPlanejamentoFinanceiro: classificacaoPlanejamentoLabel(
+          item.classificacaoPlanejamentoFinanceiro,
+        ),
+        justificativaPlanejamento: item.justificativaPlanejamento,
 
-      quantidade: item.quantidade,
-      unidadeMedida: unidadeMedidaLabel(item.unidadeMedida),
+        dataInicio: formatDateBr(item.dataInicio),
+        dataFim: formatDateBr(item.dataFim),
 
-      valorUnitario: formatCurrencyBR(parseCurrencyInput(item.valorUnitario)),
-      valorTotal: formatCurrencyBR(parseCurrencyInput(item.valorTotal)),
+        quantidade: item.quantidade,
+        unidadeMedida: unidadeMedidaLabel(item.unidadeMedida),
 
-      propostaEdital: propostaEditalNome(item.propostaEditalId),
-      equipeEdital: equipeNome(item.equipeEditalId),
-    });
+        valorUnitario: formatCurrencyBR(parseCurrencyInput(item.valorUnitario)),
+        valorTotal: formatCurrencyBR(parseCurrencyInput(item.valorTotal)),
+
+        propostaEdital: propostaEditalNome(item.propostaEditalId),
+        equipeEdital: equipeNome(item.equipeEditalId),
+      });
+    } finally {
+      setGeneratingPdfId(null);
+    }
   }
 
   if (!podeVisualizar) {
@@ -681,85 +898,104 @@ export default function PlanejamentoFinanceiro() {
   return (
     <AppLayout>
       <div
-        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"
-          } py-6 sm:py-8`}
+        className={`container ${
+          showForm ? "max-w-4xl" : "max-w-7xl"
+        } py-6 sm:py-8`}
       >
-        {showForm && (
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Voltar
-          </button>
-        )}
+        {showForm && <BackButton onClick={handleCancel} />}
 
-        <div className="mb-5 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-              Aplicação de Recursos
-            </h1>
-
-            <HelpTooltip
-              text="Organize a aplicação de recursos da proposta de edital, detalhando cada item previsto, sua justificativa, quantidade, unidade de medida, valores, período de aplicação e vínculo opcional com a equipe. Essas informações ajudam na construção do plano de trabalho, no acompanhamento dos recursos e na futura prestação de contas."
-              label="Aplicação de recursos"
-              size="md"
-              side="bottom"
-              align="start"
-            />
-            <ImportDataTitleAction show={showForm && !readOnly} />
-          </div>
-        </div>
-
-        {isPaginaInicial && nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
-        )}
+        <ListPageHeader
+          title="Aplicação de Recursos"
+          tooltip="Nesta página são organizados os itens previstos no orçamento do projeto apresentado ao edital, registrando como os recursos serão utilizados e distribuídos durante sua execução. Cada item pode reunir informações sobre classificação, justificativa, quantidade, valores, período previsto e, quando aplicável, vínculo com uma pessoa da equipe."
+          objective={
+            !showForm
+              ? "Cadastre e organize os itens previstos na aplicação dos recursos do projeto apresentado ao edital, detalhando os gastos necessários para sua execução, seus valores e períodos e, quando aplicável, relacionando-os à pessoa da equipe correspondente."
+              : undefined
+          }
+          actions={
+            !showForm && podeCriar ? (
+              <Button
+                type="button"
+                variant="glassPrimary"
+                className="h-9 gap-2 px-4"
+                onClick={handleNew}
+              >
+                <Plus className="h-4 w-4" />
+                Cadastrar aplicação
+              </Button>
+            ) : showForm && !readOnly ? (
+              <ImportDataButton
+                config={getImportConfigForPath("/aplicacao-de-recursos")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            ) : undefined
+          }
+        />
 
         {showForm ? (
           <>
-            {readOnly && (
-              <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Você está visualizando estas informações. Para fazer alterações,
-                clique em <span className="font-semibold">Editar</span> no menu{" "}
-                <span className="font-semibold">Ações</span>.
-              </div>
-            )}
-
-            <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-              <Info
-                className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
-                strokeWidth={2.2}
-              />
-
-              <p className="text-[13px] leading-relaxed text-foreground">
-                Use esta página para registrar como os recursos da proposta de
-                edital serão aplicados. Cada item deve indicar o que será
-                contratado, comprado ou executado, por que é necessário, em qual
-                período será realizado, como será medido e qual valor está
-                previsto.
-              </p>
-            </div>
-
-            {!readOnly && <FormLegend />}
+            <FormLegend />
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              <Section icon={FileText} title="Identificação do item">
+              {/* 1 — Vínculo com a proposta */}
+              {/* 1 — Vínculo com o projeto */}
+              <Section
+                icon={Landmark}
+                title="Vínculo com o projeto"
+                description="Selecione o projeto apresentado ao edital cujo orçamento incluirá este item de aplicação de recursos."
+              >
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field full>
+                  <Field>
+                    <FieldLabel
+                      htmlFor="propostaEditalId"
+                      required={!readOnly}
+                      tooltip="Selecione o projeto apresentado ao edital ao qual este item de orçamento pertence. Depois da seleção, o sistema poderá mostrar apenas os integrantes da equipe vinculados a esse projeto."
+                    >
+                      Proposta de Edital
+                    </FieldLabel>
+
+                    <Select
+                      value={form.propostaEditalId}
+                      onValueChange={(value) =>
+                        setField("propostaEditalId", value)
+                      }
+                      disabled={readOnly || saving}
+                    >
+                      <SelectTrigger id="propostaEditalId">
+                        <SelectValue placeholder="Selecione a proposta" />
+                      </SelectTrigger>
+
+                      <SelectContent className="max-h-72">
+                        {propostasEditais.length === 0 ? (
+                          <SelectItem value="sem-proposta" disabled>
+                            Nenhuma proposta disponível
+                          </SelectItem>
+                        ) : (
+                          propostasEditais.map((proposta) => (
+                            <SelectItem key={proposta.id} value={proposta.id}>
+                              {proposta.tituloProjeto}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+              </Section>
+
+              {/* 2 — Identificação do item */}
+              <Section
+                icon={FileText}
+                title="Identificação do item"
+                description="Defina o que será custeado pelo orçamento, como esse gasto será classificado e por que ele é necessário para a realização do projeto."
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field>
                     <FieldLabel
                       htmlFor="nomePlanejamento"
                       required={!readOnly}
-                      tooltip="Informe um nome claro para o item previsto na aplicação de recursos, indicando o que será contratado, adquirido ou executado. Ex.: Professor de violão, material pedagógico, serviço de som, transporte ou divulgação em redes sociais."
+                      tooltip="Informe um nome claro para o item previsto no orçamento. Pode ser uma contratação, compra, serviço ou outro gasto necessário para executar o projeto. Ex.: Serviço de fotografia, material pedagógico ou transporte da equipe."
                     >
                       Item da Aplicação
                     </FieldLabel>
@@ -775,11 +1011,54 @@ export default function PlanejamentoFinanceiro() {
                     />
                   </Field>
 
+                  <Field>
+                    <FieldLabel
+                      htmlFor="classificacaoPlanejamentoFinanceiro"
+                      required={!readOnly}
+                      tooltip="Selecione a categoria que melhor representa este item no orçamento. Por exemplo: recursos humanos para remuneração de pessoas, serviços de terceiros para serviços contratados, material de consumo para itens utilizados durante a execução ou transporte para deslocamentos."
+                    >
+                      Classificação
+                    </FieldLabel>
+
+                    <Select
+                      value={
+                        form.classificacaoPlanejamentoFinanceiro || undefined
+                      }
+                      onValueChange={(value) =>
+                        setField(
+                          "classificacaoPlanejamentoFinanceiro",
+                          value as PlanejamentoFinanceiroData["classificacaoPlanejamentoFinanceiro"],
+                        )
+                      }
+                      disabled={readOnly || saving}
+                    >
+                      <SelectTrigger id="classificacaoPlanejamentoFinanceiro">
+                        <SelectValue placeholder="Selecione a classificação" />
+                      </SelectTrigger>
+
+                      <SelectContent className="max-h-72">
+                        {classificacaoPlanejamentoOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {mode === "edit" &&
+                      !form.classificacaoPlanejamentoFinanceiro && (
+                        <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+                          Este item ainda não possui classificação. Selecione
+                          uma opção para continuar.
+                        </p>
+                      )}
+                  </Field>
+
                   <Field full>
                     <FieldLabel
                       htmlFor="justificativaPlanejamento"
                       required={!readOnly}
-                      tooltip="Explique por que este item é necessário para a execução da proposta, relacionando sua finalidade às atividades, metas, equipe, público atendido ou resultados previstos."
+                      tooltip="Explique por que este gasto é necessário para executar o projeto. Informe como o item será utilizado e de que forma contribuirá para as atividades, metas ou resultados previstos."
                     >
                       Justificativa
                     </FieldLabel>
@@ -798,63 +1077,93 @@ export default function PlanejamentoFinanceiro() {
                 </div>
               </Section>
 
-              <Section icon={ShieldCheck} title="Período previsto">
+              {/* 3 — Vínculo com a equipe */}
+              <Section
+                icon={UsersRound}
+                title="Vínculo com a equipe"
+                description="Quando este gasto estiver relacionado diretamente ao trabalho de uma pessoa da equipe do projeto, vincule o integrante correspondente."
+              >
+                <PageObjective
+                  className="mb-5"
+                  variant="primary"
+                  label="Este vínculo é opcional."
+                  icon={Info}
+                  description="Utilize este campo principalmente quando o item estiver relacionado à contratação, remuneração ou atuação de uma pessoa da equipe. Para materiais, transporte, alimentação, locação, equipamentos e outros gastos gerais, deixe o campo sem vínculo."
+                />
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel
-                      htmlFor="dataInicio"
-                      required={!readOnly}
-                      tooltip="Informe a data de início prevista para este item da aplicação de recursos."
+                      htmlFor="equipeEditalId"
+                      tooltip="Selecione a pessoa da equipe diretamente relacionada a este item. Por exemplo, se o orçamento prevê o pagamento de um coordenador, oficineiro, artista ou outro profissional já cadastrado na equipe do projeto, selecione essa pessoa."
                     >
-                      Data de Início
+                      Integrante da Equipe
                     </FieldLabel>
 
-                    <Input
-                      id="dataInicio"
-                      type="date"
-                      value={form.dataInicio}
-                      onChange={(e) => setField("dataInicio", e.target.value)}
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
+                    <div className="flex gap-2">
+                      <Select
+                        value={form.equipeEditalId}
+                        onValueChange={(value) =>
+                          setField("equipeEditalId", value)
+                        }
+                        disabled={readOnly || saving || !form.propostaEditalId}
+                      >
+                        <SelectTrigger id="equipeEditalId">
+                          <SelectValue
+                            placeholder={
+                              form.propostaEditalId
+                                ? "Sem vínculo com a equipe"
+                                : "Selecione primeiro a proposta"
+                            }
+                          />
+                        </SelectTrigger>
+
+                        <SelectContent className="max-h-72">
+                          {equipesFiltradas.length === 0 ? (
+                            <SelectItem value="sem-equipe" disabled>
+                              Nenhum integrante disponível
+                            </SelectItem>
+                          ) : (
+                            equipesFiltradas.map((equipe) => (
+                              <SelectItem key={equipe.id} value={equipe.id}>
+                                {equipe.funcao
+                                  ? `${equipe.nome} — ${equipe.funcao}`
+                                  : equipe.nome}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+
+                      {!readOnly && form.equipeEditalId && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setField("equipeEditalId", "")}
+                          disabled={saving}
+                          aria-label="Remover vínculo com a equipe"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </Field>
-
-                  <Field>
-                    <FieldLabel
-                      htmlFor="dataFim"
-                      required={!readOnly}
-                      tooltip="Informe a data de fim prevista para este item da aplicação de recursos. A data de fim não pode ser anterior à data de início."
-                    >
-                      Data de Fim
-                    </FieldLabel>
-
-                    <Input
-                      id="dataFim"
-                      type="date"
-                      value={form.dataFim}
-                      onChange={(e) => setField("dataFim", e.target.value)}
-                      disabled={readOnly || saving}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  {invalidPeriodo && (
-                    <Field full>
-                      <p className="text-sm text-destructive">
-                        {planejamentoFinanceiroPeriodoError}
-                      </p>
-                    </Field>
-                  )}
                 </div>
               </Section>
 
-              <Section icon={Calculator} title="Quantidade e valores">
+              {/* 4 — Quantidade e valores */}
+              <Section
+                icon={Calculator}
+                title="Quantidade e valores"
+                description="Dimensione este item do orçamento, informando a quantidade prevista, a forma de medição e o valor necessário para calcular seu custo total."
+              >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel
                       htmlFor="quantidade"
                       required={!readOnly}
-                      tooltip="Informe apenas o número correspondente à quantidade prevista para este item, de acordo com a unidade de medida selecionada."
+                      tooltip="Informe a quantidade prevista deste item de acordo com a unidade de medida escolhida. Ex.: 6 meses, 10 serviços, 20 horas ou 100 unidades."
                     >
                       Quantidade
                     </FieldLabel>
@@ -878,7 +1187,7 @@ export default function PlanejamentoFinanceiro() {
                     <FieldLabel
                       htmlFor="unidadeMedida"
                       required={!readOnly}
-                      tooltip="Selecione como a quantidade deste item será medida. Ex.: mês, unidade, serviço, hora, diária, oficina, apresentação ou pacote."
+                      tooltip="Selecione como a quantidade será medida. Por exemplo: mês para uma contratação mensal, hora para serviços por hora, diária para hospedagem, unidade para produtos ou apresentação para uma atividade artística."
                     >
                       Unidade de Medida
                     </FieldLabel>
@@ -891,7 +1200,7 @@ export default function PlanejamentoFinanceiro() {
                       disabled={readOnly || saving}
                     >
                       <SelectTrigger id="unidadeMedida">
-                        <SelectValue placeholder="Selecione" />
+                        <SelectValue placeholder="Selecione a unidade" />
                       </SelectTrigger>
 
                       <SelectContent className="max-h-72">
@@ -908,7 +1217,7 @@ export default function PlanejamentoFinanceiro() {
                     <FieldLabel
                       htmlFor="valorUnitario"
                       required={!readOnly}
-                      tooltip="Informe o valor de uma unidade deste item, considerando a unidade de medida selecionada."
+                      tooltip="Informe o valor previsto para uma unidade deste item. O sistema utilizará esse valor junto com a quantidade para calcular automaticamente o valor total."
                     >
                       Valor Unitário
                     </FieldLabel>
@@ -931,8 +1240,7 @@ export default function PlanejamentoFinanceiro() {
                   <Field>
                     <FieldLabel
                       htmlFor="valorTotal"
-                      required={!readOnly}
-                      tooltip="Valor calculado automaticamente com base na quantidade e no valor unitário informados."
+                      tooltip="O valor total é calculado automaticamente pela multiplicação da quantidade pelo valor unitário. Não é necessário preencher este campo manualmente."
                     >
                       Valor Total
                     </FieldLabel>
@@ -971,114 +1279,58 @@ export default function PlanejamentoFinanceiro() {
                 </div>
               </Section>
 
-              <Section icon={Landmark} title="Vínculo com proposta de edital">
+              {/* 5 — Período de execução */}
+              <Section
+                icon={CalendarRange}
+                title="Período de execução"
+                description="Defina quando este item estará previsto no projeto, considerando o período em que será utilizado, contratado ou realizado."
+              >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel
-                      htmlFor="propostaEditalId"
+                      htmlFor="dataInicio"
                       required={!readOnly}
-                      tooltip="Selecione a proposta de edital à qual este item da aplicação de recursos pertence."
+                      tooltip="Informe a data prevista para começar a utilização, contratação ou realização deste item durante a execução do projeto."
                     >
-                      Proposta de Edital
+                      Data de Início
                     </FieldLabel>
 
-                    <Select
-                      value={form.propostaEditalId}
-                      onValueChange={(value) =>
-                        setField("propostaEditalId", value)
-                      }
+                    <Input
+                      id="dataInicio"
+                      type="date"
+                      value={form.dataInicio}
+                      onChange={(e) => setField("dataInicio", e.target.value)}
                       disabled={readOnly || saving}
-                    >
-                      <SelectTrigger id="propostaEditalId">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent className="max-h-72">
-                        {propostasEditais.length === 0 ? (
-                          <SelectItem value="sem-proposta" disabled>
-                            Nenhuma proposta disponível
-                          </SelectItem>
-                        ) : (
-                          propostasEditais.map((proposta) => (
-                            <SelectItem key={proposta.id} value={proposta.id}>
-                              {proposta.tituloProjeto}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
+                      readOnly={readOnly}
+                    />
                   </Field>
-                </div>
-              </Section>
 
-              <Section icon={UsersRound} title="Vínculo opcional com equipe">
-                <div className="mb-4 flex items-start gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-                  <Info
-                    className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
-                    strokeWidth={2.2}
-                  />
-
-                  <span>
-                    Use este vínculo apenas quando o item financeiro representar
-                    pagamento, remuneração ou contratação de uma pessoa da
-                    equipe. Para itens como material, transporte, alimentação,
-                    aluguel, energia, internet ou serviços gerais, deixe sem
-                    vínculo.
-                  </span>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel
-                      htmlFor="equipeEditalId"
-                      tooltip="Selecione o membro da equipe relacionado a este item financeiro, quando houver. Este campo não é obrigatório."
+                      htmlFor="dataFim"
+                      required={!readOnly}
+                      tooltip="Informe a data prevista para finalizar a utilização, contratação ou realização deste item. A data de término não pode ser anterior à data de início."
                     >
-                      Equipe da Proposta
+                      Data de Término
                     </FieldLabel>
 
-                    <div className="flex gap-2">
-                      <Select
-                        value={form.equipeEditalId}
-                        onValueChange={(value) =>
-                          setField("equipeEditalId", value)
-                        }
-                        disabled={readOnly || saving}
-                      >
-                        <SelectTrigger id="equipeEditalId">
-                          <SelectValue placeholder="Sem vínculo com equipe" />
-                        </SelectTrigger>
-
-                        <SelectContent className="max-h-72">
-                          {equipesFiltradas.length === 0 ? (
-                            <SelectItem value="sem-equipe" disabled>
-                              Nenhum membro disponível
-                            </SelectItem>
-                          ) : (
-                            equipesFiltradas.map((equipe) => (
-                              <SelectItem key={equipe.id} value={equipe.id}>
-                                {equipe.funcao
-                                  ? `${equipe.nome} — ${equipe.funcao}`
-                                  : equipe.nome}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-
-                      {!readOnly && form.equipeEditalId && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setField("equipeEditalId", "")}
-                          disabled={saving}
-                          aria-label="Remover vínculo com equipe"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+                    <Input
+                      id="dataFim"
+                      type="date"
+                      value={form.dataFim}
+                      onChange={(e) => setField("dataFim", e.target.value)}
+                      disabled={readOnly || saving}
+                      readOnly={readOnly}
+                    />
                   </Field>
+
+                  {invalidPeriodo && (
+                    <Field full>
+                      <p className="text-sm text-destructive">
+                        {planejamentoFinanceiroPeriodoError}
+                      </p>
+                    </Field>
+                  )}
                 </div>
               </Section>
 
@@ -1086,7 +1338,8 @@ export default function PlanejamentoFinanceiro() {
                 <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="glassSecondary"
+                    className="h-9 px-4"
                     onClick={handleCancel}
                     disabled={saving}
                   >
@@ -1095,7 +1348,8 @@ export default function PlanejamentoFinanceiro() {
 
                   <Button
                     type="submit"
-                    className="sm:min-w-32"
+                    variant="glassPrimary"
+                    className="h-9 px-5"
                     disabled={saving}
                   >
                     {saving ? "Salvando..." : "Salvar"}
@@ -1105,7 +1359,12 @@ export default function PlanejamentoFinanceiro() {
 
               {readOnly && (
                 <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-                  <Button type="button" variant="outline" onClick={handleCancel}>
+                  <Button
+                    type="button"
+                    variant="glassSecondary"
+                    className="h-9 px-4"
+                    onClick={handleCancel}
+                  >
                     Voltar
                   </Button>
                 </div>
@@ -1113,352 +1372,418 @@ export default function PlanejamentoFinanceiro() {
             </form>
           </>
         ) : (
-          <div className="rounded border border-border bg-card">
-            <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Resumo da aplicação de recursos
-                </p>
-
-                <p className="mt-1 text-sm text-foreground">
-                  Total previsto:{" "}
-                  <span className="font-semibold">
-                    {formatCurrencyBR(totalPlanejado)}
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-              <div className="relative max-w-md flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-9 pl-9"
-                  aria-label="Buscar aplicação de recursos"
-                />
-              </div>
-
-              {podeCriar && (
-                <Button onClick={handleNew} className="h-9 gap-2">
-                  <Plus className="h-4 w-4" />
-                  Cadastrar Aplicação
-                </Button>
-              )}
-            </div>
-
-            <div className="hidden overflow-x-auto md:block">
-              <table ref={tableRef} className="w-full min-w-[1380px]">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th
-                      className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy
+          <>
+            <div className="mb-4 space-y-4">
+              <AdvancedSearchPanel
+                open={panelOpen}
+                onOpenChange={setPanelOpen}
+                activeCount={activeFilters.length}
+              >
+                <form onSubmit={aplicarPesquisa} noValidate>
+                  <SearchFilterGrid>
+                    <div>
+                      <FieldLabel htmlFor="filtroNome">Nome do item</FieldLabel>
+                      <Input
+                        id="filtroNome"
+                        value={searchInput}
+                        onChange={(event) => setSearchInput(event.target.value)}
+                        placeholder="Digite o nome do item"
+                        className="h-9 rounded-[10px] border-border/70 bg-background/70"
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroClassificacao">
+                        Classificação
+                      </FieldLabel>
+                      <FilterMultiSelect
+                        id="filtroClassificacao"
+                        options={classificacaoPlanejamentoOptions}
+                        value={classificacoesFiltro}
+                        onChange={setClassificacoesFiltro}
+                        placeholder="Todas as classificações"
+                        summaryNoun="classificações selecionadas"
+                        searchable
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroEquipe">
+                        Integrante da equipe
+                      </FieldLabel>
+                      <FilterMultiSelect
+                        id="filtroEquipe"
+                        options={equipesEdital.map((equipe) => ({
+                          value: equipe.id,
+                          label: equipe.nome,
+                        }))}
+                        value={equipesFiltro}
+                        onChange={setEquipesFiltro}
+                        placeholder="Todos os integrantes"
+                        summaryNoun="integrantes selecionados"
+                        searchable
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroInicio">
+                        Data de início
+                      </FieldLabel>
+                      <Input
+                        id="filtroInicio"
+                        type="date"
+                        value={inicioFiltro}
+                        onChange={(event) =>
+                          setInicioFiltro(event.target.value)
+                        }
+                        className="h-9 rounded-[10px] border-border/70 bg-background/70"
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroFim">
+                        Data de término
+                      </FieldLabel>
+                      <Input
+                        id="filtroFim"
+                        type="date"
+                        value={fimFiltro}
+                        onChange={(event) => setFimFiltro(event.target.value)}
+                        className="h-9 rounded-[10px] border-border/70 bg-background/70"
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroValorMin">
+                        Valor total mínimo
+                      </FieldLabel>
+                      <Input
+                        id="filtroValorMin"
+                        value={valorMinFiltro}
+                        onChange={(event) =>
+                          setValorMinFiltro(
+                            formatCurrencyInput(event.target.value),
+                          )
+                        }
+                        inputMode="decimal"
+                        placeholder="0,00"
+                        className="h-9 rounded-[10px] border-border/70 bg-background/70"
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="filtroValorMax">
+                        Valor total máximo
+                      </FieldLabel>
+                      <Input
+                        id="filtroValorMax"
+                        value={valorMaxFiltro}
+                        onChange={(event) =>
+                          setValorMaxFiltro(
+                            formatCurrencyInput(event.target.value),
+                          )
+                        }
+                        inputMode="decimal"
+                        placeholder="0,00"
+                        className="h-9 rounded-[10px] border-border/70 bg-background/70"
+                      />
+                    </div>
+                  </SearchFilterGrid>
+                  <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                    <Button
+                      type="button"
+                      variant="glassSecondary"
+                      className="h-9 gap-2 px-4"
+                      onClick={limparPesquisa}
                     >
-                      Ações
-                    </th>
+                      <RotateCcw className="h-4 w-4" /> Limpar filtros
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="glassPrimary"
+                      className="h-9 gap-2 px-5"
+                    >
+                      <Search className="h-4 w-4" /> Pesquisar
+                    </Button>
+                  </div>
+                </form>
+              </AdvancedSearchPanel>
+              <ActiveFilters
+                items={activeFilters}
+                onClearAll={limparPesquisa}
+              />
+            </div>
 
-                    <SortableHeader
-                      label="Item"
-                      sortKey="item"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
+            <DataTableCard>
+              <DataTableToolbar
+                total={sortedItems.length}
+                reportTo="/relatorios/aplicacao-de-recursos"
+                exportColumns={exportColumns}
+                getExportData={getExportData}
+                exportFilename="aplicacao-de-recursos"
+                canExport={podeGerarPdf}
+              />
 
-                    <SortableHeader
-                      label="Início"
-                      sortKey="inicio"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Fim"
-                      sortKey="fim"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Quantidade"
-                      sortKey="quantidade"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Unidade"
-                      sortKey="unidade"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Valor unitário"
-                      sortKey="valorUnitario"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Valor total"
-                      sortKey="valorTotal"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Proposta de Edital"
-                      sortKey="proposta"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Equipe"
-                      sortKey="equipe"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    {podeGerarPdf && (
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[1180px]">
+                  <thead>
+                    <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                       <th
-                        className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                        className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
                         data-no-copy
                       >
-                        Documento
+                        Ações
                       </th>
-                    )}
-                  </tr>
-                </thead>
 
-                <tbody>
-                  {paginated.map((item) => {
+                      <SortableHeader
+                        label="Item"
+                        sortKey="item"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
+
+                      <SortableHeader
+                        label="Proposta de Edital"
+                        sortKey="proposta"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
+
+                      <SortableHeader
+                        label="Classificação"
+                        sortKey="classificacao"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
+
+                      <SortableHeader
+                        label="Quantidade"
+                        sortKey="quantidade"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
+
+                      <SortableHeader
+                        label="Valor unitário"
+                        sortKey="valorUnitario"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
+
+                      <SortableHeader
+                        label="Valor total"
+                        sortKey="valorTotal"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
+
+                      <SortableHeader
+                        label="Período"
+                        sortKey="inicio"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
+
+                      <SortableHeader
+                        label="Equipe"
+                        sortKey="equipe"
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      />
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {paginated.map((item) => {
+                      const proposta = propostaEditalNome(
+                        item.propostaEditalId,
+                      );
+                      const equipe = equipeNome(item.equipeEditalId);
+
+                      return (
+                        <tr
+                          key={item.id}
+                          className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
+                        >
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <RowActionsDropdown
+                              reportEndpoint={
+                                podeGerarPdf
+                                  ? `/planejamentos-financeiros/${item.id}/relatorio`
+                                  : undefined
+                              }
+                              reportFilename={`planejamento-financeiro-${item.id}.pdf`}
+                              onView={() => openRecord(item, "view")}
+                              onEdit={
+                                podeEditar
+                                  ? () => openRecord(item, "edit")
+                                  : undefined
+                              }
+                              onDelete={
+                                podeExcluir
+                                  ? () => setConfirmDeleteId(item.id)
+                                  : undefined
+                              }
+                            />
+                          </td>
+
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <TableCellText text={item.nomePlanejamento} bold>
+                              {item.nomePlanejamento}
+                            </TableCellText>
+                          </td>
+
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <TableCellText text={proposta}>
+                              {proposta}
+                            </TableCellText>
+                          </td>
+
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <StatusPill
+                              status={item.classificacaoPlanejamentoFinanceiro}
+                              ariaLabelPrefix="Classificação"
+                            />
+                          </td>
+
+                          <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
+                            {item.quantidade}
+                          </td>
+
+                          <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
+                            {formatCurrencyBR(
+                              parseCurrencyInput(item.valorUnitario),
+                            )}
+                          </td>
+
+                          <td className="whitespace-nowrap px-6 py-2.5 text-[13px] font-medium text-foreground">
+                            {formatCurrencyBR(
+                              parseCurrencyInput(item.valorTotal),
+                            )}
+                          </td>
+
+                          <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
+                            {formatDateBr(item.dataInicio)} a{" "}
+                            {formatDateBr(item.dataFim)}
+                          </td>
+
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <TableCellText
+                              text={equipe}
+                              muted={!item.equipeEditalId}
+                            >
+                              {equipe}
+                            </TableCellText>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {paginated.length === 0 && <EmptyRow colSpan={9} />}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="divide-y divide-border md:hidden">
+                {paginated.length === 0 ? (
+                  <DataTableEmptyState
+                    emptyTitle="Nenhuma aplicação de recursos cadastrada."
+                    emptyDescription="Adicione os itens previstos no orçamento para detalhar como os recursos serão utilizados."
+                    noResultsTitle="Nenhuma aplicação encontrada com os filtros selecionados."
+                    activeCount={activeFilters.length}
+                  />
+                ) : (
+                  paginated.map((item) => {
                     const proposta = propostaEditalNome(item.propostaEditalId);
                     const equipe = equipeNome(item.equipeEditalId);
 
                     return (
-                      <tr
-                        key={item.id}
-                        className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                      >
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <div className="flex items-center gap-1">
-                            <TableActionIcon
-                              icon={Eye}
-                              label="Visualizar"
-                              onClick={() => openRecord(item, "view")}
-                            />
-
-                            {podeEditar && (
-                              <TableActionIcon
-                                icon={Pencil}
-                                label="Editar"
-                                onClick={() => openRecord(item, "edit")}
-                              />
-                            )}
-
-                            {podeExcluir && (
-                              <TableActionIcon
-                                icon={Trash2}
-                                label="Excluir"
-                                variant="danger"
-                                onClick={() => setConfirmDeleteId(item.id)}
-                              />
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <TableCellText text={item.nomePlanejamento} bold>
-                            {item.nomePlanejamento}
-                          </TableCellText>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                          {formatDateBr(item.dataInicio)}
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                          {formatDateBr(item.dataFim)}
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                          {item.quantidade}
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                          {unidadeMedidaLabel(item.unidadeMedida)}
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
-                          {formatCurrencyBR(
-                            parseCurrencyInput(item.valorUnitario),
-                          )}
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5 text-[13px] font-medium text-foreground">
-                          {formatCurrencyBR(
-                            parseCurrencyInput(item.valorTotal),
-                          )}
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <TableCellText text={proposta}>
-                            {proposta}
-                          </TableCellText>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <TableCellText
-                            text={equipe}
-                            muted={!item.equipeEditalId}
-                          >
-                            {equipe}
-                          </TableCellText>
-                        </td>
-
-                        {podeGerarPdf && (
-                          <td className="whitespace-nowrap px-6 py-2.5">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => void handleExportPdf(item)}
-                              className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                            >
-                              <FileDown className="h-3.5 w-3.5" />
-                              Gerar ficha
-                            </Button>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-
-                  {paginated.length === 0 && (
-                    <EmptyRow colSpan={podeGerarPdf ? 11 : 10} />
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="divide-y divide-border md:hidden">
-              {paginated.length === 0 ? (
-                <div className="p-10 text-center">
-                  <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Nenhuma aplicação de recursos encontrada.
-                  </p>
-                </div>
-              ) : (
-                paginated.map((item) => {
-                  const proposta = propostaEditalNome(item.propostaEditalId);
-                  const equipe = equipeNome(item.equipeEditalId);
-
-                  return (
-                    <div key={item.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1">
-                          <TableActionIcon
-                            icon={Eye}
-                            label="Visualizar"
-                            onClick={() => openRecord(item, "view")}
+                      <div key={item.id} className="p-4">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <RowActionsDropdown
+                            reportEndpoint={
+                              podeGerarPdf
+                                ? `/planejamentos-financeiros/${item.id}/relatorio`
+                                : undefined
+                            }
+                            reportFilename={`planejamento-financeiro-${item.id}.pdf`}
+                            onView={() => openRecord(item, "view")}
+                            onEdit={
+                              podeEditar
+                                ? () => openRecord(item, "edit")
+                                : undefined
+                            }
+                            onDelete={
+                              podeExcluir
+                                ? () => setConfirmDeleteId(item.id)
+                                : undefined
+                            }
                           />
-
-                          {podeEditar && (
-                            <TableActionIcon
-                              icon={Pencil}
-                              label="Editar"
-                              onClick={() => openRecord(item, "edit")}
-                            />
-                          )}
-
-                          {podeExcluir && (
-                            <TableActionIcon
-                              icon={Trash2}
-                              label="Excluir"
-                              variant="danger"
-                              onClick={() => setConfirmDeleteId(item.id)}
-                            />
-                          )}
                         </div>
 
-                        {podeGerarPdf && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void handleExportPdf(item)}
-                            className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                          >
-                            <FileDown className="h-3.5 w-3.5" />
-                            PDF
-                          </Button>
-                        )}
+                        <p className="font-medium text-foreground">
+                          {item.nomePlanejamento}
+                        </p>
+
+                        <div className="mt-1">
+                          <StatusPill
+                            status={item.classificacaoPlanejamentoFinanceiro}
+                            ariaLabelPrefix="Classificação do planejamento"
+                          />
+                        </div>
+
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {formatDateBr(item.dataInicio)} a{" "}
+                          {formatDateBr(item.dataFim)}
+                        </p>
+
+                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                          {item.justificativaPlanejamento}
+                        </p>
+
+                        <div className="mt-3 space-y-1 text-sm text-foreground">
+                          <p>
+                            {item.quantidade}{" "}
+                            {unidadeMedidaLabel(item.unidadeMedida)}
+                          </p>
+
+                          <p>
+                            Valor unitário:{" "}
+                            {formatCurrencyBR(
+                              parseCurrencyInput(item.valorUnitario),
+                            )}
+                          </p>
+
+                          <p className="font-medium">
+                            Total:{" "}
+                            {formatCurrencyBR(
+                              parseCurrencyInput(item.valorTotal),
+                            )}
+                          </p>
+
+                          <p className="text-muted-foreground">{proposta}</p>
+                          <p className="text-muted-foreground">{equipe}</p>
+                        </div>
                       </div>
+                    );
+                  })
+                )}
+              </div>
 
-                      <p className="font-medium text-foreground">
-                        {item.nomePlanejamento}
-                      </p>
-
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {formatDateBr(item.dataInicio)} —{" "}
-                        {formatDateBr(item.dataFim)}
-                      </p>
-
-                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {item.justificativaPlanejamento}
-                      </p>
-
-                      <div className="mt-3 space-y-1 text-sm text-foreground">
-                        <p>
-                          {item.quantidade}{" "}
-                          {unidadeMedidaLabel(item.unidadeMedida)}
-                        </p>
-
-                        <p>
-                          Valor unitário:{" "}
-                          {formatCurrencyBR(
-                            parseCurrencyInput(item.valorUnitario),
-                          )}
-                        </p>
-
-                        <p className="font-medium">
-                          Total:{" "}
-                          {formatCurrencyBR(
-                            parseCurrencyInput(item.valorTotal),
-                          )}
-                        </p>
-
-                        <p className="text-muted-foreground">{proposta}</p>
-                        <p className="text-muted-foreground">{equipe}</p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            <TablePagination
-              totalItems={sortedItems.length}
-              currentPage={currentPage}
-              pageSize={pageSize}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
-              onCopy={handleCopy}
-            />
-          </div>
+              <DataTablePagination
+                totalItems={sortedItems.length}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                entityLabel="registro"
+                entityLabelPlural="registros"
+                pageSizeLabel="Registros por página"
+              />
+            </DataTableCard>
+          </>
         )}
       </div>
 
@@ -1501,24 +1826,18 @@ export default function PlanejamentoFinanceiro() {
 function Section({
   icon: Icon,
   title,
+  description,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
+  description?: string;
   children: ReactNode;
 }) {
   return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
-
+    <FormSectionCard icon={Icon} title={title} description={description}>
       {children}
-    </Card>
+    </FormSectionCard>
   );
 }
 
@@ -1541,12 +1860,11 @@ function Field({
 function EmptyRow({ colSpan }: { colSpan: number }) {
   return (
     <tr>
-      <td colSpan={colSpan} className="px-5 py-16 text-center">
-        <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-        <p className="mt-3 text-sm text-muted-foreground">
-          Nenhuma aplicação de recursos encontrada.
-        </p>
+      <td colSpan={colSpan}>
+        <DataTableEmptyState
+          emptyTitle="Nenhuma aplicação de recursos cadastrada."
+          emptyDescription="Adicione os itens previstos no orçamento para detalhar como os recursos serão utilizados."
+        />
       </td>
     </tr>
   );

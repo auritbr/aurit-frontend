@@ -8,6 +8,7 @@ export interface Usuario {
   id: string;
   name: string;
   login: string;
+  email?: string | null;
   password?: string;
   userRole: UserRole;
   statusUsuario: StatusUsuario;
@@ -29,6 +30,7 @@ export interface UsuarioDTO {
   id: number;
   name: string;
   login: string;
+  email?: string | null;
   password?: string | null;
   userRole: UserRole;
   statusUsuario: StatusUsuario;
@@ -39,6 +41,7 @@ interface UsuarioStorage {
   id?: number;
   name?: string;
   login?: string;
+  email?: string | null;
   userRole?: UserRole | string;
   statusUsuario?: StatusUsuario | string;
   configuracaoEmpresaId?: number | null;
@@ -82,6 +85,7 @@ function mapUsuarioDtoToUsuario(dto: UsuarioDTO): Usuario {
     id: String(dto.id),
     name: dto.name ?? "",
     login: dto.login ?? "",
+    email: dto.email ?? null,
     userRole: dto.userRole,
     statusUsuario: dto.statusUsuario,
     configuracaoEmpresaId:
@@ -164,6 +168,7 @@ function mapUsuarioToPayload(
   return {
     name: usuario.name?.trim() ?? "",
     login: usuario.login?.trim() ?? "",
+    email: usuario.email?.trim().toLowerCase() || undefined,
     password: usuario.password ?? undefined,
     userRole: usuario.userRole,
     statusUsuario: usuario.statusUsuario,
@@ -184,7 +189,7 @@ async function validarLimitePlanoAntesDeCriar(configuracaoEmpresaId?: number) {
   const limite =
     configuracao.tipoPlano === "PLANO_GRATUITO"
       ? LIMITE_USUARIOS_PLANO_GRATUITO
-      : configuracao.limiteUsuarios ?? null;
+      : (configuracao.limiteUsuarios ?? null);
 
   if (!limite) return;
 
@@ -231,7 +236,9 @@ export async function getUsuarioById(id: string): Promise<Usuario | undefined> {
   }
 }
 
-export async function createUsuario(usuario: Partial<Usuario>): Promise<Usuario> {
+export async function createUsuario(
+  usuario: Partial<Usuario>,
+): Promise<Usuario> {
   const configuracaoEmpresaId = await resolveConfiguracaoEmpresaId(usuario);
 
   await validarLimitePlanoAntesDeCriar(configuracaoEmpresaId);
@@ -292,8 +299,10 @@ export async function isLoginDuplicated(
 
 export function validatePasswordStrength(pw: string): string | null {
   if (pw.length < 8) return "A senha deve conter no mínimo 8 caracteres.";
-  if (!/[a-z]/.test(pw)) return "A senha deve conter pelo menos 1 letra minúscula.";
-  if (!/[A-Z]/.test(pw)) return "A senha deve conter pelo menos 1 letra maiúscula.";
+  if (!/[a-z]/.test(pw))
+    return "A senha deve conter pelo menos 1 letra minúscula.";
+  if (!/[A-Z]/.test(pw))
+    return "A senha deve conter pelo menos 1 letra maiúscula.";
   if (!/\d/.test(pw)) return "A senha deve conter pelo menos 1 número.";
   if (!/[^A-Za-z0-9]/.test(pw)) {
     return "A senha deve conter pelo menos 1 caractere especial.";
@@ -312,19 +321,37 @@ export type ModuloPermissao =
   | "INTEGRANTES"
   | "PARTICIPANTES"
   | "PROJETOS"
+  | "METAS_PROJETO"
   | "CRONOGRAMA"
   | "ATIVIDADES"
   | "TURMAS"
+  | "PLANOS_AULA"
   | "PRESENCAS"
   | "EDITAIS"
   | "PROPOSTAS_EDITAL"
+  | "EQUIPE_EDITAL"
+  | "RESULTADO_PROPOSTA"
   | "HABILITACAO"
   | "EVENTOS_CULTURAIS"
   | "ACOES_DIVULGACAO"
+  | "PLANO_COMUNICACAO"
   | "EVIDENCIAS"
   | "PLANEJAMENTO_FINANCEIRO"
   | "FINANCEIRO"
+  | "PAINEL_FINANCEIRO"
+  | "CONTAS_BANCARIAS"
+  | "CONTAS_PAGAR"
+  | "CONTAS_RECEBER"
+  | "TRANSFERENCIAS_BANCARIAS"
+  | "MOVIMENTACOES_BANCARIAS"
+  | "CONCILIACOES_BANCARIAS"
+  | "FLUXO_CAIXA"
+  | "DOACOES"
+  | "DOADORES"
+  | "FORNECEDORES"
+  | "PARCEIROS"
   | "PRESTACAO_CONTAS"
+  | "PRESTACAO_METAS"
   | "PATRIMONIO"
   | "EMPRESTIMOS"
   | "CURRICULOS"
@@ -352,19 +379,37 @@ export const moduloLabel: Record<ModuloPermissao, string> = {
   INTEGRANTES: "Integrantes",
   PARTICIPANTES: "Participantes",
   PROJETOS: "Projetos",
+  METAS_PROJETO: "Metas do projeto",
   CRONOGRAMA: "Cronograma",
   ATIVIDADES: "Atividades",
   TURMAS: "Turmas",
+  PLANOS_AULA: "Planos de aula",
   PRESENCAS: "Presenças",
   EDITAIS: "Editais",
   PROPOSTAS_EDITAL: "Propostas de edital",
+  EQUIPE_EDITAL: "Equipe da proposta",
+  RESULTADO_PROPOSTA: "Resultado da proposta",
   HABILITACAO: "Habilitação",
   EVENTOS_CULTURAIS: "Eventos culturais",
   ACOES_DIVULGACAO: "Ações de divulgação",
+  PLANO_COMUNICACAO: "Plano de comunicação",
   EVIDENCIAS: "Evidências",
   PLANEJAMENTO_FINANCEIRO: "Planejamento financeiro",
-  FINANCEIRO: "Financeiro",
+  FINANCEIRO: "Lançamentos financeiros",
+  PAINEL_FINANCEIRO: "Painel financeiro",
+  CONTAS_BANCARIAS: "Contas bancárias",
+  CONTAS_PAGAR: "Contas a pagar",
+  CONTAS_RECEBER: "Contas a receber",
+  TRANSFERENCIAS_BANCARIAS: "Transferências bancárias",
+  MOVIMENTACOES_BANCARIAS: "Movimentações bancárias",
+  CONCILIACOES_BANCARIAS: "Conciliação bancária",
+  FLUXO_CAIXA: "Fluxo de caixa",
+  DOACOES: "Doações",
+  DOADORES: "Doadores",
+  FORNECEDORES: "Fornecedores",
+  PARCEIROS: "Parceiros",
   PRESTACAO_CONTAS: "Prestação de contas",
+  PRESTACAO_METAS: "Cumprimento de metas",
   PATRIMONIO: "Patrimônio",
   EMPRESTIMOS: "Empréstimos",
   CURRICULOS: "Currículos",
@@ -404,19 +449,67 @@ export const GRUPOS_MODULOS: ModuloGrupo[] = [
   { title: "Organização", modulos: ["ORGANIZACAO", "DIRETORIA", "DOCUMENTOS"] },
   {
     title: "Pessoas",
-    modulos: ["AGENTES_CULTURAIS", "COLABORADORES", "INTEGRANTES", "PARTICIPANTES"],
+    modulos: [
+      "AGENTES_CULTURAIS",
+      "COLABORADORES",
+      "INTEGRANTES",
+      "PARTICIPANTES",
+    ],
   },
   {
     title: "Projetos e execução",
-    modulos: ["PROJETOS", "CRONOGRAMA", "ATIVIDADES", "TURMAS", "PRESENCAS"],
+    modulos: [
+      "PROJETOS",
+      "METAS_PROJETO",
+      "CRONOGRAMA",
+      "ATIVIDADES",
+      "TURMAS",
+      "PLANOS_AULA",
+      "PRESENCAS",
+    ],
   },
-  { title: "Editais", modulos: ["EDITAIS", "PROPOSTAS_EDITAL", "HABILITACAO"] },
+  {
+    title: "Editais",
+    modulos: [
+      "EDITAIS",
+      "PROPOSTAS_EDITAL",
+      "EQUIPE_EDITAL",
+      "RESULTADO_PROPOSTA",
+      "HABILITACAO",
+    ],
+  },
   {
     title: "Ações culturais",
-    modulos: ["EVENTOS_CULTURAIS", "ACOES_DIVULGACAO", "EVIDENCIAS"],
+    modulos: [
+      "EVENTOS_CULTURAIS",
+      "ACOES_DIVULGACAO",
+      "PLANO_COMUNICACAO",
+      "EVIDENCIAS",
+    ],
   },
-  { title: "Financeiro", modulos: ["PLANEJAMENTO_FINANCEIRO", "FINANCEIRO"] },
-  { title: "Prestação de contas", modulos: ["PRESTACAO_CONTAS"] },
+  {
+    title: "Financeiro",
+    modulos: [
+      "PLANEJAMENTO_FINANCEIRO",
+      "PAINEL_FINANCEIRO",
+      "FINANCEIRO",
+      "CONTAS_BANCARIAS",
+      "CONTAS_PAGAR",
+      "CONTAS_RECEBER",
+      "TRANSFERENCIAS_BANCARIAS",
+      "MOVIMENTACOES_BANCARIAS",
+      "CONCILIACOES_BANCARIAS",
+      "FLUXO_CAIXA",
+      "DOACOES",
+      "DOADORES",
+      "FORNECEDORES",
+      "PARCEIROS",
+    ],
+  },
+  {
+    title: "Prestação de contas",
+    modulos: ["PRESTACAO_CONTAS", "PRESTACAO_METAS"],
+  },
   { title: "Patrimônio", modulos: ["PATRIMONIO", "EMPRESTIMOS"] },
   { title: "Trajetórias", modulos: ["CURRICULOS", "TRAJETORIAS_CULTURAIS"] },
   {
@@ -446,7 +539,9 @@ interface UsuarioPermissoesUpdateDTO {
   permissoes: UsuarioPermissaoDTO[];
 }
 
-function mapPermissaoDtoToPermissao(dto: UsuarioPermissaoDTO): UsuarioPermissao {
+function mapPermissaoDtoToPermissao(
+  dto: UsuarioPermissaoDTO,
+): UsuarioPermissao {
   return {
     id: dto.id != null ? String(dto.id) : undefined,
     usuarioId: String(dto.usuarioId),

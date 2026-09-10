@@ -1,22 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   FileText,
   UserCheck,
   Briefcase,
   NotebookPen,
   Info,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
-import { PageTitle } from "@/components/PageTitle";
+import { BackButton } from "@/components/BackButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { getImportConfigForPath } from "@/config/importacoes";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -44,33 +47,10 @@ import {
   type TipoPessoaEquipe,
 } from "@/data/equipeEdital";
 import { toast } from "sonner";
-
-const EQUIPE_EDITAL_NEXT_STEP_KEY = "aurit:equipe-edital:next-step-card";
-
-interface EquipeEditalNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
-}
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 function salvarProximaAcaoEquipeEdital() {
-  const card: EquipeEditalNextStepCardData = {
-    titulo:
-      "Após organizar a equipe da proposta, detalhe o plano de comunicação",
-    descricao:
-      "O plano de comunicação ajuda a registrar quais materiais serão produzidos, em que quantidade, quais estratégias serão utilizadas, onde esses materiais circularão e em qual período serão divulgados.",
-    acaoLabel: "Cadastrar plano de comunicação",
-    acaoUrl: "/planos-comunicacao/novo",
-    acaoSecundariaLabel: "Ver equipe da proposta",
-    acaoSecundariaUrl: "/equipe-edital",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(EQUIPE_EDITAL_NEXT_STEP_KEY, JSON.stringify(card));
+  emitJourneyNextStep();
 }
 
 interface FormState {
@@ -201,9 +181,7 @@ export default function EquipeEditalForm() {
 
     if (
       integranteId &&
-      !options.some(
-        (integrante) => normalizeId(integrante.id) === integranteId,
-      )
+      !options.some((integrante) => normalizeId(integrante.id) === integranteId)
     ) {
       options.unshift({
         id: integranteId,
@@ -223,17 +201,13 @@ export default function EquipeEditalForm() {
       try {
         setLoading(true);
 
-        const [
-          propostasData,
-          colaboradoresData,
-          integrantesData,
-          registro,
-        ] = await Promise.all([
-          getPropostasEditalOptions(),
-          getColaboradoresOptions(),
-          getIntegrantesOptions(),
-          id ? getEquipeEditalById(Number(id)) : Promise.resolve(null),
-        ]);
+        const [propostasData, colaboradoresData, integrantesData, registro] =
+          await Promise.all([
+            getPropostasEditalOptions(),
+            getColaboradoresOptions(),
+            getIntegrantesOptions(),
+            id ? getEquipeEditalById(Number(id)) : Promise.resolve(null),
+          ]);
 
         if (!active) return;
 
@@ -267,7 +241,9 @@ export default function EquipeEditalForm() {
                 : "",
             valorPrevisto:
               registro.valorPrevisto != null
-                ? formatBRLInput(String(Math.round(registro.valorPrevisto * 100)))
+                ? formatBRLInput(
+                    String(Math.round(registro.valorPrevisto * 100)),
+                  )
                 : "",
             justificativaFuncao: registro.justificativaFuncao ?? "",
             miniBiografia: registro.miniBiografia ?? "",
@@ -310,8 +286,7 @@ export default function EquipeEditalForm() {
       propostaEdital: propostaSelectValue,
       colaborador:
         form.tipoPessoa === "COLABORADOR" ? colaboradorSelectValue : "",
-      integrante:
-        form.tipoPessoa === "INTEGRANTE" ? integranteSelectValue : "",
+      integrante: form.tipoPessoa === "INTEGRANTE" ? integranteSelectValue : "",
     };
   }
 
@@ -431,52 +406,41 @@ export default function EquipeEditalForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/equipe-edital")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" /> Voltar
-        </button>
+        <BackButton to="/equipe-edital" />
 
-        <PageTitle
+        <ListPageHeader
           title="Equipe da Proposta"
-          tooltip="Cadastre os membros que farão parte da equipe da proposta de edital, informando vínculo, função, carga horária, valor previsto, justificativa e mini biografia. Essas informações ajudam a compor o plano de trabalho e demonstrar a capacidade de execução do projeto."
+          tooltip="Nesta página são cadastradas as pessoas que farão parte da equipe do projeto apresentado ao edital, com informações sobre sua vinculação, atuação, carga horária, valor previsto e experiência. Esses registros ajudam a demonstrar quem participará da execução do projeto e como cada pessoa contribuirá para sua realização."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/equipe-edital")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
         />
 
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-          <Info
-            className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"
-            strokeWidth={2.2}
-          />
-          <p className="text-[13px] leading-relaxed text-foreground">
-            Use esta página para indicar quem atuará na execução da proposta,
-            qual será sua responsabilidade, qual dedicação está prevista e por
-            que sua participação é necessária para o projeto.
-          </p>
-        </div>
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={FileText} title="Dados da proposta">
+          {/* 1 — Vínculo com o projeto */}
+          <Section
+            icon={FileText}
+            title="Vínculo com o projeto"
+            description="Selecione o projeto que será apresentado ao edital e no qual esta pessoa fará parte da equipe prevista para sua execução."
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="propostaEdital"
                   required
-                  tooltip="Selecione a proposta de edital à qual este membro da equipe será vinculado. Esse vínculo conecta a pessoa ao plano de trabalho, orçamento e execução da proposta."
+                  tooltip="Selecione o projeto que a organização está preparando ou apresentou para este edital. A pessoa cadastrada nesta página fará parte da equipe prevista para executar esse projeto."
                 >
                   Proposta de Edital
                 </FieldLabel>
+
                 <Select
                   value={propostaSelectValue}
                   onValueChange={(v) => {
@@ -488,6 +452,7 @@ export default function EquipeEditalForm() {
                   <SelectTrigger id="propostaEdital">
                     <SelectValue placeholder="Selecione a proposta" />
                   </SelectTrigger>
+
                   <SelectContent>
                     {propostasComFallback.length === 0 ? (
                       <SelectItem value="sem-proposta" disabled>
@@ -509,27 +474,16 @@ export default function EquipeEditalForm() {
             </div>
           </Section>
 
-          <Section icon={UserCheck} title="Pessoa vinculada à equipe">
-            <div className="mb-4 flex items-start gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-              <Info
-                className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
-                strokeWidth={2.2}
-              />
-              <span>
-                Informe se a pessoa será vinculada como colaborador da
-                organização ou como integrante externo. Após escolher o tipo,
-                preencha apenas o campo correspondente.
-                <strong className="text-foreground">
-                  {" "}
-                  Escolha apenas uma opção.
-                </strong>
-              </span>
-            </div>
-
+          {/* 2 — Integrante da equipe */}
+          <Section
+            icon={UserCheck}
+            title="Integrante da equipe"
+            description="Identifique a pessoa que participará da execução do projeto a partir dos cadastros já existentes na organização."
+          >
             <div className="mb-4">
               <FieldLabel
                 required
-                tooltip="Indique se o membro da equipe será selecionado entre os colaboradores da organização ou entre os integrantes externos cadastrados no sistema."
+                tooltip="Selecione como esta pessoa está cadastrada no sistema para que seja possível localizá-la e incluí-la na equipe do projeto."
               >
                 Tipo de Pessoa
               </FieldLabel>
@@ -542,12 +496,14 @@ export default function EquipeEditalForm() {
               >
                 <label
                   htmlFor="tp-col"
-                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors ${form.tipoPessoa === "COLABORADOR"
-                    ? "border-primary bg-primary-soft"
-                    : "border-border hover:bg-muted/40"
-                    } ${visualizando ? "pointer-events-none opacity-80" : ""}`}
+                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors ${
+                    form.tipoPessoa === "COLABORADOR"
+                      ? "border-primary bg-primary-soft"
+                      : "border-border hover:bg-muted/40"
+                  } ${visualizando ? "pointer-events-none opacity-80" : ""}`}
                 >
                   <RadioGroupItem value="COLABORADOR" id="tp-col" />
+
                   <Label htmlFor="tp-col" className="cursor-pointer text-sm">
                     Colaborador
                   </Label>
@@ -555,12 +511,14 @@ export default function EquipeEditalForm() {
 
                 <label
                   htmlFor="tp-int"
-                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors ${form.tipoPessoa === "INTEGRANTE"
-                    ? "border-primary bg-primary-soft"
-                    : "border-border hover:bg-muted/40"
-                    } ${visualizando ? "pointer-events-none opacity-80" : ""}`}
+                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors ${
+                    form.tipoPessoa === "INTEGRANTE"
+                      ? "border-primary bg-primary-soft"
+                      : "border-border hover:bg-muted/40"
+                  } ${visualizando ? "pointer-events-none opacity-80" : ""}`}
                 >
                   <RadioGroupItem value="INTEGRANTE" id="tp-int" />
+
                   <Label htmlFor="tp-int" className="cursor-pointer text-sm">
                     Integrante
                   </Label>
@@ -573,10 +531,11 @@ export default function EquipeEditalForm() {
                 <FieldLabel
                   htmlFor="colaborador"
                   required
-                  tooltip="Selecione o colaborador da organização que fará parte da equipe desta proposta."
+                  tooltip="Selecione o colaborador da organização que fará parte da equipe responsável pela execução deste projeto."
                 >
                   Colaborador
                 </FieldLabel>
+
                 <Select
                   value={colaboradorSelectValue}
                   onValueChange={(v) => {
@@ -588,6 +547,7 @@ export default function EquipeEditalForm() {
                   <SelectTrigger id="colaborador">
                     <SelectValue placeholder="Selecione o colaborador" />
                   </SelectTrigger>
+
                   <SelectContent>
                     {colaboradoresComFallback.length === 0 ? (
                       <SelectItem value="sem-colaborador" disabled>
@@ -613,10 +573,11 @@ export default function EquipeEditalForm() {
                 <FieldLabel
                   htmlFor="integrante"
                   required
-                  tooltip="Selecione o integrante externo que fará parte da equipe desta proposta."
+                  tooltip="Selecione a pessoa cadastrada como integrante que fará parte da equipe responsável pela execução deste projeto."
                 >
                   Integrante
                 </FieldLabel>
+
                 <Select
                   value={integranteSelectValue}
                   onValueChange={(v) => {
@@ -628,6 +589,7 @@ export default function EquipeEditalForm() {
                   <SelectTrigger id="integrante">
                     <SelectValue placeholder="Selecione o integrante" />
                   </SelectTrigger>
+
                   <SelectContent>
                     {integrantesComFallback.length === 0 ? (
                       <SelectItem value="sem-integrante" disabled>
@@ -649,16 +611,22 @@ export default function EquipeEditalForm() {
             )}
           </Section>
 
-          <Section icon={Briefcase} title="Função no projeto">
+          {/* 3 — Atuação no projeto */}
+          <Section
+            icon={Briefcase}
+            title="Atuação no projeto"
+            description="Defina como esta pessoa participará da execução do projeto e dimensione a dedicação e o valor previstos para seu trabalho."
+          >
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field full>
+              <Field>
                 <FieldLabel
                   htmlFor="funcaoProjeto"
                   required
-                  tooltip="Informe a função que esta pessoa exercerá no projeto, de acordo com sua responsabilidade principal. Ex.: coordenador geral, oficineiro, produtor cultural, educador, monitor, responsável financeiro, comunicador ou técnico de som."
+                  tooltip="Informe a principal função que esta pessoa exercerá na execução do projeto, como coordenação, produção, formação, comunicação ou apoio técnico."
                 >
-                  Função no Projeto
+                  Função na Proposta
                 </FieldLabel>
+
                 <Input
                   id="funcaoProjeto"
                   value={form.funcaoProjeto}
@@ -672,10 +640,11 @@ export default function EquipeEditalForm() {
                 <FieldLabel
                   htmlFor="cargaHorariaPrevista"
                   required
-                  tooltip="Informe a carga horária semanal prevista para atuação desta pessoa no projeto. Ex.: 10 horas por semana."
+                  tooltip="Informe quantas horas por semana estão previstas para a atuação desta pessoa na execução do projeto."
                 >
                   Carga Horária Semanal
                 </FieldLabel>
+
                 <Input
                   id="cargaHorariaPrevista"
                   inputMode="numeric"
@@ -695,10 +664,11 @@ export default function EquipeEditalForm() {
                 <FieldLabel
                   htmlFor="valorPrevisto"
                   required
-                  tooltip="Informe o valor previsto para pagamento desta pessoa na proposta, conforme sua função, carga horária e orçamento do projeto. Quando não houver remuneração prevista, informe R$ 0,00."
+                  tooltip="Informe o valor previsto para remunerar o trabalho desta pessoa na execução do projeto. Se não houver pagamento previsto, informe R$ 0,00."
                 >
                   Valor Previsto
                 </FieldLabel>
+
                 <Input
                   id="valorPrevisto"
                   inputMode="numeric"
@@ -713,16 +683,22 @@ export default function EquipeEditalForm() {
             </div>
           </Section>
 
-          <Section icon={NotebookPen} title="Justificativa e mini biografia">
+          {/* 4 — Justificativa e experiência */}
+          <Section
+            icon={NotebookPen}
+            title="Justificativa e experiência"
+            description="Demonstre por que a participação desta pessoa é necessária ao projeto e como sua experiência contribui para a função que irá exercer."
+          >
             <div className="space-y-4">
               <Field>
                 <FieldLabel
                   htmlFor="justificativaFuncao"
                   required
-                  tooltip="Explique por que esta função é necessária para a execução da proposta e como a atuação desta pessoa contribui para as atividades, metas, acompanhamento ou resultados do projeto. Ex.: A função de oficineiro é necessária para conduzir as atividades formativas, acompanhar os participantes e garantir a execução pedagógica das oficinas previstas."
+                  tooltip="Explique por que esta função é necessária para o projeto e de que forma a atuação desta pessoa contribuirá para sua execução e seus resultados."
                 >
                   Justificativa da Função
                 </FieldLabel>
+
                 <Textarea
                   id="justificativaFuncao"
                   value={form.justificativaFuncao}
@@ -738,10 +714,11 @@ export default function EquipeEditalForm() {
                 <FieldLabel
                   htmlFor="miniBiografia"
                   required
-                  tooltip="Descreva brevemente a trajetória da pessoa, destacando experiências, formações, atuações culturais, competências e relação com a função que exercerá na proposta. Ex.: Educadora musical com atuação em oficinas culturais desde 2018, experiência com crianças e adolescentes e participação em projetos comunitários de formação artística."
+                  tooltip="Apresente brevemente a trajetória da pessoa, destacando experiências, formações, conhecimentos ou atuações relacionadas à função que exercerá no projeto."
                 >
                   Mini Biografia
                 </FieldLabel>
+
                 <Textarea
                   id="miniBiografia"
                   value={form.miniBiografia}
@@ -755,10 +732,11 @@ export default function EquipeEditalForm() {
             </div>
           </Section>
 
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/equipe-edital")}
               disabled={saving}
             >
@@ -766,7 +744,12 @@ export default function EquipeEditalForm() {
             </Button>
 
             {!visualizando && (
-              <Button type="submit" className="sm:min-w-40" disabled={saving}>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                className="h-9 px-5"
+                disabled={saving}
+              >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
             )}
@@ -784,22 +767,18 @@ export default function EquipeEditalForm() {
 function Section({
   icon: Icon,
   title,
+  description,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
+    <FormSectionCard icon={Icon} title={title} description={description}>
       {children}
-    </Card>
+    </FormSectionCard>
   );
 }
 

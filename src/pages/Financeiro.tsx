@@ -11,14 +11,15 @@ import {
   Clock,
   TrendingUp,
   TrendingDown,
-  CheckCircle2,
-  AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
+  AlertTriangle,
   FileDown,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { StatusPill } from "@/components/StatusPill";
 import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
@@ -41,12 +42,11 @@ import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { TablePagination } from "@/components/TablePagination";
 import { SortableHeader } from "@/components/SortableHeader";
-import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
 import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
-import { exportFinanceiroPdf } from "@/lib/pdfExporters";
+import { downloadFinanceiroReport as exportFinanceiroPdf } from "@/lib/individualReportDownload";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -75,7 +75,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
-type SortKey = "data" | "tipo" | "valor" | "status" | "projeto" | "pessoa" | "forma";
+type SortKey =
+  | "data"
+  | "tipo"
+  | "valor"
+  | "status"
+  | "projeto"
+  | "pessoa"
+  | "forma";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -161,9 +168,19 @@ function pickText(...values: Array<unknown>) {
   return "";
 }
 
+function asRecords(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value)
+    ? value.filter(
+        (item): item is Record<string, unknown> =>
+          typeof item === "object" && item !== null,
+      )
+    : [];
+}
+
 function getFinanceiroId(item: Financeiro, ...keys: string[]) {
+  const record = item as unknown as Record<string, unknown>;
   for (const key of keys) {
-    const value = (item as any)[key];
+    const value = record[key];
 
     if (value !== null && value !== undefined && String(value).trim() !== "") {
       return String(value);
@@ -357,80 +374,64 @@ export default function FinanceiroPage() {
       setItems(financeirosData);
 
       setOrganizacoes(
-        (organizacoesData ?? []).map((o: any) => ({
+        asRecords(organizacoesData).map((o) => ({
           id: String(o.id),
           nome:
-            o.razaoSocial?.trim() ||
-            o.nomeFantasia?.trim() ||
-            o.nomeOrganizacao?.trim() ||
-            o.nome?.trim() ||
-            `Organização ${o.id}`,
+            pickText(
+              o.razaoSocial,
+              o.nomeFantasia,
+              o.nomeOrganizacao,
+              o.nome,
+            ) || `Organização ${o.id}`,
         })),
       );
 
       setProjetos(
-        (projetosData ?? []).map((p: any) => ({
+        asRecords(projetosData).map((p) => ({
           id: String(p.id),
           nome:
-            p.nomeProjeto?.trim() ||
-            p.tituloProjeto?.trim() ||
-            p.nome?.trim() ||
+            pickText(p.nomeProjeto, p.tituloProjeto, p.nome) ||
             `Projeto ${p.id}`,
         })),
       );
 
       setColaboradores(
-        (colaboradoresData ?? []).map((c: any) => ({
+        asRecords(colaboradoresData).map((c) => ({
           id: String(c.id),
           nome:
-            c.nomeCompleto?.trim() ||
-            c.nome?.trim() ||
-            c.nomeColaborador?.trim() ||
+            pickText(c.nomeCompleto, c.nome, c.nomeColaborador) ||
             `Colaborador ${c.id}`,
         })),
       );
 
       setPlanejamentos(
-        (planejamentosData ?? []).map((p: any) => ({
+        asRecords(planejamentosData).map((p) => ({
           id: String(p.id),
           nome:
-            p.nomePlanejamento?.trim() ||
-            p.itemPlanejamento?.trim() ||
-            p.nome?.trim() ||
+            pickText(p.nomePlanejamento, p.itemPlanejamento, p.nome) ||
             `Planejamento ${p.id}`,
         })),
       );
 
       setAtividades(
-        (atividadesData ?? []).map((a: any) => ({
+        asRecords(atividadesData).map((a) => ({
           id: String(a.id),
           nome:
-            a.nomeAtividade?.trim() ||
-            a.nome?.trim() ||
-            a.titulo?.trim() ||
-            `Atividade ${a.id}`,
+            pickText(a.nomeAtividade, a.nome, a.titulo) || `Atividade ${a.id}`,
         })),
       );
 
       setEventos(
-        (eventosData ?? []).map((e: any) => ({
+        asRecords(eventosData).map((e) => ({
           id: String(e.id),
-          nome:
-            e.nomeEvento?.trim() ||
-            e.nome?.trim() ||
-            e.titulo?.trim() ||
-            `Evento ${e.id}`,
+          nome: pickText(e.nomeEvento, e.nome, e.titulo) || `Evento ${e.id}`,
         })),
       );
 
       setAcoes(
-        (acoesData ?? []).map((a: any) => ({
+        asRecords(acoesData).map((a) => ({
           id: String(a.id),
-          nome:
-            a.nomeAcao?.trim() ||
-            a.tituloAcao?.trim() ||
-            a.nome?.trim() ||
-            `Ação ${a.id}`,
+          nome: pickText(a.nomeAcao, a.tituloAcao, a.nome) || `Ação ${a.id}`,
         })),
       );
     } catch (error) {
@@ -452,25 +453,25 @@ export default function FinanceiroPage() {
   }
 
   const projetoNome = (id?: string) =>
-    id ? projetos.find((p) => p.id === id)?.nome ?? "—" : "—";
+    id ? (projetos.find((p) => p.id === id)?.nome ?? "—") : "—";
 
   const organizacaoNome = (id?: string) =>
-    id ? organizacoes.find((o) => o.id === id)?.nome ?? "—" : "—";
+    id ? (organizacoes.find((o) => o.id === id)?.nome ?? "—") : "—";
 
   const colaboradorNome = (id?: string) =>
-    id ? colaboradores.find((c) => c.id === id)?.nome ?? "—" : "—";
+    id ? (colaboradores.find((c) => c.id === id)?.nome ?? "—") : "—";
 
   const planejamentoNome = (id?: string) =>
-    id ? planejamentos.find((p) => p.id === id)?.nome ?? "—" : "—";
+    id ? (planejamentos.find((p) => p.id === id)?.nome ?? "—") : "—";
 
   const atividadeNome = (id?: string) =>
-    id ? atividades.find((a) => a.id === id)?.nome ?? "—" : "—";
+    id ? (atividades.find((a) => a.id === id)?.nome ?? "—") : "—";
 
   const eventoNome = (id?: string) =>
-    id ? eventos.find((e) => e.id === id)?.nome ?? "—" : "—";
+    id ? (eventos.find((e) => e.id === id)?.nome ?? "—") : "—";
 
   const acaoNome = (id?: string) =>
-    id ? acoes.find((a) => a.id === id)?.nome ?? "—" : "—";
+    id ? (acoes.find((a) => a.id === id)?.nome ?? "—") : "—";
 
   const pessoaLabel = (item: Financeiro) =>
     item.colaboradorId
@@ -513,16 +514,8 @@ export default function FinanceiroPage() {
         "planejamentoId",
       );
       const atividadeId = getFinanceiroId(item, "atividadeId");
-      const eventoId = getFinanceiroId(
-        item,
-        "eventoCulturalId",
-        "eventoId",
-      );
-      const acaoId = getFinanceiroId(
-        item,
-        "acaoDivulgacaoId",
-        "acaoId",
-      );
+      const eventoId = getFinanceiroId(item, "eventoCulturalId", "eventoId");
+      const acaoId = getFinanceiroId(item, "acaoDivulgacaoId", "acaoId");
 
       return (
         (item.numeroDocumento ?? "").toLowerCase().includes(s) ||
@@ -552,7 +545,6 @@ export default function FinanceiroPage() {
     eventos,
     acoes,
   ]);
-
 
   const { sortConfig, sortedItems, handleSort } = useSortableData(
     filtered,
@@ -596,7 +588,9 @@ export default function FinanceiroPage() {
     if (!confirmDelete) return;
 
     if (!podeExcluir) {
-      toast.error("Você não possui permissão para excluir lançamentos do controle financeiro.");
+      toast.error(
+        "Você não possui permissão para excluir lançamentos do controle financeiro.",
+      );
       setConfirmDelete(null);
       return;
     }
@@ -609,7 +603,9 @@ export default function FinanceiroPage() {
       setConfirmDelete(null);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Erro ao excluir lançamento do controle financeiro.";
+        error instanceof Error
+          ? error.message
+          : "Erro ao excluir lançamento do controle financeiro.";
 
       if (isPlanoAccessDenied(message)) {
         setAccessDeniedMessage(message);
@@ -629,7 +625,9 @@ export default function FinanceiroPage() {
     }
 
     if (!item.id || !item.urlComprovante) {
-      toast.info("Nenhum comprovante disponível para este lançamento do controle financeiro.");
+      toast.info(
+        "Nenhum comprovante disponível para este lançamento do controle financeiro.",
+      );
       return;
     }
 
@@ -686,20 +684,20 @@ export default function FinanceiroPage() {
       descricao: item.descricao,
 
       dataPagamento: item.dataPagamento,
-      dataVencimento: (item as any).dataVencimento,
+      dataVencimento: item.dataVencimento,
 
       colaborador: item.colaboradorId
         ? colaboradorNome(item.colaboradorId)
         : "",
       nomePessoa: item.colaboradorId ? "" : item.nomePessoa,
-      cpfCnpj: (item as any).cpfCnpj || (item as any).cpfCNPJ,
+      cpfCnpj: item.cpfCnpj,
 
       valor: formatCurrency(item.valor),
-      observacao: (item as any).observacao,
+      observacao: item.observacao,
 
       tipoOperacaoFinanceira: item.tipoOperacaoFinanceira,
       formaPagamento: item.formaPagamento,
-      aplicacaoFinanceiro: (item as any).aplicacaoFinanceiro,
+      aplicacaoFinanceiro: item.aplicacaoFinanceiro,
       statusFinanceiro: item.statusFinanceiro,
 
       planejamentoFinanceiro: planejamentoId
@@ -736,18 +734,26 @@ export default function FinanceiroPage() {
           tooltip="Registre entradas e saídas financeiras da organização no controle financeiro. Use os vínculos apenas quando a movimentação estiver diretamente relacionada a projeto, planejamento, atividade, evento cultural ou ação de divulgação. Para despesas administrativas, como luz, internet, aluguel e taxas, deixe os vínculos de execução em branco e detalhe a finalidade na descrição ou observação."
         />
 
-        {nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
-        )}
+        <section
+          role="alert"
+          className="mb-5 flex items-start gap-3 rounded-[16px] border border-red-300/70 bg-red-50/75 px-4 py-3.5 text-red-900 shadow-[0_2px_10px_-8px_hsl(0_72%_42%_/_0.32),inset_0_1px_0_hsl(0_0%_100%_/_0.65)] backdrop-blur-md supports-[backdrop-filter]:bg-red-50/55 dark:border-red-400/30 dark:bg-red-950/30 dark:text-red-100"
+        >
+          <span
+            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-red-300/70 bg-red-100/80 text-red-700 dark:border-red-400/30 dark:bg-red-900/45 dark:text-red-200"
+            aria-hidden
+          >
+            <AlertTriangle className="h-4 w-4" strokeWidth={2.2} />
+          </span>
+          <div>
+            <h2 className="text-sm font-semibold">
+              Esta página será descontinuada em breve
+            </h2>
+            <p className="mt-1 text-[13px] leading-relaxed text-red-800/90 dark:text-red-100/85">
+              Migre os dados para as páginas correspondentes e não realize novos
+              cadastros neste Controle Financeiro.
+            </p>
+          </div>
+        </section>
 
         <div className="mb-5 flex flex-col sm:flex-row sm:items-center gap-3">
           <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -816,9 +822,9 @@ export default function FinanceiroPage() {
 
             {podeCriar && (
               <Button
-                onClick={() => navigate("/financeiro/novo")}
                 className="h-9 gap-2"
-                disabled={loading}
+                disabled
+                title="Novos lançamentos não podem mais ser cadastrados nesta página."
               >
                 <Plus className="h-4 w-4" />
                 Cadastrar lançamento
@@ -977,17 +983,22 @@ export default function FinanceiroPage() {
                       </td>
 
                       <td
-                        className={`px-6 py-2.5 text-[13px] font-medium text-right whitespace-nowrap ${item.tipoOperacaoFinanceira === "ENTRADA"
-                          ? "text-emerald-600"
-                          : "text-foreground"
-                          }`}
+                        className={`px-6 py-2.5 text-[13px] font-medium text-right whitespace-nowrap ${
+                          item.tipoOperacaoFinanceira === "ENTRADA"
+                            ? "text-emerald-600"
+                            : "text-foreground"
+                        }`}
                       >
                         {item.tipoOperacaoFinanceira === "SAIDA" ? "− " : ""}
                         {formatCurrency(item.valor)}
                       </td>
 
                       <td className="px-6 py-2.5">
-                        <FinanceStatusPill status={item.statusFinanceiro} />
+                        <StatusPill
+                          status={item.statusFinanceiro}
+                          context="financeiro"
+                          ariaLabelPrefix="Situação financeira"
+                        />
                       </td>
 
                       <td className="px-6 py-2.5">
@@ -1120,10 +1131,11 @@ export default function FinanceiroPage() {
                     <OperacaoBadge tipo={item.tipoOperacaoFinanceira} />
 
                     <span
-                      className={`text-sm font-semibold ${item.tipoOperacaoFinanceira === "ENTRADA"
-                        ? "text-emerald-600"
-                        : "text-foreground"
-                        }`}
+                      className={`text-sm font-semibold ${
+                        item.tipoOperacaoFinanceira === "ENTRADA"
+                          ? "text-emerald-600"
+                          : "text-foreground"
+                      }`}
                     >
                       {item.tipoOperacaoFinanceira === "SAIDA" ? "− " : ""}
                       {formatCurrency(item.valor)}
@@ -1142,7 +1154,11 @@ export default function FinanceiroPage() {
                   </p>
 
                   <div className="flex items-center gap-2 mt-2">
-                    <FinanceStatusPill status={item.statusFinanceiro} />
+                    <StatusPill
+                      status={item.statusFinanceiro}
+                      context="financeiro"
+                      ariaLabelPrefix="Situação financeira"
+                    />
 
                     <span className="text-xs text-muted-foreground">
                       {formatDateBR(item.dataPagamento)}
@@ -1180,7 +1196,9 @@ export default function FinanceiroPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir lançamento do controle financeiro?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Excluir lançamento do controle financeiro?
+            </AlertDialogTitle>
 
             <AlertDialogDescription>
               Esta ação não pode ser desfeita.
@@ -1216,7 +1234,7 @@ function SummaryCard({
 }: {
   label: string;
   value: number;
-  Icon: any;
+  Icon: LucideIcon;
   accent: string;
 }) {
   return (
@@ -1241,10 +1259,11 @@ function OperacaoBadge({ tipo }: { tipo: "ENTRADA" | "SAIDA" }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border ${isEntrada
-        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-        : "bg-rose-50 text-rose-700 border-rose-200"
-        }`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border ${
+        isEntrada
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+          : "bg-rose-50 text-rose-700 border-rose-200"
+      }`}
     >
       {isEntrada ? (
         <TrendingUp className="h-3 w-3" />
@@ -1253,38 +1272,6 @@ function OperacaoBadge({ tipo }: { tipo: "ENTRADA" | "SAIDA" }) {
       )}
 
       {isEntrada ? "Entrada" : "Saída"}
-    </span>
-  );
-}
-
-function FinanceStatusPill({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string; Icon: any }> = {
-    PENDENTE: {
-      label: "Pendente",
-      cls: "bg-amber-50 text-amber-700 border-amber-200",
-      Icon: Clock,
-    },
-    LIQUIDADO: {
-      label: "Liquidado",
-      cls: "bg-emerald-50 text-emerald-700 border-emerald-200",
-      Icon: CheckCircle2,
-    },
-    VENCIDO: {
-      label: "Vencido",
-      cls: "bg-destructive/10 text-destructive border-destructive/20",
-      Icon: AlertTriangle,
-    },
-  };
-
-  const cfg = map[status] ?? map.PENDENTE;
-  const { Icon } = cfg;
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border ${cfg.cls}`}
-    >
-      <Icon className="h-3 w-3" strokeWidth={2.5} />
-      {cfg.label}
     </span>
   );
 }

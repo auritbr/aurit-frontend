@@ -22,11 +22,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -107,6 +103,33 @@ export type StatusTurma = (typeof statusTurma)[number]["value"];
 export type DiaSemana = (typeof diasSemana)[number]["value"];
 export type NivelTurma = (typeof niveisTurma)[number]["value"];
 
+export interface TurmaHorarioDTO {
+  diaAtividade: string;
+  horarioInicio: string;
+  horarioFim: string;
+}
+
+export interface HorarioTurma extends TurmaHorarioDTO {
+  id: string;
+}
+
+let horarioSequence = 0;
+
+export function criarHorarioTurma(
+  horario: Partial<TurmaHorarioDTO> = {},
+): HorarioTurma {
+  horarioSequence += 1;
+  return {
+    id: `horario-${Date.now()}-${horarioSequence}`,
+    diaAtividade: horario.diaAtividade ?? "",
+    horarioInicio: normalizeTime(horario.horarioInicio),
+    horarioFim: normalizeTime(horario.horarioFim),
+  };
+}
+
+export const horarioTurmaChave = (horario: TurmaHorarioDTO) =>
+  `${horario.diaAtividade}|${horario.horarioInicio}|${horario.horarioFim}`;
+
 export const statusTurmaLabel = (value?: string) =>
   statusTurma.find((status) => status.value === value)?.label ?? value ?? "—";
 
@@ -114,7 +137,9 @@ export const diaLabel = (value?: string) =>
   diasSemana.find((dia) => dia.value === value)?.label ?? value ?? "—";
 
 export const nivelTurmaLabel = (value?: string | null) =>
-  value ? niveisTurma.find((nivel) => nivel.value === value)?.label ?? value : "—";
+  value
+    ? (niveisTurma.find((nivel) => nivel.value === value)?.label ?? value)
+    : "—";
 
 export interface TurmaDTO {
   id?: number | string;
@@ -124,6 +149,8 @@ export interface TurmaDTO {
   horarioFim: string;
   quantidadeVagas?: number | string | null;
   diaAtividade: string;
+  horarios?: TurmaHorarioDTO[] | null;
+  horariosDescricao?: string | null;
   status: string;
   nivelTurma?: string | null;
 
@@ -150,6 +177,8 @@ export interface Turma {
   horarioFim: string;
   quantidadeVagas: number | null;
   diaAtividade: string;
+  horarios: HorarioTurma[];
+  horariosDescricao: string;
   status: string;
   nivelTurma: string;
   atividadeId: string;
@@ -165,6 +194,7 @@ export interface TurmaPayload {
   horarioFim: string;
   quantidadeVagas?: number | null;
   diaAtividade: string;
+  horarios: TurmaHorarioDTO[];
   status: string;
   nivelTurma?: string | null;
   atividadeId: number;
@@ -178,6 +208,7 @@ export interface TurmaFormPayloadSource {
   horarioFim: string;
   quantidadeVagas?: string;
   diaAtividade: string;
+  horarios?: HorarioTurma[];
   status: string;
   nivelTurma: string;
   atividadeId: string;
@@ -225,14 +256,13 @@ function extractColaboradoresNomes(dto: TurmaDTO): string[] {
   if (!Array.isArray(dto.colaboradores)) return [];
 
   return dto.colaboradores
-    .map((colaborador) =>
-      pickText(colaborador.nomeCompleto, colaborador.nome),
-    )
+    .map((colaborador) => pickText(colaborador.nomeCompleto, colaborador.nome))
     .filter(Boolean);
 }
 
 export function mapTurma(dto: TurmaDTO): Turma {
   const atividadeId = normalizeId(dto.atividadeId ?? dto.atividade?.id);
+  const horarios = normalizarHorariosTurma(dto);
 
   return {
     id: normalizeId(dto.id),
@@ -242,6 +272,15 @@ export function mapTurma(dto: TurmaDTO): Turma {
     horarioFim: normalizeTime(dto.horarioFim),
     quantidadeVagas: normalizeNumber(dto.quantidadeVagas),
     diaAtividade: dto.diaAtividade ?? "",
+    horarios,
+    horariosDescricao:
+      dto.horariosDescricao ??
+      horarios
+        .map(
+          (horario) =>
+            `${diaLabel(horario.diaAtividade)}, ${horario.horarioInicio} às ${horario.horarioFim}`,
+        )
+        .join("\n"),
     status: dto.status ?? "",
     nivelTurma: dto.nivelTurma ?? "",
     atividadeId,
@@ -251,18 +290,25 @@ export function mapTurma(dto: TurmaDTO): Turma {
   };
 }
 
-export function buildTurmaPayload(
-  data: TurmaFormPayloadSource,
-): TurmaPayload {
+export function buildTurmaPayload(data: TurmaFormPayloadSource): TurmaPayload {
+  const horarios =
+    data.horarios?.map(({ diaAtividade, horarioInicio, horarioFim }) => ({
+      diaAtividade,
+      horarioInicio,
+      horarioFim,
+    })) ?? [];
+  const primeiroHorario = horarios[0];
+
   return {
     nomeTurma: data.nomeTurma.trim(),
     descricaoTurma: data.descricaoTurma.trim(),
-    horarioInicio: data.horarioInicio,
-    horarioFim: data.horarioFim,
+    horarioInicio: primeiroHorario?.horarioInicio ?? data.horarioInicio,
+    horarioFim: primeiroHorario?.horarioFim ?? data.horarioFim,
     quantidadeVagas: data.quantidadeVagas?.trim()
       ? Number(data.quantidadeVagas)
       : null,
-    diaAtividade: data.diaAtividade,
+    diaAtividade: primeiroHorario?.diaAtividade ?? data.diaAtividade,
+    horarios,
     status: data.status,
     nivelTurma: data.nivelTurma || null,
     atividadeId: Number(data.atividadeId),
@@ -270,6 +316,29 @@ export function buildTurmaPayload(
       .map(Number)
       .filter((id) => Number.isFinite(id)),
   };
+}
+
+export function normalizarHorariosTurma(turma: {
+  horarios?: Array<Partial<TurmaHorarioDTO>> | null;
+  diaAtividade?: string | null;
+  horarioInicio?: string | null;
+  horarioFim?: string | null;
+}): HorarioTurma[] {
+  if (Array.isArray(turma.horarios) && turma.horarios.length > 0) {
+    return turma.horarios.map((horario) => criarHorarioTurma(horario));
+  }
+
+  if (turma.diaAtividade || turma.horarioInicio || turma.horarioFim) {
+    return [
+      criarHorarioTurma({
+        diaAtividade: turma.diaAtividade ?? "",
+        horarioInicio: turma.horarioInicio,
+        horarioFim: turma.horarioFim,
+      }),
+    ];
+  }
+
+  return [];
 }
 
 export async function getTurmas(): Promise<Turma[]> {
@@ -367,11 +436,8 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
       return {
         id,
         nome:
-          pickText(
-            atividade.nomeAtividade,
-            atividade.nome,
-            atividade.titulo,
-          ) || `Atividade ${id}`,
+          pickText(atividade.nomeAtividade, atividade.nome, atividade.titulo) ||
+          `Atividade ${id}`,
       };
     })
     .filter((atividade) => atividade.id)

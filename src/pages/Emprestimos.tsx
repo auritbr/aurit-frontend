@@ -1,30 +1,50 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
   Plus,
-  Eye,
-  Pencil,
-  Trash2,
   ArrowLeftRight,
-  FileSignature,
+  RotateCcw,
+  FileText,
 } from "lucide-react";
 
-import { exportTermoEmprestimoPdf } from "@/lib/pdfExporters";
 import { AppLayout } from "@/components/AppLayout";
-import { PageTitle } from "@/components/PageTitle";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { DataTableEmptyState } from "@/components/list/DataTableEmptyState";
+import { SortableTh } from "@/components/list/SortableTh";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+  useSessionBoolean,
+} from "@/components/AdvancedSearchPanel";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+import { FieldLabel } from "@/components/FieldLabel";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
+import { GerarTermoEmprestimoButton } from "@/components/GerarTermoEmprestimoItem";
+import { DataTablePagination } from "@/components/DataTablePagination";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TableActionIcon } from "@/components/TableActionIcon";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TableCellText } from "@/components/TableCellText";
+import { StatusPill } from "@/components/StatusPill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { TablePagination } from "@/components/TablePagination";
-import { SortableHeader } from "@/components/SortableHeader";
 import { usePagination } from "@/hooks/usePagination";
-import { useSortableData } from "@/hooks/useSortableData";
-import { copyTableFromRef } from "@/lib/copyTableDom";
+import { maskDate } from "@/lib/masks";
+import { downloadIndividualReport } from "@/lib/individualReportDownload";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
   getPermissoesUsuarioLogadoPorModulo,
@@ -33,6 +53,7 @@ import {
 } from "@/lib/permissoes";
 import {
   estadoConservacaoEmprestimoLabel,
+  statusEmprestimoOptions,
   statusEmprestimoLabel,
   estadoDevolucaoLabel,
   getEmprestimos,
@@ -52,7 +73,60 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
-type SortKey = "patrimonio" | "destinatario" | "tipo" | "emprestimo" | "previsao" | "devolucao" | "conservacao" | "status" | "estadoDevolucao" | "contexto";
+const sortByOptions = [
+  { value: "patrimonio", label: "Item / bem" },
+  { value: "destinatario", label: "Responsável" },
+  { value: "status", label: "Situação" },
+  { value: "emprestimo", label: "Data do empréstimo" },
+  { value: "previsao", label: "Data prevista de devolução" },
+] as const;
+
+type SortBy = (typeof sortByOptions)[number]["value"];
+type SortDir = "asc" | "desc";
+
+interface EmprestimosFiltros {
+  item: string;
+  responsavel: string;
+  situacao: string[];
+  dataEmprestimo: string;
+  dataDevolucao: string;
+  atraso: string[];
+  sortBy: SortBy;
+  sortDir: SortDir;
+}
+
+const emptyFiltros: EmprestimosFiltros = {
+  item: "",
+  responsavel: "",
+  situacao: [],
+  dataEmprestimo: "",
+  dataDevolucao: "",
+  atraso: [],
+  sortBy: "patrimonio",
+  sortDir: "asc",
+};
+
+const atrasoOptions = [
+  { value: "SIM", label: "Com atraso" },
+  { value: "NAO", label: "Sem atraso" },
+] as const;
+
+const sortDirLabels: Record<SortDir, string> = {
+  asc: "A–Z / mais antigo",
+  desc: "Z–A / mais recente",
+};
+
+const normalize = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+const labelOf = (
+  options: readonly { value: string; label: string }[],
+  value: string,
+) => options.find((option) => option.value === value)?.label ?? value;
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -91,11 +165,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -155,38 +225,6 @@ interface LookupItem {
   extra?: string;
 }
 
-function statusClass(status: string) {
-  switch (status) {
-    case "EM_ANDAMENTO":
-      return "status-pill status-pending";
-    case "DEVOLVIDO":
-      return "status-pill status-active";
-    case "ATRASADO":
-      return "status-pill status-pending";
-    case "CANCELADO":
-      return "status-pill status-inactive";
-    default:
-      return "status-pill status-inactive";
-  }
-}
-
-function conservacaoClass(status: string) {
-  switch (status) {
-    case "NOVO":
-      return "status-pill status-active";
-    case "USADO":
-      return "status-pill status-done";
-    case "DANIFICADO":
-      return "status-pill status-pending";
-    case "INUTILIZADO":
-      return "status-pill status-inactive";
-    case "CONSERVADO":
-      return "status-pill status-active";
-    default:
-      return "status-pill status-inactive";
-  }
-}
-
 function pickText(...values: Array<unknown>) {
   for (const value of values) {
     if (typeof value === "string" && value.trim()) {
@@ -199,10 +237,14 @@ function pickText(...values: Array<unknown>) {
 
 export default function Emprestimos() {
   const navigate = useNavigate();
-  const tableRef = useRef<HTMLTableElement>(null);
-
-  const [search, setSearch] = useState("");
   const [items, setItems] = useState<Emprestimo[]>([]);
+  const [panelOpen, setPanelOpen] = useSessionBoolean(
+    "emprestimos:pesquisa-avancada",
+    false,
+  );
+  const [draft, setDraft] = useState<EmprestimosFiltros>(emptyFiltros);
+  const [filtros, setFiltros] = useState<EmprestimosFiltros>(emptyFiltros);
+  const [searching, setSearching] = useState(false);
 
   const [patrimonios, setPatrimonios] = useState<LookupItem[]>([]);
   const [colaboradores, setColaboradores] = useState<LookupItem[]>([]);
@@ -331,8 +373,7 @@ export default function Emprestimos() {
         throw new Error(await parseError(eventosCulturaisRes));
       }
 
-      const patrimoniosData: PatrimonioApiDTO[] =
-        await patrimoniosRes.json();
+      const patrimoniosData: PatrimonioApiDTO[] = await patrimoniosRes.json();
 
       const colaboradoresData: ColaboradorApiDTO[] =
         await colaboradoresRes.json();
@@ -502,100 +543,174 @@ export default function Emprestimos() {
     return partes.length > 0 ? partes.join(" • ") : "—";
   };
 
-  const filtered = useMemo(() => {
-    const term = search.toLowerCase().trim();
+  const filtered = (() => {
+    const termoItem = normalize(filtros.item);
+    const termoResponsavel = normalize(filtros.responsavel);
 
-    if (!term) return items;
-
-    return items.filter((item) => {
-      const patrimonio = patrimonioLabel(item.patrimonioId).toLowerCase();
-      const destinatario = destinatarioLabel(item).toLowerCase();
-      const status = statusEmprestimoLabel(item.statusEmprestimo).toLowerCase();
-
-      const tipoDestinatario = tipoDestinatarioLabel(
-        item.tipoDestinatario,
-      ).toLowerCase();
-
-      const conservacao = estadoConservacaoEmprestimoLabel(
-        item.estadoConservacao,
-      ).toLowerCase();
-
-      const devolucao = item.estadoDevolucao
-        ? estadoDevolucaoLabel(item.estadoDevolucao).toLowerCase()
-        : "";
-
-      const contexto = contextoLabel(item).toLowerCase();
-
-      return (
-        patrimonio.includes(term) ||
-        destinatario.includes(term) ||
-        status.includes(term) ||
-        tipoDestinatario.includes(term) ||
-        conservacao.includes(term) ||
-        devolucao.includes(term) ||
-        contexto.includes(term) ||
-        item.dataEmprestimo.toLowerCase().includes(term) ||
-        item.dataPrevistaDevolucao.toLowerCase().includes(term) ||
-        item.dataDevolucao.toLowerCase().includes(term)
-      );
+    const result = items.filter((item) => {
+      if (
+        termoItem &&
+        !normalize(patrimonioLabel(item.patrimonioId)).includes(termoItem)
+      )
+        return false;
+      if (
+        termoResponsavel &&
+        !normalize(destinatarioLabel(item)).includes(termoResponsavel)
+      )
+        return false;
+      if (
+        filtros.situacao.length &&
+        !filtros.situacao.includes(item.statusEmprestimo)
+      )
+        return false;
+      if (
+        filtros.dataEmprestimo &&
+        item.dataEmprestimo !== filtros.dataEmprestimo
+      )
+        return false;
+      if (
+        filtros.dataDevolucao &&
+        item.dataPrevistaDevolucao !== filtros.dataDevolucao
+      )
+        return false;
+      if (filtros.atraso.length) {
+        const atraso = item.statusEmprestimo === "ATRASADO" ? "SIM" : "NAO";
+        if (!filtros.atraso.includes(atraso)) return false;
+      }
+      return true;
     });
-  }, [
-    search,
-    items,
-    patrimonios,
-    colaboradores,
-    participantes,
-    integrantes,
-    projetos,
-    propostasEdital,
-    atividades,
-    eventosCulturais,
-  ]);
 
-
-  const { sortConfig, sortedItems, handleSort } = useSortableData(
-    filtered,
-    (item, key: SortKey) => {
-      switch (key) {
-        case "patrimonio":
-          return patrimonioLabel(item.patrimonioId);
+    const sortValue = (item: Emprestimo) => {
+      switch (filtros.sortBy) {
         case "destinatario":
           return destinatarioLabel(item);
-        case "tipo":
-          return tipoDestinatarioLabel(item.tipoDestinatario);
-        case "emprestimo":
-          return item.dataEmprestimo ?? "";
-        case "previsao":
-          return item.dataPrevistaDevolucao ?? "";
-        case "devolucao":
-          return item.dataDevolucao ?? "";
-        case "conservacao":
-          return estadoConservacaoEmprestimoLabel(item.estadoConservacao);
         case "status":
           return statusEmprestimoLabel(item.statusEmprestimo);
-        case "estadoDevolucao":
-          return item.estadoDevolucao ? estadoDevolucaoLabel(item.estadoDevolucao) : "";
-        case "contexto":
-          return contextoLabel(item);
+        case "emprestimo":
+          return item.dataEmprestimo;
+        case "previsao":
+          return item.dataPrevistaDevolucao;
         default:
-          return "";
+          return patrimonioLabel(item.patrimonioId);
       }
-    },
-  );
+    };
 
+    return [...result].sort((a, b) => {
+      const comparison = String(sortValue(a)).localeCompare(
+        String(sortValue(b)),
+        "pt-BR",
+        { sensitivity: "base" },
+      );
+      return filtros.sortDir === "asc" ? comparison : -comparison;
+    });
+  })();
+
+  const filtrosKey = JSON.stringify(filtros);
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sortedItems, 25, search);
+    usePagination(filtered, 25, filtrosKey);
 
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
-
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
-    }
-
-    toast.success("Dados copiados com sucesso.");
+  const applyFiltros = (next: EmprestimosFiltros) => {
+    setDraft(next);
+    setFiltros(next);
+    setCurrentPage(1);
+    setSearching(true);
+    window.setTimeout(() => setSearching(false), 180);
   };
+
+  const setDraftField = <K extends keyof EmprestimosFiltros>(
+    key: K,
+    value: EmprestimosFiltros[K],
+  ) => setDraft((previous) => ({ ...previous, [key]: value }));
+
+  const activeFilters: ActiveFilterItem[] = [];
+  const textFilters: Array<
+    ["item" | "responsavel" | "dataEmprestimo" | "dataDevolucao", string]
+  > = [
+    ["item", "Item/bem"],
+    ["responsavel", "Responsável"],
+    ["dataEmprestimo", "Data do empréstimo"],
+    ["dataDevolucao", "Data prevista de devolução"],
+  ];
+  textFilters.forEach(([key, label]) => {
+    if (filtros[key].trim())
+      activeFilters.push({
+        id: key,
+        label,
+        value: filtros[key],
+        onRemove: () => applyFiltros({ ...filtros, [key]: "" }),
+      });
+  });
+  filtros.situacao.forEach((value) =>
+    activeFilters.push({
+      id: `situacao-${value}`,
+      label: "Situação",
+      value: labelOf(statusEmprestimoOptions, value),
+      onRemove: () =>
+        applyFiltros({
+          ...filtros,
+          situacao: filtros.situacao.filter((item) => item !== value),
+        }),
+    }),
+  );
+  filtros.atraso.forEach((value) =>
+    activeFilters.push({
+      id: `atraso-${value}`,
+      label: "Atraso",
+      value: labelOf(atrasoOptions, value),
+      onRemove: () =>
+        applyFiltros({
+          ...filtros,
+          atraso: filtros.atraso.filter((item) => item !== value),
+        }),
+    }),
+  );
+  if (
+    filtros.sortBy !== emptyFiltros.sortBy ||
+    filtros.sortDir !== emptyFiltros.sortDir
+  )
+    activeFilters.push({
+      id: "ordenacao",
+      label: "Ordenação",
+      value: `${labelOf(sortByOptions, filtros.sortBy)} · ${sortDirLabels[filtros.sortDir]}`,
+      onRemove: () =>
+        applyFiltros({
+          ...filtros,
+          sortBy: emptyFiltros.sortBy,
+          sortDir: emptyFiltros.sortDir,
+        }),
+    });
+
+  const toggleSort = (key: SortBy) =>
+    applyFiltros({
+      ...filtros,
+      sortBy: key,
+      sortDir:
+        filtros.sortBy === key && filtros.sortDir === "asc" ? "desc" : "asc",
+    });
+
+  const exportColumns = [
+    { header: "Patrimônio", key: "patrimonioLabel" },
+    { header: "Responsável", key: "destinatarioLabel" },
+    { header: "Data do empréstimo", key: "dataEmprestimo" },
+    { header: "Data prevista de devolução", key: "dataPrevistaDevolucao" },
+    { header: "Conservação", key: "conservacaoLabel" },
+    { header: "Situação", key: "situacaoLabel" },
+    { header: "Estado na devolução", key: "estadoDevolucaoLabel" },
+  ];
+
+  const getExportData = () =>
+    filtered.map((item) => ({
+      ...item,
+      patrimonioLabel: patrimonioLabel(item.patrimonioId),
+      destinatarioLabel: destinatarioLabel(item),
+      conservacaoLabel: estadoConservacaoEmprestimoLabel(
+        item.estadoConservacao,
+      ),
+      situacaoLabel: statusEmprestimoLabel(item.statusEmprestimo),
+      estadoDevolucaoLabel: item.estadoDevolucao
+        ? estadoDevolucaoLabel(item.estadoDevolucao)
+        : "Não devolvido",
+    }));
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
@@ -629,15 +744,57 @@ export default function Emprestimos() {
     }
   };
 
-  const handleExportTermo = async (emprestimo: Emprestimo) => {
-    if (!podeGerarPdf) {
-      toast.error("Você não possui permissão para gerar termo de empréstimo.");
-      return;
+  const gerarRecibo = async (id: string | number) => {
+    try {
+      await downloadIndividualReport(
+        "/emprestimos/" + id + "/recibo",
+        "recibo-emprestimo-" + id + ".pdf",
+      );
+      toast.success("Recibo de empréstimo gerado com sucesso.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível gerar o recibo de empréstimo.",
+      );
     }
-
-    await exportTermoEmprestimoPdf(emprestimo);
   };
 
+  const gerarReciboDevolucao = async (id: string | number) => {
+    try {
+      await downloadIndividualReport(
+        "/emprestimos/" + id + "/recibo-devolucao",
+        "recibo-devolucao-emprestimo-" + id + ".pdf",
+      );
+      toast.success("Recibo de devolução gerado com sucesso.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível gerar o recibo de devolução.",
+      );
+    }
+  };
+
+  const acoesEmprestimo = (item: Emprestimo) =>
+    podeGerarPdf
+      ? [
+          {
+            label: "Gerar recibo",
+            icon: FileText,
+            onClick: () => void gerarRecibo(item.id),
+          },
+          ...(item.dataDevolucao
+            ? [
+                {
+                  label: "Gerar recibo de devolução",
+                  icon: FileText,
+                  onClick: () => void gerarReciboDevolucao(item.id),
+                },
+              ]
+            : []),
+        ]
+      : undefined;
 
   if (!podeVisualizar) {
     return (
@@ -658,383 +815,453 @@ export default function Emprestimos() {
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
-        <PageTitle
+        <ListPageHeader
           title="Empréstimos"
-          tooltip="Registre e acompanhe o empréstimo de bens da organização, informando quem recebeu, datas, estado de conservação, contexto de uso, observações e situação da devolução."
-        />
-
-        <div className="rounded border border-border bg-card">
-          <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-            <div className="relative max-w-md flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className="h-9 pl-9"
-                aria-label="Buscar empréstimo"
-              />
-            </div>
-
-            {podeCriar && (
+          tooltip="Nesta página são registrados e acompanhados os empréstimos de bens patrimoniais da organização, permitindo identificar quem recebeu o bem, em qual contexto ele será utilizado, o período do empréstimo, sua condição na saída e, quando devolvido, as informações do retorno. Esses registros ajudam a controlar a movimentação dos bens, acompanhar sua conservação e manter o histórico dos empréstimos realizados."
+          objective="Registre e acompanhe a movimentação dos bens patrimoniais emprestados, mantendo atualizadas as informações sobre responsabilidade, prazo, utilização, conservação e devolução. Esse controle facilita a identificação de empréstimos em andamento ou pendentes e o acompanhamento do retorno dos bens."
+          actions={
+            podeCriar ? (
               <Button
+                type="button"
+                variant="glassPrimary"
                 onClick={() => navigate("/emprestimos/novo")}
-                className="h-9 gap-2"
+                className="h-9 gap-2 px-4"
                 disabled={loading}
               >
-                <Plus className="h-4 w-4" />
-                Registrar Empréstimo
+                <Plus className="h-4 w-4" /> Cadastrar empréstimo
               </Button>
-            )}
-          </div>
+            ) : undefined
+          }
+        />
 
-          <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[1280px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th
-                    className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    data-no-copy
+        <div className="space-y-4">
+          <AdvancedSearchPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            activeCount={activeFilters.length}
+          >
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                applyFiltros(draft);
+              }}
+              noValidate
+            >
+              <SearchFilterGrid>
+                <div>
+                  <FieldLabel
+                    htmlFor="filtroItem"
+                    tooltip="Digite o número ou nome do bem emprestado."
                   >
-                    Ações
-                  </th>
-
-                  <SortableHeader
-                    label="Patrimônio"
-                    sortKey="patrimonio"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    Item / bem
+                  </FieldLabel>
+                  <Input
+                    id="filtroItem"
+                    value={draft.item}
+                    onChange={(event) =>
+                      setDraftField("item", event.target.value)
+                    }
+                    placeholder="Digite o número ou nome do bem"
+                    className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
                   />
-
-                  <SortableHeader
-                    label="Destinatário"
-                    sortKey="destinatario"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </div>
+                <div>
+                  <FieldLabel
+                    htmlFor="filtroResponsavel"
+                    tooltip="Digite o nome do responsável pelo empréstimo."
+                  >
+                    Responsável
+                  </FieldLabel>
+                  <Input
+                    id="filtroResponsavel"
+                    value={draft.responsavel}
+                    onChange={(event) =>
+                      setDraftField("responsavel", event.target.value)
+                    }
+                    placeholder="Digite o nome do responsável"
+                    className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
                   />
-
-                  <SortableHeader
-                    label="Tipo"
-                    sortKey="tipo"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </div>
+                <div>
+                  <FieldLabel
+                    htmlFor="filtroSituacao"
+                    tooltip="Selecione a situação atual do empréstimo."
+                  >
+                    Situação
+                  </FieldLabel>
+                  <FilterMultiSelect
+                    id="filtroSituacao"
+                    options={statusEmprestimoOptions}
+                    value={draft.situacao}
+                    onChange={(value) => setDraftField("situacao", value)}
+                    placeholder="Todas as situações"
+                    summaryNoun="situações selecionadas"
                   />
-
-                  <SortableHeader
-                    label="Empréstimo"
-                    sortKey="emprestimo"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroDataEmprestimo">
+                    Data do empréstimo
+                  </FieldLabel>
+                  <Input
+                    id="filtroDataEmprestimo"
+                    value={draft.dataEmprestimo}
+                    onChange={(event) =>
+                      setDraftField(
+                        "dataEmprestimo",
+                        maskDate(event.target.value),
+                      )
+                    }
+                    placeholder="dd/mm/aaaa"
+                    inputMode="numeric"
+                    className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
                   />
-
-                  <SortableHeader
-                    label="Previsão"
-                    sortKey="previsao"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroDataDevolucao">
+                    Data prevista de devolução
+                  </FieldLabel>
+                  <Input
+                    id="filtroDataDevolucao"
+                    value={draft.dataDevolucao}
+                    onChange={(event) =>
+                      setDraftField(
+                        "dataDevolucao",
+                        maskDate(event.target.value),
+                      )
+                    }
+                    placeholder="dd/mm/aaaa"
+                    inputMode="numeric"
+                    className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
                   />
-
-                  <SortableHeader
-                    label="Devolução"
-                    sortKey="devolucao"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroAtraso">Atraso</FieldLabel>
+                  <FilterMultiSelect
+                    id="filtroAtraso"
+                    options={atrasoOptions}
+                    value={draft.atraso}
+                    onChange={(value) => setDraftField("atraso", value)}
+                    placeholder="Todos"
                   />
-
-                  <SortableHeader
-                    label="Conservação"
-                    sortKey="conservacao"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Status"
-                    sortKey="status"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Estado na devolução"
-                    sortKey="estadoDevolucao"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Contexto"
-                    sortKey="contexto"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  {podeGerarPdf && (
-                    <th
-                      className="w-[180px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroSortBy">Ordenar por</FieldLabel>
+                  <Select
+                    value={draft.sortBy}
+                    onValueChange={(value) =>
+                      setDraftField("sortBy", value as SortBy)
+                    }
+                  >
+                    <SelectTrigger
+                      id="filtroSortBy"
+                      className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
                     >
-                      Documento
-                    </th>
-                  )}
-                </tr>
-              </thead>
-
-              <tbody>
-                {paginated.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortByOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroSortDir">Ordem</FieldLabel>
+                  <Select
+                    value={draft.sortDir}
+                    onValueChange={(value) =>
+                      setDraftField("sortDir", value as SortDir)
+                    }
                   >
-                    <td className="whitespace-nowrap px-6 py-2.5">
-                      <div className="flex items-center gap-1">
-                        <TableActionIcon
-                          icon={Eye}
-                          label="Visualizar"
-                          onClick={() => navigate(`/emprestimos/${item.id}`)}
-                        />
+                    <SelectTrigger
+                      id="filtroSortDir"
+                      className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">{sortDirLabels.asc}</SelectItem>
+                      <SelectItem value="desc">{sortDirLabels.desc}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </SearchFilterGrid>
+              <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 gap-2 px-4"
+                  onClick={() => applyFiltros(emptyFiltros)}
+                >
+                  <RotateCcw className="h-4 w-4" /> Limpar filtros
+                </Button>
+                <Button
+                  type="submit"
+                  variant="glassPrimary"
+                  className="h-9 gap-2 px-5"
+                  disabled={searching}
+                >
+                  <Search className="h-4 w-4" />
+                  {searching ? "Pesquisando..." : "Pesquisar"}
+                </Button>
+              </div>
+            </form>
+          </AdvancedSearchPanel>
 
-                        {podeEditar && (
-                          <TableActionIcon
-                            icon={Pencil}
-                            label="Editar"
-                            onClick={() =>
-                              navigate(`/emprestimos/${item.id}/editar`)
-                            }
-                          />
+          <ActiveFilters
+            items={activeFilters}
+            onClearAll={() => applyFiltros(emptyFiltros)}
+          />
+
+          <DataTableCard>
+            <DataTableToolbar
+              total={filtered.length}
+              reportTo="/relatorios/emprestimos"
+              documentLayoutsTo="/modelos-documento"
+              exportColumns={exportColumns}
+              getExportData={getExportData}
+              exportFilename="emprestimos"
+              canExport={podeGerarPdf}
+            />
+            {loading ? (
+              <div className="p-10 text-center text-sm text-muted-foreground">
+                Carregando empréstimos...
+              </div>
+            ) : filtered.length === 0 ? (
+              <DataTableEmptyState
+                emptyTitle="Nenhum empréstimo cadastrado."
+                createLabel="Cadastrar empréstimo"
+                onCreate={
+                  podeCriar ? () => navigate("/emprestimos/novo") : undefined
+                }
+                activeCount={activeFilters.length}
+                onReviewSearch={() => setPanelOpen(true)}
+                onClearFilters={() => applyFiltros(emptyFiltros)}
+              />
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[1280px]">
+                    <thead>
+                      <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
+                        <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Ações
+                        </th>
+                        <SortableTh
+                          sortKey="patrimonio"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Patrimônio
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="destinatario"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Destinatário
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="emprestimo"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Empréstimo
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="previsao"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Devolução prevista
+                        </SortableTh>
+                        <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Conservação
+                        </th>
+                        <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Estado na devolução
+                        </th>
+                        <SortableTh
+                          sortKey="status"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Situação
+                        </SortableTh>
+                        {podeGerarPdf && (
+                          <th className="w-[150px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Termo de empréstimo
+                          </th>
                         )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginated.map((item) => (
+                        <tr
+                          key={item.id}
+                          className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
+                        >
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <RowActionsDropdown
+                              reportEndpoint={
+                                podeGerarPdf
+                                  ? `/emprestimos/${item.id}/relatorio`
+                                  : undefined
+                              }
+                              reportFilename={`emprestimo-${item.id}.pdf`}
+                              viewTo={`/emprestimos/${item.id}`}
+                              editTo={
+                                podeEditar
+                                  ? `/emprestimos/${item.id}/editar`
+                                  : undefined
+                              }
+                              onDelete={
+                                podeExcluir
+                                  ? () => setConfirmDelete(item.id)
+                                  : undefined
+                              }
+                              extraItems={acoesEmprestimo(item)}
+                            />
+                          </td>
+                          <td className="px-6 py-2.5">
+                            <TableCellText
+                              text={patrimonioLabel(item.patrimonioId)}
+                              bold
+                            >
+                              {patrimonioLabel(item.patrimonioId)}
+                            </TableCellText>
+                          </td>
+                          <td className="px-6 py-2.5">
+                            <TableCellText text={destinatarioLabel(item)}>
+                              {destinatarioLabel(item)}
+                            </TableCellText>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <TableCellText text={item.dataEmprestimo}>
+                              {item.dataEmprestimo}
+                            </TableCellText>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <TableCellText
+                              text={item.dataPrevistaDevolucao || "—"}
+                              muted={!item.dataPrevistaDevolucao}
+                            >
+                              {item.dataPrevistaDevolucao || "—"}
+                            </TableCellText>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <StatusPill
+                              status={item.estadoConservacao}
+                              ariaLabelPrefix="Estado de conservação"
+                            />
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            {item.statusEmprestimo === "DEVOLVIDO" &&
+                            item.estadoDevolucao ? (
+                              <StatusPill
+                                status={item.estadoDevolucao}
+                                ariaLabelPrefix="Estado na devolução"
+                              />
+                            ) : (
+                              <TableCellText text="Não devolvido" muted>
+                                Não devolvido
+                              </TableCellText>
+                            )}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <StatusPill
+                              status={item.statusEmprestimo}
+                              context="emprestimo"
+                              ariaLabelPrefix="Situação do empréstimo"
+                            />
+                          </td>
+                          {podeGerarPdf && (
+                            <td className="whitespace-nowrap px-6 py-2.5">
+                              <GerarTermoEmprestimoButton
+                                emprestimoId={item.id}
+                              />
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-                        {podeExcluir && (
-                          <TableActionIcon
-                            icon={Trash2}
-                            label="Excluir"
-                            variant="danger"
-                            onClick={() => setConfirmDelete(item.id)}
-                          />
+                <div className="divide-y divide-border md:hidden">
+                  {paginated.map((item) => (
+                    <div key={item.id} className="p-4">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <RowActionsDropdown
+                          reportEndpoint={
+                            podeGerarPdf
+                              ? `/emprestimos/${item.id}/relatorio`
+                              : undefined
+                          }
+                          reportFilename={`emprestimo-${item.id}.pdf`}
+                          viewTo={`/emprestimos/${item.id}`}
+                          editTo={
+                            podeEditar
+                              ? `/emprestimos/${item.id}/editar`
+                              : undefined
+                          }
+                          onDelete={
+                            podeExcluir
+                              ? () => setConfirmDelete(item.id)
+                              : undefined
+                          }
+                          extraItems={acoesEmprestimo(item)}
+                        />
+                        {podeGerarPdf && (
+                          <GerarTermoEmprestimoButton emprestimoId={item.id} />
                         )}
                       </div>
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-2.5">
-                      <TableCellText
-                        text={patrimonioLabel(item.patrimonioId)}
-                        bold
-                      >
+                      <p className="font-medium text-foreground">
                         {patrimonioLabel(item.patrimonioId)}
-                      </TableCellText>
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-2.5">
-                      <TableCellText text={destinatarioLabel(item)}>
-                        {destinatarioLabel(item)}
-                      </TableCellText>
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-2.5">
-                      <TableCellText
-                        text={tipoDestinatarioLabel(item.tipoDestinatario)}
-                        muted
-                      >
-                        {tipoDestinatarioLabel(item.tipoDestinatario)}
-                      </TableCellText>
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-2.5">
-                      <TableCellText text={item.dataEmprestimo}>
-                        {item.dataEmprestimo}
-                      </TableCellText>
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-2.5">
-                      <TableCellText
-                        text={item.dataPrevistaDevolucao || "—"}
-                        muted={!item.dataPrevistaDevolucao}
-                      >
-                        {item.dataPrevistaDevolucao || "—"}
-                      </TableCellText>
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-2.5">
-                      <TableCellText
-                        text={item.dataDevolucao || "—"}
-                        muted={!item.dataDevolucao}
-                      >
-                        {item.dataDevolucao || "—"}
-                      </TableCellText>
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-2.5">
-                      <span className={conservacaoClass(item.estadoConservacao)}>
-                        {estadoConservacaoEmprestimoLabel(
-                          item.estadoConservacao,
-                        )}
-                      </span>
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-2.5">
-                      <span className={statusClass(item.statusEmprestimo)}>
-                        {statusEmprestimoLabel(item.statusEmprestimo)}
-                      </span>
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-2.5">
-                      {item.statusEmprestimo === "DEVOLVIDO" &&
-                        item.estadoDevolucao ? (
-                        <span className={conservacaoClass(item.estadoDevolucao)}>
-                          {estadoDevolucaoLabel(item.estadoDevolucao)}
+                      </p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        Para: {destinatarioLabel(item)}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <StatusPill
+                          status={item.estadoConservacao}
+                          ariaLabelPrefix="Estado de conservação"
+                        />
+                        <StatusPill
+                          status={item.statusEmprestimo}
+                          context="emprestimo"
+                        />
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Empréstimo: {item.dataEmprestimo}</span>
+                        <span>
+                          Previsão: {item.dataPrevistaDevolucao || "—"}
                         </span>
-                      ) : (
-                        <TableCellText text="Não devolvido" muted>
-                          Não devolvido
-                        </TableCellText>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-2.5">
-                      <TableCellText text={contextoLabel(item)} muted>
-                        {contextoLabel(item)}
-                      </TableCellText>
-                    </td>
-
-                    {podeGerarPdf && (
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleExportTermo(item)}
-                          className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                        >
-                          <FileSignature className="h-3.5 w-3.5" />
-                          Gerar termo
-                        </Button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-
-                {paginated.length === 0 && (
-                  <EmptyRow colSpan={podeGerarPdf ? 12 : 11} />
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="divide-y divide-border md:hidden">
-            {paginated.length === 0 ? (
-              <div className="p-10 text-center">
-                <ArrowLeftRight className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nenhum empréstimo encontrado.
-                </p>
-              </div>
-            ) : (
-              paginated.map((item) => (
-                <div key={item.id} className="p-4">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1">
-                      <TableActionIcon
-                        icon={Eye}
-                        label="Visualizar"
-                        onClick={() => navigate(`/emprestimos/${item.id}`)}
-                      />
-
-                      {podeEditar && (
-                        <TableActionIcon
-                          icon={Pencil}
-                          label="Editar"
-                          onClick={() =>
-                            navigate(`/emprestimos/${item.id}/editar`)
-                          }
-                        />
-                      )}
-
-                      {podeExcluir && (
-                        <TableActionIcon
-                          icon={Trash2}
-                          label="Excluir"
-                          variant="danger"
-                          onClick={() => setConfirmDelete(item.id)}
-                        />
-                      )}
+                      </div>
                     </div>
-
-                    {podeGerarPdf && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void handleExportTermo(item)}
-                        className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                      >
-                        <FileSignature className="h-3.5 w-3.5" />
-                        Termo
-                      </Button>
-                    )}
-                  </div>
-
-                  <p className="font-medium text-foreground">
-                    {patrimonioLabel(item.patrimonioId)}
-                  </p>
-
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    Para: {destinatarioLabel(item)}
-                  </p>
-
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {tipoDestinatarioLabel(item.tipoDestinatario)}
-                  </p>
-
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <span className={conservacaoClass(item.estadoConservacao)}>
-                      {estadoConservacaoEmprestimoLabel(
-                        item.estadoConservacao,
-                      )}
-                    </span>
-
-                    <span className={statusClass(item.statusEmprestimo)}>
-                      {statusEmprestimoLabel(item.statusEmprestimo)}
-                    </span>
-
-                    {item.statusEmprestimo === "DEVOLVIDO" &&
-                      item.estadoDevolucao && (
-                        <span className={conservacaoClass(item.estadoDevolucao)}>
-                          Devolução: {estadoDevolucaoLabel(item.estadoDevolucao)}
-                        </span>
-                      )}
-                  </div>
-
-                  <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-                    <p>Empréstimo: {item.dataEmprestimo || "—"}</p>
-                    <p>Previsão: {item.dataPrevistaDevolucao || "—"}</p>
-                    <p>Devolução: {item.dataDevolucao || "—"}</p>
-                  </div>
-
-                  <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
-                    {contextoLabel(item)}
-                  </p>
+                  ))}
                 </div>
-              ))
-            )}
-          </div>
 
-          <TablePagination
-            totalItems={sortedItems.length}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            onCopy={handleCopy}
-          />
+                <DataTablePagination
+                  totalItems={filtered.length}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  entityLabel="registro"
+                  entityLabelPlural="registros"
+                  pageSizeLabel="Registros por página"
+                />
+              </>
+            )}
+          </DataTableCard>
         </div>
       </div>
 
@@ -1045,19 +1272,13 @@ export default function Emprestimos() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir empréstimo?</AlertDialogTitle>
-
             <AlertDialogDescription>
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
-
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete}>
               Sim, excluir
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1069,19 +1290,5 @@ export default function Emprestimos() {
         href="https://www.aurit.com.br/wiki/patrimonio/emprestimos"
       />
     </AppLayout>
-  );
-}
-
-function EmptyRow({ colSpan }: { colSpan: number }) {
-  return (
-    <tr>
-      <td colSpan={colSpan} className="px-5 py-16 text-center">
-        <ArrowLeftRight className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-        <p className="mt-3 text-sm text-muted-foreground">
-          Nenhum empréstimo encontrado.
-        </p>
-      </td>
-    </tr>
   );
 }

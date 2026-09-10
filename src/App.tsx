@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, type ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   BrowserRouter,
@@ -19,8 +19,6 @@ import ProtectedRouteWithPermission, {
 } from "@/components/ProtectedRouteWithPermission";
 import PublicRoute from "@/components/PublicRoute";
 import { AccessDenied } from "@/components/AccessDenied";
-import { DocumentosVencidosNotifier } from "./components/DocumentosVencidosNotifier";
-import { AlertasPrazoNotifier } from "./components/AlertasPrazoNotifier";
 import {
   getUsuarioLogadoStorage,
   isAuthenticated,
@@ -31,7 +29,8 @@ import {
   startInactivityMonitoring,
   stopInactivityMonitoring,
 } from "@/lib/inactivityLogout";
-import { AniversariantesPopup } from "./components/AniversariantesPopup";
+import { NextStepPopupHost } from "./components/NextStepPopup";
+import { PlanNetworkGuard } from "@/components/PlanNetworkGuard";
 
 import Dashboard from "./pages/Dashboard.tsx";
 import Inicio from "./pages/Inicio.tsx";
@@ -46,7 +45,27 @@ import Agentes from "./pages/Agentes.tsx";
 import AgenteForm from "./pages/AgenteForm.tsx";
 
 import Financeiro from "./pages/Financeiro.tsx";
+import PainelFinanceiro from "./pages/PainelFinanceiro.tsx";
 import FinanceiroForm from "./pages/FinanceiroForm.tsx";
+import ContasBancarias from "./pages/ContaBancaria.tsx";
+import ContaBancariaForm from "./pages/ContaBancariaForm.tsx";
+import ContasPagar from "./pages/ContasPagar.tsx";
+import ContaPagarForm from "./pages/ContaPagarForm.tsx";
+import ContaReceber from "./pages/ContaReceber.tsx";
+import ContaReceberForm from "./pages/ContaReceberForm.tsx";
+import TransferenciasBancarias from "./pages/TransferenciasBancarias.tsx";
+import TransferenciaBancariaForm from "./pages/TransferenciaBancariaForm.tsx";
+import MovimentacaoBancaria from "./pages/MovimentacaoBancaria.tsx";
+import FluxoCaixa from "./pages/FluxoCaixa.tsx";
+import ConciliacaoBancaria from "./pages/ConciliacaoBancaria.tsx";
+import Doacoes from "./pages/Doacao.tsx";
+import DoacaoForm from "./pages/DoacaoForm.tsx";
+import Doadores from "./pages/Doador.tsx";
+import DoadorForm from "./pages/DoadorForm.tsx";
+import Fornecedores from "./pages/Fornecedor.tsx";
+import FornecedorForm from "./pages/FornecedorForm.tsx";
+import Parceiros from "./pages/Parceiro.tsx";
+import ParceiroForm from "./pages/ParceiroForm.tsx";
 
 import AcoesDivulgacao from "./pages/AcoesDivulgacao.tsx";
 import AcaoDivulgacaoForm from "./pages/AcaoDivulgacaoForm.tsx";
@@ -70,6 +89,8 @@ import PlanoAulaForm from "./pages/PlanoAulaForm.tsx";
 
 import Documentos from "./pages/Documentos.tsx";
 import DocumentoForm from "./pages/DocumentoForm.tsx";
+import ModelosDocumento from "./pages/ModeloDocumento.tsx";
+import ModeloDocumentoForm from "./pages/ModeloDocumentoForm.tsx";
 
 import Evidencias from "./pages/Evidencias.tsx";
 import EvidenciaForm from "./pages/EvidenciaForm.tsx";
@@ -85,6 +106,7 @@ import PrestacaoContasForm from "./pages/PrestacaoContasForm.tsx";
 
 import Projetos from "./pages/Projetos.tsx";
 import ProjetoForm from "./pages/ProjetoForm.tsx";
+import PlanoTrabalhoPage from "./pages/PlanoTrabalho.tsx";
 
 import Integrantes from "./pages/Integrantes.tsx";
 import IntegranteForm from "./pages/IntegranteForm.tsx";
@@ -111,8 +133,33 @@ import RelatorioDetalhePage from "./pages/RelatorioDetalhePage.tsx";
 import IndicadoresSociodemograficos from "@/pages/IndicadoresSociodemograficos.tsx";
 import RelatorioPresencas from "./pages/RelatorioPresencas.tsx";
 import RelatorioParticipantes from "./pages/RelatorioParticipantes.tsx";
+import RelatorioCronogramaPrazos from "./pages/relatorios/RelatorioCronogramaPrazos.tsx";
+import RelatorioExecucaoAtividades from "./pages/relatorios/RelatorioExecucaoAtividades.tsx";
+import RelatorioGeralProjetos from "./pages/relatorios/RelatorioGeralProjetos.tsx";
+import RelatorioImpactoSocialCultural from "./pages/relatorios/RelatorioImpactoSocialCultural.tsx";
+import RelatorioInstitucionalOrganizacao from "./pages/relatorios/RelatorioInstitucionalOrganizacao.tsx";
+import RelatorioMetasResultados from "./pages/relatorios/RelatorioMetasResultados.tsx";
+import RelatorioRegularidadeDocumental from "./pages/relatorios/RelatorioRegularidadeDocumental.tsx";
+import RelatorioTurmasAtendimento from "./pages/relatorios/RelatorioTurmasAtendimento.tsx";
+import RelatorioEvidencias from "./pages/relatorios/RelatorioEvidencias.tsx";
+import RelatorioPrestacaoContas from "./pages/relatorios/RelatorioPrestacaoContas.tsx";
+import RelatorioCumprimentoMetas from "./pages/relatorios/RelatorioCumprimentoMetas.tsx";
+import RelatorioEmprestimos from "./pages/relatorios/RelatorioEmprestimos.tsx";
+import RelatorioFluxoCaixa from "./pages/relatorios/financeiro/RelatorioFluxoCaixa.tsx";
+import RelatorioMovimentacoesFinanceiras from "./pages/relatorios/financeiro/RelatorioMovimentacoesFinanceiras.tsx";
+import RelatorioReceitasDespesasCategoria from "./pages/relatorios/financeiro/RelatorioReceitasDespesasCategoria.tsx";
+import RelatorioSaldosContasBancarias from "./pages/relatorios/financeiro/RelatorioSaldosContasBancarias.tsx";
+import RelatorioContasPagarRel from "./pages/relatorios/financeiro/RelatorioContasPagarRel.tsx";
+import RelatorioContasReceberRel from "./pages/relatorios/financeiro/RelatorioContasReceberRel.tsx";
+import RelatorioConciliacaoBancariaRel from "./pages/relatorios/financeiro/RelatorioConciliacaoBancariaRel.tsx";
+import RelatorioTransferenciasBancarias from "./pages/relatorios/financeiro/RelatorioTransferenciasBancarias.tsx";
+import RelatorioDoacoesRecebidas from "./pages/relatorios/financeiro/RelatorioDoacoesRecebidas.tsx";
+import RelatorioFornecedoresPagamentos from "./pages/relatorios/financeiro/RelatorioFornecedoresPagamentos.tsx";
+import RelatorioDoadores from "./pages/relatorios/financeiro/RelatorioDoadores.tsx";
+import RelatorioParceiros from "./pages/relatorios/financeiro/RelatorioParceiros.tsx";
 
 import ConfiguracaoEmpresa from "./pages/ConfiguracaoEmpresa.tsx";
+import CentralCliente from "./pages/CentralCliente.tsx";
 
 import Editais from "./pages/Editais.tsx";
 
@@ -139,10 +186,16 @@ import ControleEmpresaDetalhe from "./pages/ControleEmpresaDetalhe.tsx";
 import ConfiguracaoEmpresaProprietario from "./pages/ConfiguracaoEmpresaProprietario.tsx";
 
 import Login from "./pages/Login.tsx";
+import LoginGoogle from "./pages/LoginGoogle.tsx";
+import RecuperarSenha from "./pages/RecuperarSenha.tsx";
+import AtivarConta from "./pages/AtivarConta.tsx";
+import RedefinirSenha from "./pages/RedefinirSenha.tsx";
 
 import Usuarios from "./pages/Usuarios.tsx";
 import UsuarioForm from "./pages/UsuarioForm.tsx";
 import UsuarioPermissoes from "./pages/UsuarioPermissoes.tsx";
+import AlertasEmail from "./pages/AlertasEmail.tsx";
+import Notificacoes from "./pages/Notificacoes.tsx";
 
 const queryClient = new QueryClient();
 
@@ -187,32 +240,6 @@ function protectedProprietarioPage(element: ReactElement) {
   return element;
 }
 
-function AuthenticatedServices() {
-  const [documentosNotifierHeight, setDocumentosNotifierHeight] = useState(0);
-
-  if (!isAuthenticated()) {
-    return null;
-  }
-
-  const usuario = getUsuarioLogadoStorage();
-
-  if (usuario?.userRole === "ADMIN_PROPRIETARIO") {
-    return null;
-  }
-
-  return (
-    <>
-      <DocumentosVencidosNotifier
-        onHeightChange={setDocumentosNotifierHeight}
-      />
-      <AlertasPrazoNotifier
-        documentosNotifierHeight={documentosNotifierHeight}
-      />
-      <AniversariantesPopup />
-    </>
-  );
-}
-
 function AppRoutes() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -240,9 +267,8 @@ function AppRoutes() {
 
   return (
     <>
-      <AuthenticatedServices />
-
       <Routes>
+        <Route path="/login/google" element={<LoginGoogle />} />
         <Route
           path="/login"
           element={
@@ -251,8 +277,15 @@ function AppRoutes() {
             </PublicRoute>
           }
         />
+        <Route path="/recuperar-senha" element={<RecuperarSenha />} />
+        <Route path="/esqueci-senha" element={<RecuperarSenha />} />
+        <Route path="/ativar-conta" element={<AtivarConta />} />
+        <Route path="/redefinir-senha" element={<RedefinirSenha />} />
 
-        <Route path="/" element={protectedPage(<Inicio />)} />
+        <Route
+          path="/"
+          element={protectedPage(<Inicio />, permission("DASHBOARD"))}
+        />
 
         <Route
           path="/dashboard"
@@ -313,10 +346,7 @@ function AppRoutes() {
 
         <Route
           path="/agentes"
-          element={protectedPage(
-            <Agentes />,
-            permission("AGENTES_CULTURAIS"),
-          )}
+          element={protectedPage(<Agentes />, permission("AGENTES_CULTURAIS"))}
         />
         <Route
           path="/agentes/novo"
@@ -341,6 +371,13 @@ function AppRoutes() {
         />
 
         <Route
+          path="/painel-financeiro"
+          element={protectedPage(
+            <PainelFinanceiro />,
+            permission("PAINEL_FINANCEIRO"),
+          )}
+        />
+        <Route
           path="/financeiro"
           element={protectedPage(<Financeiro />, permission("FINANCEIRO"))}
         />
@@ -360,6 +397,225 @@ function AppRoutes() {
           element={protectedPage(
             <FinanceiroForm />,
             permission("FINANCEIRO", "EDITAR"),
+          )}
+        />
+
+        <Route
+          path="/contas-bancarias"
+          element={protectedPage(
+            <ContasBancarias />,
+            permission("CONTAS_BANCARIAS"),
+          )}
+        />
+        <Route
+          path="/contas-bancarias/novo"
+          element={protectedPage(
+            <ContaBancariaForm />,
+            permission("CONTAS_BANCARIAS", "CRIAR"),
+          )}
+        />
+        <Route
+          path="/contas-bancarias/:id"
+          element={protectedPage(
+            <ContaBancariaForm />,
+            permission("CONTAS_BANCARIAS"),
+          )}
+        />
+        <Route
+          path="/contas-bancarias/:id/editar"
+          element={protectedPage(
+            <ContaBancariaForm />,
+            permission("CONTAS_BANCARIAS", "EDITAR"),
+          )}
+        />
+        <Route
+          path="/contas-pagar"
+          element={protectedPage(<ContasPagar />, permission("CONTAS_PAGAR"))}
+        />
+        <Route
+          path="/contas-pagar/novo"
+          element={protectedPage(
+            <ContaPagarForm />,
+            permission("CONTAS_PAGAR", "CRIAR"),
+          )}
+        />
+        <Route
+          path="/contas-pagar/:id"
+          element={protectedPage(
+            <ContaPagarForm />,
+            permission("CONTAS_PAGAR"),
+          )}
+        />
+        <Route
+          path="/contas-pagar/:id/editar"
+          element={protectedPage(
+            <ContaPagarForm />,
+            permission("CONTAS_PAGAR", "EDITAR"),
+          )}
+        />
+        <Route
+          path="/contas-receber"
+          element={protectedPage(
+            <ContaReceber />,
+            permission("CONTAS_RECEBER"),
+          )}
+        />
+        <Route
+          path="/contas-receber/novo"
+          element={protectedPage(
+            <ContaReceberForm />,
+            permission("CONTAS_RECEBER", "CRIAR"),
+          )}
+        />
+        <Route
+          path="/contas-receber/:id"
+          element={protectedPage(
+            <ContaReceberForm />,
+            permission("CONTAS_RECEBER"),
+          )}
+        />
+        <Route
+          path="/contas-receber/:id/editar"
+          element={protectedPage(
+            <ContaReceberForm />,
+            permission("CONTAS_RECEBER", "EDITAR"),
+          )}
+        />
+        <Route
+          path="/doacoes"
+          element={protectedPage(<Doacoes />, permission("DOACOES"))}
+        />
+        <Route
+          path="/doacoes/novo"
+          element={protectedPage(
+            <DoacaoForm />,
+            permission("DOACOES", "CRIAR"),
+          )}
+        />
+        <Route
+          path="/doacoes/:id"
+          element={protectedPage(<DoacaoForm />, permission("DOACOES"))}
+        />
+        <Route
+          path="/doacoes/:id/editar"
+          element={protectedPage(
+            <DoacaoForm />,
+            permission("DOACOES", "EDITAR"),
+          )}
+        />
+        <Route
+          path="/doadores"
+          element={protectedPage(<Doadores />, permission("DOADORES"))}
+        />
+        <Route
+          path="/doadores/novo"
+          element={protectedPage(
+            <DoadorForm />,
+            permission("DOADORES", "CRIAR"),
+          )}
+        />
+        <Route
+          path="/doadores/:id"
+          element={protectedPage(<DoadorForm />, permission("DOADORES"))}
+        />
+        <Route
+          path="/doadores/:id/editar"
+          element={protectedPage(
+            <DoadorForm />,
+            permission("DOADORES", "EDITAR"),
+          )}
+        />
+        <Route
+          path="/fornecedores"
+          element={protectedPage(<Fornecedores />, permission("FORNECEDORES"))}
+        />
+        <Route
+          path="/fornecedores/novo"
+          element={protectedPage(
+            <FornecedorForm />,
+            permission("FORNECEDORES", "CRIAR"),
+          )}
+        />
+        <Route
+          path="/fornecedores/:id"
+          element={protectedPage(
+            <FornecedorForm />,
+            permission("FORNECEDORES"),
+          )}
+        />
+        <Route
+          path="/fornecedores/:id/editar"
+          element={protectedPage(
+            <FornecedorForm />,
+            permission("FORNECEDORES", "EDITAR"),
+          )}
+        />
+        <Route
+          path="/parceiros"
+          element={protectedPage(<Parceiros />, permission("PARCEIROS"))}
+        />
+        <Route
+          path="/parceiros/novo"
+          element={protectedPage(
+            <ParceiroForm />,
+            permission("PARCEIROS", "CRIAR"),
+          )}
+        />
+        <Route
+          path="/parceiros/:id"
+          element={protectedPage(<ParceiroForm />, permission("PARCEIROS"))}
+        />
+        <Route
+          path="/parceiros/:id/editar"
+          element={protectedPage(
+            <ParceiroForm />,
+            permission("PARCEIROS", "EDITAR"),
+          )}
+        />
+        <Route
+          path="/transferencias-bancarias"
+          element={protectedPage(
+            <TransferenciasBancarias />,
+            permission("TRANSFERENCIAS_BANCARIAS"),
+          )}
+        />
+        <Route
+          path="/transferencias-bancarias/novo"
+          element={protectedPage(
+            <TransferenciaBancariaForm />,
+            permission("TRANSFERENCIAS_BANCARIAS", "CRIAR"),
+          )}
+        />
+        <Route
+          path="/transferencias-bancarias/:id"
+          element={protectedPage(
+            <TransferenciaBancariaForm />,
+            permission("TRANSFERENCIAS_BANCARIAS"),
+          )}
+        />
+        <Route
+          path="/transferencias-bancarias/:id/editar"
+          element={protectedPage(
+            <TransferenciaBancariaForm />,
+            permission("TRANSFERENCIAS_BANCARIAS", "EDITAR"),
+          )}
+        />
+        <Route
+          path="/movimentacoes-bancarias"
+          element={protectedPage(
+            <MovimentacaoBancaria />,
+            permission("MOVIMENTACOES_BANCARIAS"),
+          )}
+        />
+        <Route
+          path="/fluxo-caixa"
+          element={protectedPage(<FluxoCaixa />, permission("FLUXO_CAIXA"))}
+        />
+        <Route
+          path="/conciliacao-bancaria"
+          element={protectedPage(
+            <ConciliacaoBancaria />,
+            permission("CONCILIACOES_BANCARIAS"),
           )}
         />
 
@@ -503,19 +759,25 @@ function AppRoutes() {
 
         <Route
           path="/planos-aula"
-          element={protectedPage(<PlanoAula />)}
+          element={protectedPage(<PlanoAula />, permission("PLANOS_AULA"))}
         />
         <Route
           path="/planos-aula/novo"
-          element={protectedPage(<PlanoAulaForm />)}
+          element={protectedPage(
+            <PlanoAulaForm />,
+            permission("PLANOS_AULA", "CRIAR"),
+          )}
         />
         <Route
           path="/planos-aula/:id"
-          element={protectedPage(<PlanoAulaForm />)}
+          element={protectedPage(<PlanoAulaForm />, permission("PLANOS_AULA"))}
         />
         <Route
           path="/planos-aula/:id/editar"
-          element={protectedPage(<PlanoAulaForm />)}
+          element={protectedPage(
+            <PlanoAulaForm />,
+            permission("PLANOS_AULA", "EDITAR"),
+          )}
         />
 
         <Route
@@ -537,6 +799,27 @@ function AppRoutes() {
           path="/documentos/:id/editar"
           element={protectedPage(
             <DocumentoForm />,
+            permission("DOCUMENTOS", "EDITAR"),
+          )}
+        />
+        <Route
+          path="/modelos-documento"
+          element={protectedPage(
+            <ModelosDocumento />,
+            permission("DOCUMENTOS"),
+          )}
+        />
+        <Route
+          path="/modelos-documento/novo"
+          element={protectedPage(
+            <ModeloDocumentoForm />,
+            permission("DOCUMENTOS", "CRIAR"),
+          )}
+        />
+        <Route
+          path="/modelos-documento/:id/editar"
+          element={protectedPage(
+            <ModeloDocumentoForm />,
             permission("DOCUMENTOS", "EDITAR"),
           )}
         />
@@ -629,10 +912,7 @@ function AppRoutes() {
 
         <Route
           path="/equipe-edital"
-          element={protectedPage(
-            <EquipeEdital />,
-            permission("EQUIPE_EDITAL"),
-          )}
+          element={protectedPage(<EquipeEdital />, permission("EQUIPE_EDITAL"))}
         />
         <Route
           path="/equipe-edital/novo"
@@ -658,30 +938,27 @@ function AppRoutes() {
 
         <Route
           path="/habilitacoes-propostas"
-          element={protectedPage(
-            <Habilitacao />,
-            permission("HABILITACOES_PROPOSTAS"),
-          )}
+          element={protectedPage(<Habilitacao />, permission("HABILITACAO"))}
         />
         <Route
           path="/habilitacoes-propostas/novo"
           element={protectedPage(
             <HabilitacaoForm />,
-            permission("HABILITACOES_PROPOSTAS", "CRIAR"),
+            permission("HABILITACAO", "CRIAR"),
           )}
         />
         <Route
           path="/habilitacoes-propostas/:id"
           element={protectedPage(
             <HabilitacaoForm />,
-            permission("HABILITACOES_PROPOSTAS"),
+            permission("HABILITACAO"),
           )}
         />
         <Route
           path="/habilitacoes-propostas/:id/editar"
           element={protectedPage(
             <HabilitacaoForm />,
-            permission("HABILITACOES_PROPOSTAS", "EDITAR"),
+            permission("HABILITACAO", "EDITAR"),
           )}
         />
 
@@ -812,6 +1089,10 @@ function AppRoutes() {
             <ProjetoForm />,
             permission("PROJETOS", "EDITAR"),
           )}
+        />
+        <Route
+          path="/projetos/:id/plano-trabalho"
+          element={protectedPage(<PlanoTrabalhoPage />, permission("PROJETOS"))}
         />
 
         <Route
@@ -976,14 +1257,191 @@ function AppRoutes() {
         />
         <Route
           path="/relatorios/indicadores-sociodemograficos"
-          element={<IndicadoresSociodemograficos />}
+          element={protectedPage(
+            <IndicadoresSociodemograficos />,
+            permission("RELATORIOS"),
+          )}
         />
-        <Route path="/relatorios/presencas" element={<RelatorioPresencas />}
+        <Route
+          path="/relatorios/presencas"
+          element={protectedPage(
+            <RelatorioPresencas />,
+            permission("RELATORIOS"),
+          )}
         />
         <Route
           path="/relatorios/participantes"
           element={protectedPage(
             <RelatorioParticipantes />,
+            permission("RELATORIOS"),
+          )}
+        />
+
+        <Route
+          path="/relatorios/cronograma-prazos"
+          element={protectedPage(
+            <RelatorioCronogramaPrazos />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/execucao-atividades"
+          element={protectedPage(
+            <RelatorioExecucaoAtividades />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/geral-projetos"
+          element={protectedPage(
+            <RelatorioGeralProjetos />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/impacto-social-cultural"
+          element={protectedPage(
+            <RelatorioImpactoSocialCultural />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/institucional-organizacao"
+          element={protectedPage(
+            <RelatorioInstitucionalOrganizacao />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/metas-resultados"
+          element={protectedPage(
+            <RelatorioMetasResultados />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/regularidade-documental"
+          element={protectedPage(
+            <RelatorioRegularidadeDocumental />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/turmas-atendimento"
+          element={protectedPage(
+            <RelatorioTurmasAtendimento />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/evidencias"
+          element={protectedPage(
+            <RelatorioEvidencias />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/prestacoes-contas"
+          element={protectedPage(
+            <RelatorioPrestacaoContas />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/prestacoes-metas"
+          element={protectedPage(
+            <RelatorioCumprimentoMetas />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/emprestimos"
+          element={protectedPage(
+            <RelatorioEmprestimos />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/fluxo-caixa"
+          element={protectedPage(
+            <RelatorioFluxoCaixa />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/movimentacoes-financeiras"
+          element={protectedPage(
+            <RelatorioMovimentacoesFinanceiras />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/receitas-despesas-categoria"
+          element={protectedPage(
+            <RelatorioReceitasDespesasCategoria />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/saldos-contas-bancarias"
+          element={protectedPage(
+            <RelatorioSaldosContasBancarias />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/contas-pagar"
+          element={protectedPage(
+            <RelatorioContasPagarRel />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/contas-receber"
+          element={protectedPage(
+            <RelatorioContasReceberRel />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/conciliacao-bancaria"
+          element={protectedPage(
+            <RelatorioConciliacaoBancariaRel />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/transferencias-bancarias"
+          element={protectedPage(
+            <RelatorioTransferenciasBancarias />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/doacoes-recebidas"
+          element={protectedPage(
+            <RelatorioDoacoesRecebidas />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/fornecedores-pagamentos"
+          element={protectedPage(
+            <RelatorioFornecedoresPagamentos />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/doadores"
+          element={protectedPage(
+            <RelatorioDoadores />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
+          path="/relatorios/parceiros"
+          element={protectedPage(
+            <RelatorioParceiros />,
             permission("RELATORIOS"),
           )}
         />
@@ -1000,6 +1458,14 @@ function AppRoutes() {
           path="/configuracoes/empresa"
           element={protectedPage(
             <ConfiguracaoEmpresa />,
+            permission("CONFIGURACOES"),
+          )}
+        />
+
+        <Route
+          path="/configuracoes/central-do-cliente"
+          element={protectedPage(
+            <CentralCliente />,
             permission("CONFIGURACOES"),
           )}
         />
@@ -1042,6 +1508,13 @@ function AppRoutes() {
         />
 
         <Route
+          path="/usuario"
+          element={protectedPage(
+            <Navigate to="/usuarios" replace />,
+            permission("USUARIOS"),
+          )}
+        />
+        <Route
           path="/usuarios"
           element={protectedPage(<Usuarios />, permission("USUARIOS"))}
         />
@@ -1071,6 +1544,16 @@ function AppRoutes() {
           )}
         />
 
+        <Route
+          path="/alertas-email"
+          element={protectedPage(<AlertasEmail />, permission("CONFIGURACOES"))}
+        />
+
+        <Route
+          path="/configuracoes/notificacoes"
+          element={protectedPage(<Notificacoes />, permission("CONFIGURACOES"))}
+        />
+
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </>
@@ -1083,8 +1566,12 @@ const App = () => (
       <Toaster />
       <Sonner position="top-right" richColors />
 
-      <BrowserRouter>
+      <BrowserRouter
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
+        <PlanNetworkGuard />
         <AppRoutes />
+        <NextStepPopupHost />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

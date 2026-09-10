@@ -1,7 +1,12 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   User,
   MapPin,
   Briefcase,
@@ -13,11 +18,13 @@ import { AppLayout } from "@/components/AppLayout";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { EmailInput } from "@/components/EmailInput";
 import { PageTitle } from "@/components/PageTitle";
+import { BackButton } from "@/components/BackButton";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -43,33 +50,11 @@ import {
   type Colaborador,
 } from "@/data/colaboradores";
 import { toast } from "sonner";
-
-const COLABORADOR_NEXT_STEP_KEY = "aurit:colaboradores:next-step-card";
-
-interface ColaboradorNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
-}
+import { getImportConfigForPath } from "@/config/importacoes";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 function salvarProximaAcaoColaborador() {
-  const card: ColaboradorNextStepCardData = {
-    titulo:
-      "Após cadastrar os colaboradores, registre os integrantes vinculados à organização",
-    descricao:
-      "Os integrantes ajudam a representar pessoas, grupos, coletivos ou parceiros culturais que atuam junto à organização.",
-    acaoLabel: "Cadastrar integrantes",
-    acaoUrl: "/integrantes/novo",
-    acaoSecundariaLabel: "Ver colaboradores",
-    acaoSecundariaUrl: "/colaboradores",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(COLABORADOR_NEXT_STEP_KEY, JSON.stringify(card));
+  emitJourneyNextStep();
 }
 
 interface ViaCepResponse {
@@ -241,6 +226,14 @@ export default function ColaboradorForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
+  const conversionSeed = (
+    location.state as {
+      conversionSeed?: {
+        origem?: string;
+        data?: Partial<Colaborador>;
+      };
+    } | null
+  )?.conversionSeed;
 
   const bloqueado = visualizando || loading || saving;
 
@@ -249,11 +242,7 @@ export default function ColaboradorForm() {
 
   useImportFormFill("colaboradores", setForm);
 
-  useEffect(() => {
-    void carregarTudo();
-  }, [id]);
-
-  async function carregarTudo() {
+  const carregarTudo = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -269,17 +258,33 @@ export default function ColaboradorForm() {
           estado: resolverEstadoParaSelect(data.estado),
         });
       } else {
-        setForm(createEmptyColaborador());
+        const seed = conversionSeed?.data;
+
+        setForm({
+          ...createEmptyColaborador(),
+          ...seed,
+          cpf: seed?.cpf ? maskCPF(seed.cpf) : "",
+          telefone: seed?.telefone ? maskPhone(seed.telefone) : "",
+          cep: seed?.cep ? maskCEP(seed.cep) : "",
+          rg: seed?.rg ? maskRGFlex(seed.rg) : "",
+          estado: resolverEstadoParaSelect(seed?.estado),
+        });
       }
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Erro ao carregar colaborador.",
+        error instanceof Error
+          ? error.message
+          : "Erro ao carregar colaborador.",
       );
       navigate("/colaboradores");
     } finally {
       setLoading(false);
     }
-  }
+  }, [conversionSeed?.data, id, navigate]);
+
+  useEffect(() => {
+    void carregarTudo();
+  }, [carregarTudo]);
 
   const validar = () => {
     if (!form.nomeCompleto.trim()) {
@@ -420,7 +425,9 @@ export default function ColaboradorForm() {
     try {
       setCepLoading(true);
 
-      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const response = await fetch(
+        `https://viacep.com.br/ws/${cepLimpo}/json/`,
+      );
 
       if (!response.ok) {
         throw new Error("Não foi possível consultar o CEP.");
@@ -482,517 +489,523 @@ export default function ColaboradorForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/colaboradores")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </button>
+        <BackButton to="/colaboradores" />
 
         <PageTitle
-          title="Colaborador"
-          tooltip="Cadastre e acompanhe os dados dos colaboradores da organização, incluindo informações pessoais, endereço, função exercida, vínculo institucional, carga horária e situação atual."
+          title="Colaboradores"
+          tooltip="Nesta página são cadastrados e acompanhados os colaboradores da organização, com informações pessoais, endereço, tipo de vínculo, período de atuação, situação atual e função exercida. Esses dados ajudam a manter o cadastro da equipe organizado e atualizado."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/colaboradores")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
+          showImport={false}
         />
 
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={User} title="Dados pessoais">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="nomeCompleto" required>
-                  Nome Completo
-                </FieldLabel>
+          <fieldset
+            disabled={visualizando}
+            className="space-y-5 border-0 p-0 disabled:opacity-100"
+          >
+            <Section
+              icon={User}
+              title="Dados pessoais"
+              description="Informe os principais dados pessoais e os canais de contato do colaborador."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="nomeCompleto" required>
+                    Nome Completo
+                  </FieldLabel>
 
-                <Input
-                  id="nomeCompleto"
-                  value={form.nomeCompleto}
-                  onChange={(e) => set("nomeCompleto", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+                  <Input
+                    id="nomeCompleto"
+                    value={form.nomeCompleto}
+                    onChange={(e) => set("nomeCompleto", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
 
-              <Field>
-                <FieldLabel htmlFor="dataNascimento" required>
-                  Data de Nascimento
-                </FieldLabel>
+                <Field>
+                  <FieldLabel htmlFor="dataNascimento" required>
+                    Data de Nascimento
+                  </FieldLabel>
 
-                <Input
-                  id="dataNascimento"
-                  type="date"
-                  value={form.dataNascimento}
-                  onChange={(e) => set("dataNascimento", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+                  <Input
+                    id="dataNascimento"
+                    type="date"
+                    value={form.dataNascimento}
+                    onChange={(e) => set("dataNascimento", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
 
-              <Field>
-                <FieldLabel htmlFor="cpf" required>
-                  CPF
-                </FieldLabel>
+                <Field>
+                  <FieldLabel htmlFor="cpf" required>
+                    CPF
+                  </FieldLabel>
 
-                <Input
-                  id="cpf"
-                  value={form.cpf}
-                  onChange={(e) => set("cpf", maskCPF(e.target.value))}
-                  inputMode="numeric"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+                  <Input
+                    id="cpf"
+                    value={form.cpf}
+                    onChange={(e) => set("cpf", maskCPF(e.target.value))}
+                    inputMode="numeric"
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
 
-              <Field>
-                <FieldLabel htmlFor="rg">RG</FieldLabel>
+                <Field>
+                  <FieldLabel htmlFor="rg">RG</FieldLabel>
 
-                <Input
-                  id="rg"
-                  value={form.rg}
-                  onChange={(e) => set("rg", maskRGFlex(e.target.value))}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+                  <Input
+                    id="rg"
+                    value={form.rg}
+                    onChange={(e) => set("rg", maskRGFlex(e.target.value))}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
 
-              <Field>
-                <FieldLabel htmlFor="telefone" required>
-                  Telefone
-                </FieldLabel>
+                <Field>
+                  <FieldLabel htmlFor="racaCor" required>
+                    Raça/cor
+                  </FieldLabel>
 
-                <Input
-                  id="telefone"
-                  value={form.telefone}
-                  onChange={(e) => set("telefone", maskPhone(e.target.value))}
-                  inputMode="tel"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+                  <Select
+                    value={form.racaCor}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+                      set("racaCor", value);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="racaCor">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
 
-              <Field>
-                <FieldLabel htmlFor="email">E-mail</FieldLabel>
+                    <SelectContent>
+                      {racaCorOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-                <EmailInput
-                  id="email"
-                  value={form.email}
-                  onChange={(e) => set("email", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+                <Field>
+                  <FieldLabel htmlFor="genero" required>
+                    Gênero
+                  </FieldLabel>
 
-              <Field>
-                <FieldLabel
-                  htmlFor="racaCor"
-                  required
-                  tooltip="Selecione a raça/cor declarada pelo colaborador."
-                >
-                  Raça/Cor
-                </FieldLabel>
+                  <Select
+                    value={form.genero}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+                      set("genero", value);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="genero">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
 
-                <Select
-                  value={form.racaCor}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("racaCor", value);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="racaCor">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
+                    <SelectContent>
+                      {generoOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-                  <SelectContent>
-                    {racaCorOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+                <Field>
+                  <FieldLabel
+                    htmlFor="tipoDeficiencia"
+                    required
+                    tooltip="Informe se o integrante possui alguma deficiência e, em caso positivo, selecione o tipo correspondente. Se não possuir, selecione Não possui. Caso essa informação não tenha sido fornecida ou não seja conhecida, selecione Não informado."
+                  >
+                    Deficiência
+                  </FieldLabel>
 
-              <Field>
-                <FieldLabel
-                  htmlFor="genero"
-                  required
-                  tooltip="Selecione o gênero declarado pelo colaborador."
-                >
-                  Gênero
-                </FieldLabel>
+                  <Select
+                    value={form.tipoDeficiencia}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+                      set("tipoDeficiencia", value);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="tipoDeficiencia">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
 
-                <Select
-                  value={form.genero}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("genero", value);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="genero">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
+                    <SelectContent>
+                      {tipoDeficienciaOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-                  <SelectContent>
-                    {generoOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+                <Field>
+                  <FieldLabel htmlFor="telefone" required>
+                    Telefone
+                  </FieldLabel>
 
-              <Field>
-                <FieldLabel
-                  htmlFor="tipoDeficiencia"
-                  required
-                  tooltip="Selecione o tipo de deficiência informado pelo colaborador. Caso não possua, utilize a opção Não possui."
-                >
-                  Tipo de Deficiência
-                </FieldLabel>
+                  <Input
+                    id="telefone"
+                    value={form.telefone}
+                    onChange={(e) => set("telefone", maskPhone(e.target.value))}
+                    inputMode="tel"
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
 
-                <Select
-                  value={form.tipoDeficiencia}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("tipoDeficiencia", value);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="tipoDeficiencia">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
+                <Field>
+                  <FieldLabel htmlFor="email">E-mail</FieldLabel>
 
-                  <SelectContent>
-                    {tipoDeficienciaOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
+                  <EmailInput
+                    id="email"
+                    value={form.email}
+                    onChange={(e) => set("email", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </Section>
 
-          <Section icon={MapPin} title="Endereço">
-            <div className="grid gap-4 sm:grid-cols-6">
-              <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="cep" required>
-                  CEP
-                </FieldLabel>
+            <Section
+              icon={MapPin}
+              title="Endereço"
+              description="Informe o endereço principal do colaborador. Ao preencher o CEP, os dados disponíveis serão preenchidos automaticamente."
+            >
+              <div className="grid gap-4 sm:grid-cols-6">
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="cep" required>
+                    CEP
+                  </FieldLabel>
 
-                <Input
-                  id="cep"
-                  value={form.cep}
-                  onChange={(e) => {
-                    if (visualizando) return;
+                  <Input
+                    id="cep"
+                    value={form.cep}
+                    onChange={(e) => {
+                      if (visualizando) return;
 
-                    const cepFormatado = maskCEP(e.target.value);
-                    set("cep", cepFormatado);
+                      const cepFormatado = maskCEP(e.target.value);
+                      set("cep", cepFormatado);
 
-                    const cepLimpo = cepFormatado.replace(/\D/g, "");
-                    if (cepLimpo.length === 8) {
-                      void buscarEnderecoPorCep(cepFormatado);
+                      const cepLimpo = cepFormatado.replace(/\D/g, "");
+
+                      if (cepLimpo.length === 8) {
+                        void buscarEnderecoPorCep(cepFormatado);
+                      }
+                    }}
+                    inputMode="numeric"
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+
+                  {cepLoading && !visualizando && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Buscando endereço...
+                    </p>
+                  )}
+                </Field>
+
+                <Field className="sm:col-span-4">
+                  <FieldLabel htmlFor="logradouro" required>
+                    Logradouro
+                  </FieldLabel>
+
+                  <Input
+                    id="logradouro"
+                    value={form.logradouro}
+                    onChange={(e) => set("logradouro", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="numero" required>
+                    Número
+                  </FieldLabel>
+
+                  <Input
+                    id="numero"
+                    value={form.numero}
+                    onChange={(e) => set("numero", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-4">
+                  <FieldLabel htmlFor="complemento">Complemento</FieldLabel>
+
+                  <Input
+                    id="complemento"
+                    value={form.complemento}
+                    onChange={(e) => set("complemento", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="bairro" required>
+                    Bairro
+                  </FieldLabel>
+
+                  <Input
+                    id="bairro"
+                    value={form.bairro}
+                    onChange={(e) => set("bairro", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="cidade" required>
+                    Cidade
+                  </FieldLabel>
+
+                  <Input
+                    id="cidade"
+                    value={form.cidade}
+                    onChange={(e) => set("cidade", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="estado" required>
+                    Estado
+                  </FieldLabel>
+
+                  <Select
+                    value={form.estado}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+                      set("estado", value);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="estado">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent className="max-h-72">
+                      {estadosBrasil.map((estado) => (
+                        <SelectItem key={estado} value={estado}>
+                          {estado}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </Section>
+
+            <Section
+              icon={CalendarClock}
+              title="Vínculo e situação"
+              description="Informe o tipo de vínculo com a organização, a situação atual do colaborador e o período correspondente à sua atuação."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="tipoVinculo"
+                    required
+                    tooltip="Informe a forma de vínculo ou contratação do colaborador com a organização, como pessoa física, pessoa jurídica, MEI ou voluntário."
+                  >
+                    Tipo de Vínculo
+                  </FieldLabel>
+
+                  <Select
+                    value={form.tipoVinculo}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+                      set("tipoVinculo", value);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="tipoVinculo">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {tipoVinculoOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataInicioVinculo"
+                    required
+                    tooltip="Informe a data em que o colaborador iniciou sua atuação ou vínculo com a organização."
+                  >
+                    Data de Início do Vínculo
+                  </FieldLabel>
+
+                  <Input
+                    id="dataInicioVinculo"
+                    type="date"
+                    value={form.dataInicioVinculo}
+                    onChange={(e) => set("dataInicioVinculo", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataFimVinculo"
+                    tooltip="Informe a data em que o vínculo foi encerrado ou, quando houver, a data prevista para o seu término. Caso o vínculo continue ativo e não possua término definido, o campo pode permanecer em branco."
+                  >
+                    Data de Término do Vínculo
+                  </FieldLabel>
+
+                  <Input
+                    id="dataFimVinculo"
+                    type="date"
+                    value={form.dataFimVinculo}
+                    onChange={(e) => set("dataFimVinculo", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="status"
+                    required
+                    tooltip="Informe a situação atual do vínculo do colaborador. Ativo indica atuação em andamento; Pendente, cadastro ou vínculo em conferência; Concluído, vínculo finalizado conforme previsto; e Inativo, vínculo que não está mais em exercício."
+                  >
+                    Status do Colaborador
+                  </FieldLabel>
+
+                  <Select
+                    value={form.status}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+                      set("status", value);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {statusColaboradorOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </Section>
+
+            <Section
+              icon={Briefcase}
+              title="Dados de atuação"
+              description="Informe a função exercida, a carga horária e as principais informações sobre a atuação do colaborador."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="funcaoColaborador"
+                    required
+                    tooltip="Informe o cargo ou a principal função exercida pelo colaborador na organização, como professor de música, produtor cultural, coordenador pedagógico ou auxiliar administrativo."
+                  >
+                    Função do Colaborador
+                  </FieldLabel>
+
+                  <Input
+                    id="funcaoColaborador"
+                    value={form.funcaoColaborador}
+                    onChange={(e) => set("funcaoColaborador", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="cargaHorariaSemanal"
+                    required
+                    tooltip="Informe a quantidade média de horas dedicadas semanalmente pelo colaborador às atividades da organização."
+                  >
+                    Carga Horária Semanal
+                  </FieldLabel>
+
+                  <Input
+                    id="cargaHorariaSemanal"
+                    value={form.cargaHorariaSemanal}
+                    onChange={(e) =>
+                      set(
+                        "cargaHorariaSemanal",
+                        e.target.value.replace(/\D/g, "").slice(0, 3),
+                      )
                     }
-                  }}
-                  inputMode="numeric"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
+                    inputMode="numeric"
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
 
-                {cepLoading && !visualizando && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Buscando endereço...
-                  </p>
-                )}
-              </Field>
+                <Field full>
+                  <FieldLabel
+                    htmlFor="descricaoAtuacao"
+                    required
+                    tooltip="Informe as principais atividades realizadas pelo colaborador, suas responsabilidades e sua participação em projetos, oficinas, eventos ou outras ações da organização."
+                  >
+                    Descrição da Atuação
+                  </FieldLabel>
 
-              <Field className="sm:col-span-4">
-                <FieldLabel htmlFor="logradouro" required>
-                  Logradouro
-                </FieldLabel>
+                  <Textarea
+                    id="descricaoAtuacao"
+                    value={form.descricaoAtuacao}
+                    onChange={(e) => set("descricaoAtuacao", e.target.value)}
+                    rows={4}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </Section>
+          </fieldset>
 
-                <Input
-                  id="logradouro"
-                  value={form.logradouro}
-                  onChange={(e) => set("logradouro", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field className="sm:col-span-2">
-                <FieldLabel
-                  htmlFor="numero"
-                  required
-                  tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
-                >
-                  Número
-                </FieldLabel>
-
-                <Input
-                  id="numero"
-                  value={form.numero}
-                  onChange={(e) => set("numero", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field className="sm:col-span-4">
-                <FieldLabel htmlFor="complemento">Complemento</FieldLabel>
-
-                <Input
-                  id="complemento"
-                  value={form.complemento}
-                  onChange={(e) => set("complemento", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="bairro" required>
-                  Bairro
-                </FieldLabel>
-
-                <Input
-                  id="bairro"
-                  value={form.bairro}
-                  onChange={(e) => set("bairro", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="cidade" required>
-                  Cidade
-                </FieldLabel>
-
-                <Input
-                  id="cidade"
-                  value={form.cidade}
-                  onChange={(e) => set("cidade", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="estado" required>
-                  Estado
-                </FieldLabel>
-
-                <Select
-                  value={form.estado}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("estado", value);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="estado">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent className="max-h-72">
-                    {estadosBrasil.map((estado) => (
-                      <SelectItem key={estado} value={estado}>
-                        {estado}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Briefcase} title="Dados de atuação">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="funcaoColaborador"
-                  required
-                  tooltip="Informe o cargo ou função principal exercida pelo colaborador na organização. Ex.: professor de música, produtor cultural, coordenadora pedagógica ou auxiliar administrativo."
-                >
-                  Função do Colaborador
-                </FieldLabel>
-
-                <Input
-                  id="funcaoColaborador"
-                  value={form.funcaoColaborador}
-                  onChange={(e) => set("funcaoColaborador", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="cargaHorariaSemanal"
-                  required
-                  tooltip="Informe a carga horária média semanal dedicada pelo colaborador à organização ou às atividades vinculadas. Ex.: 20 horas por semana."
-                >
-                  Carga Horária Semanal
-                </FieldLabel>
-
-                <Input
-                  id="cargaHorariaSemanal"
-                  value={form.cargaHorariaSemanal}
-                  onChange={(e) =>
-                    set(
-                      "cargaHorariaSemanal",
-                      e.target.value.replace(/\D/g, "").slice(0, 3),
-                    )
-                  }
-                  inputMode="numeric"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="descricaoAtuacao"
-                  required
-                  tooltip="Descreva de forma objetiva as atividades realizadas pelo colaborador, sua contribuição para a organização e sua participação em projetos, oficinas, eventos ou ações culturais. Ex.: Atua no planejamento e condução de oficinas de música, acompanha a frequência dos participantes e apoia apresentações públicas."
-                >
-                  Descrição da Atuação
-                </FieldLabel>
-
-                <Textarea
-                  id="descricaoAtuacao"
-                  value={form.descricaoAtuacao}
-                  onChange={(e) => set("descricaoAtuacao", e.target.value)}
-                  rows={4}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={CalendarClock} title="Vínculo e situação">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="dataInicioVinculo"
-                  required
-                  tooltip="Informe a data em que o colaborador iniciou sua atuação ou vínculo com a organização. Ex.: 01/02/2024."
-                >
-                  Data de Início do Vínculo
-                </FieldLabel>
-
-                <Input
-                  id="dataInicioVinculo"
-                  type="date"
-                  value={form.dataInicioVinculo}
-                  onChange={(e) => set("dataInicioVinculo", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="dataFimVinculo"
-                  tooltip="Informe a data de término apenas se o vínculo já foi encerrado ou tiver uma previsão formal de encerramento. Caso a data de término já tenha passado, o status deve ser Inativo ou Concluído."
-                >
-                  Data de Término do Vínculo
-                </FieldLabel>
-
-                <Input
-                  id="dataFimVinculo"
-                  type="date"
-                  value={form.dataFimVinculo}
-                  onChange={(e) => set("dataFimVinculo", e.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="status"
-                  required
-                  tooltip="Indique a situação atual do colaborador no sistema. Use “Ativo” para colaboradores em atuação, “Pendente” para cadastros em conferência, “Concluído” para vínculos finalizados conforme previsto e “Inativo” para vínculos que não devem mais ser considerados ativos."
-                >
-                  Status do Colaborador
-                </FieldLabel>
-
-                <Select
-                  value={form.status}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("status", value);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {statusColaboradorOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="tipoVinculo"
-                  required
-                  tooltip="Selecione a forma de vínculo ou contratação do colaborador com a organização. Ex.: pessoa física, pessoa jurídica, MEI ou voluntário."
-                >
-                  Tipo de Vínculo
-                </FieldLabel>
-
-                <Select
-                  value={form.tipoVinculo}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("tipoVinculo", value);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="tipoVinculo">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {tipoVinculoOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
-
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/colaboradores")}
               disabled={loading || saving}
             >
@@ -1002,7 +1015,8 @@ export default function ColaboradorForm() {
             {!visualizando && (
               <Button
                 type="submit"
-                className="sm:min-w-32"
+                variant="glassPrimary"
+                className="h-9 px-5"
                 disabled={loading || saving}
               >
                 {saving ? "Salvando..." : "Salvar"}
@@ -1022,24 +1036,18 @@ export default function ColaboradorForm() {
 function Section({
   icon: Icon,
   title,
+  description,
   children,
 }: {
   icon: LucideIcon;
   title: string;
+  description?: string;
   children: ReactNode;
 }) {
   return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
-
+    <FormSectionCard icon={Icon} title={title} description={description}>
       {children}
-    </Card>
+    </FormSectionCard>
   );
 }
 

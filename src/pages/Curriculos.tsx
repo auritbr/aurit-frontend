@@ -1,30 +1,40 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Search,
-  Plus,
-  Eye,
-  Pencil,
-  Trash2,
-  FileText,
-  Download,
-} from "lucide-react";
+import { FileDown, Loader2, Search, Plus, RotateCcw } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
-import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { DataTableEmptyState } from "@/components/list/DataTableEmptyState";
+import { SortableTh } from "@/components/list/SortableTh";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+  useSessionBoolean,
+} from "@/components/AdvancedSearchPanel";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import { FieldLabel } from "@/components/FieldLabel";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
+import { DocumentActionButton } from "@/components/DocumentActionButton";
+import { DataTablePagination } from "@/components/DataTablePagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TableActionIcon } from "@/components/TableActionIcon";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { TablePagination } from "@/components/TablePagination";
-import { SortableHeader } from "@/components/SortableHeader";
-import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
-import { useSortableData } from "@/hooks/useSortableData";
-import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
   getPermissoesUsuarioLogadoPorModulo,
@@ -36,7 +46,7 @@ import {
   getCurriculos,
   type CurriculoListItem,
 } from "@/data/curriculos";
-import { exportCurriculoPdf } from "@/lib/pdfExporters";
+import { downloadIndividualReport } from "@/lib/individualReportDownload";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,19 +59,46 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
-type SortKey = "colaborador" | "formacao" | "atuacao" | "experiencias";
+type SortBy = "colaborador" | "formacao" | "atuacao";
+type SortDir = "asc" | "desc";
+
+interface CurriculosFiltros {
+  nome: string;
+  formacao: string;
+  experiencia: string;
+  sortBy: SortBy;
+  sortDir: SortDir;
+}
+
+const emptyFiltros: CurriculosFiltros = {
+  nome: "",
+  formacao: "",
+  experiencia: "",
+  sortBy: "colaborador",
+  sortDir: "asc",
+};
+
+const sortByOptions = [
+  { value: "colaborador", label: "Pessoa" },
+  { value: "formacao", label: "Formação acadêmica" },
+  { value: "atuacao", label: "Atuação profissional" },
+] as const;
+
+const normalize = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
 const CURRICULO_NEXT_STEP_KEY = "aurit:curriculos:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
 
 interface CurriculoNextStepCardData {
   titulo: string;
-  descricao: string;
   acaoLabel: string;
   acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+  variante?: "pendente" | "atencao" | "concluido";
 }
 
 function summarize(items: string[]): string {
@@ -73,16 +110,9 @@ function summarize(items: string[]): string {
   return `${list[0]} (+${list.length - 1})`;
 }
 
-function countLabel(items: string[]): string {
-  const n = (items ?? []).filter((s) => s.trim()).length;
-  return `${n} ${n === 1 ? "registro" : "registros"}`;
-}
-
 export default function Curriculos() {
   const navigate = useNavigate();
-  const tableRef = useRef<HTMLTableElement>(null);
 
-  const [search, setSearch] = useState("");
   const [items, setItems] = useState<CurriculoListItem[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [nextStepCard, setNextStepCard] =
@@ -94,6 +124,16 @@ export default function Curriculos() {
   );
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
+  const [panelOpen, setPanelOpen] = useSessionBoolean(
+    "curriculos:pesquisa-avancada",
+    false,
+  );
+  const [draft, setDraft] = useState<CurriculosFiltros>(emptyFiltros);
+  const [filtros, setFiltros] = useState<CurriculosFiltros>(emptyFiltros);
+  const [searching, setSearching] = useState(false);
+  const [gerandoCurriculoId, setGerandoCurriculoId] = useState<string | null>(
+    null,
+  );
 
   const podeVisualizar = permissoes.VISUALIZAR;
   const podeCriar = permissoes.CRIAR;
@@ -188,62 +228,124 @@ export default function Curriculos() {
     }
   }
 
+  const setDraftField = <K extends keyof CurriculosFiltros>(
+    key: K,
+    value: CurriculosFiltros[K],
+  ) => setDraft((prev) => ({ ...prev, [key]: value }));
+
+  const applyFiltros = (next: CurriculosFiltros) => {
+    setDraft(next);
+    setSearching(true);
+    setFiltros(next);
+    window.setTimeout(() => setSearching(false), 180);
+  };
+
+  const handleSearch = (event?: React.FormEvent) => {
+    event?.preventDefault();
+    if (!searching) applyFiltros(draft);
+  };
+
+  const handleClearFiltros = () => applyFiltros(emptyFiltros);
+
   const filtered = useMemo(() => {
-    const s = search.toLowerCase().trim();
+    const nome = normalize(filtros.nome);
+    const formacao = normalize(filtros.formacao);
+    const experiencia = normalize(filtros.experiencia);
 
-    if (!s) return items;
-
-    return items.filter((c) => {
-      const texto = [
-        c.nomeCompleto,
-        c.email,
-        c.telefone,
-        c.enderecoCompleto,
-        ...c.formacaoAcademica,
-        ...c.atuacaoProfissional,
-        ...c.experienciasRelevantes,
-        ...c.atividadesFormativasParticipacoes,
-        ...c.habilidadesCompetencias,
-        ...c.atuacaoSociocultural,
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return texto.includes(s);
+    const result = items.filter((curriculo) => {
+      if (nome && !normalize(curriculo.nomeCompleto).includes(nome))
+        return false;
+      if (
+        formacao &&
+        !curriculo.formacaoAcademica.some((item) =>
+          normalize(item).includes(formacao),
+        )
+      )
+        return false;
+      if (
+        experiencia &&
+        ![
+          ...curriculo.experienciasRelevantes,
+          ...curriculo.atuacaoProfissional,
+        ].some((item) => normalize(item).includes(experiencia))
+      )
+        return false;
+      return true;
     });
-  }, [search, items]);
 
+    const sortValue = (curriculo: CurriculoListItem) => {
+      if (filtros.sortBy === "formacao")
+        return summarize(curriculo.formacaoAcademica);
+      if (filtros.sortBy === "atuacao")
+        return summarize(curriculo.atuacaoProfissional);
+      return curriculo.nomeCompleto;
+    };
 
-  const { sortConfig, sortedItems, handleSort } = useSortableData(
-    filtered,
-    (item, key: SortKey) => {
-      switch (key) {
-        case "colaborador":
-          return item.nomeCompleto;
-        case "formacao":
-          return summarize(item.formacaoAcademica);
-        case "atuacao":
-          return summarize(item.atuacaoProfissional);
-        case "experiencias":
-          return summarize(item.experienciasRelevantes);
-        default:
-          return "";
-      }
-    },
-  );
+    return [...result].sort((a, b) => {
+      const compare = sortValue(a).localeCompare(sortValue(b), "pt-BR", {
+        sensitivity: "base",
+      });
+      return filtros.sortDir === "asc" ? compare : -compare;
+    });
+  }, [filtros, items]);
+
+  const activeFilters = useMemo<ActiveFilterItem[]>(() => {
+    const active: ActiveFilterItem[] = [];
+
+    if (filtros.nome.trim())
+      active.push({
+        id: "nome",
+        label: "Pessoa",
+        value: filtros.nome.trim(),
+        onRemove: () => applyFiltros({ ...filtros, nome: "" }),
+      });
+    if (filtros.formacao.trim())
+      active.push({
+        id: "formacao",
+        label: "Formação",
+        value: filtros.formacao.trim(),
+        onRemove: () => applyFiltros({ ...filtros, formacao: "" }),
+      });
+    if (filtros.experiencia.trim())
+      active.push({
+        id: "experiencia",
+        label: "Experiência",
+        value: filtros.experiencia.trim(),
+        onRemove: () => applyFiltros({ ...filtros, experiencia: "" }),
+      });
+    if (
+      filtros.sortBy !== emptyFiltros.sortBy ||
+      filtros.sortDir !== emptyFiltros.sortDir
+    )
+      active.push({
+        id: "ordenacao",
+        label: "Ordenação",
+        value: `${
+          sortByOptions.find((option) => option.value === filtros.sortBy)
+            ?.label ?? filtros.sortBy
+        } · ${filtros.sortDir === "asc" ? "A–Z" : "Z–A"}`,
+        onRemove: () =>
+          applyFiltros({
+            ...filtros,
+            sortBy: emptyFiltros.sortBy,
+            sortDir: emptyFiltros.sortDir,
+          }),
+      });
+
+    return active;
+  }, [filtros]);
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sortedItems, 25, search);
+    usePagination(filtered, 25, JSON.stringify(filtros));
 
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
-
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
-    }
-
-    toast.success("Dados copiados com sucesso.");
+  const toggleSort = (sortBy: SortBy) => {
+    setCurrentPage(1);
+    applyFiltros({
+      ...filtros,
+      sortBy,
+      sortDir:
+        filtros.sortBy === sortBy && filtros.sortDir === "asc" ? "desc" : "asc",
+    });
   };
 
   async function handleDelete() {
@@ -275,15 +377,50 @@ export default function Curriculos() {
     }
   }
 
-  function handleExport(item: CurriculoListItem) {
+  async function handleExport(item: CurriculoListItem) {
     if (!podeGerarPdf) {
       toast.error("Você não possui permissão para exportar currículos.");
       return;
     }
 
-    exportCurriculoPdf(item);
-    toast.success("Currículo exportado em PDF.");
+    const curriculoId = String(item.id ?? "").trim();
+    if (!curriculoId) {
+      toast.error("Não foi possível identificar o currículo selecionado.");
+      return;
+    }
+
+    try {
+      setGerandoCurriculoId(curriculoId);
+      await downloadIndividualReport(
+        `/curriculos/${encodeURIComponent(curriculoId)}/relatorio`,
+        "curriculo.pdf",
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível gerar o currículo em PDF.");
+    } finally {
+      setGerandoCurriculoId(null);
+    }
   }
+
+  const exportColumns = [
+    { header: "Pessoa", key: "nomeCompleto" },
+    { header: "Formação acadêmica", key: "formacaoAcademica" },
+    { header: "Atuação profissional", key: "atuacaoProfissional" },
+    { header: "Experiências relevantes", key: "experienciasRelevantes" },
+    { header: "Habilidades e competências", key: "habilidadesCompetencias" },
+    { header: "Atuação sociocultural", key: "atuacaoSociocultural" },
+  ];
+
+  const getExportData = () =>
+    filtered.map((curriculo) => ({
+      nomeCompleto: curriculo.nomeCompleto,
+      formacaoAcademica: curriculo.formacaoAcademica.join(" | "),
+      atuacaoProfissional: curriculo.atuacaoProfissional.join(" | "),
+      experienciasRelevantes: curriculo.experienciasRelevantes.join(" | "),
+      habilidadesCompetencias: curriculo.habilidadesCompetencias.join(" | "),
+      atuacaoSociocultural: curriculo.atuacaoSociocultural.join(" | "),
+    }));
 
   if (!podeVisualizar) {
     return (
@@ -304,271 +441,237 @@ export default function Curriculos() {
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
-        <PageTitle
+        <ListPageHeader
           title="Currículos"
-          tooltip="Organize a trajetória do colaborador, reunindo formação, experiências, competências e atuações relevantes para projetos, editais e documentos institucionais."
-        />
-
-        {nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
-        )}
-
-        <div className="rounded border border-border bg-card">
-          <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-            <div className="relative max-w-md flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-9 pl-9"
-                aria-label="Buscar currículo"
-              />
-            </div>
-
-            {podeCriar && (
+          tooltip="Nesta página é preenchido o currículo do colaborador com informações sobre formação acadêmica, atuação profissional, experiências socioculturais, atividades formativas e competências. Esses dados ajudam a demonstrar sua trajetória e experiência em projetos, editais e outras ações da organização."
+          objective="Cadastre e organize as formações, atuações profissionais, experiências socioculturais, atividades formativas e competências dos colaboradores da organização. Esses registros ajudam na elaboração de projetos, editais, relatórios e comprovações de trajetória."
+          actions={
+            podeCriar ? (
               <Button
+                type="button"
+                variant="glassPrimary"
                 onClick={() => navigate("/curriculos/novo")}
-                className="h-9 gap-2"
+                className="h-9 gap-2 px-4"
                 disabled={loading}
               >
                 <Plus className="h-4 w-4" />
-                Cadastrar Currículo
+                Cadastrar currículo
               </Button>
-            )}
-          </div>
+            ) : undefined
+          }
+        />
 
-          <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full min-w-[980px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th
-                    className="w-[140px] px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    data-no-copy
+        <div className="space-y-4">
+          <AdvancedSearchPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            activeCount={activeFilters.length}
+          >
+            <form onSubmit={handleSearch} noValidate>
+              <SearchFilterGrid>
+                <div>
+                  <FieldLabel htmlFor="filtroNome">Nome da pessoa</FieldLabel>
+                  <Input
+                    id="filtroNome"
+                    value={draft.nome}
+                    onChange={(event) =>
+                      setDraftField("nome", event.target.value)
+                    }
+                    placeholder="Digite o nome"
+                    className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroSortDir">Ordem</FieldLabel>
+                  <Select
+                    value={draft.sortDir}
+                    onValueChange={(value) =>
+                      setDraftField("sortDir", value as SortDir)
+                    }
                   >
-                    Ações
-                  </th>
-
-                  <SortableHeader
-                    label="Colaborador"
-                    sortKey="colaborador"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Formação acadêmica"
-                    sortKey="formacao"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Atuação profissional"
-                    sortKey="atuacao"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Experiências"
-                    sortKey="experiencias"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  {podeGerarPdf && (
-                    <th
-                      className="w-[180px] px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy
+                    <SelectTrigger
+                      id="filtroSortDir"
+                      className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
                     >
-                      Documento
-                    </th>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">A–Z</SelectItem>
+                      <SelectItem value="desc">Z–A</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </SearchFilterGrid>
+              <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 gap-2 px-4"
+                  onClick={handleClearFiltros}
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden />
+                  Limpar filtros
+                </Button>
+                <Button
+                  type="submit"
+                  variant="glassPrimary"
+                  className="h-9 gap-2 px-5"
+                  disabled={searching}
+                  aria-busy={searching}
+                >
+                  {searching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Search className="h-4 w-4" aria-hidden />
                   )}
-                </tr>
-              </thead>
+                  {searching ? "Pesquisando..." : "Pesquisar"}
+                </Button>
+              </div>
+            </form>
+          </AdvancedSearchPanel>
 
-              <tbody>
-                {paginated.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                  >
-                    <td className="whitespace-nowrap px-6 py-2.5">
-                      <div className="flex items-center gap-1">
-                        <TableActionIcon
-                          icon={Eye}
-                          label="Visualizar"
-                          onClick={() => navigate(`/curriculos/${c.id}`)}
+          <ActiveFilters
+            items={activeFilters}
+            onClearAll={handleClearFiltros}
+          />
+
+          <DataTableCard>
+            <DataTableToolbar
+              total={filtered.length}
+              exportColumns={exportColumns}
+              getExportData={getExportData}
+              exportFilename="curriculos"
+              canExport={podeGerarPdf}
+            />
+            {filtered.length === 0 ? (
+              <DataTableEmptyState
+                emptyTitle="Nenhum currículo cadastrado."
+                emptyDescription="Cadastre o primeiro currículo para reunir formações, atuações e experiências das pessoas vinculadas à organização."
+                activeCount={activeFilters.length}
+              />
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
+                        <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Ações
+                        </th>
+                        <SortableTh
+                          sortKey="colaborador"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Colaborador
+                        </SortableTh>
+                        {podeGerarPdf && (
+                          <th className="w-[180px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Documento
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginated.map((curriculo) => (
+                        <tr
+                          key={curriculo.id}
+                          className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
+                        >
+                          <td className="whitespace-nowrap px-6 py-2.5">
+                            <RowActionsDropdown
+                              viewTo={`/curriculos/${curriculo.id}`}
+                              editTo={
+                                podeEditar
+                                  ? `/curriculos/${curriculo.id}/editar`
+                                  : undefined
+                              }
+                              onDelete={
+                                podeExcluir
+                                  ? () => setConfirmDelete(curriculo.id)
+                                  : undefined
+                              }
+                            />
+                          </td>
+                          <td className="px-6 py-2.5">
+                            <TableCellText text={curriculo.nomeCompleto} bold>
+                              {curriculo.nomeCompleto}
+                            </TableCellText>
+                          </td>
+                          {podeGerarPdf && (
+                            <td className="whitespace-nowrap px-6 py-2.5">
+                              <DocumentActionButton
+                                label="Gerar currículo"
+                                icon={FileDown}
+                                aria-label={`Gerar currículo de ${curriculo.nomeCompleto}`}
+                                onClick={() => void handleExport(curriculo)}
+                                loading={gerandoCurriculoId === curriculo.id}
+                                disabled={
+                                  gerandoCurriculoId !== null &&
+                                  gerandoCurriculoId !== curriculo.id
+                                }
+                              />
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="divide-y divide-border md:hidden">
+                  {paginated.map((curriculo) => (
+                    <div key={curriculo.id} className="p-4">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <RowActionsDropdown
+                          viewTo={`/curriculos/${curriculo.id}`}
+                          editTo={
+                            podeEditar
+                              ? `/curriculos/${curriculo.id}/editar`
+                              : undefined
+                          }
+                          onDelete={
+                            podeExcluir
+                              ? () => setConfirmDelete(curriculo.id)
+                              : undefined
+                          }
                         />
-
-                        {podeEditar && (
-                          <TableActionIcon
-                            icon={Pencil}
-                            label="Editar"
-                            onClick={() =>
-                              navigate(`/curriculos/${c.id}/editar`)
+                        {podeGerarPdf && (
+                          <DocumentActionButton
+                            label="Gerar currículo"
+                            icon={FileDown}
+                            aria-label={`Gerar currículo de ${curriculo.nomeCompleto}`}
+                            onClick={() => void handleExport(curriculo)}
+                            loading={gerandoCurriculoId === curriculo.id}
+                            disabled={
+                              gerandoCurriculoId !== null &&
+                              gerandoCurriculoId !== curriculo.id
                             }
                           />
                         )}
-
-                        {podeExcluir && (
-                          <TableActionIcon
-                            icon={Trash2}
-                            label="Excluir"
-                            variant="danger"
-                            onClick={() => setConfirmDelete(c.id)}
-                          />
-                        )}
                       </div>
-                    </td>
-
-                    <td className="px-6 py-2.5">
-                      <TableCellText text={c.nomeCompleto} bold>
-                        {c.nomeCompleto}
-                      </TableCellText>
-                    </td>
-
-                    <td className="px-6 py-2.5">
-                      <TableCellText
-                        text={summarize(c.formacaoAcademica)}
-                        muted
-                      >
-                        {summarize(c.formacaoAcademica)}
-                      </TableCellText>
-                    </td>
-
-                    <td className="px-6 py-2.5">
-                      <TableCellText
-                        text={summarize(c.atuacaoProfissional)}
-                        muted
-                      >
-                        {summarize(c.atuacaoProfissional)}
-                      </TableCellText>
-                    </td>
-
-                    <td className="px-6 py-2.5">
-                      <TableCellText
-                        text={summarize(c.experienciasRelevantes)}
-                        muted
-                      >
-                        {summarize(c.experienciasRelevantes)}
-                      </TableCellText>
-                    </td>
-
-                    {podeGerarPdf && (
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleExport(c)}
-                          className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          Gerar currículo
-                        </Button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-
-                {paginated.length === 0 && (
-                  <EmptyRow colspan={podeGerarPdf ? 6 : 5} />
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="divide-y divide-border md:hidden">
-            {paginated.map((c) => (
-              <div key={c.id} className="p-4">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1">
-                    <TableActionIcon
-                      icon={Eye}
-                      label="Visualizar"
-                      onClick={() => navigate(`/curriculos/${c.id}`)}
-                    />
-
-                    {podeEditar && (
-                      <TableActionIcon
-                        icon={Pencil}
-                        label="Editar"
-                        onClick={() => navigate(`/curriculos/${c.id}/editar`)}
-                      />
-                    )}
-
-                    {podeExcluir && (
-                      <TableActionIcon
-                        icon={Trash2}
-                        label="Excluir"
-                        variant="danger"
-                        onClick={() => setConfirmDelete(c.id)}
-                      />
-                    )}
-                  </div>
-
-                  {podeGerarPdf && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleExport(c)}
-                      className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      Exportar
-                    </Button>
-                  )}
+                      <p className="font-medium text-foreground">
+                        {curriculo.nomeCompleto}
+                      </p>
+                    </div>
+                  ))}
                 </div>
 
-                <p className="font-medium text-foreground">{c.nomeCompleto}</p>
-
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Formação: {countLabel(c.formacaoAcademica)}
-                </p>
-
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  Atuação: {countLabel(c.atuacaoProfissional)}
-                </p>
-
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  Experiências: {countLabel(c.experienciasRelevantes)}
-                </p>
-              </div>
-            ))}
-
-            {paginated.length === 0 && (
-              <div className="p-10 text-center">
-                <FileText className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nenhum currículo encontrado.
-                </p>
-              </div>
+                <DataTablePagination
+                  totalItems={filtered.length}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  entityLabel="registro"
+                  entityLabelPlural="registros"
+                  pageSizeLabel="Registros por página"
+                  loading={loading}
+                />
+              </>
             )}
-          </div>
-
-          <TablePagination
-            totalItems={sortedItems.length}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            onCopy={handleCopy}
-          />
+          </DataTableCard>
         </div>
       </div>
 
@@ -600,22 +703,8 @@ export default function Curriculos() {
 
       <WikiFloatingButton
         pageTitle="Currículos"
-        href="https://www.aurit.com.br/wiki/trajetorias/curriculos"
+        href="/wiki/pessoas/curriculos"
       />
     </AppLayout>
-  );
-}
-
-function EmptyRow({ colspan }: { colspan: number }) {
-  return (
-    <tr>
-      <td colSpan={colspan} className="px-5 py-16 text-center">
-        <FileText className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-        <p className="mt-3 text-sm text-muted-foreground">
-          Nenhum currículo encontrado.
-        </p>
-      </td>
-    </tr>
   );
 }

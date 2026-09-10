@@ -1,21 +1,17 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import {
-  ArrowLeft,
-  Package,
-  UserCheck,
-  Layers,
-  Info,
-  Link2,
-} from "lucide-react";
+import { Package, CalendarRange, Layers, Info, Link2 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BackButton } from "@/components/BackButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { ImportDataButton } from "@/components/ImportDataButton";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
+import { getImportConfigForPath } from "@/config/importacoes";
 import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -77,11 +73,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -95,6 +87,7 @@ interface PatrimonioApiDTO {
   id: number;
   numeroPatrimonio: string;
   nomePatrimonio: string;
+  estadoConservacao?: string;
 }
 
 interface ColaboradorApiDTO {
@@ -239,6 +232,11 @@ export default function EmprestimoForm() {
 
   const visualizando = !!id && !location.pathname.endsWith("/editar");
   const editando = !!id && location.pathname.endsWith("/editar");
+  const returnToParam = new URLSearchParams(location.search).get("returnTo");
+  const returnTo =
+    returnToParam?.startsWith("/") && !returnToParam.startsWith("//")
+      ? returnToParam
+      : "/emprestimos";
 
   const [form, setForm] = useState<FormState>(initial);
 
@@ -321,8 +319,7 @@ export default function EmprestimoForm() {
           throw new Error(await parseError(eventosCulturaisRes));
         }
 
-        const patrimoniosData: PatrimonioApiDTO[] =
-          await patrimoniosRes.json();
+        const patrimoniosData: PatrimonioApiDTO[] = await patrimoniosRes.json();
 
         const colaboradoresData: ColaboradorApiDTO[] =
           await colaboradoresRes.json();
@@ -330,8 +327,7 @@ export default function EmprestimoForm() {
         const participantesData: ParticipanteApiDTO[] =
           await participantesRes.json();
 
-        const integrantesData: IntegranteApiDTO[] =
-          await integrantesRes.json();
+        const integrantesData: IntegranteApiDTO[] = await integrantesRes.json();
 
         const projetosData: ProjetoApiDTO[] = await projetosRes.json();
 
@@ -439,7 +435,35 @@ export default function EmprestimoForm() {
             eventoCulturalId: emprestimo.eventoCulturalId ?? "",
           });
         } else {
-          setForm(initial);
+          const params = new URLSearchParams(location.search);
+          const patrimonioId = params.get("patrimonioId") ?? "";
+          const participanteId = params.get("participanteId") ?? "";
+          const tipoDestinatario = params.get("tipoDestinatario") ?? "";
+          const patrimonioPreSelecionado = (patrimoniosData ?? []).find(
+            (item) => String(item.id) === patrimonioId,
+          );
+          const participanteExiste = (participantesData ?? []).some(
+            (item) => String(item.id) === participanteId,
+          );
+
+          setForm({
+            ...initial,
+            patrimonioId: patrimonioPreSelecionado
+              ? String(patrimonioPreSelecionado.id)
+              : "",
+            tipoDestinatario:
+              tipoDestinatario === "PARTICIPANTE" && participanteExiste
+                ? "PARTICIPANTE"
+                : "",
+            participanteId: participanteExiste ? participanteId : "",
+            dataEmprestimo: params.get("dataEmprestimo") ?? "",
+            estadoConservacao:
+              patrimonioPreSelecionado?.estadoConservacao ?? "",
+            statusEmprestimo:
+              patrimonioPreSelecionado && participanteExiste
+                ? "EM_ANDAMENTO"
+                : "",
+          });
         }
       } catch (error) {
         console.error(error);
@@ -465,7 +489,7 @@ export default function EmprestimoForm() {
     return () => {
       active = false;
     };
-  }, [id, navigate]);
+  }, [id, location.search, navigate]);
 
   const handleTipoChange = (value: string) => {
     if (visualizando) return;
@@ -565,7 +589,7 @@ export default function EmprestimoForm() {
     if (
       form.dataPrevistaDevolucao.trim() &&
       brToComparable(form.dataPrevistaDevolucao) <
-      brToComparable(form.dataEmprestimo)
+        brToComparable(form.dataEmprestimo)
     ) {
       toast.error(
         "A data prevista de devolução não pode ser anterior à data do empréstimo.",
@@ -599,8 +623,7 @@ export default function EmprestimoForm() {
       }
 
       if (
-        brToComparable(form.dataDevolucao) <
-        brToComparable(form.dataEmprestimo)
+        brToComparable(form.dataDevolucao) < brToComparable(form.dataEmprestimo)
       ) {
         toast.error(
           "A data de devolução não pode ser anterior à data do empréstimo.",
@@ -676,56 +699,43 @@ export default function EmprestimoForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/emprestimos")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </button>
+        <BackButton to={returnTo} />
 
         <PageTitle
-          title="Empréstimo"
-          tooltip="Registre e acompanhe o empréstimo de bens da organização, informando quem recebeu, datas, estado de conservação, contexto de uso, observações e situação da devolução."
+          title="Empréstimos"
+          tooltip="Nesta página são registrados e acompanhados os empréstimos de bens patrimoniais da organização, permitindo identificar quem recebeu o bem, em qual contexto ele será utilizado, o período do empréstimo, sua condição na saída e, quando devolvido, as informações do retorno. Esses registros ajudam a controlar a movimentação dos bens, acompanhar sua conservação e manter o histórico dos empréstimos realizados."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/emprestimos")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
+          showImport={false}
         />
 
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-          <Info
-            className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"
-            strokeWidth={2.2}
-          />
-
-          <p className="text-[13px] leading-relaxed text-foreground">
-            Use esta página para controlar a saída temporária de bens
-            patrimoniais, registrar responsáveis pelo uso e acompanhar a
-            devolução em condições adequadas.
-          </p>
-        </div>
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={Package} title="Dados do empréstimo">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field full>
+          <FormSectionCard
+            icon={Package}
+            title="Identificação do empréstimo"
+            description="Defina qual bem será emprestado e identifique quem ficará responsável por sua guarda e utilização durante o período do empréstimo."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
                 <FieldLabel
                   htmlFor="patrimonioId"
                   required
-                  tooltip="Selecione o bem patrimonial que será emprestado. Ex.: Violão Tagima — PAT-2026-001."
+                  tooltip="Selecione o bem patrimonial que será entregue ao destinatário neste empréstimo."
                 >
                   Patrimônio
                 </FieldLabel>
 
                 <Select
+                  key={`patrimonio-${form.patrimonioId || "vazio"}`}
                   value={form.patrimonioId}
                   onValueChange={(value) => set("patrimonioId", value)}
                   disabled={bloqueado}
@@ -746,92 +756,9 @@ export default function EmprestimoForm() {
 
               <Field>
                 <FieldLabel
-                  htmlFor="dataEmprestimo"
-                  required
-                  tooltip="Informe a data em que o bem foi entregue ao destinatário."
-                >
-                  Data do Empréstimo
-                </FieldLabel>
-
-                <Input
-                  id="dataEmprestimo"
-                  value={form.dataEmprestimo}
-                  onChange={(event) =>
-                    set("dataEmprestimo", maskDate(event.target.value))
-                  }
-                  placeholder="dd/mm/aaaa"
-                  inputMode="numeric"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="dataPrevistaDevolucao"
-                  tooltip="Informe a data prevista para devolução do bem, quando houver prazo combinado."
-                >
-                  Data Prevista de Devolução
-                </FieldLabel>
-
-                <Input
-                  id="dataPrevistaDevolucao"
-                  value={form.dataPrevistaDevolucao}
-                  onChange={(event) =>
-                    set(
-                      "dataPrevistaDevolucao",
-                      maskDate(event.target.value),
-                    )
-                  }
-                  placeholder="dd/mm/aaaa"
-                  inputMode="numeric"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="observacaoEmprestimo"
-                  tooltip="Registre finalidade, local de uso, cuidados combinados ou qualquer informação importante sobre o empréstimo."
-                >
-                  Observação do Empréstimo
-                </FieldLabel>
-
-                <Textarea
-                  id="observacaoEmprestimo"
-                  value={form.observacaoEmprestimo}
-                  onChange={(event) =>
-                    set("observacaoEmprestimo", event.target.value)
-                  }
-                  className="min-h-[90px] resize-none"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={UserCheck} title="Destinatário">
-            <div className="mb-4 flex items-start gap-2.5 rounded border border-border bg-muted/40 px-3.5 py-2.5">
-              <Info
-                className="h-4 w-4 text-primary mt-0.5 flex-shrink-0"
-                strokeWidth={2.2}
-              />
-
-              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                Selecione apenas um destinatário para o empréstimo. Escolha o
-                tipo correspondente e preencha somente o campo exibido para
-                evitar duplicidade no registro.
-              </p>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel
                   htmlFor="tipoDestinatario"
                   required
-                  tooltip="Selecione quem receberá o bem emprestado."
+                  tooltip="Selecione a categoria que representa quem receberá o bem emprestado."
                 >
                   Tipo de Destinatário
                 </FieldLabel>
@@ -857,7 +784,11 @@ export default function EmprestimoForm() {
 
               {form.tipoDestinatario === "COLABORADOR" && (
                 <Field>
-                  <FieldLabel htmlFor="colaboradorId" required>
+                  <FieldLabel
+                    htmlFor="colaboradorId"
+                    required
+                    tooltip="Selecione o colaborador que ficará responsável pelo bem durante o empréstimo."
+                  >
                     Colaborador
                   </FieldLabel>
 
@@ -872,10 +803,7 @@ export default function EmprestimoForm() {
 
                     <SelectContent className="max-h-72">
                       {colaboradores.map((colaborador) => (
-                        <SelectItem
-                          key={colaborador.id}
-                          value={colaborador.id}
-                        >
+                        <SelectItem key={colaborador.id} value={colaborador.id}>
                           {colaborador.nome}
                         </SelectItem>
                       ))}
@@ -886,7 +814,11 @@ export default function EmprestimoForm() {
 
               {form.tipoDestinatario === "PARTICIPANTE" && (
                 <Field>
-                  <FieldLabel htmlFor="participanteId" required>
+                  <FieldLabel
+                    htmlFor="participanteId"
+                    required
+                    tooltip="Selecione o participante que ficará responsável pelo bem durante o empréstimo."
+                  >
                     Participante
                   </FieldLabel>
 
@@ -915,7 +847,11 @@ export default function EmprestimoForm() {
 
               {form.tipoDestinatario === "INTEGRANTE" && (
                 <Field>
-                  <FieldLabel htmlFor="integranteId" required>
+                  <FieldLabel
+                    htmlFor="integranteId"
+                    required
+                    tooltip="Selecione o integrante que ficará responsável pelo bem durante o empréstimo."
+                  >
                     Integrante
                   </FieldLabel>
 
@@ -944,7 +880,7 @@ export default function EmprestimoForm() {
                   <FieldLabel
                     htmlFor="destinatarioExterno"
                     required
-                    tooltip="Informe o nome da pessoa, instituição ou responsável externo que recebeu o bem."
+                    tooltip="Informe o nome da pessoa, instituição ou outro destinatário externo que ficará responsável pelo bem durante o empréstimo."
                   >
                     Destinatário Externo
                   </FieldLabel>
@@ -961,26 +897,32 @@ export default function EmprestimoForm() {
                 </Field>
               )}
             </div>
-          </Section>
+          </FormSectionCard>
 
-          <Section icon={Link2} title="Vínculos do empréstimo">
-            <div className="mb-4 rounded border border-border border-l-4 border-l-primary/70 bg-primary-soft/40 p-4 shadow-sm">
-              <p className="text-[12px] font-semibold uppercase tracking-wide text-primary mb-2">
-                Contexto do empréstimo
-              </p>
+          <FormSectionCard
+            icon={Link2}
+            title="Vínculos do empréstimo"
+            description="Relacione o empréstimo às ações da organização quando o bem estiver sendo utilizado em um projeto, proposta de edital, atividade ou evento cultural específico."
+          >
+            <div className="mb-4 flex items-start gap-2.5 rounded-[12px] border border-primary/15 bg-primary-soft/50 px-3.5 py-2.5 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.16)] backdrop-blur-md supports-[backdrop-filter]:bg-primary-soft/40">
+              <Info
+                className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
+                strokeWidth={2.2}
+              />
 
-              <p className="text-[13px] leading-relaxed text-foreground/90">
-                Estes campos são opcionais. Use para indicar o contexto de uso
-                do bem. O sistema permite vincular projeto e/ou proposta, mas
-                entre atividade e evento cultural escolha apenas um.
+              <p className="text-xs leading-relaxed text-muted-foreground sm:text-[12.5px]">
+                Estes vínculos são opcionais. O empréstimo pode ser relacionado
+                a um projeto e a uma proposta de edital. Entre atividade e
+                evento cultural, selecione somente o registro diretamente
+                relacionado ao uso do bem.
               </p>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="projetoId"
-                  tooltip="Selecione um projeto apenas se o bem estiver sendo emprestado para uso direto nele."
+                  tooltip="Selecione o projeto em cuja execução o bem será utilizado, quando houver."
                 >
                   Projeto
                 </FieldLabel>
@@ -1011,7 +953,7 @@ export default function EmprestimoForm() {
               <Field>
                 <FieldLabel
                   htmlFor="propostaEditalId"
-                  tooltip="Selecione uma proposta apenas se o bem estiver sendo emprestado para uso direto nela."
+                  tooltip="Selecione a proposta de edital relacionada à utilização do bem, quando houver."
                 >
                   Proposta de Edital
                 </FieldLabel>
@@ -1042,7 +984,7 @@ export default function EmprestimoForm() {
               <Field>
                 <FieldLabel
                   htmlFor="atividadeId"
-                  tooltip="Selecione uma atividade apenas se o bem estiver sendo emprestado para uso direto nela. Ao selecionar atividade, o evento cultural será limpo."
+                  tooltip="Selecione a atividade específica em que o bem será utilizado, quando houver. Não vincule uma atividade e um evento cultural ao mesmo empréstimo."
                 >
                   Atividade
                 </FieldLabel>
@@ -1071,7 +1013,7 @@ export default function EmprestimoForm() {
               <Field>
                 <FieldLabel
                   htmlFor="eventoCulturalId"
-                  tooltip="Selecione um evento cultural apenas se o bem estiver sendo emprestado para uso direto nele. Ao selecionar evento, a atividade será limpa."
+                  tooltip="Selecione o evento cultural em que o bem será utilizado, quando houver. Não vincule um evento cultural e uma atividade ao mesmo empréstimo."
                 >
                   Evento Cultural
                 </FieldLabel>
@@ -1097,17 +1039,93 @@ export default function EmprestimoForm() {
                 </Select>
               </Field>
             </div>
-          </Section>
+          </FormSectionCard>
 
-          <Section icon={Layers} title="Situação do bem e do empréstimo">
-            <div className="grid sm:grid-cols-2 gap-4">
+          <FormSectionCard
+            icon={CalendarRange}
+            title="Período e utilização"
+            description="Registre o período em que o bem ficará emprestado e as informações necessárias para compreender como e em quais condições ele será utilizado."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="dataEmprestimo"
+                  required
+                  tooltip="Informe a data em que o bem foi efetivamente entregue ao destinatário."
+                >
+                  Data do Empréstimo
+                </FieldLabel>
+
+                <Input
+                  id="dataEmprestimo"
+                  value={form.dataEmprestimo}
+                  onChange={(event) =>
+                    set("dataEmprestimo", maskDate(event.target.value))
+                  }
+                  placeholder="dd/mm/aaaa"
+                  inputMode="numeric"
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="dataPrevistaDevolucao"
+                  required
+                  tooltip="Informe a data combinada ou prevista para a devolução do bem à organização."
+                >
+                  Data Prevista de Devolução
+                </FieldLabel>
+
+                <Input
+                  id="dataPrevistaDevolucao"
+                  value={form.dataPrevistaDevolucao}
+                  onChange={(event) =>
+                    set("dataPrevistaDevolucao", maskDate(event.target.value))
+                  }
+                  placeholder="dd/mm/aaaa"
+                  inputMode="numeric"
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+
+              <Field full>
+                <FieldLabel
+                  htmlFor="observacaoEmprestimo"
+                  tooltip="Registre informações importantes sobre o empréstimo, como a finalidade do uso, o local onde o bem será utilizado, cuidados combinados ou outras orientações."
+                >
+                  Observações sobre o Empréstimo
+                </FieldLabel>
+
+                <Textarea
+                  id="observacaoEmprestimo"
+                  value={form.observacaoEmprestimo}
+                  onChange={(event) =>
+                    set("observacaoEmprestimo", event.target.value)
+                  }
+                  className="min-h-[90px] resize-none"
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </div>
+          </FormSectionCard>
+
+          <FormSectionCard
+            icon={Layers}
+            title="Condição e situação"
+            description="Acompanhe o bem desde sua entrega até a devolução, registrando sua condição física e a situação atual do empréstimo."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="estadoConservacao"
                   required
-                  tooltip="Informe o estado do bem no momento da retirada."
+                  tooltip="Selecione o estado de conservação do bem no momento em que ele foi entregue ao destinatário. Essa informação permite comparar sua condição na saída e na devolução."
                 >
-                  Estado de Conservação no Empréstimo
+                  Estado de Conservação na Saída
                 </FieldLabel>
 
                 <Select
@@ -1133,9 +1151,9 @@ export default function EmprestimoForm() {
                 <FieldLabel
                   htmlFor="statusEmprestimo"
                   required
-                  tooltip="Indique a situação atual do empréstimo."
+                  tooltip="Selecione a situação que representa o momento atual do empréstimo, conforme o bem esteja emprestado, devolvido ou em outra condição prevista no sistema."
                 >
-                  Status do Empréstimo
+                  Situação do Empréstimo
                 </FieldLabel>
 
                 <Select
@@ -1160,7 +1178,11 @@ export default function EmprestimoForm() {
               {form.statusEmprestimo === "DEVOLVIDO" && (
                 <>
                   <Field>
-                    <FieldLabel htmlFor="dataDevolucao" required>
+                    <FieldLabel
+                      htmlFor="dataDevolucao"
+                      required
+                      tooltip="Informe a data em que o bem foi efetivamente devolvido à organização."
+                    >
                       Data da Devolução
                     </FieldLabel>
 
@@ -1178,8 +1200,12 @@ export default function EmprestimoForm() {
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="estadoDevolucao" required>
-                      Estado na Devolução
+                    <FieldLabel
+                      htmlFor="estadoDevolucao"
+                      required
+                      tooltip="Selecione o estado em que o bem foi recebido pela organização após a devolução, considerando sua conservação e eventuais danos."
+                    >
+                      Estado de Conservação na Devolução
                     </FieldLabel>
 
                     <Select
@@ -1204,9 +1230,9 @@ export default function EmprestimoForm() {
                   <Field full>
                     <FieldLabel
                       htmlFor="observacaoDevolucao"
-                      tooltip="Registre observações sobre a devolução, conservação, danos ou pendências."
+                      tooltip="Registre informações importantes sobre a devolução, como danos identificados, mudanças no estado de conservação, itens faltantes ou outras ocorrências verificadas no recebimento do bem."
                     >
-                      Observação da Devolução
+                      Observações da Devolução
                     </FieldLabel>
 
                     <Textarea
@@ -1223,55 +1249,50 @@ export default function EmprestimoForm() {
                 </>
               )}
             </div>
-          </Section>
+          </FormSectionCard>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/emprestimos")}
-              disabled={saving}
-            >
-              {visualizando ? "Voltar" : "Cancelar"}
-            </Button>
-
-            {!visualizando && (
-              <Button type="submit" className="sm:min-w-32" disabled={saving}>
+          {!visualizando && (
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="glassSecondary"
+                className="h-9 px-4"
+                onClick={() => navigate(returnTo)}
+                disabled={saving}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                className="h-9 px-5"
+                disabled={saving}
+              >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {visualizando && (
+            <div className="flex pt-2 sm:justify-end">
+              <Button
+                type="button"
+                variant="glassSecondary"
+                className="h-9 px-4"
+                onClick={() => navigate("/emprestimos")}
+              >
+                Voltar
+              </Button>
+            </div>
+          )}
         </form>
-        <WikiFloatingButton
-          pageTitle="Empréstimos"
-          href="https://www.aurit.com.br/wiki/patrimonio/emprestimos"
-        />
       </div>
+
+      <WikiFloatingButton
+        pageTitle="Empréstimos"
+        href="https://www.aurit.com.br/wiki/patrimonio/emprestimos"
+      />
     </AppLayout>
-  );
-}
-
-function Section({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: any;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="p-5 sm:p-6 border border-border rounded shadow-none">
-      <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold text-foreground leading-tight uppercase tracking-wide">
-          {title}
-        </h2>
-      </div>
-
-      {children}
-    </Card>
   );
 }
 

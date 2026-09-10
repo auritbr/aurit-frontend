@@ -1,22 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import {
   CalendarRange,
   Tag,
   Link2,
   CalendarDays,
-  Info,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BackButton } from "@/components/BackButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
-import { PageTitle } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -27,6 +33,7 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { MultiSelect } from "@/components/MultiSelect";
+import { getImportConfigForPath } from "@/config/importacoes";
 import {
   buildEventoCulturalPayload,
   createEmptyEventoCultural,
@@ -42,32 +49,10 @@ import {
   type ProjetoOption,
 } from "@/data/eventosCulturais";
 import { toast } from "sonner";
-
-const EVENTO_CULTURAL_NEXT_STEP_KEY = "aurit:eventos-culturais:next-step-card";
-
-interface EventoNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
-}
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 function salvarProximaAcaoEventoCultural() {
-  const card: EventoNextStepCardData = {
-    titulo: "Após cadastrar o evento cultural, registre as evidências",
-    descricao:
-      "As evidências ajudam a comprovar as ações que foram realizadas, reunindo registros como fotos, vídeos, listas de presença, materiais de divulgação, relatos, documentos e outros comprovantes importantes para relatórios, editais e prestação de contas.",
-    acaoLabel: "Cadastrar evidências",
-    acaoUrl: "/evidencias/novo",
-    acaoSecundariaLabel: "Ver eventos",
-    acaoSecundariaUrl: "/eventos-culturais",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(EVENTO_CULTURAL_NEXT_STEP_KEY, JSON.stringify(card));
+  emitJourneyNextStep();
 }
 
 function getProjetoNome(
@@ -75,11 +60,16 @@ function getProjetoNome(
   projetoId: string,
   evento?: EventoCultural | null,
 ) {
+  const eventoComNomes = evento as
+    | (EventoCultural & { projetoNome?: string; nomeProjeto?: string })
+    | null
+    | undefined;
+
   return (
     projetos.find((projeto) => String(projeto.id) === String(projetoId))
       ?.nome ||
-    (evento as any)?.projetoNome?.trim?.() ||
-    (evento as any)?.nomeProjeto?.trim?.() ||
+    eventoComNomes?.projetoNome?.trim() ||
+    eventoComNomes?.nomeProjeto?.trim() ||
     `Projeto ${projetoId}`
   );
 }
@@ -88,13 +78,13 @@ export default function EventoCulturalForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const duplicarId = !id ? searchParams.get("duplicar") : null;
 
   const visualizando = !!id && !location.pathname.endsWith("/editar");
   const editando = !!id && location.pathname.endsWith("/editar");
 
-  const [form, setForm] = useState<EventoCultural>(
-    createEmptyEventoCultural(),
-  );
+  const [form, setForm] = useState<EventoCultural>(createEmptyEventoCultural());
   const [existingEvento, setExistingEvento] = useState<EventoCultural | null>(
     null,
   );
@@ -152,12 +142,15 @@ export default function EventoCulturalForm() {
       try {
         setLoading(true);
 
-        const [projetosData, colaboradoresData, eventoData] =
-          await Promise.all([
+        const [projetosData, colaboradoresData, eventoData] = await Promise.all(
+          [
             getProjetosOptions(),
             getColaboradoresOptions(),
-            id ? getEventoCulturalById(Number(id)) : Promise.resolve(null),
-          ]);
+            id || duplicarId
+              ? getEventoCulturalById(Number(id ?? duplicarId))
+              : Promise.resolve(null),
+          ],
+        );
 
         if (!active) return;
 
@@ -177,12 +170,16 @@ export default function EventoCulturalForm() {
 
           const eventoNormalizado: EventoCultural = {
             ...eventoData,
+            id: duplicarId ? "" : eventoData.id,
+            nomeEvento: duplicarId
+              ? `${eventoData.nomeEvento} (cópia)`
+              : eventoData.nomeEvento,
             projetoId,
             projetosIds,
             colaboradoresIds: (eventoData.colaboradoresIds ?? []).map(String),
           } as EventoCultural;
 
-          setExistingEvento(eventoNormalizado);
+          setExistingEvento(duplicarId ? null : eventoNormalizado);
           setForm(eventoNormalizado);
         } else {
           setExistingEvento(null);
@@ -206,7 +203,7 @@ export default function EventoCulturalForm() {
     return () => {
       active = false;
     };
-  }, [id, navigate]);
+  }, [duplicarId, id, navigate]);
 
   const projetosOptions = useMemo(
     () => projetosComFallback.map((projeto) => String(projeto.id)),
@@ -223,8 +220,9 @@ export default function EventoCulturalForm() {
   );
 
   const colaboradorLabel = (option: string) =>
-    colaboradores.find((colaborador) => String(colaborador.id) === String(option))
-      ?.nome ?? option;
+    colaboradores.find(
+      (colaborador) => String(colaborador.id) === String(option),
+    )?.nome ?? option;
 
   function getFormComProjeto(): EventoCultural {
     return {
@@ -321,269 +319,286 @@ export default function EventoCulturalForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/eventos-culturais")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" /> Voltar
-        </button>
+        <BackButton to="/eventos-culturais" />
 
-        <PageTitle
-          title="Evento Cultural"
-          tooltip="Cadastre eventos culturais vinculados ao projeto, como apresentações, mostras, festivais, exposições, encontros ou ações públicas. Informe descrição, local, período, tipo, status, projeto e equipe responsável para organizar a execução, gerar evidências e apoiar relatórios e prestações de contas."
+        <ListPageHeader
+          title="Eventos Culturais"
+          tooltip="Nesta página são cadastrados e acompanhados os eventos culturais realizados pela organização, como apresentações, mostras, festivais, exposições, encontros e outras ações públicas. Os registros permitem organizar informações sobre realização, período, situação, projetos relacionados e equipe envolvida, apoiando o acompanhamento dos eventos, a produção de evidências, os relatórios e as prestações de contas."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/eventos-culturais")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
         />
 
-        <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-          <Info
-            className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
-            strokeWidth={2.2}
-          />
-
-          <p className="text-[13px] leading-relaxed text-foreground">
-            <span className="font-semibold">Eventos Culturais</span> são ações
-            pontuais ou programações abertas ao público, como apresentações,
-            mostras, festivais, exposições, rodas, encontros, saraus,
-            lançamentos ou celebrações culturais.
-          </p>
-        </div>
-
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={CalendarRange} title="Dados principais">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field full>
-                <FieldLabel
-                  htmlFor="nomeEvento"
-                  required
-                  tooltip="Informe um nome claro para identificar o evento cultural. Ex.: mostra cultural de encerramento, festival de música comunitária ou sarau da primavera."
-                >
-                  Nome do Evento
-                </FieldLabel>
+          <fieldset
+            disabled={visualizando}
+            className="space-y-5 border-0 p-0 disabled:opacity-100"
+          >
+            <Section
+              icon={Link2}
+              title="Vínculo do evento"
+              description="Vincule o evento aos projetos dos quais ele faz parte, permitindo que sua realização seja acompanhada dentro das ações previstas pela organização."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="projetosIds"
+                    required
+                    tooltip="Informe o projeto ou os projetos aos quais este evento cultural está relacionado."
+                  >
+                    Projetos
+                  </FieldLabel>
 
-                <Input
-                  id="nomeEvento"
-                  value={form.nomeEvento}
-                  onChange={(event) => set("nomeEvento", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
+                  <div
+                    className={
+                      bloqueado ? "pointer-events-none opacity-80" : ""
+                    }
+                  >
+                    <MultiSelect
+                      id="projetosIds"
+                      options={projetosOptions}
+                      value={projetosSelectValue}
+                      onChange={(value) => {
+                        if (visualizando) return;
+                        set("projetosIds", value);
+                        set("projetoId", value[0] ?? "");
+                      }}
+                      getOptionLabel={projetoLabel}
+                    />
+                  </div>
+                </Field>
+              </div>
+            </Section>
 
-              <Field full>
-                <FieldLabel
-                  htmlFor="descricaoEvento"
-                  required
-                  tooltip="Descreva o evento de forma geral, informando o que será realizado, quais ações farão parte da programação e como ele se relaciona com o projeto. Ex.: Evento de encerramento do projeto com apresentações musicais, mostra dos trabalhos produzidos nas oficinas e participação aberta à comunidade."
-                >
-                  Descrição do Evento
-                </FieldLabel>
+            <Section
+              icon={CalendarRange}
+              title="Identificação do evento"
+              description="Registre as informações que apresentam o evento e permitem compreender, de forma geral, qual ação cultural será realizada."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="nomeEvento"
+                    required
+                    tooltip="Informe um nome curto e claro que permita identificar facilmente o evento cultural."
+                  >
+                    Nome do Evento
+                  </FieldLabel>
 
-                <Textarea
-                  id="descricaoEvento"
-                  value={form.descricaoEvento}
-                  onChange={(event) =>
-                    set("descricaoEvento", event.target.value)
-                  }
-                  rows={4}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field full>
-                <FieldLabel
-                  htmlFor="localEvento"
-                  required
-                  tooltip="Informe o local onde o evento será realizado. Pode ser um espaço cultural, praça, escola, teatro, sede da organização, comunidade, ambiente online ou outro território de realização. Ex.: Praça Central, Teatro Municipal ou Espaço Comunitário."
-                >
-                  Local do Evento
-                </FieldLabel>
-
-                <Input
-                  id="localEvento"
-                  value={form.localEvento}
-                  onChange={(event) => set("localEvento", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={CalendarDays} title="Período do evento">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="dataEvento"
-                  required
-                  tooltip="Informe a data principal de realização do evento. Ex.: 20/07/2025."
-                >
-                  Data do Evento
-                </FieldLabel>
-
-                <Input
-                  id="dataEvento"
-                  type="date"
-                  value={form.dataEvento}
-                  onChange={(event) => set("dataEvento", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="dataFim"
-                  tooltip="Informe a data de término apenas se o evento tiver mais de um dia. Para eventos realizados em um único dia, deixe este campo em branco."
-                >
-                  Data de Término do Evento
-                </FieldLabel>
-
-                <Input
-                  id="dataFim"
-                  type="date"
-                  value={form.dataFim}
-                  onChange={(event) => set("dataFim", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Tag} title="Classificação do evento">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="tipoEvento"
-                  required
-                  tooltip="Selecione o tipo que melhor representa o evento cultural. Ex.: festival, apresentação musical, mostra, exposição, sarau, espetáculo, roda cultural, seminário ou encontro."
-                >
-                  Tipo de Evento
-                </FieldLabel>
-
-                <Select
-                  value={form.tipoEvento}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("tipoEvento", value as EventoCultural["tipoEvento"]);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="tipoEvento">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent className="max-h-72">
-                    {tiposEvento.map((tipo) => (
-                      <SelectItem key={tipo.value} value={tipo.value}>
-                        {tipo.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="status"
-                  required
-                  tooltip="Indique a situação atual do evento no sistema. Use “Ativo” para eventos em organização ou acompanhamento, “Pendente” para eventos em conferência ou aguardando definição, “Concluído” para eventos já realizados e finalizados e “Inativo” para eventos que não devem mais ser considerados ativos."
-                >
-                  Status do Evento
-                </FieldLabel>
-
-                <Select
-                  value={form.status}
-                  onValueChange={(value) => {
-                    if (visualizando) return;
-                    set("status", value as EventoCultural["status"]);
-                  }}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {statusEvento.map((status) => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Link2} title="Vínculos e equipe">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field full>
-                <FieldLabel
-                  htmlFor="projetosIds"
-                  required
-                  tooltip="Selecione o projeto ou os projetos aos quais este evento cultural pertence. Esse vínculo conecta o evento ao planejamento, execução, evidências, relatórios e prestação de contas."
-                >
-                  Projetos
-                </FieldLabel>
-
-                <div className={bloqueado ? "pointer-events-none opacity-80" : ""}>
-                  <MultiSelect
-                    id="projetosIds"
-                    options={projetosOptions}
-                    value={projetosSelectValue}
-                    onChange={(value) => {
-                      if (visualizando) return;
-                      set("projetosIds", value);
-                      set("projetoId", value[0] ?? "");
-                    }}
-                    getOptionLabel={projetoLabel}
+                  <Input
+                    id="nomeEvento"
+                    value={form.nomeEvento}
+                    onChange={(event) => set("nomeEvento", event.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
                   />
-                </div>
-              </Field>
+                </Field>
 
-              <Field full>
-                <FieldLabel
-                  htmlFor="colaboradoresIds"
-                  required
-                  tooltip="Selecione os colaboradores responsáveis pela realização, produção, apoio, registro ou coordenação do evento cultural."
-                >
-                  Colaboradores
-                </FieldLabel>
+                <Field>
+                  <FieldLabel
+                    htmlFor="tipoEvento"
+                    required
+                    tooltip="Informe a opção que melhor representa o formato ou a natureza do evento cultural."
+                  >
+                    Tipo de Evento
+                  </FieldLabel>
 
-                <div
-                  className={visualizando ? "pointer-events-none opacity-80" : ""}
-                >
-                  <MultiSelect
-                    id="colaboradoresIds"
-                    options={colaboradoresOptions}
-                    value={form.colaboradoresIds}
-                    onChange={(value) => {
+                  <Select
+                    value={form.tipoEvento}
+                    onValueChange={(value) => {
                       if (visualizando) return;
-                      set("colaboradoresIds", value);
+                      set("tipoEvento", value as EventoCultural["tipoEvento"]);
                     }}
-                    getOptionLabel={colaboradorLabel}
-                  />
-                </div>
-              </Field>
-            </div>
-          </Section>
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="tipoEvento">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
 
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+                    <SelectContent className="max-h-72">
+                      {tiposEvento.map((tipo) => (
+                        <SelectItem key={tipo.value} value={tipo.value}>
+                          {tipo.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field full>
+                  <FieldLabel
+                    htmlFor="descricaoEvento"
+                    required
+                    tooltip="Descreva o que será realizado no evento, incluindo suas principais características, programação ou finalidade."
+                  >
+                    Descrição do Evento
+                  </FieldLabel>
+
+                  <Textarea
+                    id="descricaoEvento"
+                    value={form.descricaoEvento}
+                    onChange={(event) =>
+                      set("descricaoEvento", event.target.value)
+                    }
+                    rows={4}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            <Section
+              icon={CalendarDays}
+              title="Realização do evento"
+              description="Organize como o evento acontecerá, indicando o local de realização e o período previsto ou efetivo para sua execução."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field full>
+                  <FieldLabel
+                    htmlFor="localEvento"
+                    required
+                    tooltip="Informe o espaço, endereço, território ou ambiente virtual onde o evento será realizado."
+                  >
+                    Local do Evento
+                  </FieldLabel>
+
+                  <Input
+                    id="localEvento"
+                    value={form.localEvento}
+                    onChange={(event) => set("localEvento", event.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataEvento"
+                    required
+                    tooltip="Informe a data em que o evento será realizado ou terá início."
+                  >
+                    Data de Início
+                  </FieldLabel>
+
+                  <Input
+                    id="dataEvento"
+                    type="date"
+                    value={form.dataEvento}
+                    onChange={(event) => set("dataEvento", event.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataFim"
+                    tooltip="Informe a data de término quando o evento ocorrer durante mais de um dia."
+                  >
+                    Data de Término
+                  </FieldLabel>
+
+                  <Input
+                    id="dataFim"
+                    type="date"
+                    value={form.dataFim}
+                    onChange={(event) => set("dataFim", event.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            <Section
+              icon={Tag}
+              title="Situação do evento"
+              description="Indique em que situação o evento se encontra para acompanhar seu planejamento, realização ou encerramento."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="status"
+                    required
+                    tooltip="Informe a situação atual do evento. Ativo indica que o evento está em organização ou realização; Pendente, que ainda aguarda definições ou providências para avançar; Concluído, que o evento já foi realizado; e Inativo, que não está mais sendo realizado ou acompanhado."
+                  >
+                    Situação do Evento
+                  </FieldLabel>
+
+                  <Select
+                    value={form.status}
+                    onValueChange={(value) => {
+                      if (visualizando) return;
+                      set("status", value as EventoCultural["status"]);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {statusEvento.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </Section>
+
+            <Section
+              icon={Link2}
+              title="Equipe do evento"
+              description="Identifique os colaboradores que participarão da organização e da realização do evento, de acordo com as responsabilidades assumidas por cada integrante da equipe."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="colaboradoresIds"
+                    required
+                    tooltip="Informe os colaboradores envolvidos na produção, coordenação, execução, apoio ou acompanhamento do evento."
+                  >
+                    Colaboradores
+                  </FieldLabel>
+
+                  <div
+                    className={
+                      visualizando ? "pointer-events-none opacity-80" : ""
+                    }
+                  >
+                    <MultiSelect
+                      id="colaboradoresIds"
+                      options={colaboradoresOptions}
+                      value={form.colaboradoresIds}
+                      onChange={(value) => {
+                        if (visualizando) return;
+                        set("colaboradoresIds", value);
+                      }}
+                      getOptionLabel={colaboradorLabel}
+                    />
+                  </div>
+                </Field>
+              </div>
+            </Section>
+          </fieldset>
+
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() => navigate("/eventos-culturais")}
               disabled={saving}
             >
@@ -591,7 +606,12 @@ export default function EventoCulturalForm() {
             </Button>
 
             {!visualizando && (
-              <Button type="submit" className="sm:min-w-32" disabled={saving}>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                className="h-9 px-5"
+                disabled={saving}
+              >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
             )}
@@ -599,7 +619,7 @@ export default function EventoCulturalForm() {
         </form>
         <WikiFloatingButton
           pageTitle="Eventos Culturais"
-          href="https://www.aurit.com.br/wiki/acoes-culturais/eventos-culturais"
+          href="/wiki/execucao/eventos-culturais"
         />
       </div>
     </AppLayout>
@@ -607,26 +627,20 @@ export default function EventoCulturalForm() {
 }
 
 function Section({
-  icon: Icon,
+  icon,
   title,
+  description,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
-
+    <FormSectionCard icon={icon} title={title} description={description}>
       {children}
-    </Card>
+    </FormSectionCard>
   );
 }
 

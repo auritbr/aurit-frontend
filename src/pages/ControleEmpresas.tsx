@@ -1,31 +1,32 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type ChangeEvent,
-  type ComponentType,
-} from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Activity,
-  ArrowRight,
-  BadgeCheck,
-  CheckCircle2,
-  CreditCard,
-  Download,
+  ArrowUpRight,
+  Building2,
+  CalendarClock,
+  CircleCheck,
+  Plus,
+  CircleSlash,
+  FileDown,
+  Eye,
   FileSpreadsheet,
   Gift,
-  Landmark,
-  Plus,
+  Globe2,
+  History,
+  Layers3,
+  ListFilter,
+  PackageCheck,
   Search,
-  Users,
-  XCircle,
+  SlidersHorizontal,
+  UsersRound,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
 import { ProprietarioLayout } from "@/components/ProprietarioLayout";
 import { PageTitle } from "@/components/PageTitle";
+import { PageObjective } from "@/components/PageObjective";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmailInput } from "@/components/EmailInput";
@@ -33,6 +34,12 @@ import { Label } from "@/components/ui/label";
 import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/hooks/usePagination";
 import { LIMITE_USUARIOS_PLANO_GRATUITO } from "@/lib/plano";
+import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -59,10 +66,12 @@ import {
   getPlanoVisualEmpresa,
   listarEmpresasControle,
   listarLogsGerais,
+  listarPagamentosEmpresa,
   PLANO_LABELS,
   type CriarEmpresaProprietarioPayload,
   type EmpresaControle,
   type LogAcessoEmpresa,
+  type PagamentoEmpresa,
   type StatusControleProprietario,
   type TipoPlanoVisual,
 } from "@/data/controleProprietario";
@@ -82,6 +91,30 @@ function formatDateTime(iso: string | null | undefined) {
   });
 }
 
+function formatDate(value: string | null | undefined) {
+  if (!value) return "—";
+
+  const date = new Date(value.length === 10 ? `${value}T00:00:00` : value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("pt-BR");
+}
+
+function resolverVencimento(pagamentos: PagamentoEmpresa[] | undefined) {
+  if (!pagamentos?.length) return null;
+
+  const emAberto = pagamentos
+    .filter(
+      (pagamento) =>
+        pagamento.statusPagamento === "PENDENTE" ||
+        pagamento.statusPagamento === "ATRASADO",
+    )
+    .sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento));
+
+  if (emAberto.length > 0) return emAberto[0];
+
+  return [...pagamentos].sort((a, b) =>
+    b.dataVencimento.localeCompare(a.dataVencimento),
+  )[0];
+}
 
 function gerarSlug(valor: string) {
   return valor
@@ -109,7 +142,9 @@ function formatTelefoneBR(value: string) {
     .replace(/(\d{5})(\d)/, "$1-$2");
 }
 
-function getEmailInputValue(valueOrEvent: string | ChangeEvent<HTMLInputElement>) {
+function getEmailInputValue(
+  valueOrEvent: string | ChangeEvent<HTMLInputElement>,
+) {
   if (typeof valueOrEvent === "string") {
     return valueOrEvent;
   }
@@ -125,40 +160,39 @@ function SummaryCard({
 }: {
   label: string;
   value: number | string;
-  icon: ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   tone?: "default" | "success" | "danger" | "info" | "purple";
 }) {
   const toneClasses = {
-    default: "text-muted-foreground bg-muted",
-    success:
-      "text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/30",
-    danger:
-      "text-rose-600 bg-rose-50 dark:text-rose-400 dark:bg-rose-950/30",
-    info: "text-sky-600 bg-sky-50 dark:text-sky-400 dark:bg-sky-950/30",
-    purple:
-      "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-900",
-
+    default: "border-border/70 bg-muted/50 text-foreground/70",
+    success: "border-primary/20 bg-primary/[0.07] text-primary",
+    danger: "border-border/60 bg-muted/40 text-muted-foreground",
+    info: "border-border/70 bg-muted/50 text-foreground/70",
+    purple: "border-primary/20 bg-primary/[0.07] text-primary",
   };
 
   return (
-    <div className="bg-card border border-border rounded p-4 flex items-center gap-3">
+    <div className="flex h-full min-h-[86px] items-start gap-3 rounded-[16px] border border-border/70 bg-card/75 px-4 py-3.5 shadow-[0_1px_3px_-1px_hsl(215_28%_17%_/_0.08),inset_0_1px_0_0_hsl(0_0%_100%_/_0.30)] backdrop-blur-md transition-colors supports-[backdrop-filter]:bg-card/60 hover:border-border">
       <div
-        className={`h-9 w-9 rounded flex items-center justify-center flex-shrink-0 ${toneClasses[tone]}`}
+        className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[11px] border ${toneClasses[tone]}`}
       >
-        <Icon className="h-4 w-4" />
+        <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
       </div>
 
-      <div className="min-w-0">
-        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold truncate">
-          {label}
-        </p>
-        <p className="text-lg font-semibold text-foreground tabular-nums leading-tight">
+      <div className="min-w-0 flex-1">
+        <p className="text-[22px] font-semibold leading-none text-foreground tabular-nums">
           {value}
+        </p>
+        <p className="mt-1.5 truncate text-[12.5px] font-medium leading-tight text-foreground/80">
+          {label}
         </p>
       </div>
     </div>
   );
 }
+
+const thBase =
+  "whitespace-nowrap px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground";
 
 type NovaEmpresaProprietarioForm = Omit<
   CriarEmpresaProprietarioPayload,
@@ -198,13 +232,18 @@ export default function ControleEmpresas() {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] =
-    useState<"TODOS" | StatusControleProprietario>("TODOS");
-  const [planoFilter, setPlanoFilter] =
-    useState<"TODOS" | TipoPlanoVisual>("TODOS");
+  const [statusFilter, setStatusFilter] = useState<
+    "TODOS" | StatusControleProprietario
+  >("TODOS");
+  const [planoFilter, setPlanoFilter] = useState<"TODOS" | TipoPlanoVisual>(
+    "TODOS",
+  );
 
   const [empresas, setEmpresas] = useState<EmpresaControle[]>([]);
   const [logs, setLogs] = useState<LogAcessoEmpresa[]>([]);
+  const [pagamentos, setPagamentos] = useState<
+    Record<number, PagamentoEmpresa[]>
+  >({});
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
@@ -219,6 +258,22 @@ export default function ControleEmpresas() {
 
       const empresasData = await listarEmpresasControle();
       setEmpresas(empresasData);
+
+      const pagamentosData = await Promise.all(
+        empresasData.map(async (empresa) => {
+          try {
+            return [
+              empresa.id,
+              await listarPagamentosEmpresa(empresa.id),
+            ] as const;
+          } catch (error) {
+            console.error(error);
+            return [empresa.id, []] as const;
+          }
+        }),
+      );
+      setPagamentos(Object.fromEntries(pagamentosData));
+
       try {
         const logsData = await listarLogsGerais();
         setLogs(logsData);
@@ -231,6 +286,7 @@ export default function ControleEmpresas() {
       console.error(error);
       toast.error("Não foi possível carregar o controle de empresas.");
       setEmpresas([]);
+      setPagamentos({});
       setLogs([]);
     } finally {
       setLoading(false);
@@ -421,13 +477,16 @@ export default function ControleEmpresas() {
       const criada = await criarEmpresaComAdmin(payload);
 
       setEmpresas((prev) => [criada, ...prev]);
+      setPagamentos((prev) => ({ ...prev, [criada.id]: [] }));
       empresasPagination.setCurrentPage(1);
       resetarModal();
 
       toast.success("Empresa criada com o primeiro administrador.");
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "Erro ao criar empresa.");
+      toast.error(
+        error instanceof Error ? error.message : "Erro ao criar empresa.",
+      );
     } finally {
       setCreating(false);
     }
@@ -439,6 +498,9 @@ export default function ControleEmpresas() {
       Subdominio: `${e.slug}.aurit.com.br`,
       "Data de Criacao": formatDateTime(e.dataCriacao),
       Plano: PLANO_LABELS[getPlanoVisualEmpresa(e)],
+      Vencimento: formatDate(
+        resolverVencimento(pagamentos[e.id])?.dataVencimento,
+      ),
       Status: e.statusControleProprietario === "ATIVO" ? "Ativo" : "Inativo",
       Usuarios: `${e.totalUsuarios}/${e.limiteUsuarios}`,
       "Ultima Atualizacao": formatDateTime(e.dataAtualizacao),
@@ -493,45 +555,55 @@ export default function ControleEmpresas() {
     <ProprietarioLayout>
       <div className="container max-w-[1400px] py-6 sm:py-8">
         <PageTitle
-          title="Controle de Empresas"
-          tooltip="Gerencie as organizações clientes da plataforma, seus planos, acessos, usuários e registros administrativos."
-          description="Gerencie as organizações clientes da plataforma, seus planos, acessos, usuários e registros administrativos."
+          title="Controle de Organizações"
+          tooltip="Nesta página são cadastradas e administradas as organizações clientes da plataforma, permitindo acompanhar seus dados, planos, acessos, quantidade de usuários, vencimentos e situação de cada organização."
           actions={
             <Button
-              size="sm"
-              className="h-9 gap-1.5"
+              variant="glassPrimary"
+              size="compact"
+              className="h-9 gap-2 px-4"
               onClick={() => setCriarOpen(true)}
             >
-              <Plus className="h-3.5 w-3.5" />
-              Nova empresa
+              <Plus className="h-4 w-4" />
+              Cadastrar organizacão
             </Button>
           }
         />
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mb-5">
-          <SummaryCard label="Total" value={resumo.total} icon={Landmark} />
+        <PageObjective
+          className="mb-6"
+          description="Gerencie as organizações clientes da plataforma, acompanhando seus dados, planos, acessos, usuários, vencimentos e situação cadastral."
+        />
+
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+          <SummaryCard
+            label="Organizações"
+            value={resumo.total}
+            icon={Building2}
+            tone="info"
+          />
           <SummaryCard
             label="Ativas"
             value={resumo.ativas}
-            icon={CheckCircle2}
+            icon={CircleCheck}
             tone="success"
           />
           <SummaryCard
             label="Inativas"
             value={resumo.inativas}
-            icon={XCircle}
+            icon={CircleSlash}
             tone="danger"
           />
           <SummaryCard
             label="Usuários"
             value={resumo.usuariosTotais}
-            icon={Users}
+            icon={UsersRound}
             tone="info"
           />
           <SummaryCard
             label="Gratuito"
             value={resumo.gratuito}
-            icon={BadgeCheck}
+            icon={Layers3}
           />
           <SummaryCard
             label="Cortesia"
@@ -542,20 +614,20 @@ export default function ControleEmpresas() {
           <SummaryCard
             label="Pago"
             value={resumo.pago}
-            icon={CreditCard}
+            icon={PackageCheck}
             tone="success"
           />
         </div>
 
-        <div className="bg-card border border-border rounded">
-          <div className="flex flex-col lg:flex-row gap-3 px-5 py-4 border-b border-border items-start lg:items-center justify-between">
-            <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full">
-              <div className="relative flex-1 max-w-md w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <section className="form-section-glass overflow-hidden rounded-[18px]">
+          <div className="flex flex-col items-start justify-between gap-3 border-b form-section-glass-divider px-4 py-4 sm:px-5 lg:flex-row lg:items-center">
+            <div className="flex w-full flex-1 flex-col gap-3 sm:flex-row">
+              <div className="relative w-full max-w-md flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 h-9"
+                  className="h-9 rounded-[12px] border-border/70 bg-background/60 pl-9 backdrop-blur-md transition-colors focus-visible:border-primary/40 supports-[backdrop-filter]:bg-background/50"
                   aria-label="Buscar empresa"
                 />
               </div>
@@ -566,7 +638,12 @@ export default function ControleEmpresas() {
                   setStatusFilter(v as "TODOS" | StatusControleProprietario)
                 }
               >
-                <SelectTrigger className="h-9 w-full sm:w-[160px]">
+                <SelectTrigger className="h-9 w-full gap-2 rounded-[12px] border-border/70 bg-background/60 backdrop-blur-md transition-colors hover:border-border supports-[backdrop-filter]:bg-background/50 sm:w-[180px]">
+                  <ListFilter
+                    className="h-4 w-4 shrink-0 text-muted-foreground"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -582,7 +659,12 @@ export default function ControleEmpresas() {
                   setPlanoFilter(v as "TODOS" | TipoPlanoVisual)
                 }
               >
-                <SelectTrigger className="h-9 w-full sm:w-[160px]">
+                <SelectTrigger className="h-9 w-full gap-2 rounded-[12px] border-border/70 bg-background/60 backdrop-blur-md transition-colors hover:border-border supports-[backdrop-filter]:bg-background/50 sm:w-[180px]">
+                  <SlidersHorizontal
+                    className="h-4 w-4 shrink-0 text-muted-foreground"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -597,25 +679,28 @@ export default function ControleEmpresas() {
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1.5"
-                onClick={exportarCsv}
+                variant="glassSecondary"
+                className="h-8 gap-1.5 rounded-[10px] px-2.5 text-[12px] font-medium"
+                onClick={exportarExcel}
               >
-                <Download className="h-3.5 w-3.5" />
-                CSV
+                <FileSpreadsheet className="h-3.5 w-3.5 text-green-600" />
+                Excel
               </Button>
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1.5"
-                onClick={exportarExcel}
+                variant="glassSecondary"
+                className="h-8 gap-1.5 rounded-[10px] px-2.5 text-[12px] font-medium"
+                onClick={exportarCsv}
               >
-                <FileSpreadsheet className="h-3.5 w-3.5" />
-                Excel
+                <FileDown className="h-3.5 w-3.5 text-blue-600" />
+                CSV
               </Button>
-              <div className="text-xs text-muted-foreground whitespace-nowrap">
+              <div className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[11px] border border-border/60 bg-background/55 px-2.5 py-1 text-xs text-muted-foreground backdrop-blur-md">
+                <Building2
+                  className="h-3.5 w-3.5"
+                  strokeWidth={2}
+                  aria-hidden
+                />
                 <span className="font-medium text-foreground">
                   {filtered.length}
                 </span>{" "}
@@ -625,101 +710,153 @@ export default function ControleEmpresas() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+            <table className="w-full min-w-[1080px] text-[13px]">
               <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Empresa
-                  </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Subdomínio
-                  </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Data de criação
-                  </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Plano
-                  </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Status
-                  </th>
-                  <th className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Usuários
-                  </th>
-                  <th className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Detalhes
-                  </th>
+                <tr className="border-b border-border/60 bg-muted/25 backdrop-blur-md">
+                  <th className={thBase}>Empresa</th>
+                  <th className={thBase}>Subdomínio</th>
+                  <th className={thBase}>Data de criação</th>
+                  <th className={thBase}>Plano</th>
+                  <th className={thBase}>Vencimento</th>
+                  <th className={thBase}>Status</th>
+                  <th className={cn(thBase, "text-center")}>Usuários</th>
+                  <th className={cn(thBase, "text-right")}>Detalhes</th>
                 </tr>
               </thead>
 
               <tbody>
-
                 {!loading &&
                   empresasPagination.paginated.map((e) => {
                     const blocked = e.statusControleProprietario === "INATIVO";
+                    const vencimento = resolverVencimento(pagamentos[e.id]);
+                    const dataVencimento = vencimento?.dataVencimento
+                      ? new Date(`${vencimento.dataVencimento}T00:00:00`)
+                      : null;
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    const vencido =
+                      !!dataVencimento &&
+                      (vencimento?.statusPagamento === "PENDENTE" ||
+                        vencimento?.statusPagamento === "ATRASADO") &&
+                      dataVencimento < hoje;
 
                     return (
                       <tr
                         key={e.id}
-                        className={`border-b border-border/70 last:border-0 transition-colors ${blocked
-                          ? "bg-rose-50/40 dark:bg-rose-950/10 hover:bg-rose-50/60"
-                          : "hover:bg-muted/30"
-                          }`}
+                        className={cn(
+                          "border-b border-border/50 transition-colors last:border-0",
+                          blocked
+                            ? "bg-muted/30 hover:bg-muted/50"
+                            : "hover:bg-muted/25",
+                        )}
                       >
-                        <td className="px-5 py-3 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-
+                        <td className="whitespace-nowrap px-4 py-3.5">
+                          <div className="flex items-center">
                             <span
-                              className={`font-medium ${blocked
-                                ? "text-muted-foreground line-through"
-                                : "text-foreground"
-                                }`}
+                              className={cn(
+                                "max-w-[260px] truncate text-[13.5px] font-semibold",
+                                blocked
+                                  ? "text-muted-foreground"
+                                  : "text-foreground",
+                              )}
+                              title={e.nomeEmpresa}
                             >
                               {e.nomeEmpresa}
                             </span>
                           </div>
                         </td>
 
-                        <td className="px-5 py-3 whitespace-nowrap text-muted-foreground font-mono text-[12px]">
-                          {e.slug}.aurit.com.br
+                        <td className="px-4 py-3.5 text-muted-foreground">
+                          <span className="inline-flex max-w-[220px] items-center gap-1.5">
+                            <Globe2
+                              className="h-3.5 w-3.5 shrink-0"
+                              strokeWidth={2}
+                              aria-hidden
+                            />
+                            <span
+                              className="truncate font-mono text-[12px]"
+                              title={`${e.slug}.aurit.com.br`}
+                            >
+                              {e.slug}.aurit.com.br
+                            </span>
+                          </span>
                         </td>
 
-                        <td className="px-5 py-3 whitespace-nowrap text-muted-foreground">
-                          {formatDateTime(e.dataCriacao)}
+                        <td className="whitespace-nowrap px-4 py-3.5 text-muted-foreground">
+                          {formatDate(e.dataCriacao)}
                         </td>
 
-                        <td className="px-5 py-3 whitespace-nowrap">
+                        <td className="whitespace-nowrap px-4 py-3.5">
                           <PlanoBadge plano={getPlanoVisualEmpresa(e)} />
                         </td>
 
-                        <td className="px-5 py-3 whitespace-nowrap">
+                        <td className="whitespace-nowrap px-4 py-3.5">
+                          {vencimento ? (
+                            <span
+                              className={`inline-flex items-center gap-1.5 ${
+                                vencido
+                                  ? "font-medium text-rose-600 dark:text-rose-400"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              <CalendarClock
+                                className="h-3.5 w-3.5"
+                                aria-hidden
+                              />
+                              {formatDate(vencimento.dataVencimento)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+
+                        <td className="whitespace-nowrap px-4 py-3.5">
                           <StatusEmpresaBadge
                             status={e.statusControleProprietario}
                           />
                         </td>
 
-                        <td className="px-5 py-3 text-center whitespace-nowrap">
-                          <span className="font-medium text-foreground">
-                            {e.totalUsuarios}
-                          </span>
-                          <span className="text-muted-foreground">
-                            /{e.limiteUsuarios}
+                        <td className="whitespace-nowrap px-4 py-3.5 text-center tabular-nums">
+                          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                            <UsersRound
+                              className="h-3.5 w-3.5"
+                              strokeWidth={2}
+                              aria-hidden
+                            />
+                            <span>
+                              <span className="font-medium text-foreground">
+                                {e.totalUsuarios}
+                              </span>
+                              <span>/{e.limiteUsuarios}</span>
+                            </span>
                           </span>
                         </td>
 
-
-                        <td className="px-5 py-3 text-right whitespace-nowrap">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 gap-1.5"
-                            onClick={() =>
-                              navigate(`/controle-proprietario/empresas/${e.id}`)
-                            }
-                          >
-                            Ver Organização
-                            <ArrowRight className="h-3.5 w-3.5" />
-                          </Button>
+                        <td className="whitespace-nowrap px-4 py-3.5 text-right">
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="glassSecondary"
+                                className="h-8 gap-1.5 rounded-full px-3.5 text-[12.5px] font-medium"
+                                onClick={() =>
+                                  navigate(
+                                    `/controle-proprietario/empresas/${e.id}`,
+                                  )
+                                }
+                              >
+                                <Eye className="h-4 w-4" strokeWidth={2} />
+                                Ver empresa
+                                <ArrowUpRight
+                                  className="h-3.5 w-3.5 text-muted-foreground"
+                                  strokeWidth={2}
+                                />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">
+                              Ver empresa
+                            </TooltipContent>
+                          </Tooltip>
                         </td>
                       </tr>
                     );
@@ -727,8 +864,11 @@ export default function ControleEmpresas() {
 
                 {!loading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-16 text-center">
-                      <Landmark className="h-10 w-10 mx-auto text-muted-foreground/40" />
+                    <td colSpan={8} className="px-5 py-16 text-center">
+                      <Building2
+                        className="mx-auto h-9 w-9 text-muted-foreground/40"
+                        strokeWidth={1.8}
+                      />
                       <p className="mt-3 text-sm text-muted-foreground">
                         Nenhuma empresa encontrada.
                       </p>
@@ -746,44 +886,36 @@ export default function ControleEmpresas() {
             onPageChange={empresasPagination.setCurrentPage}
             onPageSizeChange={empresasPagination.setPageSize}
           />
-        </div>
+        </section>
 
-        <div className="bg-card border border-border rounded mt-6">
-          <div className="px-5 py-4 border-b border-border flex items-center gap-2">
-            <Activity className="h-4 w-4 text-muted-foreground" />
-            <h2 className="font-semibold text-sm text-foreground">
-              Logs gerais recentes
-            </h2>
-            <span className="text-xs text-muted-foreground ml-1">
-              — atividade recente em toda a plataforma
-            </span>
+        <section className="form-section-glass mt-6 overflow-hidden rounded-[18px]">
+          <div className="border-b form-section-glass-divider px-4 py-4 sm:px-5">
+            <div className="flex items-center gap-2.5">
+              <History
+                className="h-4 w-4 flex-shrink-0 text-primary"
+                strokeWidth={2}
+                aria-hidden
+              />
+              <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
+                Logs gerais recentes
+              </h2>
+            </div>
+            <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
+              Atividade recente de acesso em toda a plataforma.
+            </p>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+            <table className="w-full min-w-[900px] text-[13px]">
               <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Tipo
-                  </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Empresa
-                  </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Usuário
-                  </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Login
-                  </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    IP
-                  </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Data/Hora
-                  </th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                    Detalhe
-                  </th>
+                <tr className="border-b border-border/60 bg-muted/25 backdrop-blur-md">
+                  <th className={thBase}>Tipo</th>
+                  <th className={thBase}>Empresa</th>
+                  <th className={thBase}>Usuário</th>
+                  <th className={thBase}>Login</th>
+                  <th className={thBase}>IP</th>
+                  <th className={thBase}>Data/Hora</th>
+                  <th className={thBase}>Detalhe</th>
                 </tr>
               </thead>
 
@@ -791,27 +923,27 @@ export default function ControleEmpresas() {
                 {logsPagination.paginated.map((l) => (
                   <tr
                     key={l.id}
-                    className="border-b border-border/70 last:border-0 hover:bg-muted/30 transition-colors"
+                    className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
                   >
-                    <td className="px-5 py-2.5 whitespace-nowrap">
+                    <td className="whitespace-nowrap px-4 py-3">
                       <TipoLogBadge tipo={l.tipoLogAcesso} />
                     </td>
-                    <td className="px-5 py-2.5 whitespace-nowrap text-foreground">
+                    <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground">
                       {l.nomeEmpresa ?? "—"}
                     </td>
-                    <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                       {l.nomeUsuario ?? "—"}
                     </td>
-                    <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                       {l.loginInformado ?? "—"}
                     </td>
-                    <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground font-mono text-[12px]">
+                    <td className="whitespace-nowrap px-4 py-3 font-mono text-[12px] text-muted-foreground">
                       {l.ip ?? "—"}
                     </td>
-                    <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                       {formatDateTime(l.dataEvento)}
                     </td>
-                    <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground max-w-[320px] truncate">
+                    <td className="max-w-[320px] truncate whitespace-nowrap px-4 py-3 text-muted-foreground">
                       {l.detalhe ?? "—"}
                     </td>
                   </tr>
@@ -838,11 +970,11 @@ export default function ControleEmpresas() {
             onPageChange={logsPagination.setCurrentPage}
             onPageSizeChange={logsPagination.setPageSize}
           />
-        </div>
+        </section>
       </div>
 
       <Dialog open={criarOpen} onOpenChange={setCriarOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Cadastrar Organização</DialogTitle>
             <DialogDescription>
@@ -937,7 +1069,9 @@ export default function ControleEmpresas() {
                   <Label>Plano *</Label>
                   <Select
                     value={novaEmpresa.tipoPlano}
-                    onValueChange={(v) => handlePlanoChange(v as TipoPlanoVisual)}
+                    onValueChange={(v) =>
+                      handlePlanoChange(v as TipoPlanoVisual)
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -970,7 +1104,10 @@ export default function ControleEmpresas() {
                     onChange={(e) =>
                       setNovaEmpresa({
                         ...novaEmpresa,
-                        limiteUsuarios: Math.max(1, Number(e.target.value) || 1),
+                        limiteUsuarios: Math.max(
+                          1,
+                          Number(e.target.value) || 1,
+                        ),
                       })
                     }
                   />
@@ -1042,11 +1179,19 @@ export default function ControleEmpresas() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={resetarModal} disabled={creating}>
+            <Button
+              variant="glassSecondary"
+              onClick={resetarModal}
+              disabled={creating}
+            >
               Cancelar
             </Button>
 
-            <Button onClick={handleCriarEmpresa} disabled={creating}>
+            <Button
+              variant="glassPrimary"
+              onClick={handleCriarEmpresa}
+              disabled={creating}
+            >
               {creating ? "Criando..." : "Criar empresa"}
             </Button>
           </DialogFooter>

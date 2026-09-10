@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ShieldCheck, CheckSquare, Square, Eye } from "lucide-react";
+import { ShieldCheck, CheckSquare, Square, Eye, Layers } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BackButton } from "@/components/BackButton";
 import { PageTitle } from "@/components/PageTitle";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { AccessDenied } from "@/components/AccessDenied";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { StatusPill } from "@/components/StatusPill";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { getPlanoLabel } from "@/lib/plano";
 import {
@@ -121,14 +125,12 @@ export default function UsuarioPermissoes() {
       return GRUPOS_MODULOS;
     }
 
-    return GRUPOS_MODULOS
-      .map((grupo) => ({
-        ...grupo,
-        modulos: grupo.modulos.filter((modulo) =>
-          MODULOS_PLANO_GRATUITO.includes(modulo),
-        ),
-      }))
-      .filter((grupo) => grupo.modulos.length > 0);
+    return GRUPOS_MODULOS.map((grupo) => ({
+      ...grupo,
+      modulos: grupo.modulos.filter((modulo) =>
+        MODULOS_PLANO_GRATUITO.includes(modulo),
+      ),
+    })).filter((grupo) => grupo.modulos.length > 0);
   }, [tipoPlano]);
 
   useEffect(() => {
@@ -228,7 +230,11 @@ export default function UsuarioPermissoes() {
   }, [id, navigate, loadingPermissoes, podeEditarPermissoes]);
 
   const isProprietario = usuario?.userRole === "ADMIN_PROPRIETARIO";
-  const readOnly = isProprietario;
+  const isAdministrador = usuario?.userRole === "ADMIN";
+  // Administradores possuem acesso total no frontend e no backend. Manter uma
+  // matriz editável para esse perfil seria enganoso, pois ela não altera o
+  // acesso efetivo.
+  const readOnly = isProprietario || isAdministrador;
 
   const toggle = (
     modulo: ModuloPermissao,
@@ -305,12 +311,28 @@ export default function UsuarioPermissoes() {
     });
   };
 
+  const setModulo = (modulo: ModuloPermissao, value: boolean) => {
+    if (readOnly) return;
+    setPerms((prev) => ({
+      ...prev,
+      [modulo]: {
+        ...prev[modulo],
+        ...Object.fromEntries(ACOES.map((acao) => [acao, value])),
+      },
+    }));
+  };
+
+  const moduloCount = (modulo: ModuloPermissao) =>
+    ACOES.filter((acao) => perms[modulo]?.[acao]).length;
+
   const handleSave = async () => {
     if (!usuario) return;
 
     if (readOnly) {
       toast.error(
-        "As permissões do administrador proprietário não podem ser alteradas.",
+        isAdministrador
+          ? "Administradores possuem acesso total e não utilizam permissões granulares."
+          : "As permissões do administrador proprietário não podem ser alteradas.",
       );
       return;
     }
@@ -394,7 +416,7 @@ export default function UsuarioPermissoes() {
   if (!podeEditarPermissoes) {
     return (
       <AppLayout>
-        <AccessNotPermitted />
+        <AccessDenied />
       </AppLayout>
     );
   }
@@ -402,7 +424,7 @@ export default function UsuarioPermissoes() {
   if (accessDeniedMessage) {
     return (
       <AppLayout>
-        <AccessDenied />
+        <AccessNotPermitted message={accessDeniedMessage} />
       </AppLayout>
     );
   }
@@ -422,36 +444,29 @@ export default function UsuarioPermissoes() {
   return (
     <AppLayout>
       <div className="container max-w-6xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/usuarios")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </button>
+        <BackButton to="/usuarios" />
 
         <PageTitle
-          title="Permissões do usuário"
-          tooltip="Defina quais módulos e ações este usuário poderá acessar no sistema, conforme o plano disponível para a organização."
+          title="Permissões"
+          tooltip="Nesta página são definidas as permissões de acesso do usuário no Sistema Aurit. Configure quais módulos ele poderá acessar e quais ações poderá realizar em cada área, de acordo com os recursos disponíveis no plano da organização."
         />
 
-        <div className="mb-5 rounded border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-          Use esta área para controlar o acesso do usuário por módulo. Marque as
-          ações permitidas, como visualizar, criar, editar, excluir, baixar,
-          gerar PDF ou alterar status.
+        <div className="mb-5 rounded-[14px] border border-border/70 bg-card/75 px-4 py-3 text-[13px] text-muted-foreground backdrop-blur-md">
+          Defina o nível de acesso deste usuário em cada módulo do sistema.
+          Marque apenas as ações que ele deverá poder realizar, como visualizar,
+          criar, editar, excluir, baixar arquivos, gerar PDF ou alterar status.
         </div>
 
         {tipoPlano === "PLANO_GRATUITO" && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+          <div className="mb-5 rounded-[14px] border border-amber-400/40 bg-amber-400/[0.12] px-4 py-3 text-[13px] leading-relaxed text-amber-900 backdrop-blur-md dark:text-amber-200">
             Esta organização está no plano gratuito. Por isso, apenas os módulos
             disponíveis neste plano podem ter permissões configuradas.
           </div>
         )}
 
-        <div className="mb-5 rounded border border-border bg-card p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="h-10 w-10 rounded bg-primary/10 text-primary flex items-center justify-center">
+        <div className="mb-5 form-section-glass flex flex-col gap-3 rounded-[18px] p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-primary/20 bg-primary/10 text-primary">
               <ShieldCheck className="h-5 w-5" />
             </div>
 
@@ -461,23 +476,21 @@ export default function UsuarioPermissoes() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-            <span>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-full border border-border/70 bg-background/60 px-2.5 py-0.5 backdrop-blur-sm">
               Perfil:{" "}
               <span className="font-medium text-foreground">
                 {userRoleLabel[usuario.userRole]}
               </span>
             </span>
 
-            <span>
-              Status:{" "}
-              <span className="font-medium text-foreground">
-                {statusUsuarioLabel[usuario.statusUsuario]}
-              </span>
-            </span>
+            <StatusPill
+              status={usuario.statusUsuario}
+              ariaLabelPrefix="Status do usuário"
+            />
 
             {tipoPlano && (
-              <span>
+              <span className="rounded-full border border-border/70 bg-background/60 px-2.5 py-0.5 backdrop-blur-sm">
                 Plano:{" "}
                 <span className="font-medium text-foreground">
                   {getPlanoLabel(tipoPlano)}
@@ -488,21 +501,21 @@ export default function UsuarioPermissoes() {
         </div>
 
         {isProprietario && (
-          <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+          <div className="mb-4 rounded-[14px] border border-amber-400/40 bg-amber-400/[0.12] px-4 py-3 text-[13px] leading-relaxed text-amber-900 backdrop-blur-md dark:text-amber-200">
             As permissões do administrador proprietário não podem ser alteradas.
           </div>
         )}
 
-        {usuario.userRole === "ADMIN" && (
-          <div className="mb-4 rounded border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
-            Administradores podem ter acesso amplo ao sistema. Caso o backend
-            esteja configurado para respeitar permissões por módulo, as opções
-            abaixo definirão o acesso real deste usuário.
+        {isAdministrador && (
+          <div className="mb-4 rounded-[14px] border border-primary/20 bg-primary/[0.06] px-4 py-3 text-[13px] leading-relaxed text-foreground backdrop-blur-md">
+            Administradores possuem acesso total aos módulos e ações disponíveis
+            para a organização. Por isso, as permissões granulares deste perfil
+            não são editáveis.
           </div>
         )}
 
         {!hasExisting && !readOnly && (
-          <div className="mb-4 rounded border border-border bg-card px-4 py-3 text-sm">
+          <div className="mb-4 rounded-[14px] border border-border/70 bg-card/70 px-4 py-3 text-[13px] backdrop-blur-md">
             <p className="font-medium text-foreground">
               Este usuário ainda não possui permissões configuradas.
             </p>
@@ -514,11 +527,10 @@ export default function UsuarioPermissoes() {
         )}
 
         {!readOnly && (
-          <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             <Button
               type="button"
-              variant="outline"
-              size="sm"
+              variant="glassSecondary"
               onClick={() => setAll(true)}
               className="gap-1.5"
             >
@@ -528,8 +540,7 @@ export default function UsuarioPermissoes() {
 
             <Button
               type="button"
-              variant="outline"
-              size="sm"
+              variant="glassSecondary"
               onClick={() => setAll(false)}
               className="gap-1.5"
             >
@@ -539,8 +550,7 @@ export default function UsuarioPermissoes() {
 
             <Button
               type="button"
-              variant="outline"
-              size="sm"
+              variant="glassSecondary"
               onClick={setReadOnlyAll}
               className="gap-1.5"
             >
@@ -550,70 +560,77 @@ export default function UsuarioPermissoes() {
           </div>
         )}
 
-        <div className="bg-card border border-border rounded overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 sticky top-0">
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-4 py-2.5 min-w-[220px]">
-                    Módulo
-                  </th>
-
-                  {ACOES.map((acao) => (
-                    <th
-                      key={acao}
-                      className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-2.5 whitespace-nowrap"
-                    >
-                      {acaoLabel[acao]}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-
-              {gruposModulosVisiveis.map((grupo) => (
-                <tbody key={grupo.title}>
-                  <tr className="bg-muted/20">
-                    <td
-                      colSpan={ACOES.length + 1}
-                      className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    >
-                      {grupo.title}
-                    </td>
-                  </tr>
-
-                  {grupo.modulos.map((modulo) => (
-                    <tr
+        <div className="space-y-5">
+          {gruposModulosVisiveis.map((grupo) => (
+            <FormSectionCard
+              key={grupo.title}
+              icon={Layers}
+              title={grupo.title}
+            >
+              <div className="space-y-3">
+                {grupo.modulos.map((modulo) => {
+                  const marcadas = moduloCount(modulo);
+                  const todas = marcadas === ACOES.length;
+                  return (
+                    <div
                       key={modulo}
-                      className="border-b border-border/60 last:border-0 hover:bg-muted/20 transition-colors"
+                      className="rounded-[14px] border border-border/70 bg-background/50 p-3.5 backdrop-blur-sm supports-[backdrop-filter]:bg-background/40"
                     >
-                      <td className="px-4 py-2 text-sm text-foreground">
-                        {moduloLabel[modulo]}
-                      </td>
-
-                      {ACOES.map((acao) => (
-                        <td key={acao} className="px-3 py-2 text-center">
-                          <Checkbox
-                            checked={!!perms[modulo]?.[acao]}
-                            onCheckedChange={(value) =>
-                              toggle(modulo, acao, !!value)
-                            }
-                            disabled={readOnly || saving}
-                            aria-label={`${acaoLabel[acao]} em ${moduloLabel[modulo]}`}
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              ))}
-            </table>
-          </div>
+                      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2">
+                        <div className="flex items-center gap-2">
+                          <p className="text-[13px] font-semibold text-foreground">
+                            {moduloLabel[modulo]}
+                          </p>
+                          <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
+                            {marcadas} de {ACOES.length}
+                          </span>
+                        </div>
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            onClick={() => setModulo(modulo, !todas)}
+                            className="rounded-[8px] px-1.5 py-0.5 text-[12px] font-medium text-primary transition-colors hover:bg-primary/10"
+                          >
+                            {todas ? "Desmarcar módulo" : "Marcar módulo"}
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                        {ACOES.map((acao) => {
+                          const checked = !!perms[modulo]?.[acao];
+                          return (
+                            <label
+                              key={acao}
+                              className={`flex cursor-pointer items-center gap-2 rounded-[10px] border px-2.5 py-2 text-[13px] transition-colors ${checked ? "border-primary/30 bg-primary/[0.08] text-foreground" : "border-border/60 bg-background/40 text-muted-foreground hover:bg-muted/40"} ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(value) =>
+                                  toggle(modulo, acao, !!value)
+                                }
+                                disabled={readOnly || saving}
+                                aria-label={`${acaoLabel[acao]} em ${moduloLabel[modulo]}`}
+                              />
+                              <span className={checked ? "font-medium" : ""}>
+                                {acaoLabel[acao]}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </FormSectionCard>
+          ))}
         </div>
 
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-5">
+        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
           <Button
             type="button"
-            variant="outline"
+            variant="glassSecondary"
+            className="h-9 px-4"
             onClick={() => navigate("/usuarios")}
           >
             Voltar
@@ -622,13 +639,18 @@ export default function UsuarioPermissoes() {
           <Button
             type="button"
             onClick={handleSave}
-            className="sm:min-w-32"
+            variant="glassPrimary"
+            className="h-9 px-5"
             disabled={readOnly || saving}
           >
             {saving ? "Salvando..." : "Salvar"}
           </Button>
         </div>
       </div>
+      <WikiFloatingButton
+        pageTitle="Permissões"
+        href="/wiki/configuracoes/permissoes"
+      />
     </AppLayout>
   );
 }

@@ -1,13 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Save, ClipboardCheck, Users } from "lucide-react";
+import {
+  CalendarDays,
+  ClipboardCheck,
+  ListChecks,
+  Search,
+  Users,
+} from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { AttendanceStatusSelector } from "@/components/AttendanceStatusSelector";
+import { FieldTooltip } from "@/components/FieldTooltip";
+import { FormSectionCard } from "@/components/FormSectionCard";
 import { PageTitle } from "@/components/PageTitle";
+import { PageObjective } from "@/components/PageObjective";
 import { FormLegend } from "@/components/FormLegend";
 import { FieldLabel } from "@/components/FieldLabel";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
-import { NextStepCard } from "@/components/NextStepCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,29 +46,25 @@ import {
   type TurmaOption,
 } from "@/data/presencas";
 import { toast } from "sonner";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 const SEM_TURMA = "__SEM_TURMA__";
 const SEM_PLANO_AULA = "__SEM_PLANO_AULA__";
 const NEXT_STEP_DURATION_MS = 60_000;
+const statusAjuda =
+  "Presente: a aula ocorreu e o participante compareceu. Ausente: a aula ocorreu, mas o participante não compareceu. Não teve aula: a aula prevista não foi realizada. Feriado: a aula não ocorreu por causa de feriado.";
 
 interface PresencaNextStepCardData {
   titulo: string;
-  descricao: string;
   acaoLabel: string;
   acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+  variante?: "pendente" | "atencao" | "concluido";
 }
 
 const presencaNextStepCard: PresencaNextStepCardData = {
   titulo: "Após registrar presenças, organize os eventos culturais",
-  descricao:
-    "Os eventos culturais registram ações públicas do projeto, como apresentações, mostras, festivais, exposições ou encontros. Esses registros ajudam a comprovar a realização das ações, o alcance do público e os resultados culturais gerados.",
   acaoLabel: "Cadastrar eventos",
   acaoUrl: "/eventos-culturais/novo",
-  acaoSecundariaLabel: "Ver presenças",
-  acaoSecundariaUrl: "/presencas",
   variante: "pendente",
 };
 
@@ -337,7 +342,7 @@ export default function Presencas() {
 
       toast.success("Presença registrada com sucesso.");
 
-      setNextStepCard(presencaNextStepCard);
+      emitJourneyNextStep();
       setObservacao("");
       setDataAula("");
       setPlanoAulaId("");
@@ -369,243 +374,241 @@ export default function Presencas() {
       <div className="container max-w-7xl py-6 sm:py-8">
         <PageTitle
           title="Presenças"
-          tooltip="Registre a presença dos participantes nas atividades e turmas da organização. Utilize este espaço para acompanhar frequências, comprovar encontros realizados e manter um histórico confiável da execução das ações."
+          tooltip="Nesta página são registradas e acompanhadas as presenças dos participantes nos encontros das atividades e turmas da organização, com possibilidade de relacionar o registro ao plano de aula correspondente. Esses dados ajudam a controlar a frequência, acompanhar a participação e manter o histórico dos encontros realizados."
         />
 
-        {nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
-        )}
+        <PageObjective
+          className="mb-4"
+          description="Registre e acompanhe a presença dos participantes nos encontros das atividades e turmas, relacionando cada registro à data e, quando houver, ao plano de aula correspondente. Essas informações apoiam o controle de frequência, o acompanhamento da participação, a geração de relatórios e a comprovação das ações realizadas."
+        />
 
         <FormLegend />
 
-        <div className="rounded border border-border bg-card">
-          <div className="border-b border-border px-5 py-3">
-            <h2 className="text-sm font-semibold text-foreground">
-              Buscar Participantes
-            </h2>
+        <div className="space-y-5">
+          <FormSectionCard
+            icon={Search}
+            title="Buscar participantes"
+            description="Defina a atividade e a turma correspondente para localizar os participantes que deverão fazer parte deste registro de presença."
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+              <div className="md:col-span-5">
+                <FieldLabel
+                  htmlFor="presencaAtividade"
+                  required
+                  tooltip="Informe a atividade para a qual será realizado o registro de presença."
+                >
+                  Atividade
+                </FieldLabel>
 
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Selecione a atividade e, se houver, a turma para carregar os
-              participantes vinculados.
-            </p>
-          </div>
+                <Select
+                  value={atividadeId}
+                  onValueChange={handleAtividadeChange}
+                  disabled={loadingBase}
+                >
+                  <SelectTrigger id="presencaAtividade">
+                    <SelectValue
+                      placeholder={loadingBase ? "Carregando..." : "Selecione"}
+                    />
+                  </SelectTrigger>
 
-          <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-12">
-            <div className="md:col-span-5">
-              <FieldLabel
-                required
-                tooltip="Selecione a atividade para carregar os participantes vinculados e registrar a presença deste encontro, oficina, aula ou ação."
-              >
-                Atividade
-              </FieldLabel>
-
-              <Select
-                value={atividadeId}
-                onValueChange={handleAtividadeChange}
-                disabled={loadingBase}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={loadingBase ? "Carregando..." : "Selecione"}
-                  />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {atividades.length === 0 ? (
-                    <SelectItem value="sem-atividade" disabled>
-                      Nenhuma atividade cadastrada
-                    </SelectItem>
-                  ) : (
-                    atividades.map((atividade) => (
-                      <SelectItem key={atividade.id} value={atividade.id}>
-                        {atividade.nomeAtividade}
+                  <SelectContent>
+                    {atividades.length === 0 ? (
+                      <SelectItem value="sem-atividade" disabled>
+                        Nenhuma atividade cadastrada
                       </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+                    ) : (
+                      atividades.map((atividade) => (
+                        <SelectItem key={atividade.id} value={atividade.id}>
+                          {atividade.nomeAtividade}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="md:col-span-5">
-              <FieldLabel
-                tooltip="Selecione uma turma quando a atividade estiver organizada por grupos, horários, faixas etárias ou níveis diferentes. Se a chamada for geral da atividade, deixe como “sem turma específica”."
-              >
-                Turma
-              </FieldLabel>
+              <div className="md:col-span-5">
+                <FieldLabel
+                  htmlFor="presencaTurma"
+                  tooltip="Informe a turma quando o registro de presença corresponder a um grupo específico da atividade."
+                >
+                  Turma
+                </FieldLabel>
 
-              <Select
-                value={turmaId || SEM_TURMA}
-                onValueChange={handleTurmaChange}
-                disabled={loadingBase || !atividadeId}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      !atividadeId
-                        ? "Selecione uma atividade"
-                        : turmasDaAtividade.length === 0
-                          ? "Esta atividade não possui turmas"
-                          : "Selecione"
-                    }
-                  />
-                </SelectTrigger>
+                <Select
+                  value={turmaId || SEM_TURMA}
+                  onValueChange={handleTurmaChange}
+                  disabled={loadingBase || !atividadeId}
+                >
+                  <SelectTrigger id="presencaTurma">
+                    <SelectValue
+                      placeholder={
+                        !atividadeId
+                          ? "Selecione uma atividade"
+                          : turmasDaAtividade.length === 0
+                            ? "Esta atividade não possui turmas"
+                            : "Selecione"
+                      }
+                    />
+                  </SelectTrigger>
 
-                <SelectContent>
-                  <SelectItem value={SEM_TURMA}>
-                    Sem turma específica
-                  </SelectItem>
-
-                  {turmasDaAtividade.map((turma) => (
-                    <SelectItem key={turma.id} value={turma.id}>
-                      {turma.nomeTurma}
+                  <SelectContent>
+                    <SelectItem value={SEM_TURMA}>
+                      Sem turma específica
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
-            <div className="flex md:col-span-2 md:items-end">
-              <Button
-                type="button"
-                onClick={handleBuscar}
-                className="w-full gap-2"
-                disabled={loadingBase}
+                    {turmasDaAtividade.map((turma) => (
+                      <SelectItem key={turma.id} value={turma.id}>
+                        {turma.nomeTurma}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex md:col-span-2 md:items-end">
+                <Button
+                  type="button"
+                  variant="glassPrimary"
+                  onClick={handleBuscar}
+                  className="h-9 px-4"
+                  disabled={loadingBase}
+                >
+                  Buscar
+                </Button>
+              </div>
+            </div>
+          </FormSectionCard>
+
+          {searched && (
+            <>
+              <FormSectionCard
+                icon={CalendarDays}
+                title="Dados da Aula"
+                description="Identifique o encontro ao qual este registro de presença corresponde e, quando houver, relacione o plano de aula utilizado."
               >
-                <Search className="h-4 w-4" />
-                Buscar
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {searched && (
-          <>
-            <div className="mt-5 rounded border border-border bg-card">
-              <div className="border-b border-border px-5 py-3">
-                <h2 className="text-sm font-semibold text-foreground">
-                  Dados da Aula
-                </h2>
-
                 {(atividadeSelecionada || turmaSelecionada) && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {atividadeSelecionada?.nomeAtividade}
+                  <p className="mb-4 text-xs leading-5 text-muted-foreground">
+                    {atividadeSelecionada?.nomeAtividade ?? ""}
                     {turmaSelecionada ? ` · ${turmaSelecionada.nomeTurma}` : ""}
                   </p>
                 )}
-              </div>
 
-              <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-12">
-                <div className="md:col-span-2">
-                  <FieldLabel required>Ano</FieldLabel>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+                  <div className="md:col-span-3">
+                    <FieldLabel
+                      htmlFor="presencaAno"
+                      required
+                      tooltip="Informe o ano de referência deste registro de presença."
+                    >
+                      Ano
+                    </FieldLabel>
 
-                  <Select value={ano} onValueChange={setAno}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <Select value={ano} onValueChange={setAno}>
+                      <SelectTrigger id="presencaAno">
+                        <SelectValue />
+                      </SelectTrigger>
 
-                    <SelectContent>
-                      {anosOptions.map((anoOption) => (
-                        <SelectItem key={anoOption} value={String(anoOption)}>
-                          {anoOption}
+                      <SelectContent>
+                        {anosOptions.map((anoOption) => (
+                          <SelectItem key={anoOption} value={String(anoOption)}>
+                            {anoOption}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="md:col-span-3">
+                    <FieldLabel
+                      htmlFor="presencaData"
+                      required
+                      tooltip="Informe a data em que o encontro, aula ou atividade foi realizado ou estava previsto."
+                    >
+                      Data da Aula
+                    </FieldLabel>
+
+                    <Input
+                      id="presencaData"
+                      type="date"
+                      value={dataAula}
+                      onChange={(e) => handleDataAulaChange(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="md:col-span-6">
+                    <FieldLabel
+                      htmlFor="presencaPlanoAula"
+                      tooltip="Informe o plano de aula relacionado a este encontro, quando houver. O vínculo ajuda a relacionar o conteúdo planejado ao registro de presença."
+                    >
+                      Plano de Aula
+                    </FieldLabel>
+
+                    <Select
+                      value={planoAulaId || SEM_PLANO_AULA}
+                      onValueChange={handlePlanoAulaChange}
+                      disabled={loadingBase || !atividadeId}
+                    >
+                      <SelectTrigger id="presencaPlanoAula">
+                        <SelectValue
+                          placeholder={
+                            planosAulaDisponiveis.length === 0
+                              ? "Nenhum plano compatível encontrado"
+                              : "Selecione"
+                          }
+                        />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        <SelectItem value={SEM_PLANO_AULA}>
+                          Sem plano de aula vinculado
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+                        {planosAulaDisponiveis.map((plano) => (
+                          <SelectItem key={plano.id} value={plano.id}>
+                            {plano.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {atividadeId && planosAulaDisponiveis.length === 0 && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Nenhum plano de aula compatível com a atividade, turma e
+                        data informadas.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="md:col-span-12">
+                    <FieldLabel
+                      htmlFor="presencaObservacao"
+                      tooltip="Registre informações complementares sobre o encontro, como alterações, ocorrências, reposições ou outras informações relevantes."
+                    >
+                      Observação
+                    </FieldLabel>
+
+                    <Textarea
+                      id="presencaObservacao"
+                      value={observacao}
+                      onChange={(e) => setObservacao(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
                 </div>
+              </FormSectionCard>
 
-                <div className="md:col-span-3">
-                  <FieldLabel required>Data do Encontro</FieldLabel>
-
-                  <Input
-                    type="date"
-                    value={dataAula}
-                    onChange={(e) => handleDataAulaChange(e.target.value)}
-                  />
-                </div>
-
-                <div className="md:col-span-7">
-                  <FieldLabel tooltip="Vincule o plano de aula planejado para este encontro. A lista é filtrada pela atividade, turma e data informadas. O vínculo é opcional, mas ajuda a comprovar o que foi planejado e executado.">
-                    Plano de Aula
-                  </FieldLabel>
-
-                  <Select
-                    value={planoAulaId || SEM_PLANO_AULA}
-                    onValueChange={handlePlanoAulaChange}
-                    disabled={loadingBase || !atividadeId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={
-                          planosAulaDisponiveis.length === 0
-                            ? "Nenhum plano compatível encontrado"
-                            : "Selecione"
-                        }
-                      />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      <SelectItem value={SEM_PLANO_AULA}>
-                        Sem plano de aula vinculado
-                      </SelectItem>
-
-                      {planosAulaDisponiveis.map((plano) => (
-                        <SelectItem key={plano.id} value={plano.id}>
-                          {plano.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {atividadeId && planosAulaDisponiveis.length === 0 && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Nenhum plano de aula compatível com a atividade, turma e
-                      data informadas.
-                    </p>
-                  )}
-                </div>
-
-                <div className="md:col-span-12">
-                  <FieldLabel tooltip="Registre informações importantes sobre este encontro, como conteúdo trabalhado, justificativas de ausência, alterações de horário, ocorrências, reposições ou observações relevantes para relatórios.">
-                    Observação
-                  </FieldLabel>
-
-                  <Textarea
-                    value={observacao}
-                    onChange={(e) => setObservacao(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 rounded border border-border bg-card">
-              <div className="flex flex-col justify-between gap-3 border-b border-border px-5 py-3 sm:flex-row sm:items-center">
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">
-                    Participantes ({rows.length})
-                  </h2>
-
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Marque a situação de presença de cada participante neste
-                    encontro.
-                  </p>
-                </div>
-
+              <FormSectionCard
+                icon={ListChecks}
+                title={`Lista de Presença (${rows.length})`}
+                description="Registre a situação de cada participante neste encontro, indicando se esteve presente, ausente ou se o encontro não ocorreu."
+              >
                 {rows.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
-                      variant="outline"
-                      size="sm"
+                      variant="glassSecondary"
+                      className="h-8 rounded-[10px] px-2.5 text-[12px]"
                       onClick={() => marcarTodos("PRESENTE")}
                     >
                       Marcar todos como Presente
@@ -613,151 +616,170 @@ export default function Presencas() {
 
                     <Button
                       type="button"
-                      variant="outline"
-                      size="sm"
+                      variant="glassSecondary"
+                      className="h-8 rounded-[10px] px-2.5 text-[12px]"
                       onClick={() => marcarTodos("AUSENTE")}
                     >
                       Marcar todos como Ausente
                     </Button>
+
+                    <Button
+                      type="button"
+                      variant="glassSecondary"
+                      className="h-8 rounded-[10px] px-2.5 text-[12px]"
+                      onClick={() => marcarTodos("NAO_TEVE_AULA")}
+                    >
+                      Marcar todos como Não teve aula
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="glassSecondary"
+                      className="h-8 rounded-[10px] px-2.5 text-[12px]"
+                      onClick={() => marcarTodos("FERIADO")}
+                    >
+                      Marcar todos como Feriado
+                    </Button>
+
+                    <FieldTooltip
+                      text={statusAjuda}
+                      fieldLabel="as situações de presença"
+                      side="bottom"
+                    />
                   </div>
                 )}
-              </div>
 
-              {rows.length === 0 ? (
-                <div className="p-10 text-center">
-                  <Users className="mx-auto h-10 w-10 text-muted-foreground/40" />
+                {rows.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <Users className="mx-auto h-10 w-10 text-muted-foreground/40" />
 
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Nenhum participante vinculado a esta atividade/turma.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-border bg-muted/40">
-                          <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Participante
-                          </th>
-
-                          <th className="w-[280px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Status <span className="text-destructive">*</span>
-                          </th>
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {rows.map((row) => (
-                          <tr
-                            key={row.id}
-                            className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                          >
-                            <td className="px-6 py-2 text-[13px] text-foreground">
-                              {row.nome}
-                            </td>
-
-                            <td className="px-6 py-2">
-                              <Select
-                                value={row.status}
-                                onValueChange={(value) =>
-                                  updateStatus(
-                                    row.id,
-                                    value as StatusPresencaValue,
-                                  )
-                                }
-                              >
-                                <SelectTrigger className="h-9">
-                                  <SelectValue />
-                                </SelectTrigger>
-
-                                <SelectContent>
-                                  {statusPresenca.map((status) => (
-                                    <SelectItem
-                                      key={status.value}
-                                      value={status.value}
-                                    >
-                                      {status.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Nenhum participante vinculado a esta atividade/turma.
+                    </p>
                   </div>
+                ) : (
+                  <>
+                    <div className="hidden overflow-hidden rounded-[12px] border border-border/60 md:block">
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[760px]">
+                          <thead>
+                            <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
+                              <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                Participante
+                              </th>
 
-                  <div className="divide-y divide-border md:hidden">
-                    {rows.map((row) => (
-                      <div key={row.id} className="p-4">
-                        <p className="mb-2 text-sm font-medium text-foreground">
-                          {row.nome}
-                        </p>
+                              <th className="w-[460px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                <span className="inline-flex items-center gap-1.5">
+                                  Status
+                                  <span className="text-destructive">*</span>
+                                  <FieldTooltip
+                                    text={statusAjuda}
+                                    fieldLabel="o status de presença"
+                                    side="bottom"
+                                  />
+                                </span>
+                              </th>
+                            </tr>
+                          </thead>
 
-                        <Select
-                          value={row.status}
-                          onValueChange={(value) =>
-                            updateStatus(row.id, value as StatusPresencaValue)
-                          }
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-
-                          <SelectContent>
-                            {statusPresenca.map((status) => (
-                              <SelectItem
-                                key={status.value}
-                                value={status.value}
+                          <tbody>
+                            {rows.map((row) => (
+                              <tr
+                                key={row.id}
+                                className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
                               >
-                                {status.label}
-                              </SelectItem>
+                                <td className="px-6 py-2 text-[13px] text-foreground">
+                                  {row.nome}
+                                </td>
+
+                                <td className="px-6 py-2">
+                                  <AttendanceStatusSelector
+                                    value={row.status}
+                                    onChange={(value) => {
+                                      if (podeCriar) {
+                                        updateStatus(row.id, value);
+                                      }
+                                    }}
+                                    options={statusPresenca}
+                                    ariaLabel={`Status de presença de ${row.nome}`}
+                                    className={
+                                      !podeCriar
+                                        ? "pointer-events-none opacity-70"
+                                        : undefined
+                                    }
+                                  />
+                                </td>
+                              </tr>
                             ))}
-                          </SelectContent>
-                        </Select>
+                          </tbody>
+                        </table>
                       </div>
-                    ))}
-                  </div>
-                </>
+                    </div>
+
+                    <div className="divide-y divide-border/60 overflow-hidden rounded-[12px] border border-border/60 md:hidden">
+                      {rows.map((row) => (
+                        <div key={row.id} className="p-4">
+                          <p className="mb-2 text-sm font-medium text-foreground">
+                            {row.nome}
+                          </p>
+
+                          <AttendanceStatusSelector
+                            value={row.status}
+                            onChange={(value) => {
+                              if (podeCriar) {
+                                updateStatus(row.id, value);
+                              }
+                            }}
+                            options={statusPresenca}
+                            ariaLabel={`Status de presença de ${row.nome}`}
+                            className={
+                              !podeCriar
+                                ? "pointer-events-none opacity-70"
+                                : undefined
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </FormSectionCard>
+
+              {podeCriar && (
+                <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="glassPrimary"
+                    onClick={handleSalvar}
+                    className="h-9 px-5"
+                    disabled={saving || rows.length === 0}
+                  >
+                    {saving ? "Salvando..." : "Salvar"}
+                  </Button>
+                </div>
               )}
+
+              {!podeCriar && rows.length > 0 && (
+                <div className="mt-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  Você pode visualizar os participantes, mas não possui
+                  permissão para registrar presença.
+                </div>
+              )}
+            </>
+          )}
+
+          {!searched && (
+            <div className="rounded-[16px] border border-dashed border-border/70 bg-card/60 p-10 text-center backdrop-blur-md supports-[backdrop-filter]:bg-card/50">
+              <ClipboardCheck className="mx-auto h-10 w-10 text-muted-foreground/40" />
+
+              <p className="mt-3 text-sm text-muted-foreground">
+                Selecione uma atividade e clique em{" "}
+                <strong className="text-foreground">Buscar</strong> para
+                carregar os participantes.
+              </p>
             </div>
-
-            {podeCriar && (
-              <div className="mt-5 flex justify-end gap-2">
-                <Button
-                  type="button"
-                  onClick={handleSalvar}
-                  className="gap-2"
-                  disabled={saving || rows.length === 0}
-                >
-                  <Save className="h-4 w-4" />
-                  {saving ? "Salvando..." : "Salvar"}
-                </Button>
-              </div>
-            )}
-
-            {!podeCriar && rows.length > 0 && (
-              <div className="mt-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Você pode visualizar os participantes, mas não possui permissão
-                para registrar presença.
-              </div>
-            )}
-          </>
-        )}
-
-        {!searched && (
-          <div className="mt-5 rounded border border-dashed border-border bg-muted/30 p-10 text-center">
-            <ClipboardCheck className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-            <p className="mt-3 text-sm text-muted-foreground">
-              Selecione uma atividade e clique em{" "}
-              <strong className="text-foreground">Buscar</strong> para carregar
-              os participantes.
-            </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <WikiFloatingButton

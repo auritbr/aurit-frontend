@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
-  ArrowLeft,
   Award,
   FileText,
   MessageSquare,
@@ -9,16 +8,21 @@ import {
   Scale,
   ExternalLink,
   Upload,
+  type LucideIcon,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BackButton } from "@/components/BackButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { StatusPill } from "@/components/StatusPill";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -29,9 +33,8 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { HelpTooltip } from "@/components/HelpTooltip";
-import { ImportDataTitleAction } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
+import { getImportConfigForPath } from "@/config/importacoes";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
   getPermissoesUsuarioLogadoPorModulo,
@@ -114,6 +117,7 @@ const initial: FormState = {
 
 const RESULTADO_PROPOSTA_NEXT_STEP_KEY =
   "aurit:resultados-propostas:next-step-card";
+const PROPOSTA_SELECIONE_VALUE = "__selecionar_proposta__";
 
 interface ResultadoPropostaNextStepCardData {
   titulo: string;
@@ -202,11 +206,7 @@ function getEditalNome(
   proposta?: PropostaEditalOption | null,
   resultado?: ResultadoProposta | null,
 ) {
-  return (
-    proposta?.nomeEdital?.trim() ||
-    resultado?.nomeEdital?.trim() ||
-    "—"
-  );
+  return proposta?.nomeEdital?.trim() || resultado?.nomeEdital?.trim() || "—";
 }
 
 export default function ResultadoPropostaForm() {
@@ -327,9 +327,7 @@ export default function ResultadoPropostaForm() {
               propostaSelecionada?.nome ||
               (propostaId ? `Proposta #${propostaId}` : ""),
             nomeEdital:
-              resultado.nomeEdital ||
-              propostaSelecionada?.nomeEdital ||
-              "",
+              resultado.nomeEdital || propostaSelecionada?.nomeEdital || "",
           };
 
           setExistingResultado(resultadoNormalizado);
@@ -429,6 +427,17 @@ export default function ResultadoPropostaForm() {
   };
 
   function handlePropostaChange(value: string) {
+    if (value === PROPOSTA_SELECIONE_VALUE) {
+      setForm((prev) => ({
+        ...prev,
+        propostaEdital: "",
+        nomePropostaEdital: "",
+        edital: "",
+        nomeEdital: "",
+      }));
+      return;
+    }
+
     const propostaSelecionada = propostasComFallback.find(
       (proposta) => normalizeId(proposta.id) === normalizeId(value),
     );
@@ -436,16 +445,9 @@ export default function ResultadoPropostaForm() {
     setForm((prev) => ({
       ...prev,
       propostaEdital: normalizeId(value),
-      nomePropostaEdital:
-        propostaSelecionada?.nome ||
-        prev.nomePropostaEdital ||
-        existingResultado?.nomePropostaEdital ||
-        "",
-      nomeEdital:
-        propostaSelecionada?.nomeEdital ||
-        prev.nomeEdital ||
-        existingResultado?.nomeEdital ||
-        "",
+      nomePropostaEdital: propostaSelecionada?.nome ?? "",
+      edital: propostaSelecionada?.editalId ?? "",
+      nomeEdital: propostaSelecionada?.nomeEdital ?? "",
     }));
   }
 
@@ -512,12 +514,16 @@ export default function ResultadoPropostaForm() {
     if (visualizando) return;
 
     if (criando && !podeCriar) {
-      toast.error("Você não possui permissão para criar Resultado da Proposta.");
+      toast.error(
+        "Você não possui permissão para criar Resultado da Proposta.",
+      );
       return;
     }
 
     if (editando && !podeEditar) {
-      toast.error("Você não possui permissão para editar Resultado da Proposta.");
+      toast.error(
+        "Você não possui permissão para editar Resultado da Proposta.",
+      );
       return;
     }
 
@@ -550,11 +556,7 @@ export default function ResultadoPropostaForm() {
       return;
     }
 
-    if (
-      editando &&
-      !novoRelatorio &&
-      !formComProposta.urlRelatorioAvaliacao
-    ) {
+    if (editando && !novoRelatorio && !formComProposta.urlRelatorioAvaliacao) {
       toast.error("Anexe o relatório de avaliação.");
       return;
     }
@@ -575,11 +577,7 @@ export default function ResultadoPropostaForm() {
         return;
       }
 
-      if (
-        editando &&
-        !novoDocRecurso &&
-        !formComProposta.urlDocumentoRecurso
-      ) {
+      if (editando && !novoDocRecurso && !formComProposta.urlDocumentoRecurso) {
         toast.error("Anexe o documento do recurso.");
         return;
       }
@@ -668,7 +666,11 @@ export default function ResultadoPropostaForm() {
     }
   };
 
-  const titulo = "Resultado da Proposta";
+  const titulo = visualizando
+    ? "Resultado da Proposta"
+    : editando
+      ? "Resultado da Proposta"
+      : "Resultado da Proposta";
 
   if (!podeVisualizar) {
     return (
@@ -689,271 +691,108 @@ export default function ResultadoPropostaForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          type="button"
-          onClick={() => navigate("/resultados-propostas")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </button>
+        <BackButton to="/resultados-propostas" />
 
-        <div className="mb-5 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-              {titulo}
-            </h1>
+        <ListPageHeader
+          title={titulo}
+          tooltip="Nesta página são registrados e acompanhados os resultados divulgados para os projetos apresentados aos editais, incluindo a situação obtida no processo seletivo, a pontuação e, quando disponíveis, os documentos de avaliação e as informações relacionadas a eventual recurso."
+          actions={
+            visualizando ? undefined : (
+              <ImportDataButton
+                config={getImportConfigForPath("/resultados-propostas")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            )
+          }
+        />
 
-            <HelpTooltip
-              text="Registre e acompanhe o resultado das propostas inscritas em editais, incluindo status, pontuação, relatório de avaliação e informações de recurso quando houver."
-              label="Resultado da Proposta"
-              size="md"
-              side="bottom"
-              align="start"
-            />
-            <ImportDataTitleAction show={!visualizando} />
-          </div>
-
-          <p className="text-sm text-muted-foreground">
-            Vincule o resultado à proposta, registre a situação, a pontuação e
-            anexe o relatório de avaliação. Se houve recurso, registre também os
-            dados da contestação.
-          </p>
-        </div>
-
-        {visualizando && (
-          <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Esta tela está em modo de visualização. Para alterar os dados,
-            utilize a opção Editar disponível no menu{" "}
-            <span className="font-semibold">Ações</span>.
-          </div>
-        )}
-
-        {!visualizando && <FormLegend />}
+        <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={Award} title="Proposta e Resultado">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel
-                  htmlFor="propostaEdital"
-                  required={!visualizando}
-                  tooltip="Vincule este resultado à proposta cadastrada no edital correspondente, mantendo o histórico da inscrição organizado e fácil de acompanhar. Exemplo: se o resultado pertence à proposta “Oficina de Tambor Mineiro”, selecione essa proposta para que o sistema relacione corretamente o resultado ao edital."
-                >
-                  Proposta do Edital
-                </FieldLabel>
-
-                <Select
-                  value={propostaSelectValue}
-                  onValueChange={handlePropostaChange}
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="propostaEdital">
-                    <SelectValue placeholder="Selecione a proposta" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {propostasComFallback.length === 0 ? (
-                      <SelectItem value="__none" disabled>
-                        Nenhuma proposta disponível
-                      </SelectItem>
-                    ) : (
-                      propostasComFallback.map((proposta) => (
-                        <SelectItem
-                          key={normalizeId(proposta.id)}
-                          value={normalizeId(proposta.id)}
-                        >
-                          {proposta.nome}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-
-                {propostaSelectValue && (
-                  <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    Edital relacionado:{" "}
-                    <span className="text-foreground">{editalRelacionado}</span>
-                  </p>
-                )}
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="statusResultadoProposta"
-                  required={!visualizando}
-                  tooltip="Selecione a situação final da proposta após a divulgação do resultado. Essa informação ajuda a acompanhar se a proposta foi aprovada, ficou como suplente ou não foi classificada."
-                >
-                  Status do Resultado da Proposta
-                </FieldLabel>
-
-                <Select
-                  value={form.statusResultadoProposta}
-                  onValueChange={(value) =>
-                    set(
-                      "statusResultadoProposta",
-                      value as StatusResultadoProposta,
-                    )
-                  }
-                  disabled={bloqueado}
-                >
-                  <SelectTrigger id="statusResultadoProposta">
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {statusResultadoPropostaOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="dataResultado"
-                  tooltip="Informe a data em que o resultado do projeto foi divulgado oficialmente, seja no edital, site da instituição, diário oficial ou plataforma de inscrição."
-                >
-                  Data do Resultado
-                </FieldLabel>
-
-                <Input
-                  id="dataResultado"
-                  type="date"
-                  value={form.dataResultado}
-                  onChange={(event) => set("dataResultado", event.target.value)}
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="pontuacao"
-                  required={!visualizando}
-                  tooltip="Informe a pontuação obtida pela proposta na avaliação. Utilize a nota indicada no resultado oficial, no relatório de avaliação ou no parecer disponibilizado pela comissão avaliadora. Exemplo: se a proposta recebeu nota 84,000 no relatório de avaliação, registre essa pontuação no campo."
-                >
-                  Pontuação
-                </FieldLabel>
-
-                <Input
-                  id="pontuacao"
-                  inputMode="decimal"
-                  value={form.pontuacao}
-                  onChange={(event) => set("pontuacao", event.target.value)}
-                  placeholder="Ex.: 84,000"
-                  disabled={bloqueado}
-                  readOnly={visualizando}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={FileText} title="Relatório de Avaliação">
-            <Field>
-              <FieldLabel
-                required={!visualizando}
-                tooltip="Anexe o relatório de avaliação, parecer técnico ou documento oficial que apresenta a análise da proposta, os critérios avaliados e a pontuação recebida. Exemplo: relatório em PDF disponibilizado pela comissão avaliadora com as notas de cada critério."
-              >
-                Relatório de Avaliação
-              </FieldLabel>
-
-              <FileUpload
-                inputRef={relatorioInput}
-                disabled={bloqueado}
-                visualizando={visualizando}
-                file={novoRelatorio}
-                existingName={form.nomeRelatorioAvaliacao}
-                existingUrl={form.urlRelatorioAvaliacao}
-                onOpen={abrirRelatorioAvaliacao}
-                onPick={(file) => {
-                  setNovoRelatorio(file);
-
-                  if (file) {
-                    set("nomeRelatorioAvaliacao", file.name);
-                  }
-                }}
-              />
-            </Field>
-          </Section>
-
-          <Section icon={Scale} title="Recurso">
-            <div className="flex items-start gap-3 rounded border border-border bg-muted/20 px-4 py-3">
-              <Switch
-                id="recursoInterposto"
-                checked={form.recursoInterposto}
-                onCheckedChange={(value) => {
-                  set("recursoInterposto", value);
-
-                  if (!value) {
-                    set("dataEnvioRecurso", "");
-                    set("descricaoRecurso", "");
-                    set("urlDocumentoRecurso", "");
-                    set("nomeDocumentoRecurso", "");
-                    setNovoDocRecurso(null);
-                  }
-                }}
-                disabled={bloqueado}
-              />
-
-              <div className="flex-1">
-                <label
-                  htmlFor="recursoInterposto"
-                  className="cursor-pointer text-sm font-medium text-foreground"
-                >
-                  Recurso Interposto
-                </label>
-
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Marque caso a organização tenha apresentado recurso para
-                  solicitar revisão do resultado, da pontuação ou de algum
-                  critério da avaliação.
-                </p>
-              </div>
-            </div>
-
-            {form.recursoInterposto ? (
-              <div className="mt-4 space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel
-                      htmlFor="dataEnvioRecurso"
-                      required={!visualizando}
-                      tooltip="Informe a data em que o recurso foi enviado à comissão avaliadora, à plataforma do edital ou ao órgão responsável pela seleção."
-                    >
-                      Data de Envio do Recurso
-                    </FieldLabel>
-
-                    <Input
-                      id="dataEnvioRecurso"
-                      type="date"
-                      value={form.dataEnvioRecurso}
-                      onChange={(event) =>
-                        set("dataEnvioRecurso", event.target.value)
-                      }
-                      disabled={bloqueado}
-                      readOnly={visualizando}
-                    />
-                  </Field>
-                </div>
-
+          <fieldset
+            disabled={visualizando}
+            className="space-y-5 border-0 p-0 disabled:opacity-100"
+          >
+            {/* 1 — Proposta e resultado */}
+            {/* 1 — Vínculo com o projeto */}
+            <Section
+              icon={Award}
+              title="Vínculo com o projeto"
+              description="Selecione o projeto apresentado ao edital cujo resultado será registrado e acompanhado nesta página."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
                   <FieldLabel
-                    htmlFor="descricaoRecurso"
-                    required={!visualizando}
-                    tooltip="Descreva de forma resumida o motivo do recurso, os pontos contestados e os principais argumentos apresentados pela organização para solicitar a revisão."
+                    htmlFor="propostaEdital"
+                    required
+                    tooltip="Selecione o projeto apresentado ao edital cujo resultado será registrado. O edital ao qual ele pertence será identificado automaticamente pelo sistema."
                   >
-                    Descrição do Recurso
+                    Proposta de Edital
                   </FieldLabel>
 
-                  <Textarea
-                    id="descricaoRecurso"
-                    rows={4}
-                    value={form.descricaoRecurso}
+                  <Select
+                    value={propostaSelectValue}
+                    onValueChange={handlePropostaChange}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="propostaEdital">
+                      <SelectValue placeholder="Selecione a proposta de edital" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value={PROPOSTA_SELECIONE_VALUE}>
+                        Selecione a proposta de edital
+                      </SelectItem>
+                      {propostasComFallback.length === 0 ? (
+                        <SelectItem value="__none" disabled>
+                          Nenhuma proposta disponível
+                        </SelectItem>
+                      ) : (
+                        propostasComFallback.map((proposta) => (
+                          <SelectItem
+                            key={normalizeId(proposta.id)}
+                            value={normalizeId(proposta.id)}
+                          >
+                            {proposta.nome}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {propostaSelectValue && (
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      Edital relacionado:{" "}
+                      <span className="text-foreground">
+                        {editalRelacionado || "—"}
+                      </span>
+                    </p>
+                  )}
+                </Field>
+              </div>
+            </Section>
+
+            {/* 2 — Resultado do edital */}
+            <Section
+              icon={Award}
+              title="Resultado do edital"
+              description="Registre as informações divulgadas oficialmente sobre o resultado do projeto no processo seletivo do edital."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataResultado"
+                    tooltip="Informe a data em que o resultado deste projeto foi oficialmente publicado ou comunicado pelo órgão responsável pelo edital."
+                  >
+                    Data do Resultado
+                  </FieldLabel>
+
+                  <Input
+                    id="dataResultado"
+                    type="date"
+                    value={form.dataResultado}
                     onChange={(event) =>
-                      set("descricaoRecurso", event.target.value)
+                      set("dataResultado", event.target.value)
                     }
                     disabled={bloqueado}
                     readOnly={visualizando}
@@ -962,75 +801,277 @@ export default function ResultadoPropostaForm() {
 
                 <Field>
                   <FieldLabel
-                    required={!visualizando}
-                    tooltip="Anexe o documento enviado como recurso, contendo a justificativa formal da contestação, os argumentos apresentados e, se houver, documentos complementares utilizados."
+                    htmlFor="statusResultadoProposta"
+                    required
+                    tooltip="Selecione o resultado oficial atribuído ao projeto após a análise. Utilize a informação publicada pelo órgão ou comissão responsável."
                   >
-                    Documento do Recurso
+                    Resultado da Proposta
                   </FieldLabel>
 
-                  <FileUpload
-                    inputRef={docRecursoInput}
-                    disabled={bloqueado}
-                    visualizando={visualizando}
-                    file={novoDocRecurso}
-                    existingName={form.nomeDocumentoRecurso}
-                    existingUrl={form.urlDocumentoRecurso}
-                    onOpen={abrirDocumentoRecurso}
-                    onPick={(file) => {
-                      setNovoDocRecurso(file);
-
-                      if (file) {
-                        set("nomeDocumentoRecurso", file.name);
+                  {visualizando ? (
+                    <div className="flex h-10 items-center">
+                      <StatusPill
+                        status={form.statusResultadoProposta || "—"}
+                        context="resultado-proposta"
+                        ariaLabelPrefix="Resultado da proposta"
+                      />
+                    </div>
+                  ) : (
+                    <Select
+                      value={form.statusResultadoProposta}
+                      onValueChange={(value) =>
+                        set(
+                          "statusResultadoProposta",
+                          value as StatusResultadoProposta,
+                        )
                       }
-                    }}
+                      disabled={bloqueado}
+                    >
+                      <SelectTrigger id="statusResultadoProposta">
+                        <SelectValue placeholder="Selecione o resultado" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {statusResultadoPropostaOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="pontuacao"
+                    required
+                    tooltip="Informe a pontuação final atribuída ao projeto, conforme o resultado, parecer ou relatório de avaliação. Utilize o mesmo valor divulgado oficialmente."
+                  >
+                    Pontuação
+                  </FieldLabel>
+
+                  <Input
+                    id="pontuacao"
+                    inputMode="decimal"
+                    value={form.pontuacao}
+                    onChange={(event) => set("pontuacao", event.target.value)}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
                   />
                 </Field>
               </div>
-            ) : (
-              visualizando && (
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Não houve recurso interposto.
-                </p>
-              )
-            )}
-          </Section>
+            </Section>
 
-          <Section icon={MessageSquare} title="Observações">
-            <Field>
-              <FieldLabel
-                htmlFor="observacoes"
-                tooltip="Registre informações complementares sobre o resultado, avaliação, recurso, resposta da comissão ou próximos passos relacionados à proposta."
-              >
-                Observações
-              </FieldLabel>
-
-              <Textarea
-                id="observacoes"
-                rows={3}
-                value={form.observacoes}
-                onChange={(event) => set("observacoes", event.target.value)}
-                disabled={bloqueado}
-                readOnly={visualizando}
-              />
-            </Field>
-          </Section>
-
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
-            <Button
-              type="button"
-              variant={visualizando ? "default" : "outline"}
-              onClick={() => navigate("/resultados-propostas")}
-              disabled={saving}
+            {/* 3 — Relatório de avaliação */}
+            <Section
+              icon={FileText}
+              title="Relatório de avaliação"
+              description="Mantenha registrado o documento disponibilizado pelo edital com a avaliação realizada sobre o projeto, quando houver."
             >
-              {visualizando ? "Voltar" : "Cancelar"}
-            </Button>
+              <Field>
+                <FieldLabel tooltip="Anexe o parecer, relatório, ficha de avaliação ou outro documento oficial que apresente a análise do projeto, incluindo critérios avaliados, justificativas e pontuação, quando essas informações estiverem disponíveis.">
+                  Relatório de Avaliação
+                </FieldLabel>
 
-            {!visualizando && (
-              <Button type="submit" className="sm:min-w-40" disabled={saving}>
+                <FileUpload
+                  inputRef={relatorioInput}
+                  disabled={bloqueado}
+                  visualizando={visualizando}
+                  file={novoRelatorio}
+                  existingName={form.nomeRelatorioAvaliacao}
+                  existingUrl={form.urlRelatorioAvaliacao}
+                  onOpen={abrirRelatorioAvaliacao}
+                  onPick={(file) => {
+                    setNovoRelatorio(file);
+
+                    if (file) {
+                      set("nomeRelatorioAvaliacao", file.name);
+                    }
+                  }}
+                />
+              </Field>
+            </Section>
+
+            {/* 4 — Recurso */}
+            <Section
+              icon={Scale}
+              title="Recurso"
+              description="Registre quando a organização solicitar a revisão do resultado, da pontuação ou da avaliação recebida no processo seletivo."
+            >
+              <div className="flex items-start gap-3 rounded-[14px] border border-border/70 bg-card/75 px-4 py-3.5 shadow-[0_1px_3px_-1px_hsl(215_28%_17%_/_0.08),inset_0_1px_0_0_hsl(0_0%_100%_/_0.35)] backdrop-blur-md transition-colors hover:border-primary/25 supports-[backdrop-filter]:bg-card/60">
+                <Switch
+                  id="recursoInterposto"
+                  checked={form.recursoInterposto}
+                  onCheckedChange={(value) => {
+                    set("recursoInterposto", value);
+
+                    if (!value) {
+                      set("dataEnvioRecurso", "");
+                      set("descricaoRecurso", "");
+                      set("urlDocumentoRecurso", "");
+                      set("nomeDocumentoRecurso", "");
+                      setNovoDocRecurso(null);
+                    }
+                  }}
+                  disabled={bloqueado}
+                />
+
+                <div className="flex-1">
+                  <label
+                    htmlFor="recursoInterposto"
+                    className="cursor-pointer text-sm font-medium text-foreground"
+                  >
+                    Recurso Apresentado
+                  </label>
+
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Marque esta opção quando a organização tiver solicitado
+                    oficialmente a revisão do resultado, da pontuação ou de
+                    algum ponto da avaliação.
+                  </p>
+                </div>
+              </div>
+
+              {form.recursoInterposto ? (
+                <div className="mt-4 space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel
+                        htmlFor="dataEnvioRecurso"
+                        required
+                        tooltip="Informe a data em que o recurso foi oficialmente enviado ou protocolado junto ao órgão, comissão ou plataforma responsável pelo edital."
+                      >
+                        Data de Envio do Recurso
+                      </FieldLabel>
+
+                      <Input
+                        id="dataEnvioRecurso"
+                        type="date"
+                        value={form.dataEnvioRecurso}
+                        onChange={(event) =>
+                          set("dataEnvioRecurso", event.target.value)
+                        }
+                        disabled={bloqueado}
+                        readOnly={visualizando}
+                      />
+                    </Field>
+                  </div>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="descricaoRecurso"
+                      required
+                      tooltip="Resuma o que foi contestado no recurso, indicando os pontos da avaliação ou do resultado que a organização pediu para revisar e, quando possível, o que foi solicitado ao órgão responsável."
+                    >
+                      Descrição do Recurso
+                    </FieldLabel>
+
+                    <Textarea
+                      id="descricaoRecurso"
+                      rows={4}
+                      value={form.descricaoRecurso}
+                      onChange={(event) =>
+                        set("descricaoRecurso", event.target.value)
+                      }
+                      disabled={bloqueado}
+                      readOnly={visualizando}
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      required
+                      tooltip="Anexe o documento que foi oficialmente enviado como recurso, contendo a justificativa, os argumentos e os pedidos apresentados pela organização."
+                    >
+                      Documento do Recurso
+                    </FieldLabel>
+
+                    <FileUpload
+                      inputRef={docRecursoInput}
+                      disabled={bloqueado}
+                      visualizando={visualizando}
+                      file={novoDocRecurso}
+                      existingName={form.nomeDocumentoRecurso}
+                      existingUrl={form.urlDocumentoRecurso}
+                      onOpen={abrirDocumentoRecurso}
+                      onPick={(file) => {
+                        setNovoDocRecurso(file);
+
+                        if (file) {
+                          set("nomeDocumentoRecurso", file.name);
+                        }
+                      }}
+                    />
+                  </Field>
+                </div>
+              ) : (
+                visualizando && (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Não houve recurso apresentado.
+                  </p>
+                )
+              )}
+            </Section>
+
+            {/* 5 — Observações */}
+            <Section
+              icon={MessageSquare}
+              title="Observações"
+              description="Registre informações que ajudem a acompanhar situações relacionadas ao resultado, à avaliação ou ao recurso e que não possuam um campo específico."
+            >
+              <Field>
+                <FieldLabel
+                  htmlFor="observacoes"
+                  tooltip="Registre informações adicionais que não possuam um campo específico, como esclarecimentos sobre o resultado, resposta ao recurso, alterações posteriores, comunicações recebidas ou outros pontos importantes."
+                >
+                  Observações
+                </FieldLabel>
+
+                <Textarea
+                  id="observacoes"
+                  rows={3}
+                  value={form.observacoes}
+                  onChange={(event) => set("observacoes", event.target.value)}
+                  disabled={bloqueado}
+                  readOnly={visualizando}
+                />
+              </Field>
+            </Section>
+          </fieldset>
+
+          {visualizando ? (
+            <div className="flex pt-2 sm:justify-end">
+              <Button
+                type="button"
+                variant="glassSecondary"
+                className="h-9 px-4"
+                onClick={() => navigate("/resultados-propostas")}
+              >
+                Voltar
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="glassSecondary"
+                className="h-9 px-4"
+                onClick={() => navigate("/resultados-propostas")}
+                disabled={saving}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="glassPrimary"
+                className="h-9 px-5"
+                disabled={saving}
+              >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </form>
       </div>
 
@@ -1040,31 +1081,31 @@ export default function ResultadoPropostaForm() {
 }
 
 function Section({
-  icon: Icon,
+  icon,
   title,
+  description,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
-
+    <FormSectionCard icon={icon} title={title} description={description}>
       {children}
-    </Card>
+    </FormSectionCard>
   );
 }
 
-function Field({ children }: { children: React.ReactNode }) {
-  return <div>{children}</div>;
+function Field({
+  children,
+  full,
+}: {
+  children: React.ReactNode;
+  full?: boolean;
+}) {
+  return <div className={full ? "sm:col-span-2" : undefined}>{children}</div>;
 }
 
 function FileUpload({
@@ -1097,13 +1138,13 @@ function FileUpload({
           placeholder="Nenhum arquivo anexado"
           disabled
           readOnly
-          className="flex-1 cursor-not-allowed bg-muted/40"
+          className="attachment-file-glass flex-1 cursor-not-allowed"
         />
 
         {hasExisting && existingUrl && (
           <Button
             type="button"
-            variant="outline"
+            variant="glassSecondary"
             onClick={() => void onOpen()}
             className="h-10 gap-1.5"
           >
@@ -1115,7 +1156,7 @@ function FileUpload({
         {!visualizando && (
           <Button
             type="button"
-            variant="outline"
+            variant="glassSecondary"
             onClick={() => inputRef.current?.click()}
             className="h-10 gap-1.5"
             disabled={disabled}
@@ -1125,7 +1166,7 @@ function FileUpload({
             ) : (
               <Upload className="h-4 w-4" />
             )}
-            {hasExisting || file ? "Substituir" : "Anexar"}
+            {hasExisting || file ? "Substituir" : "Selecionar arquivo"}
           </Button>
         )}
 
@@ -1152,10 +1193,13 @@ function FileUpload({
       )}
 
       {file && (
-        <p className="text-[11px] text-muted-foreground">
-          Arquivo selecionado:{" "}
-          <span className="font-medium text-foreground">{file.name}</span>
-        </p>
+        <div className="attachment-file-glass flex min-w-0 items-center gap-2 px-3 py-2 text-[12px] text-muted-foreground">
+          <Paperclip className="h-4 w-4 shrink-0 text-primary" />
+          <span className="shrink-0">Arquivo selecionado:</span>
+          <span className="truncate font-medium text-foreground">
+            {file.name}
+          </span>
+        </div>
       )}
     </div>
   );

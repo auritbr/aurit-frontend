@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { sortOptionsByLabel } from "@/lib/sortOptions";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -55,7 +56,7 @@ export type TipoAtividadeValue =
   | "RODA_DE_CONVERSA"
   | "OUTRO";
 
-export const tiposAtividade = [
+export const tiposAtividade = sortOptionsByLabel([
   { value: "OFICINA", label: "Oficina" },
   { value: "CURSO", label: "Curso" },
   { value: "WORKSHOP", label: "Workshop" },
@@ -67,7 +68,7 @@ export const tiposAtividade = [
   { value: "CAPACITACAO_TECNICA", label: "Capacitação Técnica" },
   { value: "RODA_DE_CONVERSA", label: "Roda de Conversa" },
   { value: "OUTRO", label: "Outro" },
-] as const;
+] as const);
 
 export const statusAtividade = [
   { value: "ATIVO", label: "Ativo" },

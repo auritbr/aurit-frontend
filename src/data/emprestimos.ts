@@ -22,11 +22,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -71,7 +67,8 @@ export type EstadoConservacaoEmprestimo =
 
 export type EstadoDevolucao = (typeof estadoDevolucaoOptions)[number]["value"];
 
-export type StatusEmprestimo = (typeof statusEmprestimoOptions)[number]["value"];
+export type StatusEmprestimo =
+  (typeof statusEmprestimoOptions)[number]["value"];
 
 export const tipoDestinatarioLabel = (value?: string) =>
   tipoDestinatarioOptions.find((item) => item.value === value)?.label ??

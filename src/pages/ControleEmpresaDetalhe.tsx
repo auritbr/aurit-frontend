@@ -2,19 +2,24 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  Handshake,
-  Eye,
-  Pencil,
+  CalendarClock,
+  FileText,
+  History,
+  Landmark,
+  Layers3,
+  LogIn,
   Plus,
   Power,
   PowerOff,
   RefreshCw,
   Settings,
+  Settings2,
   ShieldCheck,
-  Trash2,
-  UserCog,
+  UsersRound,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 import { ProprietarioLayout } from "@/components/ProprietarioLayout";
 import { PageTitle } from "@/components/PageTitle";
@@ -48,10 +53,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TableActionIcon } from "@/components/TableActionIcon";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
 import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/hooks/usePagination";
 import { LIMITE_USUARIOS_PLANO_GRATUITO } from "@/lib/plano";
+import { maskMoney, parseMoney } from "@/data/contasPagar";
 import {
   PlanoBadge,
   RoleBadge,
@@ -64,29 +70,129 @@ import {
 import {
   alterarPlanoEmpresa,
   alterarStatusEmpresa,
+  atualizarAssinaturaCobranca,
   atualizarPagamentoEmpresa,
+  atualizarConfiguracaoCobranca,
   atualizarUsuarioEmpresa,
   buscarEmpresaControle,
+  cancelarMensalidadeCora,
+  conciliarMensalidadeCora,
+  consultarConfiguracaoCobranca,
+  consultarAssinaturaCobranca,
+  consultarStatusIntegracaoCora,
+  emitirCobrancaCora,
   excluirPagamentoEmpresa,
   getPlanoVisualEmpresa,
   listarLogsEmpresa,
-  listarPagamentosEmpresa,
+  listarMensalidadesCora,
   listarUsuariosEmpresa,
   PLANO_LABELS,
-  registrarPagamentoEmpresa,
+  testarIntegracaoCora,
   ROLE_LABELS,
   type EmpresaControle,
+  type AssinaturaCobranca,
+  type ConfiguracaoCobranca,
+  type DadosPagamentoCora,
   type FormaPagamento,
   type LogAcessoEmpresa,
   type PagamentoEmpresa,
   type SalvarPagamentoPayload,
   type StatusControleProprietario,
+  type StatusIntegracaoCora,
   type StatusPagamento,
   type StatusUsuarioPlataforma,
   type TipoPlanoVisual,
   type UserRoleEmpresa,
   type UsuarioEmpresa,
 } from "@/data/controleProprietario";
+
+type SummaryTone = "neutral" | "primary" | "success" | "muted";
+
+const summaryToneClasses: Record<SummaryTone, string> = {
+  neutral: "border-border/70 bg-muted/50 text-foreground/70",
+  primary: "border-primary/25 bg-primary/10 text-primary",
+  success: "border-primary/20 bg-primary/[0.07] text-primary",
+  muted: "border-border/60 bg-muted/40 text-muted-foreground",
+};
+
+function SummaryCard({
+  label,
+  value,
+  content,
+  icon: Icon,
+  tone = "neutral",
+}: {
+  label: string;
+  value?: React.ReactNode;
+  content?: React.ReactNode;
+  icon: LucideIcon;
+  tone?: SummaryTone;
+}) {
+  return (
+    <div className="flex h-full min-h-[86px] items-start gap-3 rounded-[16px] border border-border/70 bg-card/75 px-4 py-3.5 shadow-[0_1px_3px_-1px_hsl(215_28%_17%_/_0.08),inset_0_1px_0_0_hsl(0_0%_100%_/_0.30)] backdrop-blur-md transition-colors supports-[backdrop-filter]:bg-card/60 hover:border-border">
+      <span
+        className={cn(
+          "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border",
+          summaryToneClasses[tone],
+        )}
+        aria-hidden
+      >
+        <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+      </span>
+      <div className="min-w-0 flex-1">
+        {value !== undefined ? (
+          <p className="text-[22px] font-semibold leading-none tabular-nums text-foreground">
+            {value}
+          </p>
+        ) : (
+          content
+        )}
+        <p className="mt-1.5 truncate text-[12.5px] font-medium leading-tight text-foreground/80">
+          {label}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  description,
+  actions,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-start justify-between gap-3 border-b form-section-glass-divider px-4 py-4 sm:px-5 lg:flex-row lg:items-center">
+      <div className="flex min-w-0 items-start gap-3">
+        <span
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-border/70 bg-muted/50 text-foreground/70"
+          aria-hidden
+        >
+          <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold leading-tight text-foreground">
+            {title}
+          </h3>
+          {description && (
+            <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+              {description}
+            </p>
+          )}
+        </div>
+      </div>
+      {actions}
+    </div>
+  );
+}
+
+const thBase =
+  "whitespace-nowrap px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground";
 
 function formatDateTime(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -233,11 +339,7 @@ function parseDateOnly(value: string | null | undefined) {
 
   if (!match) return null;
 
-  return new Date(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3]),
-  );
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 }
 
 function diffCalendarDays(start: Date, end: Date) {
@@ -269,6 +371,22 @@ function formatBRL(v: number) {
     style: "currency",
     currency: "BRL",
   });
+}
+
+function formatMoneyInput(value: number) {
+  return Number(value || 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function normalizarEntradaMonetaria(value: string) {
+  const somenteNumerosEVirgula = value.replace(/[^\d,]/g, "");
+  const [inteiro = "", ...partesDecimais] = somenteNumerosEVirgula.split(",");
+
+  if (partesDecimais.length === 0) return inteiro;
+
+  return `${inteiro || "0"},${partesDecimais.join("").slice(0, 2)}`;
 }
 
 const initialPagamento: SalvarPagamentoPayload = {
@@ -307,9 +425,26 @@ export default function ControleEmpresaDetalhe() {
   const [confirmDeletePgto, setConfirmDeletePgto] = useState<number | null>(
     null,
   );
+  const [cobrancaConfigOpen, setCobrancaConfigOpen] = useState(false);
+  const [cobrancaConfig, setCobrancaConfig] =
+    useState<ConfiguracaoCobranca | null>(null);
+  const [statusCora, setStatusCora] = useState<StatusIntegracaoCora | null>(
+    null,
+  );
+  const [salvandoCobranca, setSalvandoCobranca] = useState(false);
+  const [testandoCora, setTestandoCora] = useState(false);
+  const [processandoCobrancaId, setProcessandoCobrancaId] = useState<
+    number | null
+  >(null);
+  const [dadosCora, setDadosCora] = useState<DadosPagamentoCora | null>(null);
+  const [assinaturaOpen, setAssinaturaOpen] = useState(false);
+  const [assinatura, setAssinatura] = useState<AssinaturaCobranca | null>(null);
+  const [valorAssinaturaInput, setValorAssinaturaInput] = useState("");
+  const [salvandoAssinatura, setSalvandoAssinatura] = useState(false);
 
   const [novoPgto, setNovoPgto] =
     useState<SalvarPagamentoPayload>(initialPagamento);
+  const [valorPagamentoInput, setValorPagamentoInput] = useState("");
 
   const [editUser, setEditUser] = useState<UsuarioEmpresa | null>(null);
   const [editUserRole, setEditUserRole] = useState<UserRoleEmpresa>("USER");
@@ -324,6 +459,15 @@ export default function ControleEmpresaDetalhe() {
 
   const pagamentosPagination = usePagination(pagamentosOrdenados, 10, "");
   const logsPagination = usePagination(logs, 10, "");
+
+  function abrirConfiguracaoAssinatura() {
+    setValorAssinaturaInput(
+      assinatura?.valorMensalidade == null
+        ? ""
+        : formatMoneyInput(assinatura.valorMensalidade),
+    );
+    setAssinaturaOpen(true);
+  }
 
   async function carregarDados() {
     if (!empresaId || Number.isNaN(empresaId)) {
@@ -352,15 +496,18 @@ export default function ControleEmpresaDetalhe() {
 
       const controleId = empresaData.id;
 
-      const [usuariosData, pagamentosData, logsData] = await Promise.all([
-        listarUsuariosEmpresa(controleId),
-        listarPagamentosEmpresa(controleId),
-        listarLogsEmpresa(controleId),
-      ]);
+      const [usuariosData, pagamentosData, logsData, assinaturaData] =
+        await Promise.all([
+          listarUsuariosEmpresa(controleId),
+          listarMensalidadesCora(controleId),
+          listarLogsEmpresa(controleId),
+          consultarAssinaturaCobranca(controleId),
+        ]);
 
       setUsuarios(usuariosData);
       setPagamentos(pagamentosData);
       setLogs(logsData);
+      setAssinatura(assinaturaData);
     } catch (error) {
       console.error(error);
       toast.error("Não foi possível carregar os detalhes da empresa.");
@@ -441,18 +588,15 @@ export default function ControleEmpresaDetalhe() {
     }
   }
 
-  function openNovoPagamento() {
-    setEditingPgto(null);
-    setNovoPgto(initialPagamento);
-    setPagamentoOpen(true);
-  }
-
   function openEditarPagamento(p: PagamentoEmpresa) {
     setEditingPgto(p);
 
     setNovoPgto({
       valor: p.valor,
-      competencia: formatCompetencia(p.competencia) === "—" ? "" : formatCompetencia(p.competencia),
+      competencia:
+        formatCompetencia(p.competencia) === "—"
+          ? ""
+          : formatCompetencia(p.competencia),
       dataVencimento: p.dataVencimento,
       dataPagamento: p.dataPagamento,
       statusPagamento: p.statusPagamento,
@@ -460,12 +604,13 @@ export default function ControleEmpresaDetalhe() {
       referenciaExterna: p.referenciaExterna,
       observacao: p.observacao,
     });
+    setValorPagamentoInput(formatMoneyInput(p.valor));
 
     setPagamentoOpen(true);
   }
 
   async function handleSalvarPagamento() {
-    if (!empresa) return;
+    if (!empresa || !editingPgto) return;
 
     if (!novoPgto.valor && novoPgto.valor !== 0) {
       toast.error("Informe o valor.");
@@ -493,26 +638,17 @@ export default function ControleEmpresaDetalhe() {
     };
 
     try {
-      if (editingPgto) {
-        const atualizado = await atualizarPagamentoEmpresa(
-          empresa.id,
-          editingPgto.id,
-          pagamentoPayload,
-        );
+      const atualizado = await atualizarPagamentoEmpresa(
+        empresa.id,
+        editingPgto.id,
+        pagamentoPayload,
+      );
 
-        setPagamentos((prev) =>
-          prev.map((p) => (p.id === atualizado.id ? atualizado : p)),
-        );
+      setPagamentos((prev) =>
+        prev.map((p) => (p.id === atualizado.id ? atualizado : p)),
+      );
 
-        toast.success("Pagamento atualizado.");
-      } else {
-        const criado = await registrarPagamentoEmpresa(empresa.id, pagamentoPayload);
-
-        setPagamentos((prev) => [criado, ...prev]);
-        pagamentosPagination.setCurrentPage(1);
-
-        toast.success("Pagamento registrado.");
-      }
+      toast.success("Pagamento atualizado.");
 
       setPagamentoOpen(false);
       setEditingPgto(null);
@@ -529,17 +665,186 @@ export default function ControleEmpresaDetalhe() {
     if (!empresa || confirmDeletePgto == null) return;
 
     try {
-      await excluirPagamentoEmpresa(empresa.id, confirmDeletePgto);
+      const pagamento = pagamentos.find(
+        (item) => item.id === confirmDeletePgto,
+      );
 
-      setPagamentos((prev) => prev.filter((p) => p.id !== confirmDeletePgto));
+      if (pagamento?.coraInvoiceId) {
+        await cancelarMensalidadeCora(confirmDeletePgto);
+        setPagamentos((prev) =>
+          prev.map((item) =>
+            item.id === confirmDeletePgto
+              ? { ...item, statusPagamento: "CANCELADO" }
+              : item,
+          ),
+        );
+        toast.success("Cobrança Cora cancelada.");
+      } else {
+        await excluirPagamentoEmpresa(empresa.id, confirmDeletePgto);
+        setPagamentos((prev) => prev.filter((p) => p.id !== confirmDeletePgto));
+        toast.success("Mensalidade excluída.");
+      }
       setConfirmDeletePgto(null);
-
-      toast.success("Pagamento excluído.");
     } catch (error) {
       console.error(error);
       toast.error(
         error instanceof Error ? error.message : "Erro ao excluir pagamento.",
       );
+    }
+  }
+
+  async function abrirConfiguracaoCobranca() {
+    try {
+      const [configuracao, status] = await Promise.all([
+        consultarConfiguracaoCobranca(),
+        consultarStatusIntegracaoCora(),
+      ]);
+      setCobrancaConfig(configuracao);
+      setStatusCora(status);
+      setCobrancaConfigOpen(true);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar a configuração da Cora.",
+      );
+    }
+  }
+
+  async function salvarAssinatura() {
+    if (!assinatura || salvandoAssinatura) return;
+    if (
+      assinatura.tipoPlano === "PLANO_PAGO" &&
+      !assinatura.isentoCobranca &&
+      (assinatura.valorMensalidade === null || assinatura.valorMensalidade <= 0)
+    ) {
+      toast.error("Informe o valor mensal de uma assinatura paga.");
+      return;
+    }
+    if (
+      assinatura.cobrancaAutomatica &&
+      !assinatura.isentoCobranca &&
+      (!assinatura.diaVencimento || assinatura.diaVencimento < 1)
+    ) {
+      toast.error("Informe o dia de vencimento para a cobrança automática.");
+      return;
+    }
+    try {
+      setSalvandoAssinatura(true);
+      const atualizada = await atualizarAssinaturaCobranca(assinatura.id, {
+        tipoPlano: assinatura.tipoPlano,
+        status: assinatura.status,
+        valorMensalidade: assinatura.valorMensalidade,
+        dataInicio: assinatura.dataInicio,
+        diaVencimento: assinatura.diaVencimento,
+        proximaCobranca: assinatura.proximaCobranca,
+        cobrancaAutomatica: assinatura.cobrancaAutomatica,
+        isentoCobranca: assinatura.isentoCobranca,
+        motivoIsencao: assinatura.motivoIsencao,
+        dataEncerramento: assinatura.dataEncerramento,
+        observacaoInterna: assinatura.observacaoInterna,
+      });
+      setAssinatura(atualizada);
+      setAssinaturaOpen(false);
+      toast.success("Assinatura configurada para cobrança.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar a assinatura.",
+      );
+    } finally {
+      setSalvandoAssinatura(false);
+    }
+  }
+
+  async function salvarConfiguracaoCobranca() {
+    if (!cobrancaConfig || salvandoCobranca) return;
+    try {
+      setSalvandoCobranca(true);
+      const atualizada = await atualizarConfiguracaoCobranca({
+        integracaoPagamentoHabilitada:
+          cobrancaConfig.integracaoPagamentoHabilitada,
+        cobrancaHabilitada: cobrancaConfig.cobrancaHabilitada,
+        geracaoAutomaticaHabilitada: cobrancaConfig.geracaoAutomaticaHabilitada,
+        diaVencimentoPadrao: cobrancaConfig.diaVencimentoPadrao,
+        diasGeracaoAntesVencimento: cobrancaConfig.diasGeracaoAntesVencimento,
+        atualizacaoVencidosHabilitada:
+          cobrancaConfig.atualizacaoVencidosHabilitada,
+        conciliacaoAutomaticaHabilitada:
+          cobrancaConfig.conciliacaoAutomaticaHabilitada,
+        permitirPix: cobrancaConfig.permitirPix,
+        permitirBoleto: cobrancaConfig.permitirBoleto,
+      });
+      setCobrancaConfig(atualizada);
+      toast.success("Configuração de cobrança atualizada.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar a configuração de cobrança.",
+      );
+    } finally {
+      setSalvandoCobranca(false);
+    }
+  }
+
+  async function testarCora() {
+    if (testandoCora) return;
+    try {
+      setTestandoCora(true);
+      const resultado = await testarIntegracaoCora();
+      const status = await consultarStatusIntegracaoCora();
+      setStatusCora(status);
+      if (resultado.success) toast.success(resultado.message);
+      else toast.error(resultado.message);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível testar a integração com a Cora.",
+      );
+    } finally {
+      setTestandoCora(false);
+    }
+  }
+
+  async function emitirCobranca(pagamento: PagamentoEmpresa) {
+    if (processandoCobrancaId !== null) return;
+    try {
+      setProcessandoCobrancaId(pagamento.id);
+      const dados = await emitirCobrancaCora(pagamento.id);
+      setDadosCora(dados);
+      await carregarDados();
+      toast.success("Cobrança Cora pronta para pagamento.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível emitir a cobrança na Cora.",
+      );
+    } finally {
+      setProcessandoCobrancaId(null);
+    }
+  }
+
+  async function conciliarCobranca(pagamento: PagamentoEmpresa) {
+    if (processandoCobrancaId !== null) return;
+    try {
+      setProcessandoCobrancaId(pagamento.id);
+      const atualizado = await conciliarMensalidadeCora(pagamento.id);
+      setPagamentos((prev) =>
+        prev.map((item) => (item.id === atualizado.id ? atualizado : item)),
+      );
+      toast.success("Cobrança conciliada com a Cora.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível conciliar a cobrança.",
+      );
+    } finally {
+      setProcessandoCobrancaId(null);
     }
   }
 
@@ -553,10 +858,14 @@ export default function ControleEmpresaDetalhe() {
     if (!empresa || !editUser) return;
 
     try {
-      const atualizado = await atualizarUsuarioEmpresa(empresa.id, editUser.id, {
-        userRole: editUserRole,
-        statusUsuario: editUserStatus,
-      });
+      const atualizado = await atualizarUsuarioEmpresa(
+        empresa.id,
+        editUser.id,
+        {
+          userRole: editUserRole,
+          statusUsuario: editUserStatus,
+        },
+      );
 
       setUsuarios((prev) =>
         prev.map((u) => (u.id === atualizado.id ? atualizado : u)),
@@ -633,12 +942,12 @@ export default function ControleEmpresaDetalhe() {
     <ProprietarioLayout>
       <div className="container max-w-[1400px] py-6 sm:py-8">
         <Button
-          variant="ghost"
-          size="sm"
-          className="mb-3 -ml-2 h-8 text-muted-foreground"
+          variant="glassGhost"
+          size="compact"
+          className="mb-3 -ml-1 gap-1.5 text-muted-foreground"
           onClick={() => navigate("/controle-proprietario/empresas")}
         >
-          <ArrowLeft className="h-4 w-4 mr-1" />
+          <ArrowLeft className="h-4 w-4" strokeWidth={2} />
           Controle de Empresas
         </Button>
 
@@ -646,52 +955,53 @@ export default function ControleEmpresaDetalhe() {
           title={`Empresa: ${empresa.nomeEmpresa}`}
           tooltip="Detalhes da empresa cliente: dados gerais, usuários, pagamentos e logs de acesso."
           actions={
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex flex-wrap gap-2">
               <Button
-                variant="outline"
-                size="sm"
-                className="h-9 gap-1.5"
+                variant="glassSecondary"
+                size="compact"
+                className="gap-1.5"
                 onClick={() =>
                   navigate(
                     `/controle-proprietario/empresas/${empresa.id}/configuracao/${empresa.configuracaoEmpresaId}`,
                   )
                 }
               >
-                <Settings className="h-3.5 w-3.5" />
+                <Settings className="h-4 w-4" strokeWidth={2} />
                 Editar Configuração
               </Button>
 
               <Button
-                variant="outline"
-                size="sm"
-                className="h-9 gap-1.5"
+                variant="glassSecondary"
+                size="compact"
+                className="gap-1.5"
                 onClick={() => {
                   setNovoPlano(getPlanoVisualEmpresa(empresa));
                   setNovoLimiteUsuarios(empresa.limiteUsuarios);
                   setPlanoOpen(true);
                 }}
               >
-                <RefreshCw className="h-3.5 w-3.5" />
+                <Settings2 className="h-4 w-4" strokeWidth={2} />
                 Alterar plano
               </Button>
 
               {blocked ? (
                 <Button
-                  size="sm"
-                  className="h-9 gap-1.5"
+                  variant="glassPrimary"
+                  size="compact"
+                  className="gap-1.5"
                   onClick={() => setConfirmStatus("ATIVO")}
                 >
-                  <Power className="h-3.5 w-3.5" />
+                  <Power className="h-4 w-4" strokeWidth={2} />
                   Ativar Empresa
                 </Button>
               ) : (
                 <Button
-                  variant="destructive"
-                  size="sm"
-                  className="h-9 gap-1.5"
+                  variant="glassDanger"
+                  size="compact"
+                  className="gap-1.5"
                   onClick={() => setConfirmStatus("INATIVO")}
                 >
-                  <PowerOff className="h-3.5 w-3.5" />
+                  <PowerOff className="h-4 w-4" strokeWidth={2} />
                   Inativar Empresa
                 </Button>
               )}
@@ -699,39 +1009,116 @@ export default function ControleEmpresaDetalhe() {
           }
         />
 
-        <p className="-mt-3 mb-4 text-xs text-muted-foreground font-mono">
+        <p className="-mt-3 mb-4 font-mono text-xs text-muted-foreground">
           {empresa.slug}.aurit.com.br
         </p>
 
         {blocked && (
-          <div className="mb-4 rounded border border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/30 px-4 py-2.5 text-[13px] text-rose-700 dark:text-rose-300">
-            Esta empresa está <strong>bloqueada</strong>. Os usuários vinculados
-            não conseguem acessar o sistema.
+          <div className="mb-4 flex items-start gap-2.5 rounded-[14px] border border-destructive/25 bg-destructive/[0.07] px-4 py-3 text-[13px] text-destructive backdrop-blur-md">
+            <PowerOff
+              className="mt-0.5 h-4 w-4 shrink-0"
+              strokeWidth={2}
+              aria-hidden
+            />
+            <span>
+              Esta empresa está <strong>inativa</strong>. Os usuários vinculados
+              não conseguem acessar o sistema.
+            </span>
           </div>
         )}
 
+        {(() => {
+          const ultimoPgto = pagamentos
+            .slice()
+            .sort((a, b) =>
+              (b.dataVencimento ?? "").localeCompare(a.dataVencimento ?? ""),
+            )[0];
+          const ultimoLog = logs
+            .slice()
+            .sort((a, b) =>
+              (b.dataEvento ?? "").localeCompare(a.dataEvento ?? ""),
+            )[0];
+          const ativos = usuarios.filter(
+            (usuario) => usuario.statusUsuario === "ATIVO",
+          ).length;
+          return (
+            <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <SummaryCard
+                label="Plano"
+                icon={Layers3}
+                tone="primary"
+                content={<PlanoBadge plano={getPlanoVisualEmpresa(empresa)} />}
+              />
+              <SummaryCard
+                label="Usuários ativos"
+                icon={UsersRound}
+                value={
+                  <>
+                    {ativos}
+                    <span className="font-normal text-muted-foreground">
+                      /{empresa.limiteUsuarios}
+                    </span>
+                  </>
+                }
+              />
+              <SummaryCard
+                label="Último pagamento"
+                icon={FileText}
+                content={
+                  <p className="text-[13.5px] font-medium leading-tight text-foreground">
+                    {ultimoPgto
+                      ? `${formatBRL(ultimoPgto.valor)} · ${formatCompetencia(ultimoPgto.competencia)}`
+                      : "—"}
+                  </p>
+                }
+              />
+              <SummaryCard
+                label="Último acesso"
+                icon={CalendarClock}
+                tone="muted"
+                content={
+                  <p className="text-[13.5px] font-medium leading-tight text-foreground">
+                    {ultimoLog ? formatDateTime(ultimoLog.dataEvento) : "—"}
+                  </p>
+                }
+              />
+            </div>
+          );
+        })()}
+
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="h-auto bg-muted/60 p-1">
-            <TabsTrigger value="info" className="text-[13px]">
+          <TabsList className="h-auto rounded-[14px] border border-border/70 bg-card/70 p-1 backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
+            <TabsTrigger value="info" className="rounded-[10px] text-[13px]">
               Informações Gerais
             </TabsTrigger>
-            <TabsTrigger value="usuarios" className="text-[13px]">
+            <TabsTrigger
+              value="usuarios"
+              className="rounded-[10px] text-[13px]"
+            >
               Usuários ({usuarios.length})
             </TabsTrigger>
-            <TabsTrigger value="pagamentos" className="text-[13px]">
+            <TabsTrigger
+              value="pagamentos"
+              className="rounded-[10px] text-[13px]"
+            >
               Pagamentos ({pagamentos.length})
             </TabsTrigger>
-            <TabsTrigger value="logs" className="text-[13px]">
+            <TabsTrigger value="logs" className="rounded-[10px] text-[13px]">
               Logs de Acesso ({logs.length})
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="info" className="mt-4">
-            <div className="bg-card border border-border rounded p-5">
-              <div className="flex items-center gap-3 pb-4 mb-4 border-b border-border">
-
-                <div>
-                  <h3 className="font-semibold text-foreground">
+            <section className="form-section-glass rounded-[18px] p-5 sm:p-6">
+              <div className="mb-5 flex items-center gap-3 border-b form-section-glass-divider pb-4">
+                <span
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-primary/25 bg-primary/10 text-primary"
+                  aria-hidden
+                >
+                  <Landmark className="h-5 w-5" strokeWidth={2} />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-semibold text-foreground">
                     {empresa.nomeEmpresa}
                   </h3>
                   <p className="text-xs text-muted-foreground">
@@ -741,7 +1128,7 @@ export default function ControleEmpresaDetalhe() {
                 </div>
               </div>
 
-              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-[13px]">
+              <dl className="grid grid-cols-1 gap-x-8 gap-y-1 text-[13px] md:grid-cols-2">
                 <InfoRow
                   label="Subdomínio"
                   value={`${empresa.slug}.aurit.com.br`}
@@ -775,30 +1162,25 @@ export default function ControleEmpresaDetalhe() {
                   value={formatDateTime(empresa.dataAtualizacao)}
                 />
               </dl>
-            </div>
+            </section>
           </TabsContent>
 
           <TabsContent value="usuarios" className="mt-4">
-            <div className="bg-card border border-border rounded">
+            <section className="form-section-glass overflow-hidden rounded-[18px]">
+              <SectionHeader
+                icon={UsersRound}
+                title="Usuários vinculados"
+                description="Perfis e situação dos usuários da organização."
+              />
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
                   <thead>
-                    <tr className="border-b border-border bg-muted/40">
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Nome
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Login
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Perfil
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Status
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap w-[120px]">
-                        Ações
-                      </th>
+                    <tr className="border-b form-section-glass-divider bg-muted/30">
+                      <th className={thBase}>Nome</th>
+                      <th className={thBase}>Login</th>
+                      <th className={thBase}>Perfil</th>
+                      <th className={thBase}>Status</th>
+                      <th className={cn(thBase, "w-[120px]")}>Ações</th>
                     </tr>
                   </thead>
 
@@ -809,34 +1191,34 @@ export default function ControleEmpresaDetalhe() {
                       return (
                         <tr
                           key={u.id}
-                          className={`border-b border-border/70 last:border-0 hover:bg-muted/30 ${inativo ? "opacity-70" : ""
-                            }`}
+                          className={cn(
+                            "border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25",
+                            inativo && "opacity-70",
+                          )}
                         >
-                          <td className="px-5 py-2.5 font-medium text-foreground whitespace-nowrap">
+                          <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground">
                             {u.name}
                           </td>
-                          <td className="px-5 py-2.5 text-muted-foreground whitespace-nowrap">
+                          <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                             {u.login}
                           </td>
-                          <td className="px-5 py-2.5 whitespace-nowrap">
+                          <td className="whitespace-nowrap px-4 py-3">
                             <RoleBadge role={u.userRole} />
                           </td>
-                          <td className="px-5 py-2.5 whitespace-nowrap">
+                          <td className="whitespace-nowrap px-4 py-3">
                             <StatusUsuarioBadge status={u.statusUsuario} />
                           </td>
-                          <td className="px-5 py-2.5 whitespace-nowrap">
-                            <div className="flex items-center gap-1">
-                              <TableActionIcon
-                                icon={UserCog}
-                                label="Editar usuário"
-                                onClick={() => openEditarUsuario(u)}
-                              />
-                              <TableActionIcon
-                                icon={ShieldCheck}
-                                label="Editar permissões"
-                                onClick={() => openEditarUsuario(u)}
-                              />
-                            </div>
+                          <td className="whitespace-nowrap px-4 py-3">
+                            <RowActionsDropdown
+                              onEdit={() => openEditarUsuario(u)}
+                              extraItems={[
+                                {
+                                  label: "Editar permissões",
+                                  icon: ShieldCheck,
+                                  onClick: () => openEditarUsuario(u),
+                                },
+                              ]}
+                            />
                           </td>
                         </tr>
                       );
@@ -863,54 +1245,52 @@ export default function ControleEmpresaDetalhe() {
                 onPageChange={usuariosPagination.setCurrentPage}
                 onPageSizeChange={usuariosPagination.setPageSize}
               />
-            </div>
+            </section>
           </TabsContent>
 
           <TabsContent value="pagamentos" className="mt-4">
-            <div className="bg-card border border-border rounded">
-              <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Histórico de pagamentos
-                </h3>
-
-                <Button
-                  size="sm"
-                  className="h-8 gap-1.5"
-                  onClick={openNovoPagamento}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Registrar pagamento
-                </Button>
-              </div>
+            <section className="form-section-glass overflow-hidden rounded-[18px]">
+              <SectionHeader
+                icon={FileText}
+                title="Mensalidades e cobranças"
+                description="Mensalidades locais, emissão Cora, Pix, boleto e situação de pagamento da organização."
+                actions={
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="glassSecondary"
+                      size="compact"
+                      className="gap-1.5"
+                      onClick={abrirConfiguracaoAssinatura}
+                    >
+                      <CalendarClock className="h-4 w-4" strokeWidth={2} />
+                      Configurar assinatura
+                    </Button>
+                    <Button
+                      variant="glassSecondary"
+                      size="compact"
+                      className="gap-1.5"
+                      onClick={abrirConfiguracaoCobranca}
+                    >
+                      <Settings className="h-4 w-4" strokeWidth={2} />
+                      Configurar Cora
+                    </Button>
+                  </div>
+                }
+              />
 
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
                   <thead>
-                    <tr className="border-b border-border bg-muted/40">
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap w-[140px]">
-                        Ações
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Competência
-                      </th>
-                      <th className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Valor
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Vencimento
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Status
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Pagamento
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Forma
-                      </th>
-                      <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
-                        Dias de atraso
-                      </th>
+                    <tr className="border-b form-section-glass-divider bg-muted/30">
+                      <th className={cn(thBase, "w-[140px]")}>Ações</th>
+                      <th className={thBase}>Competência</th>
+                      <th className={cn(thBase, "text-right")}>Valor</th>
+                      <th className={thBase}>Vencimento</th>
+                      <th className={thBase}>Status</th>
+                      <th className={thBase}>Pagamento</th>
+                      <th className={thBase}>Forma</th>
+                      <th className={thBase}>Cora</th>
+                      <th className={thBase}>Dias de atraso</th>
                     </tr>
                   </thead>
 
@@ -918,27 +1298,38 @@ export default function ControleEmpresaDetalhe() {
                     {pagamentosPagination.paginated.map((p) => (
                       <tr
                         key={p.id}
-                        className="border-b border-border/70 last:border-0 hover:bg-muted/30"
+                        className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
                       >
                         <td className="px-5 py-2.5 whitespace-nowrap">
-                          <div className="flex items-center gap-1">
-                            <TableActionIcon
-                              icon={Eye}
-                              label="Visualizar"
-                              onClick={() => setViewPgto(p)}
-                            />
-                            <TableActionIcon
-                              icon={Pencil}
-                              label="Editar"
-                              onClick={() => openEditarPagamento(p)}
-                            />
-                            <TableActionIcon
-                              icon={Trash2}
-                              label="Excluir"
-                              variant="danger"
-                              onClick={() => setConfirmDeletePgto(p.id)}
-                            />
-                          </div>
+                          <RowActionsDropdown
+                            onView={() => setViewPgto(p)}
+                            onEdit={
+                              p.coraInvoiceId
+                                ? undefined
+                                : () => openEditarPagamento(p)
+                            }
+                            onDelete={() => setConfirmDeletePgto(p.id)}
+                            extraItems={[
+                              {
+                                label: p.coraInvoiceId
+                                  ? "Ver Pix e boleto"
+                                  : "Emitir na Cora",
+                                icon: FileText,
+                                disabled: processandoCobrancaId !== null,
+                                onClick: () => emitirCobranca(p),
+                              },
+                              ...(p.coraInvoiceId
+                                ? [
+                                    {
+                                      label: "Conciliar pagamento",
+                                      icon: RefreshCw,
+                                      disabled: processandoCobrancaId !== null,
+                                      onClick: () => conciliarCobranca(p),
+                                    },
+                                  ]
+                                : []),
+                            ]}
+                          />
                         </td>
                         <td className="px-5 py-2.5 whitespace-nowrap font-medium text-foreground">
                           {formatCompetencia(p.competencia)}
@@ -958,6 +1349,9 @@ export default function ControleEmpresaDetalhe() {
                         <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
                           {formatFormaPagamento(p.formaPagamento)}
                         </td>
+                        <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
+                          {p.coraInvoiceId ? "Emitida" : "Não emitida"}
+                        </td>
                         <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground tabular-nums">
                           {getDiasAtrasoPagamento(p)}
                         </td>
@@ -967,7 +1361,7 @@ export default function ControleEmpresaDetalhe() {
                     {pagamentos.length === 0 && (
                       <tr>
                         <td
-                          colSpan={8}
+                          colSpan={9}
                           className="px-5 py-10 text-center text-muted-foreground"
                         >
                           Nenhum pagamento registrado.
@@ -985,15 +1379,20 @@ export default function ControleEmpresaDetalhe() {
                 onPageChange={pagamentosPagination.setCurrentPage}
                 onPageSizeChange={pagamentosPagination.setPageSize}
               />
-            </div>
+            </section>
           </TabsContent>
 
           <TabsContent value="logs" className="mt-4">
-            <div className="bg-card border border-border rounded">
+            <section className="form-section-glass overflow-hidden rounded-[18px]">
+              <SectionHeader
+                icon={LogIn}
+                title="Logs de acesso"
+                description="Tentativas de login, logout e detalhes técnicos dos acessos."
+              />
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
                   <thead>
-                    <tr className="border-b border-border bg-muted/40">
+                    <tr className="border-b form-section-glass-divider bg-muted/30">
                       <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-2.5 whitespace-nowrap">
                         Tipo
                       </th>
@@ -1022,7 +1421,7 @@ export default function ControleEmpresaDetalhe() {
                     {logsPagination.paginated.map((l) => (
                       <tr
                         key={l.id}
-                        className="border-b border-border/70 last:border-0 hover:bg-muted/30"
+                        className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
                       >
                         <td className="px-5 py-2.5 whitespace-nowrap">
                           <TipoLogBadge tipo={l.tipoLogAcesso} />
@@ -1069,7 +1468,7 @@ export default function ControleEmpresaDetalhe() {
                 onPageChange={logsPagination.setCurrentPage}
                 onPageSizeChange={logsPagination.setPageSize}
               />
-            </div>
+            </section>
           </TabsContent>
         </Tabs>
       </div>
@@ -1130,10 +1529,17 @@ export default function ControleEmpresaDetalhe() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPlanoOpen(false)}>
+            <Button
+              variant="glassSecondary"
+              onClick={() => setPlanoOpen(false)}
+            >
               Cancelar
             </Button>
-            <Button onClick={handleAlterarPlano} disabled={!novoPlano}>
+            <Button
+              variant="glassPrimary"
+              onClick={handleAlterarPlano}
+              disabled={!novoPlano}
+            >
               Salvar
             </Button>
           </DialogFooter>
@@ -1174,6 +1580,397 @@ export default function ControleEmpresaDetalhe() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <Dialog open={assinaturaOpen} onOpenChange={setAssinaturaOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Configurar assinatura da empresa</DialogTitle>
+            <DialogDescription>
+              Defina os dados que permitem gerar as mensalidades desta empresa.
+              A Cora só recebe cobranças depois que a assinatura estiver paga,
+              ativa e com cobrança automática habilitada.
+            </DialogDescription>
+          </DialogHeader>
+          {assinatura && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Plano</Label>
+                  <Select
+                    value={assinatura.tipoPlano}
+                    onValueChange={(value) =>
+                      setAssinatura((atual) =>
+                        atual
+                          ? { ...atual, tipoPlano: value as TipoPlanoVisual }
+                          : atual,
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PLANO_GRATUITO">Gratuito</SelectItem>
+                      <SelectItem value="PLANO_CORTESIA">Cortesia</SelectItem>
+                      <SelectItem value="PLANO_PAGO">Pago</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Valor mensal (R$)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    value={valorAssinaturaInput}
+                    disabled={
+                      assinatura.isentoCobranca ||
+                      assinatura.tipoPlano !== "PLANO_PAGO"
+                    }
+                    onChange={(event) => {
+                      const valorDigitado = normalizarEntradaMonetaria(
+                        event.target.value,
+                      );
+                      setValorAssinaturaInput(valorDigitado);
+                      setAssinatura((atual) =>
+                        atual
+                          ? {
+                              ...atual,
+                              valorMensalidade:
+                                valorDigitado === ""
+                                  ? null
+                                  : parseMoney(valorDigitado),
+                            }
+                          : atual,
+                      );
+                    }}
+                    onBlur={() => {
+                      if (!valorAssinaturaInput) return;
+                      setValorAssinaturaInput(
+                        formatMoneyInput(parseMoney(valorAssinaturaInput)),
+                      );
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Dia de vencimento</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={assinatura.diaVencimento ?? ""}
+                    disabled={
+                      assinatura.isentoCobranca ||
+                      !assinatura.cobrancaAutomatica
+                    }
+                    onChange={(event) =>
+                      setAssinatura((atual) =>
+                        atual
+                          ? {
+                              ...atual,
+                              diaVencimento:
+                                event.target.value === ""
+                                  ? null
+                                  : Number(event.target.value),
+                            }
+                          : atual,
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Início cadastral</Label>
+                  <Input readOnly value={formatDate(assinatura.dataCriacao)} />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 rounded-[10px] border border-border/60 bg-background/50 px-3 py-2.5 text-[13px]">
+                <input
+                  type="checkbox"
+                  checked={assinatura.cobrancaAutomatica}
+                  onChange={(event) =>
+                    setAssinatura((atual) =>
+                      atual
+                        ? { ...atual, cobrancaAutomatica: event.target.checked }
+                        : atual,
+                    )
+                  }
+                />
+                Gerar mensalidades automaticamente
+              </label>
+              <label className="flex items-center gap-2 rounded-[10px] border border-border/60 bg-background/50 px-3 py-2.5 text-[13px]">
+                <input
+                  type="checkbox"
+                  checked={assinatura.isentoCobranca}
+                  onChange={(event) =>
+                    setAssinatura((atual) =>
+                      atual
+                        ? { ...atual, isentoCobranca: event.target.checked }
+                        : atual,
+                    )
+                  }
+                />
+                Assinatura isenta de cobrança
+              </label>
+              {assinatura.isentoCobranca && (
+                <div className="space-y-1.5">
+                  <Label>Motivo da isenção</Label>
+                  <Textarea
+                    rows={2}
+                    value={assinatura.motivoIsencao ?? ""}
+                    onChange={(event) =>
+                      setAssinatura((atual) =>
+                        atual
+                          ? {
+                              ...atual,
+                              motivoIsencao: event.target.value || null,
+                            }
+                          : atual,
+                      )
+                    }
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="glassSecondary"
+              onClick={() => setAssinaturaOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="glassPrimary"
+              onClick={salvarAssinatura}
+              disabled={salvandoAssinatura || !assinatura}
+            >
+              {salvandoAssinatura ? "Salvando..." : "Salvar assinatura"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cobrancaConfigOpen} onOpenChange={setCobrancaConfigOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Configuração global de cobrança Cora</DialogTitle>
+            <DialogDescription>
+              Esta configuração é única para toda a Aurit. As credenciais e os
+              certificados continuam somente no ambiente seguro do servidor.
+            </DialogDescription>
+          </DialogHeader>
+
+          {cobrancaConfig && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 rounded-[14px] border border-border/70 bg-muted/30 p-3 text-[12px] sm:grid-cols-2">
+                <p>
+                  Ambiente: <strong>{statusCora?.environment ?? "—"}</strong>
+                </p>
+                <p>
+                  Integração:{" "}
+                  <strong>{statusCora?.integrationStatus ?? "—"}</strong>
+                </p>
+                <p>
+                  Certificado:{" "}
+                  <strong>
+                    {statusCora?.certificateConfigured
+                      ? "configurado"
+                      : "não encontrado"}
+                  </strong>
+                </p>
+                <p>
+                  Chave privada:{" "}
+                  <strong>
+                    {statusCora?.privateKeyConfigured
+                      ? "configurada"
+                      : "não encontrada"}
+                  </strong>
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {[
+                  [
+                    "integracaoPagamentoHabilitada",
+                    "Integração Cora habilitada",
+                  ],
+                  ["cobrancaHabilitada", "Emissão de cobrança habilitada"],
+                  [
+                    "geracaoAutomaticaHabilitada",
+                    "Geração automática de mensalidades",
+                  ],
+                  ["conciliacaoAutomaticaHabilitada", "Conciliação automática"],
+                  [
+                    "atualizacaoVencidosHabilitada",
+                    "Atualizar mensalidades vencidas",
+                  ],
+                  ["permitirPix", "Permitir Pix"],
+                  ["permitirBoleto", "Permitir boleto"],
+                ].map(([campo, rotulo]) => {
+                  const chave = campo as keyof ConfiguracaoCobranca;
+                  return (
+                    <label
+                      key={campo}
+                      className="flex items-center gap-2 rounded-[10px] border border-border/60 bg-background/50 px-3 py-2.5 text-[13px]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(cobrancaConfig[chave])}
+                        onChange={(event) =>
+                          setCobrancaConfig((atual) =>
+                            atual
+                              ? { ...atual, [chave]: event.target.checked }
+                              : atual,
+                          )
+                        }
+                      />
+                      {rotulo}
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Dia padrão de vencimento</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={cobrancaConfig.diaVencimentoPadrao}
+                    onChange={(event) =>
+                      setCobrancaConfig((atual) =>
+                        atual
+                          ? {
+                              ...atual,
+                              diaVencimentoPadrao: Number(event.target.value),
+                            }
+                          : atual,
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Dias antes do vencimento para gerar</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={31}
+                    value={cobrancaConfig.diasGeracaoAntesVencimento}
+                    onChange={(event) =>
+                      setCobrancaConfig((atual) =>
+                        atual
+                          ? {
+                              ...atual,
+                              diasGeracaoAntesVencimento: Number(
+                                event.target.value,
+                              ),
+                            }
+                          : atual,
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="glassSecondary"
+              onClick={testarCora}
+              disabled={testandoCora}
+            >
+              {testandoCora ? "Testando conexão..." : "Testar conexão"}
+            </Button>
+            <Button
+              variant="glassSecondary"
+              onClick={() => setCobrancaConfigOpen(false)}
+            >
+              Fechar
+            </Button>
+            <Button
+              variant="glassPrimary"
+              onClick={salvarConfiguracaoCobranca}
+              disabled={salvandoCobranca || !cobrancaConfig}
+            >
+              {salvandoCobranca ? "Salvando..." : "Salvar configuração"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!dadosCora}
+        onOpenChange={(open) => !open && setDadosCora(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Dados da cobrança Cora</DialogTitle>
+            <DialogDescription>
+              A cobrança foi emitida pela Cora. Estes são os dados reais que
+              também ficam disponíveis para o cliente na Central.
+            </DialogDescription>
+          </DialogHeader>
+          {dadosCora && (
+            <div className="space-y-4 text-[13px]">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <InfoRow
+                  label="Competência"
+                  value={formatCompetencia(dadosCora.referenceMonth)}
+                />
+                <InfoRow
+                  label="Vencimento"
+                  value={formatDate(dadosCora.dueDate)}
+                />
+                <InfoRow label="Valor" value={formatBRL(dadosCora.amount)} />
+                <InfoRow
+                  label="Status"
+                  value={<StatusPagamentoBadge status={dadosCora.status} />}
+                />
+              </div>
+              {dadosCora.pix?.qrCode && (
+                <img
+                  src={dadosCora.pix.qrCode}
+                  alt="QR Code Pix da cobrança"
+                  className="mx-auto h-40 w-40 rounded border bg-white p-2"
+                />
+              )}
+              {dadosCora.pix?.copyPaste && (
+                <div className="space-y-1.5">
+                  <Label>Pix copia e cola</Label>
+                  <Textarea readOnly rows={3} value={dadosCora.pix.copyPaste} />
+                </div>
+              )}
+              {dadosCora.boleto?.digitableLine && (
+                <div className="space-y-1.5">
+                  <Label>Linha digitável</Label>
+                  <Textarea
+                    readOnly
+                    rows={2}
+                    value={dadosCora.boleto.digitableLine}
+                  />
+                </div>
+              )}
+              {dadosCora.boleto?.url && (
+                <a
+                  href={dadosCora.boleto.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary underline underline-offset-4"
+                >
+                  Abrir boleto
+                </a>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="glassSecondary" onClick={() => setDadosCora(null)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={pagamentoOpen} onOpenChange={setPagamentoOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -1189,15 +1986,18 @@ export default function ControleEmpresaDetalhe() {
             <div className="space-y-1.5">
               <Label>Valor (R$)</Label>
               <Input
-                type="number"
-                step="0.01"
-                value={novoPgto.valor}
-                onChange={(e) =>
+                type="text"
+                inputMode="decimal"
+                value={valorPagamentoInput}
+                placeholder="0,00"
+                onChange={(e) => {
+                  const valorFormatado = maskMoney(e.target.value);
+                  setValorPagamentoInput(valorFormatado);
                   setNovoPgto({
                     ...novoPgto,
-                    valor: Number(e.target.value),
-                  })
-                }
+                    valor: parseMoney(valorFormatado),
+                  });
+                }}
               />
             </div>
 
@@ -1320,10 +2120,15 @@ export default function ControleEmpresaDetalhe() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPagamentoOpen(false)}>
+            <Button
+              variant="glassSecondary"
+              onClick={() => setPagamentoOpen(false)}
+            >
               Cancelar
             </Button>
-            <Button onClick={handleSalvarPagamento}>Salvar</Button>
+            <Button variant="glassPrimary" onClick={handleSalvarPagamento}>
+              Salvar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1342,7 +2147,10 @@ export default function ControleEmpresaDetalhe() {
 
           {viewPgto && (
             <dl className="grid grid-cols-1 gap-3 text-[13px]">
-              <InfoRow label="Competência" value={formatCompetencia(viewPgto.competencia)} />
+              <InfoRow
+                label="Competência"
+                value={formatCompetencia(viewPgto.competencia)}
+              />
               <InfoRow label="Valor" value={formatBRL(viewPgto.valor)} />
               <InfoRow
                 label="Vencimento"
@@ -1358,8 +2166,14 @@ export default function ControleEmpresaDetalhe() {
                   <StatusPagamentoBadge status={viewPgto.statusPagamento} />
                 }
               />
-              <InfoRow label="Forma" value={formatFormaPagamento(viewPgto.formaPagamento)} />
-              <InfoRow label="Dias de atraso" value={getDiasAtrasoPagamento(viewPgto)} />
+              <InfoRow
+                label="Forma"
+                value={formatFormaPagamento(viewPgto.formaPagamento)}
+              />
+              <InfoRow
+                label="Dias de atraso"
+                value={getDiasAtrasoPagamento(viewPgto)}
+              />
               <InfoRow
                 label="Referência"
                 value={viewPgto.referenciaExterna ?? "—"}
@@ -1369,7 +2183,7 @@ export default function ControleEmpresaDetalhe() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setViewPgto(null)}>
+            <Button variant="glassSecondary" onClick={() => setViewPgto(null)}>
               Fechar
             </Button>
           </DialogFooter>
@@ -1382,9 +2196,17 @@ export default function ControleEmpresaDetalhe() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir pagamento?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {pagamentos.find((item) => item.id === confirmDeletePgto)
+                ?.coraInvoiceId
+                ? "Cancelar cobrança Cora?"
+                : "Excluir mensalidade?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação removerá o pagamento do histórico da empresa.
+              {pagamentos.find((item) => item.id === confirmDeletePgto)
+                ?.coraInvoiceId
+                ? "A cobrança será cancelada na Cora e a mensalidade permanecerá registrada como cancelada."
+                : "Esta ação removerá a mensalidade ainda não emitida do histórico da empresa."}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -1394,7 +2216,10 @@ export default function ControleEmpresaDetalhe() {
               onClick={handleDeletePagamento}
               className="bg-destructive hover:bg-destructive/90"
             >
-              Excluir
+              {pagamentos.find((item) => item.id === confirmDeletePgto)
+                ?.coraInvoiceId
+                ? "Cancelar cobrança"
+                : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1460,10 +2285,12 @@ export default function ControleEmpresaDetalhe() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditUser(null)}>
+            <Button variant="glassSecondary" onClick={() => setEditUser(null)}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveUser}>Salvar</Button>
+            <Button variant="glassPrimary" onClick={handleSaveUser}>
+              Salvar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1471,13 +2298,7 @@ export default function ControleEmpresaDetalhe() {
   );
 }
 
-function InfoRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 py-1">
       <dt className="text-muted-foreground min-w-[140px]">{label}</dt>

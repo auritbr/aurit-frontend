@@ -1,32 +1,40 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Search,
-  Plus,
-  Eye,
-  Pencil,
-  Trash2,
-  Compass,
-  FileDown,
-  Target
-} from "lucide-react";
+import { Search, Plus, FileDown, Loader2, RotateCcw } from "lucide-react";
 
-import { PageInfoCard } from "@/components/PageInfoCard";
 import { AppLayout } from "@/components/AppLayout";
-import { PageTitle } from "@/components/PageTitle";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { DataTableEmptyState } from "@/components/list/DataTableEmptyState";
+import { SortableTh } from "@/components/list/SortableTh";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+  useSessionBoolean,
+} from "@/components/AdvancedSearchPanel";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import { FieldLabel } from "@/components/FieldLabel";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
+import { DocumentActionButton } from "@/components/DocumentActionButton";
+import { DataTablePagination } from "@/components/DataTablePagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TableActionIcon } from "@/components/TableActionIcon";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { TablePagination } from "@/components/TablePagination";
-import { SortableHeader } from "@/components/SortableHeader";
-import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
-import { useSortableData } from "@/hooks/useSortableData";
-import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
   getPermissoesUsuarioLogadoPorModulo,
@@ -39,7 +47,7 @@ import {
   getTrajetoriasCulturais,
   type TrajetoriaCultural,
 } from "@/data/trajetoriasCulturais";
-import { exportTrajetoriaCulturalPdf } from "@/lib/pdfExporters";
+import { downloadIndividualReport } from "@/lib/individualReportDownload";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,30 +60,48 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
-type SortKey = "colaborador" | "situacao";
+type SortBy = "colaborador" | "situacao";
+type SortDir = "asc" | "desc";
+
+interface TrajetoriasFiltros {
+  nome: string;
+  linguagem: string;
+  grupo: string;
+  situacao: string;
+  sortBy: SortBy;
+  sortDir: SortDir;
+}
+
+const emptyFiltros: TrajetoriasFiltros = {
+  nome: "",
+  linguagem: "",
+  grupo: "",
+  situacao: "",
+  sortBy: "colaborador",
+  sortDir: "asc",
+};
+
+const sortByOptions = [
+  { value: "colaborador", label: "Colaborador" },
+  { value: "situacao", label: "Situação do texto" },
+] as const;
+
+const normalize = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
 const TRAJETORIA_NEXT_STEP_KEY = "aurit:trajetorias-culturais:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
 
 interface TrajetoriaNextStepCardData {
   titulo: string;
-  descricao: string;
   acaoLabel: string;
   acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+  variante?: "pendente" | "atencao" | "concluido";
 }
-
-export const PERGUNTAS_GUIA = [
-  "Como começou sua atuação cultural?",
-  "Com quem aprendeu ou onde se formou na prática?",
-  "Em quais grupos, coletivos, instituições ou projetos atuou?",
-  "Quais linguagens culturais desenvolve?",
-  "Com quais públicos trabalha?",
-  "Quais resultados, impactos ou contribuições já alcançou?",
-  "Como sua atuação fortalece cultura, comunidade ou território?",
-];
 
 function situacaoTexto(texto: string): {
   label: string;
@@ -96,9 +122,7 @@ function situacaoTexto(texto: string): {
 
 export default function TrajetoriasCulturais() {
   const navigate = useNavigate();
-  const tableRef = useRef<HTMLTableElement>(null);
 
-  const [search, setSearch] = useState("");
   const [items, setItems] = useState<TrajetoriaCultural[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
@@ -110,6 +134,16 @@ export default function TrajetoriasCulturais() {
   );
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
+  const [panelOpen, setPanelOpen] = useSessionBoolean(
+    "trajetorias:pesquisa-avancada",
+    false,
+  );
+  const [draft, setDraft] = useState<TrajetoriasFiltros>(emptyFiltros);
+  const [filtros, setFiltros] = useState<TrajetoriasFiltros>(emptyFiltros);
+  const [searching, setSearching] = useState(false);
+  const [gerandoTrajetoriaId, setGerandoTrajetoriaId] = useState<number | null>(
+    null,
+  );
 
   const podeVisualizar = permissoes.VISUALIZAR;
   const podeCriar = permissoes.CRIAR;
@@ -208,58 +242,123 @@ export default function TrajetoriasCulturais() {
     }
   }
 
+  const setDraftField = <K extends keyof TrajetoriasFiltros>(
+    key: K,
+    value: TrajetoriasFiltros[K],
+  ) => setDraft((prev) => ({ ...prev, [key]: value }));
+
+  const applyFiltros = (next: TrajetoriasFiltros) => {
+    setDraft(next);
+    setSearching(true);
+    setFiltros(next);
+    window.setTimeout(() => setSearching(false), 180);
+  };
+
+  const handleSearch = (event?: React.FormEvent) => {
+    event?.preventDefault();
+    if (!searching) applyFiltros(draft);
+  };
+
+  const handleClearFiltros = () => applyFiltros(emptyFiltros);
+
   const filtered = useMemo(() => {
-    const term = search.toLowerCase().trim();
+    const nome = normalize(filtros.nome);
+    const linguagem = normalize(filtros.linguagem);
+    const grupo = normalize(filtros.grupo);
 
-    if (!term) return items;
-
-    return items.filter((item) => {
-      const colaborador = getColaboradorNome(item).toLowerCase();
-      const situacao = situacaoTexto(item.textoTrajetoria).label.toLowerCase();
-      const texto = (item.textoTrajetoria ?? "").toLowerCase();
-
-      return (
-        colaborador.includes(term) ||
-        situacao.includes(term) ||
-        texto.includes(term)
-      );
-    });
-  }, [search, items]);
-
-
-  const { sortConfig, sortedItems, handleSort } = useSortableData(
-    filtered,
-    (item, key: SortKey) => {
-      switch (key) {
-        case "colaborador":
-          return getColaboradorNome(item);
-        case "situacao":
-          return situacaoTexto(item.textoTrajetoria).label;
-        default:
-          return "";
+    const result = items.filter((item) => {
+      const texto = normalize(item.textoTrajetoria ?? "");
+      if (nome && !normalize(getColaboradorNome(item)).includes(nome))
+        return false;
+      if (linguagem && !texto.includes(linguagem)) return false;
+      if (grupo && !texto.includes(grupo)) return false;
+      if (filtros.situacao) {
+        const preenchido = situacaoTexto(item.textoTrajetoria).preenchido;
+        if (filtros.situacao === "preenchido" && !preenchido) return false;
+        if (filtros.situacao === "pendente" && preenchido) return false;
       }
-    },
-  );
+      return true;
+    });
+
+    const sortValue = (item: TrajetoriaCultural) =>
+      filtros.sortBy === "situacao"
+        ? situacaoTexto(item.textoTrajetoria).label
+        : getColaboradorNome(item);
+
+    return [...result].sort((a, b) => {
+      const compare = sortValue(a).localeCompare(sortValue(b), "pt-BR", {
+        sensitivity: "base",
+      });
+      return filtros.sortDir === "asc" ? compare : -compare;
+    });
+  }, [filtros, items]);
+
+  const activeFilters = useMemo<ActiveFilterItem[]>(() => {
+    const active: ActiveFilterItem[] = [];
+    const addText = (key: "nome" | "linguagem" | "grupo", label: string) => {
+      if (!filtros[key].trim()) return;
+      active.push({
+        id: key,
+        label,
+        value: filtros[key].trim(),
+        onRemove: () => applyFiltros({ ...filtros, [key]: "" }),
+      });
+    };
+
+    addText("nome", "Colaborador");
+    addText("linguagem", "Linguagem cultural");
+    addText("grupo", "Grupo ou instituição");
+
+    if (filtros.situacao)
+      active.push({
+        id: "situacao",
+        label: "Situação do texto",
+        value:
+          filtros.situacao === "preenchido" ? "Preenchido" : "Não preenchido",
+        onRemove: () => applyFiltros({ ...filtros, situacao: "" }),
+      });
+    if (
+      filtros.sortBy !== emptyFiltros.sortBy ||
+      filtros.sortDir !== emptyFiltros.sortDir
+    )
+      active.push({
+        id: "ordenacao",
+        label: "Ordenação",
+        value: `${
+          sortByOptions.find((option) => option.value === filtros.sortBy)
+            ?.label ?? filtros.sortBy
+        } · ${filtros.sortDir === "asc" ? "A–Z" : "Z–A"}`,
+        onRemove: () =>
+          applyFiltros({
+            ...filtros,
+            sortBy: emptyFiltros.sortBy,
+            sortDir: emptyFiltros.sortDir,
+          }),
+      });
+
+    return active;
+  }, [filtros]);
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sortedItems, 25, search);
+    usePagination(filtered, 25, JSON.stringify(filtros));
 
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
-
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
-    }
-
-    toast.success("Dados copiados com sucesso.");
+  const toggleSort = (sortBy: SortBy) => {
+    setCurrentPage(1);
+    applyFiltros({
+      ...filtros,
+      sortBy,
+      sortDir:
+        filtros.sortBy === sortBy && filtros.sortDir === "asc" ? "desc" : "asc",
+    });
   };
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
 
     if (!podeExcluir) {
-      toast.error("Você não possui permissão para excluir trajetórias culturais.");
+      toast.error(
+        "Você não possui permissão para excluir trajetórias culturais.",
+      );
       setConfirmDelete(null);
       return;
     }
@@ -286,7 +385,7 @@ export default function TrajetoriasCulturais() {
     }
   };
 
-  const handleExport = (id: number) => {
+  const handleExport = async (id: number) => {
     if (!podeGerarPdf) {
       toast.error("Você não possui permissão para gerar PDF.");
       return;
@@ -304,9 +403,30 @@ export default function TrajetoriasCulturais() {
       return;
     }
 
-    exportTrajetoriaCulturalPdf(trajetoria);
-    toast.success("Trajetória cultural exportada em PDF.");
+    try {
+      setGerandoTrajetoriaId(trajetoria.id);
+      await downloadIndividualReport(
+        `/trajetorias-culturais/${encodeURIComponent(String(trajetoria.id))}/relatorio`,
+        "trajetoria-cultural.pdf",
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível gerar a trajetória cultural em PDF.");
+    } finally {
+      setGerandoTrajetoriaId(null);
+    }
   };
+
+  const exportColumns = [
+    { header: "Colaborador", key: "colaboradorNome" },
+    { header: "Texto da trajetória", key: "textoTrajetoria" },
+  ];
+
+  const getExportData = () =>
+    filtered.map((item) => ({
+      colaboradorNome: getColaboradorNome(item),
+      textoTrajetoria: item.textoTrajetoria,
+    }));
 
   if (!podeVisualizar) {
     return (
@@ -327,262 +447,246 @@ export default function TrajetoriasCulturais() {
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 sm:py-8">
-        <PageTitle
+        <ListPageHeader
           title="Trajetórias Culturais"
-          tooltip="Escreva a trajetória cultural do colaborador em formato narrativo, destacando sua história com a cultura, saberes aprendidos, práticas desenvolvidas, linguagens de atuação, vínculos com grupos ou territórios e contribuições geradas ao longo do tempo."
-        />
-
-        {nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
-        )}
-
-        <PageInfoCard
-          description="Esta área reúne as trajetórias culturais dos colaboradores,
-          registrando histórias, saberes, práticas, linguagens e contribuições
-          construídas ao longo do tempo. Esses textos podem apoiar currículos,
-          portfólios, propostas de edital, comprovação de experiência e
-          relatórios institucionais."
-          icon={Target}
-        />
-
-        <div className="rounded border border-border bg-card">
-          <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-            <div className="relative max-w-md flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-9 pl-9"
-                aria-label="Buscar trajetória cultural"
-              />
-            </div>
-
-            {podeCriar && (
+          tooltip="Nesta página é registrada, em formato narrativo, a trajetória profissional e cultural do colaborador, desde o início de sua atuação até o momento atual. O texto pode destacar experiências, áreas de atuação, projetos, realizações, públicos envolvidos e a evolução de sua atuação ao longo do tempo."
+          objective="Registre e organize as trajetórias profissionais e culturais dos colaboradores, apresentando suas experiências, áreas de atuação, realizações e contribuições ao longo do tempo. Essas informações podem ser utilizadas em projetos, editais, relatórios e comprovações de trajetória."
+          actions={
+            podeCriar ? (
               <Button
+                type="button"
+                variant="glassPrimary"
                 onClick={() => navigate("/trajetorias-culturais/novo")}
-                className="h-9 gap-2"
+                className="h-9 gap-2 px-4"
               >
                 <Plus className="h-4 w-4" />
-                Cadastrar Trajetória
+                Cadastrar trajetória
               </Button>
-            )}
-          </div>
+            ) : undefined
+          }
+        />
 
-          <div className="hidden overflow-x-auto md:block">
-            <table ref={tableRef} className="w-full">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th
-                    className="w-[140px] px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    data-no-copy
+        <div className="space-y-4">
+          <AdvancedSearchPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            activeCount={activeFilters.length}
+          >
+            <form onSubmit={handleSearch} noValidate>
+              <SearchFilterGrid>
+                <div>
+                  <FieldLabel htmlFor="filtroNome">
+                    Nome do colaborador
+                  </FieldLabel>
+                  <Input
+                    id="filtroNome"
+                    value={draft.nome}
+                    onChange={(event) =>
+                      setDraftField("nome", event.target.value)
+                    }
+                    placeholder="Digite o nome"
+                    className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="filtroSortDir">Ordem</FieldLabel>
+                  <Select
+                    value={draft.sortDir}
+                    onValueChange={(value) =>
+                      setDraftField("sortDir", value as SortDir)
+                    }
                   >
-                    Ações
-                  </th>
-
-                  <SortableHeader
-                    label="Colaborador"
-                    sortKey="colaborador"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  <SortableHeader
-                    label="Situação do texto"
-                    sortKey="situacao"
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    className="px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  />
-
-                  {podeGerarPdf && (
-                    <th
-                      className="w-[160px] px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy
+                    <SelectTrigger
+                      id="filtroSortDir"
+                      className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
                     >
-                      Documento
-                    </th>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">A–Z</SelectItem>
+                      <SelectItem value="desc">Z–A</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </SearchFilterGrid>
+              <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 gap-2 px-4"
+                  onClick={handleClearFiltros}
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden /> Limpar filtros
+                </Button>
+                <Button
+                  type="submit"
+                  variant="glassPrimary"
+                  className="h-9 gap-2 px-5"
+                  disabled={searching}
+                  aria-busy={searching}
+                >
+                  {searching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Search className="h-4 w-4" aria-hidden />
                   )}
-                </tr>
-              </thead>
+                  {searching ? "Pesquisando..." : "Pesquisar"}
+                </Button>
+              </div>
+            </form>
+          </AdvancedSearchPanel>
 
-              <tbody>
-                {paginated.map((item) => {
-                  const situacao = situacaoTexto(item.textoTrajetoria);
+          <ActiveFilters
+            items={activeFilters}
+            onClearAll={handleClearFiltros}
+          />
 
-                  return (
-                    <tr
-                      key={item.id}
-                      className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                    >
-                      <td className="whitespace-nowrap px-6 py-2.5">
-                        <div className="flex items-center gap-1">
-                          <TableActionIcon
-                            icon={Eye}
-                            label="Visualizar"
-                            onClick={() =>
-                              navigate(`/trajetorias-culturais/${item.id}`)
+          <DataTableCard>
+            <DataTableToolbar
+              total={filtered.length}
+              exportColumns={exportColumns}
+              getExportData={getExportData}
+              exportFilename="trajetorias-culturais"
+              canExport={podeGerarPdf}
+              showExports={false}
+            />
+            {filtered.length === 0 ? (
+              <DataTableEmptyState
+                emptyTitle="Nenhuma trajetória cadastrada."
+                emptyDescription="Cadastre a primeira trajetória para registrar a história e a atuação cultural das pessoas vinculadas à organização."
+                activeCount={activeFilters.length}
+              />
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
+                        <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Ações
+                        </th>
+                        <SortableTh
+                          sortKey="colaborador"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Colaborador
+                        </SortableTh>
+                        {podeGerarPdf && (
+                          <th className="w-[180px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Documento
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginated.map((item) => {
+                        const situacao = situacaoTexto(item.textoTrajetoria);
+                        return (
+                          <tr
+                            key={item.id}
+                            className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
+                          >
+                            <td className="whitespace-nowrap px-6 py-2.5">
+                              <RowActionsDropdown
+                                viewTo={`/trajetorias-culturais/${item.id}`}
+                                editTo={
+                                  podeEditar
+                                    ? `/trajetorias-culturais/${item.id}/editar`
+                                    : undefined
+                                }
+                                onDelete={
+                                  podeExcluir
+                                    ? () => setConfirmDelete(item.id)
+                                    : undefined
+                                }
+                              />
+                            </td>
+                            <td className="px-6 py-2.5">
+                              <TableCellText
+                                text={getColaboradorNome(item)}
+                                bold
+                              >
+                                {getColaboradorNome(item)}
+                              </TableCellText>
+                            </td>
+                            {podeGerarPdf && (
+                              <td className="whitespace-nowrap px-6 py-2.5">
+                                <DocumentActionButton
+                                  label="Gerar trajetória"
+                                  icon={FileDown}
+                                  disabled={
+                                    !situacao.preenchido ||
+                                    (gerandoTrajetoriaId !== null &&
+                                      gerandoTrajetoriaId !== item.id)
+                                  }
+                                  loading={gerandoTrajetoriaId === item.id}
+                                  aria-label={`Gerar trajetória de ${getColaboradorNome(item)}`}
+                                  onClick={() => void handleExport(item.id)}
+                                />
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="divide-y divide-border md:hidden">
+                  {paginated.map((item) => {
+                    const situacao = situacaoTexto(item.textoTrajetoria);
+                    return (
+                      <div key={item.id} className="p-4">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <RowActionsDropdown
+                            viewTo={`/trajetorias-culturais/${item.id}`}
+                            editTo={
+                              podeEditar
+                                ? `/trajetorias-culturais/${item.id}/editar`
+                                : undefined
+                            }
+                            onDelete={
+                              podeExcluir
+                                ? () => setConfirmDelete(item.id)
+                                : undefined
                             }
                           />
-
-                          {podeEditar && (
-                            <TableActionIcon
-                              icon={Pencil}
-                              label="Editar"
-                              onClick={() =>
-                                navigate(
-                                  `/trajetorias-culturais/${item.id}/editar`,
-                                )
+                          {podeGerarPdf && (
+                            <DocumentActionButton
+                              label="Gerar trajetória"
+                              icon={FileDown}
+                              disabled={
+                                !situacao.preenchido ||
+                                (gerandoTrajetoriaId !== null &&
+                                  gerandoTrajetoriaId !== item.id)
                               }
-                            />
-                          )}
-
-                          {podeExcluir && (
-                            <TableActionIcon
-                              icon={Trash2}
-                              label="Excluir"
-                              variant="danger"
-                              onClick={() => setConfirmDelete(item.id)}
+                              loading={gerandoTrajetoriaId === item.id}
+                              onClick={() => void handleExport(item.id)}
                             />
                           )}
                         </div>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        <TableCellText text={getColaboradorNome(item)} bold>
+                        <p className="font-medium text-foreground">
                           {getColaboradorNome(item)}
-                        </TableCellText>
-                      </td>
-
-                      <td className="px-6 py-2.5">
-                        {situacao.preenchido ? (
-                          <TableCellText text={situacao.label} muted>
-                            {situacao.label}
-                          </TableCellText>
-                        ) : (
-                          <span className="text-[13px] text-muted-foreground/70">
-                            Não preenchido
-                          </span>
-                        )}
-                      </td>
-
-                      {podeGerarPdf && (
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleExport(item.id)}
-                            disabled={!situacao.preenchido}
-                            className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                          >
-                            <FileDown className="h-3.5 w-3.5" />
-                            Gerar trajetória
-                          </Button>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-
-                {paginated.length === 0 && (
-                  <EmptyRow colspan={podeGerarPdf ? 4 : 3} />
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="divide-y divide-border md:hidden">
-            {paginated.length === 0 ? (
-              <div className="p-10 text-center">
-                <Compass className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nenhuma trajetória cultural encontrada.
-                </p>
-              </div>
-            ) : (
-              paginated.map((item) => {
-                const situacao = situacaoTexto(item.textoTrajetoria);
-
-                return (
-                  <div key={item.id} className="p-4">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1">
-                        <TableActionIcon
-                          icon={Eye}
-                          label="Visualizar"
-                          onClick={() =>
-                            navigate(`/trajetorias-culturais/${item.id}`)
-                          }
-                        />
-
-                        {podeEditar && (
-                          <TableActionIcon
-                            icon={Pencil}
-                            label="Editar"
-                            onClick={() =>
-                              navigate(
-                                `/trajetorias-culturais/${item.id}/editar`,
-                              )
-                            }
-                          />
-                        )}
-
-                        {podeExcluir && (
-                          <TableActionIcon
-                            icon={Trash2}
-                            label="Excluir"
-                            variant="danger"
-                            onClick={() => setConfirmDelete(item.id)}
-                          />
-                        )}
+                        </p>
                       </div>
-
-                      {podeGerarPdf && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleExport(item.id)}
-                          disabled={!situacao.preenchido}
-                          className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                        >
-                          <FileDown className="h-3.5 w-3.5" />
-                          Exportar
-                        </Button>
-                      )}
-                    </div>
-
-                    <p className="font-medium text-foreground">
-                      {getColaboradorNome(item)}
-                    </p>
-
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {situacao.label}
-                    </p>
-                  </div>
-                );
-              })
+                    );
+                  })}
+                </div>
+                <DataTablePagination
+                  totalItems={filtered.length}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  entityLabel="registro"
+                  entityLabelPlural="registros"
+                  pageSizeLabel="Registros por página"
+                  loading={loading}
+                />
+              </>
             )}
-          </div>
-
-          <TablePagination
-            totalItems={sortedItems.length}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            onCopy={handleCopy}
-          />
+          </DataTableCard>
         </div>
       </div>
 
@@ -614,22 +718,8 @@ export default function TrajetoriasCulturais() {
 
       <WikiFloatingButton
         pageTitle="Trajetórias Culturais"
-        href="https://www.aurit.com.br/wiki/trajetorias/trajetorias-culturais"
+        href="/wiki/pessoas/trajetorias-culturais"
       />
     </AppLayout>
-  );
-}
-
-function EmptyRow({ colspan }: { colspan: number }) {
-  return (
-    <tr>
-      <td colSpan={colspan} className="px-5 py-16 text-center">
-        <Compass className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-        <p className="mt-3 text-sm text-muted-foreground">
-          Nenhuma trajetória cultural encontrada.
-        </p>
-      </td>
-    </tr>
   );
 }

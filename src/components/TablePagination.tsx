@@ -83,8 +83,8 @@ export function TablePagination({
 
       <div className="flex items-center gap-2">
         <span className="whitespace-nowrap">
-          Página <span className="font-medium text-foreground">{safePage}</span> de{" "}
-          <span className="font-medium text-foreground">{totalPages}</span>
+          Página <span className="font-medium text-foreground">{safePage}</span>{" "}
+          de <span className="font-medium text-foreground">{totalPages}</span>
         </span>
         <div className="flex items-center gap-1">
           <Button

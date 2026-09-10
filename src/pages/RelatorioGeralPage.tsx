@@ -10,14 +10,10 @@ import {
   GrupoIndicadores,
   RelatorioLoading,
 } from "@/components/relatorios/RelatorioComponents";
-import {
-  formatDateBR,
-  getRelatorioGeral,
-  type RelatorioGeral,
-} from "@/data/relatorios";
+import { getRelatorioGeral, type RelatorioGeral } from "@/data/relatorios";
 import { Button } from "@/components/ui/button";
 import { isPlanoAccessDenied } from "@/lib/access";
-import { exportRelatorioGeralPdf } from "@/lib/relatorioExporters";
+import { downloadGeneralReportPdf } from "@/lib/generalReportPdf";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -107,25 +103,16 @@ export default function RelatorioGeralPage() {
       return;
     }
 
-    if (!data) {
-      toast.warning("Não há dados para gerar o PDF.");
-      return;
-    }
-
-    try {
-      exportRelatorioGeralPdf({
-        reportName: "Relatório Geral",
-        nomeEmpresa: data.nomeEmpresa,
-        dataGeracao: data.dataGeracao
-          ? formatDateBR(data.dataGeracao)
-          : undefined,
-        grupos: data.grupos ?? [],
+    void downloadGeneralReportPdf({
+      slug: "geral",
+      columns: ["grupo", "indicador", "valor"],
+    })
+      .then(() => {
+        toast.success("PDF do relatório geral gerado com sucesso.");
+      })
+      .catch(() => {
+        toast.error("Falha ao gerar PDF do relatório geral.");
       });
-
-      toast.success("PDF do relatório geral gerado com sucesso.");
-    } catch {
-      toast.error("Falha ao gerar PDF do relatório geral.");
-    }
   };
 
   if (!podeVisualizar) {
@@ -158,11 +145,11 @@ export default function RelatorioGeralPage() {
           extraActions={
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
               size="sm"
-              className="h-9 gap-1.5"
+              className="h-9 gap-1.5 rounded-[10px] px-3.5"
               onClick={handlePdf}
-              disabled={loading || !data || !podeGerarPdf}
+              disabled={loading || !podeGerarPdf}
               title={
                 !podeGerarPdf
                   ? "Você não possui permissão para gerar PDF."

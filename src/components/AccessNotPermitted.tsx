@@ -23,28 +23,28 @@ export function AccessNotPermitted({
     <section
       role="region"
       aria-label="Funcionalidade indisponível"
-      className="px-4 py-12 sm:px-6 lg:px-8"
+      className="px-4 sm:px-6 lg:px-8 py-12"
     >
       <div className="mx-auto max-w-xl">
-        <div className="rounded-lg border border-border bg-card p-8 text-center shadow-sm sm:p-10">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-primary/15 bg-primary-soft">
+        <div className="rounded-[18px] border border-border/70 bg-card/75 p-8 text-center shadow-[0_2px_14px_-10px_hsl(215_28%_17%_/_0.18)] backdrop-blur-md supports-[backdrop-filter]:bg-card/60 sm:p-10">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-primary/20 bg-primary-soft/60 backdrop-blur-sm supports-[backdrop-filter]:bg-primary-soft/45">
             <ShieldAlert className="h-7 w-7 text-primary" strokeWidth={2} />
           </div>
 
-          <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
             {title}
           </h1>
 
-          <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
             {message}
           </p>
 
           {showBackButton && (
             <div className="mt-7 flex items-center justify-center">
               <Button
-                variant="outline"
+                variant="glassSecondary"
                 onClick={() => navigate(-1)}
-                className="gap-2"
+                className="h-9 gap-2 px-4"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Voltar

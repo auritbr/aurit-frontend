@@ -12,7 +12,13 @@ interface TableCellTextProps {
  * Célula de tabela com conteúdo em uma única linha.
  * Trunca com elipse se necessário e exibe tooltip com o conteúdo completo ao passar o mouse.
  */
-export function TableCellText({ children, text, className, muted, bold }: TableCellTextProps) {
+export function TableCellText({
+  children,
+  text,
+  className,
+  muted,
+  bold,
+}: TableCellTextProps) {
   return (
     <span
       className={cn(

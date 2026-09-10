@@ -1,22 +1,15 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { tipoDocumentoLabels, type TipoDocumento } from "@/data/documentos";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export const statusHabilitacaoOptions = [
-  { value: "NAO_INICIADO", label: "Não iniciado" },
-  { value: "EM_PREPARACAO", label: "Em preparação" },
-  { value: "DOCUMENTACAO_PENDENTE", label: "Documentação pendente" },
-  { value: "DOCUMENTACAO_ENVIADA", label: "Documentação enviada" },
+  { value: "PENDENTE", label: "Pendente" },
   { value: "EM_ANALISE", label: "Em análise" },
-  { value: "HABILITADO", label: "Habilitado" },
-  { value: "INABILITADO", label: "Inabilitado" },
-  { value: "RECURSO_ENVIADO", label: "Recurso enviado" },
-  { value: "HABILITADA_APOS_RECURSO", label: "Habilitada após recurso" },
-  { value: "INABILITADA_DEFINITIVO", label: "Inabilitada definitivamente" },
-  { value: "CANCELADO", label: "Cancelado" },
-  { value: "FINALIZADO", label: "Finalizado" },
-  { value: "REGULARIZADO", label: "Regularizado" },
-  { value: "EM_REGULARIZACAO", label: "Em regularização" },
+  { value: "NECESSITA_REVISAO", label: "Necessita revisão" },
+  { value: "VENCIDO", label: "Vencido" },
+  { value: "ATUALIZADO", label: "Atualizado" },
+  { value: "NAO_SE_APLICA", label: "Não se aplica" },
 ] as const;
 
 export type StatusHabilitacao =
@@ -49,6 +42,9 @@ export interface HabilitacaoPropostaDTO {
   } | null;
   nomeAgente?: string | null;
 
+  documentoIds?: Array<number | string> | null;
+  documentos?: DocumentoHabilitacaoDTO[] | null;
+
   dataInicioHabilitacao?: string | null;
   dataLimiteHabilitacao?: string | null;
   dataEnvioDocumentacao?: string | null;
@@ -70,16 +66,10 @@ export interface HabilitacaoPayloadDTO {
   propostaEditalId: number | null;
   agenteId: number | null;
 
-  dataInicioHabilitacao: string | null;
-  dataLimiteHabilitacao: string | null;
-  dataEnvioDocumentacao: string | null;
-  dataRetornoAnalise: string | null;
-  dataRegularizacao: string | null;
-  dataConclusaoHabilitacao: string | null;
+  documentoIds: number[];
 
-  exigenciaOuPendencia: string | null;
-  providenciaTomada: string | null;
-  motivoInabilitacao: string | null;
+  dataInicioHabilitacao: string | null;
+  dataEnvioDocumentacao: string | null;
   observacoes: string | null;
 
   statusHabilitacao: StatusHabilitacao;
@@ -93,6 +83,9 @@ export interface Habilitacao {
 
   agente: string;
   nomeAgente: string;
+
+  documentoIds: string[];
+  documentos: DocumentoHabilitacaoDTO[];
 
   dataInicioHabilitacao: string;
   dataLimiteHabilitacao: string;
@@ -109,6 +102,22 @@ export interface Habilitacao {
   statusHabilitacao: StatusHabilitacao;
 }
 
+export interface DocumentoHabilitacaoDTO {
+  id?: number | string | null;
+  nomeDocumento?: string | null;
+  nomeArquivo?: string | null;
+  tipoDocumento?: string | null;
+  statusDocumento?: string | null;
+  dataValidade?: string | null;
+}
+
+export interface DocumentoOption {
+  id: string;
+  nome: string;
+  status: string;
+  dataValidade: string;
+}
+
 export interface PropostaOption {
   id: string;
   nome: string;
@@ -117,6 +126,60 @@ export interface PropostaOption {
 export interface AgenteOption {
   id: string;
   nome: string;
+}
+
+function formatEnumLabel(value?: string | null) {
+  if (!value) return "";
+
+  return value
+    .toLocaleLowerCase("pt-BR")
+    .split("_")
+    .filter(Boolean)
+    .map((word, index) =>
+      index === 0
+        ? word.charAt(0).toLocaleUpperCase("pt-BR") + word.slice(1)
+        : word,
+    )
+    .join(" ");
+}
+
+export function documentoHabilitacaoLabel(documento: DocumentoHabilitacaoDTO) {
+  const tipo = documento.tipoDocumento?.trim();
+  const tipoLabel = tipo
+    ? (tipoDocumentoLabels[tipo as TipoDocumento] ?? formatEnumLabel(tipo))
+    : "";
+
+  return pickText(documento.nomeDocumento, documento.nomeArquivo, tipoLabel);
+}
+
+export function calcularStatusHabilitacao(
+  documentos: DocumentoOption[],
+): StatusHabilitacao {
+  if (documentos.length === 0) return "PENDENTE";
+
+  const statuses = documentos.map(calcularStatusDocumentoHabilitacao);
+
+  if (statuses.includes("VENCIDO")) return "VENCIDO";
+  if (statuses.includes("NECESSITA_REVISAO")) return "NECESSITA_REVISAO";
+  if (statuses.includes("PENDENTE")) return "PENDENTE";
+  if (statuses.includes("EM_ANALISE")) return "EM_ANALISE";
+  if (statuses.every((status) => status === "NAO_SE_APLICA"))
+    return "NAO_SE_APLICA";
+  return "ATUALIZADO";
+}
+
+export function calcularStatusDocumentoHabilitacao(documento: DocumentoOption) {
+  const hoje = new Date();
+  const hojeLocal = [
+    hoje.getFullYear(),
+    String(hoje.getMonth() + 1).padStart(2, "0"),
+    String(hoje.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  if (documento.status === "NAO_SE_APLICA") return "NAO_SE_APLICA";
+  if (documento.dataValidade && documento.dataValidade < hojeLocal)
+    return "VENCIDO";
+  return documento.status || "PENDENTE";
 }
 
 interface PropostaApiResponse {
@@ -159,11 +222,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -251,6 +310,15 @@ export function mapHabilitacao(dto: HabilitacaoPropostaDTO): Habilitacao {
         dto.agente?.nome,
       ),
 
+    documentoIds: (
+      dto.documentoIds ??
+      dto.documentos?.map((item) => item.id) ??
+      []
+    )
+      .map(normalizeId)
+      .filter(Boolean),
+    documentos: dto.documentos ?? [],
+
     dataInicioHabilitacao: dto.dataInicioHabilitacao ?? "",
     dataLimiteHabilitacao: dto.dataLimiteHabilitacao ?? "",
     dataEnvioDocumentacao: dto.dataEnvioDocumentacao ?? "",
@@ -263,7 +331,7 @@ export function mapHabilitacao(dto: HabilitacaoPropostaDTO): Habilitacao {
     motivoInabilitacao: dto.motivoInabilitacao ?? "",
     observacoes: dto.observacoes ?? "",
 
-    statusHabilitacao: dto.statusHabilitacao ?? "NAO_INICIADO",
+    statusHabilitacao: dto.statusHabilitacao ?? "PENDENTE",
   };
 }
 
@@ -275,21 +343,36 @@ export function buildHabilitacaoPayload(
 
     propostaEditalId: form.propostaEdital ? Number(form.propostaEdital) : null,
     agenteId: form.agente ? Number(form.agente) : null,
+    documentoIds: form.documentoIds.map(Number).filter(Number.isFinite),
 
     dataInicioHabilitacao: form.dataInicioHabilitacao || null,
-    dataLimiteHabilitacao: form.dataLimiteHabilitacao || null,
     dataEnvioDocumentacao: form.dataEnvioDocumentacao || null,
-    dataRetornoAnalise: form.dataRetornoAnalise || null,
-    dataRegularizacao: form.dataRegularizacao || null,
-    dataConclusaoHabilitacao: form.dataConclusaoHabilitacao || null,
-
-    exigenciaOuPendencia: form.exigenciaOuPendencia.trim() || null,
-    providenciaTomada: form.providenciaTomada.trim() || null,
-    motivoInabilitacao: form.motivoInabilitacao.trim() || null,
     observacoes: form.observacoes.trim() || null,
 
     statusHabilitacao: form.statusHabilitacao,
   };
+}
+
+export async function getDocumentosDisponiveis(): Promise<DocumentoOption[]> {
+  const response = await fetch(
+    `${API_URL}/habilitacoes-propostas/documentos-disponiveis`,
+    {
+      method: "GET",
+      headers: getJsonHeaders(),
+    },
+  );
+
+  if (!response.ok) throw new Error(await parseError(response));
+
+  const data: DocumentoHabilitacaoDTO[] = await response.json();
+  return (Array.isArray(data) ? data : [])
+    .map((item) => ({
+      id: normalizeId(item.id),
+      nome: documentoHabilitacaoLabel(item) || `Documento ${item.id}`,
+      status: item.statusDocumento ?? "PENDENTE",
+      dataValidade: item.dataValidade ?? "",
+    }))
+    .filter((item) => item.id);
 }
 
 export async function getHabilitacoes(): Promise<Habilitacao[]> {

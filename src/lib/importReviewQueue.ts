@@ -14,14 +14,15 @@ const key = (module: string) => `aurit:import-review:${module}`;
 const KEY_PREFIX = "aurit:import-review:";
 
 export function hasActiveImportReviewQueue() {
-  return Array.from({ length: sessionStorage.length }, (_, index) => sessionStorage.key(index))
-    .some((item) => item?.startsWith(KEY_PREFIX));
+  return Array.from({ length: sessionStorage.length }, (_, index) =>
+    sessionStorage.key(index),
+  ).some((item) => item?.startsWith(KEY_PREFIX));
 }
 
 export function getImportReviewQueue(module: string): ImportReviewQueue | null {
   try {
     const value = sessionStorage.getItem(key(module));
-    return value ? JSON.parse(value) as ImportReviewQueue : null;
+    return value ? (JSON.parse(value) as ImportReviewQueue) : null;
   } catch {
     return null;
   }
@@ -29,12 +30,16 @@ export function getImportReviewQueue(module: string): ImportReviewQueue | null {
 
 export function saveImportReviewQueue(queue: ImportReviewQueue) {
   sessionStorage.setItem(key(queue.module), JSON.stringify(queue));
-  window.dispatchEvent(new CustomEvent("aurit:import-review-change", { detail: queue }));
+  window.dispatchEvent(
+    new CustomEvent("aurit:import-review-change", { detail: queue }),
+  );
 }
 
 export function clearImportReviewQueue(module: string) {
   sessionStorage.removeItem(key(module));
-  window.dispatchEvent(new CustomEvent("aurit:import-review-change", { detail: { module } }));
+  window.dispatchEvent(
+    new CustomEvent("aurit:import-review-change", { detail: { module } }),
+  );
 }
 
 export function advanceImportReviewQueue(module: string) {
@@ -44,7 +49,11 @@ export function advanceImportReviewQueue(module: string) {
     clearImportReviewQueue(module);
     return null;
   }
-  const next = { ...queue, currentIndex: queue.currentIndex + 1, resumeAfterSave: true };
+  const next = {
+    ...queue,
+    currentIndex: queue.currentIndex + 1,
+    resumeAfterSave: true,
+  };
   saveImportReviewQueue(next);
   return next;
 }
@@ -57,11 +66,17 @@ export function removeCurrentImportReviewItem(module: string) {
     clearImportReviewQueue(module);
     return null;
   }
-  const next = { ...queue, rows, currentIndex: Math.min(queue.currentIndex, rows.length - 1) };
+  const next = {
+    ...queue,
+    rows,
+    currentIndex: Math.min(queue.currentIndex, rows.length - 1),
+  };
   saveImportReviewQueue(next);
   return next;
 }
 
 export function notifyImportReviewSaveSuccess(module: string) {
-  window.dispatchEvent(new CustomEvent("aurit:import-review-save-success", { detail: { module } }));
+  window.dispatchEvent(
+    new CustomEvent("aurit:import-review-save-success", { detail: { module } }),
+  );
 }

@@ -1,18 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft,
-  Eye,
+  Copy,
   FileText,
   Landmark,
   MapPin,
-  Pencil,
   Plus,
+  RotateCcw,
   Search,
-  Trash2,
   UserPlus,
   UserRound,
-  FileDown,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -20,11 +18,31 @@ import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { EmailInput } from "@/components/EmailInput";
-import { PageTitle } from "@/components/PageTitle";
+import { BackButton } from "@/components/BackButton";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { FormSearchableSelect } from "@/components/FormSearchableSelect";
+import { ImportDataButton } from "@/components/ImportDataButton";
+import { RowActionsDropdown } from "@/components/RowActionsDropdown";
+import { ConvertConfirmDialog } from "@/components/ConvertConfirmDialog";
+import { DataTablePagination } from "@/components/DataTablePagination";
+import { StatusPill } from "@/components/StatusPill";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
+import { DataTableCard } from "@/components/list/DataTableCard";
+import { DataTableToolbar } from "@/components/list/DataTableToolbar";
+import { DataTableEmptyState } from "@/components/list/DataTableEmptyState";
+import { SortableTh } from "@/components/list/SortableTh";
+import {
+  AdvancedSearchPanel,
+  SearchFilterGrid,
+  useSessionBoolean,
+} from "@/components/AdvancedSearchPanel";
+import {
+  ActiveFilters,
+  type ActiveFilterItem,
+} from "@/components/ActiveFilters";
+import { FilterMultiSelect } from "@/components/FilterMultiSelect";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -32,24 +50,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { TableActionIcon } from "@/components/TableActionIcon";
 import { TableCellText } from "@/components/TableCellText";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { TablePagination } from "@/components/TablePagination";
-import { SortableHeader } from "@/components/SortableHeader";
-import { NextStepCard } from "@/components/NextStepCard";
 import { usePagination } from "@/hooks/usePagination";
-import { useSortableData } from "@/hooks/useSortableData";
-import { copyTableFromRef } from "@/lib/copyTableDom";
+import { getImportConfigForPath } from "@/config/importacoes";
 import { maskCEP, maskCPF, maskPhone } from "@/lib/masks";
+import { estadosBrasil } from "@/data/colaboradores";
 import {
-  converterDiretoriaParaColaborador,
-  estadosBrasil,
-} from "@/data/colaboradores";
-import { exportDiretoriaPdf } from "@/lib/pdfExporters";
+  downloadDeclaracaoCargoDiretoria,
+  downloadDiretoriaReport as exportDiretoriaPdf,
+} from "@/lib/individualReportDownload";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -91,22 +103,41 @@ import {
   type TipoDeficienciaApi,
 } from "@/lib/diretoriaStore";
 import { toast } from "sonner";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
-type SortKey = "nome" | "cargo" | "inicioMandato" | "fimMandato" | "afastamento" | "status" | "organizacao";
+type SortKey =
+  | "nome"
+  | "cargo"
+  | "inicioMandato"
+  | "fimMandato"
+  | "afastamento"
+  | "status"
+  | "organizacao";
+type SortDirection = "asc" | "desc";
+
+const sortByOptions: Array<{ value: SortKey; label: string }> = [
+  { value: "nome", label: "Nome do integrante" },
+  { value: "cargo", label: "Cargo" },
+  { value: "inicioMandato", label: "Início do mandato" },
+  { value: "status", label: "Situação" },
+];
+
+const sortDirLabels: Record<SortDirection, string> = {
+  asc: "A–Z",
+  desc: "Z–A",
+};
+const DEFAULT_SORT_BY: SortKey = "nome";
+const DEFAULT_SORT_DIR: SortDirection = "asc";
 
 type FormMode = "create" | "edit" | "view";
 
-const DIRETORIA_NEXT_STEP_KEY = "aurit:diretoria:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
 
 interface DiretoriaNextStepCardData {
   titulo: string;
-  descricao: string;
   acaoLabel: string;
   acaoUrl: string;
-  acaoSecundariaLabel?: string;
-  acaoSecundariaUrl?: string;
-  variante?: "pendente" | "atencao" | "concluido" | "prioridade";
+  variante?: "pendente" | "atencao" | "concluido";
 }
 
 interface ViaCepResponse {
@@ -275,19 +306,13 @@ function isStatusAfastado(status: string) {
   return status?.toUpperCase() === "AFASTADO";
 }
 
-function salvarProximaAcaoDiretoria() {
-  const card: DiretoriaNextStepCardData = {
+function criarProximaAcaoDiretoria(): DiretoriaNextStepCardData {
+  return {
     titulo: "Após cadastrar a Diretoria, organize os Documentos Institucionais",
-    descricao:
-      "Documentos atualizados ajudam a comprovar a regularidade da organização e podem ser exigidos em editais, habilitações, contratos, relatórios e prestações de contas.",
     acaoLabel: "Cadastrar documentos",
     acaoUrl: "/documentos",
-    acaoSecundariaLabel: "Ver diretoria",
-    acaoSecundariaUrl: "/diretoria",
     variante: "pendente",
   };
-
-  sessionStorage.setItem(DIRETORIA_NEXT_STEP_KEY, JSON.stringify(card));
 }
 
 export default function Diretoria() {
@@ -297,14 +322,26 @@ export default function Diretoria() {
     OrganizacaoDiretoriaOption[]
   >([]);
   const [registros, setRegistros] = useState<DiretoriaData[]>([]);
-  const [form, setForm] = useState<DiretoriaData>(() =>
-    createEmptyDiretoria(),
-  );
+  const [form, setForm] = useState<DiretoriaData>(() => createEmptyDiretoria());
   const [mode, setMode] = useState<FormMode>("create");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [panelOpen, setPanelOpen] = useSessionBoolean(
+    "diretoria:pesquisa-avancada",
+    false,
+  );
+  const emptyFiltros = {
+    nome: "",
+    cargo: [] as string[],
+    situacao: [] as string[],
+    sortBy: DEFAULT_SORT_BY,
+    sortDir: DEFAULT_SORT_DIR,
+  };
+  const [draft, setDraft] = useState(emptyFiltros);
+  const [filtros, setFiltros] = useState(emptyFiltros);
+  const [searching, setSearching] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [convertItem, setConvertItem] = useState<DiretoriaData | null>(null);
   const [nextStepCard, setNextStepCard] =
     useState<DiretoriaNextStepCardData | null>(null);
 
@@ -316,12 +353,11 @@ export default function Diretoria() {
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
 
-  const tableRef = useRef<HTMLTableElement>(null);
-
   const podeVisualizar = permissoes.VISUALIZAR;
   const podeCriar = permissoes.CRIAR;
   const podeEditar = permissoes.EDITAR;
   const podeExcluir = permissoes.EXCLUIR;
+  const podeBaixar = permissoes.BAIXAR;
   const podeGerarPdf = permissoes.GERAR_PDF || permissoes.BAIXAR;
 
   const readOnly = mode === "view";
@@ -363,29 +399,6 @@ export default function Diretoria() {
   }, []);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem(DIRETORIA_NEXT_STEP_KEY);
-
-    if (!raw) return;
-
-    try {
-      const parsed = JSON.parse(raw) as DiretoriaNextStepCardData;
-      setNextStepCard(parsed);
-    } catch {
-      setNextStepCard(null);
-    }
-
-    sessionStorage.removeItem(DIRETORIA_NEXT_STEP_KEY);
-
-    const timer = window.setTimeout(() => {
-      setNextStepCard(null);
-    }, NEXT_STEP_DURATION_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, []);
-
-  useEffect(() => {
     if (loadingPermissoes) return;
 
     if (!podeVisualizar) {
@@ -409,7 +422,9 @@ export default function Diretoria() {
     if (!record) return;
 
     if (!podeEditar) {
-      toast.error("Você não possui permissão para editar registros da diretoria.");
+      toast.error(
+        "Você não possui permissão para editar registros da diretoria.",
+      );
       navigate("/diretoria", { replace: true });
       return;
     }
@@ -423,6 +438,48 @@ export default function Diretoria() {
     setShowForm(true);
     navigate("/diretoria", { replace: true });
   }, [loading, location.search, navigate, podeEditar, registros, showForm]);
+
+  useEffect(() => {
+    if (loadingPermissoes || !podeCriar || showForm) return;
+
+    const seed = (
+      location.state as {
+        conversionSeed?: {
+          origem?: string;
+          data?: Partial<DiretoriaData>;
+        };
+      } | null
+    )?.conversionSeed;
+
+    if (!seed?.data) return;
+
+    const organizacaoPadrao =
+      seed.data.organizacaoId ||
+      (organizacoes.length === 1 ? organizacoes[0].id : "");
+
+    setSelectedId(null);
+    setForm({
+      ...createEmptyDiretoria(),
+      ...seed.data,
+      id: "",
+      cpf: seed.data.cpf ? maskCPF(seed.data.cpf) : "",
+      telefone: seed.data.telefone ? maskPhone(seed.data.telefone) : "",
+      cep: seed.data.cep ? maskCEP(seed.data.cep) : "",
+      rg: seed.data.rg ? maskRGFlex(seed.data.rg) : "",
+      estado: resolverEstadoParaSelect(seed.data.estado),
+      organizacaoId: organizacaoPadrao,
+    });
+    setMode("create");
+    setShowForm(true);
+    navigate("/diretoria", { replace: true, state: null });
+  }, [
+    loadingPermissoes,
+    location.state,
+    navigate,
+    organizacoes,
+    podeCriar,
+    showForm,
+  ]);
 
   async function carregar() {
     try {
@@ -458,46 +515,54 @@ export default function Diretoria() {
     }
   }
 
-  const organizacaoNome = (organizacaoId?: string) =>
-    organizacaoId
-      ? organizacoes.find((entry) => String(entry.id) === String(organizacaoId))
-        ?.nome ?? "—"
-      : "—";
+  const organizacaoNome = useCallback(
+    (organizacaoId?: string) =>
+      organizacaoId
+        ? (organizacoes.find(
+            (entry) => String(entry.id) === String(organizacaoId),
+          )?.nome ?? "—")
+        : "—",
+    [organizacoes],
+  );
 
   const filteredRegistros = useMemo(() => {
-    const term = search.toLowerCase().trim();
+    const term = filtros.nome.toLowerCase().trim();
 
-    if (!term) return registros;
-
-    return registros.filter((item) => {
+    const result = registros.filter((item) => {
       const organizacao = organizacaoNome(item.organizacaoId);
 
-      return [
-        item.nomeCompleto,
-        item.cpf,
-        item.rg,
-        item.telefone,
-        item.email,
-        racaCorDiretoriaLabel(item.racaCor),
-        generoDiretoriaLabel(item.genero),
-        tipoDeficienciaDiretoriaLabel(item.tipoDeficiencia),
-        cargoDiretoriaLabel(item.cargoDiretoria),
-        statusDiretoriaLabel(item.statusDiretoria),
-        formatDateBR(item.dataInicioMandato),
-        formatDateBR(item.dataFimMandato),
-        formatDateBR(item.dataAfastamento),
-        organizacao,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(term);
+      const matchesTerm =
+        !term ||
+        [
+          item.nomeCompleto,
+          item.cpf,
+          item.rg,
+          item.telefone,
+          item.email,
+          racaCorDiretoriaLabel(item.racaCor),
+          generoDiretoriaLabel(item.genero),
+          tipoDeficienciaDiretoriaLabel(item.tipoDeficiencia),
+          cargoDiretoriaLabel(item.cargoDiretoria),
+          statusDiretoriaLabel(item.statusDiretoria),
+          formatDateBR(item.dataInicioMandato),
+          formatDateBR(item.dataFimMandato),
+          formatDateBR(item.dataAfastamento),
+          organizacao,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(term);
+      const matchesCargo =
+        filtros.cargo.length === 0 ||
+        filtros.cargo.includes(item.cargoDiretoria);
+      const matchesSituacao =
+        filtros.situacao.length === 0 ||
+        filtros.situacao.includes(item.statusDiretoria);
+
+      return matchesTerm && matchesCargo && matchesSituacao;
     });
-  }, [organizacoes, registros, search]);
 
-
-  const { sortConfig, sortedItems, handleSort } = useSortableData(
-    filteredRegistros,
-    (item, key: SortKey) => {
+    const sortValue = (item: DiretoriaData) => {
       switch (key) {
         case "nome":
           return item.nomeCompleto;
@@ -516,11 +581,127 @@ export default function Diretoria() {
         default:
           return "";
       }
-    },
-  );
+    };
+
+    const key = filtros.sortBy;
+    const direction = filtros.sortDir === "asc" ? 1 : -1;
+    return [...result].sort(
+      (a, b) =>
+        String(sortValue(a)).localeCompare(String(sortValue(b)), "pt-BR", {
+          numeric: true,
+          sensitivity: "base",
+        }) * direction,
+    );
+  }, [filtros, organizacaoNome, registros]);
+
+  const sortConfig = {
+    key: filtros.sortBy,
+    direction: filtros.sortDir,
+  };
+  const sortedItems = filteredRegistros;
+  const handleSort = (key: SortKey) => {
+    const nextDirection =
+      filtros.sortBy === key && filtros.sortDir === "asc" ? "desc" : "asc";
+    const next = {
+      ...filtros,
+      sortBy: key,
+      sortDir: nextDirection as SortDirection,
+    };
+    setDraft(next);
+    setFiltros(next);
+  };
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sortedItems, 25, search);
+    usePagination(sortedItems, 25, JSON.stringify(filtros));
+
+  const setDraftField = <K extends keyof typeof draft>(
+    key: K,
+    value: (typeof draft)[K],
+  ) => setDraft((current) => ({ ...current, [key]: value }));
+
+  const handleSearch = (event?: React.FormEvent) => {
+    event?.preventDefault();
+    setSearching(true);
+    setFiltros({ ...draft });
+    window.setTimeout(() => setSearching(false), 180);
+  };
+
+  const handleClearFiltros = () => {
+    setDraft(emptyFiltros);
+    setFiltros(emptyFiltros);
+  };
+
+  const activeFilters = useMemo<ActiveFilterItem[]>(() => {
+    const items: ActiveFilterItem[] = [];
+    if (filtros.nome) {
+      items.push({
+        id: "nome",
+        label: "Busca",
+        value: filtros.nome,
+        onRemove: () => {
+          setDraft((current) => ({ ...current, nome: "" }));
+          setFiltros((current) => ({ ...current, nome: "" }));
+        },
+      });
+    }
+    filtros.cargo.forEach((value) =>
+      items.push({
+        id: `cargo-${value}`,
+        label: "Cargo",
+        value: cargoDiretoriaLabel(value),
+        onRemove: () => {
+          setDraft((current) => ({
+            ...current,
+            cargo: current.cargo.filter((item) => item !== value),
+          }));
+          setFiltros((current) => ({
+            ...current,
+            cargo: current.cargo.filter((item) => item !== value),
+          }));
+        },
+      }),
+    );
+    filtros.situacao.forEach((value) =>
+      items.push({
+        id: `situacao-${value}`,
+        label: "Situação",
+        value: statusDiretoriaLabel(value),
+        onRemove: () => {
+          setDraft((current) => ({
+            ...current,
+            situacao: current.situacao.filter((item) => item !== value),
+          }));
+          setFiltros((current) => ({
+            ...current,
+            situacao: current.situacao.filter((item) => item !== value),
+          }));
+        },
+      }),
+    );
+    if (
+      filtros.sortBy !== DEFAULT_SORT_BY ||
+      filtros.sortDir !== DEFAULT_SORT_DIR
+    ) {
+      items.push({
+        id: "ordenacao",
+        label: "Ordenação",
+        value: `${sortByOptions.find((option) => option.value === filtros.sortBy)?.label ?? filtros.sortBy} · ${sortDirLabels[filtros.sortDir]}`,
+        onRemove: () => {
+          setDraft((current) => ({
+            ...current,
+            sortBy: DEFAULT_SORT_BY,
+            sortDir: DEFAULT_SORT_DIR,
+          }));
+          setFiltros((current) => ({
+            ...current,
+            sortBy: DEFAULT_SORT_BY,
+            sortDir: DEFAULT_SORT_DIR,
+          }));
+        },
+      });
+    }
+    return items;
+  }, [filtros]);
 
   const setField = <K extends keyof DiretoriaData>(
     key: K,
@@ -531,7 +712,9 @@ export default function Diretoria() {
 
   const openRecord = (record: DiretoriaData, nextMode: FormMode) => {
     if (nextMode === "edit" && !podeEditar) {
-      toast.error("Você não possui permissão para editar registros da diretoria.");
+      toast.error(
+        "Você não possui permissão para editar registros da diretoria.",
+      );
       return;
     }
 
@@ -544,9 +727,34 @@ export default function Diretoria() {
     setShowForm(true);
   };
 
+  const duplicateRecord = (record: DiretoriaData) => {
+    if (!podeCriar) {
+      toast.error(
+        "Você não possui permissão para criar registros da diretoria.",
+      );
+      return;
+    }
+
+    setSelectedId(null);
+    setForm({
+      ...record,
+      id: "",
+      nomeCompleto: `${record.nomeCompleto} (cópia)`,
+      cpf: "",
+      rg: "",
+      email: "",
+      telefone: "",
+      estado: resolverEstadoParaSelect(record.estado),
+    });
+    setMode("create");
+    setShowForm(true);
+  };
+
   const handleNew = () => {
     if (!podeCriar) {
-      toast.error("Você não possui permissão para criar registros da diretoria.");
+      toast.error(
+        "Você não possui permissão para criar registros da diretoria.",
+      );
       return;
     }
 
@@ -569,22 +777,35 @@ export default function Diretoria() {
     setForm(createEmptyDiretoria());
   };
 
-  const handleCopy = async () => {
-    const { ok, rows } = await copyTableFromRef(tableRef.current);
+  const exportColumns = [
+    { header: "Nome", key: "nomeCompleto" },
+    { header: "CPF", key: "cpf" },
+    { header: "Cargo na diretoria", key: "cargoLabel" },
+    { header: "Data de início do mandato", key: "dataInicioMandatoLabel" },
+    { header: "Data de término do mandato", key: "dataFimMandatoLabel" },
+    { header: "Data de afastamento", key: "dataAfastamentoLabel" },
+    { header: "Status", key: "statusLabel" },
+    { header: "Organização", key: "organizacaoNome" },
+  ];
 
-    if (!ok || rows === 0) {
-      toast.error("Não há dados para copiar.");
-      return;
-    }
-
-    toast.success("Dados copiados com sucesso.");
-  };
+  const getExportData = (): Record<string, unknown>[] =>
+    filteredRegistros.map((item) => ({
+      ...item,
+      cargoLabel: cargoDiretoriaLabel(item.cargoDiretoria),
+      dataInicioMandatoLabel: formatDateBR(item.dataInicioMandato),
+      dataFimMandatoLabel: formatDateBR(item.dataFimMandato),
+      dataAfastamentoLabel: formatDateBR(item.dataAfastamento),
+      statusLabel: statusDiretoriaLabel(item.statusDiretoria),
+      organizacaoNome: organizacaoNome(item.organizacaoId),
+    }));
 
   const handleDelete = async () => {
     if (!confirmDeleteId) return;
 
     if (!podeExcluir) {
-      toast.error("Você não possui permissão para excluir registros da diretoria.");
+      toast.error(
+        "Você não possui permissão para excluir registros da diretoria.",
+      );
       setConfirmDeleteId(null);
       return;
     }
@@ -592,7 +813,9 @@ export default function Diretoria() {
     try {
       await deleteDiretoria(Number(confirmDeleteId));
 
-      setRegistros((prev) => prev.filter((item) => item.id !== confirmDeleteId));
+      setRegistros((prev) =>
+        prev.filter((item) => item.id !== confirmDeleteId),
+      );
 
       if (selectedId === confirmDeleteId) {
         handleCancel();
@@ -649,23 +872,63 @@ export default function Diretoria() {
 
       organizacao: organizacaoNome(item.organizacaoId),
       observacao: item.observacao,
-    } as any);
+    });
   }
 
-  async function handleConverterParaColaborador(item: DiretoriaData) {
+  const gerarDeclaracaoCargo = async (id: string | number) => {
     try {
-      const saved = await converterDiretoriaParaColaborador(item.id);
-
-      toast.success("Registro convertido com sucesso.");
-      navigate(`/colaboradores/${saved.id}/editar`);
+      await downloadDeclaracaoCargoDiretoria(id);
+      toast.success("Declaração de cargo gerada com sucesso.");
     } catch (error) {
-      console.error(error);
       toast.error(
         error instanceof Error
           ? error.message
-          : "Não foi possível converter o registro da diretoria.",
+          : "Não foi possível gerar a declaração de cargo.",
       );
     }
+  };
+
+  function handleConverterParaColaborador(item: DiretoriaData) {
+    const status =
+      item.statusDiretoria === "ENCERRADO"
+        ? "CONCLUIDO"
+        : item.statusDiretoria === "AFASTADO"
+          ? "INATIVO"
+          : item.statusDiretoria;
+
+    setConvertItem(null);
+    navigate("/colaboradores/novo", {
+      state: {
+        conversionSeed: {
+          origem: "Diretoria",
+          data: {
+            nomeCompleto: item.nomeCompleto,
+            dataNascimento: item.dataNascimento,
+            cpf: item.cpf,
+            rg: item.rg,
+            telefone: item.telefone,
+            email: item.email,
+            racaCor: item.racaCor,
+            genero: item.genero,
+            tipoDeficiencia: item.tipoDeficiencia,
+            cep: item.cep,
+            logradouro: item.logradouro,
+            numero: item.numero,
+            complemento: item.complemento,
+            bairro: item.bairro,
+            cidade: item.cidade,
+            estado: item.estado,
+            dataInicioVinculo: item.dataInicioMandato,
+            dataFimVinculo: item.dataFimMandato,
+            funcaoColaborador: cargoDiretoriaLabel(item.cargoDiretoria),
+            descricaoAtuacao: item.observacao,
+            status,
+            organizacaoId: item.organizacaoId,
+          },
+        },
+      },
+    });
+    toast.success("Dados carregados. Revise o cadastro e clique em Salvar.");
   }
 
   async function buscarEnderecoPorCep(cepFormatado: string) {
@@ -676,7 +939,9 @@ export default function Diretoria() {
     try {
       setCepLoading(true);
 
-      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const response = await fetch(
+        `https://viacep.com.br/ws/${cepLimpo}/json/`,
+      );
 
       if (!response.ok) {
         throw new Error("Não foi possível consultar o CEP.");
@@ -735,7 +1000,9 @@ export default function Diretoria() {
       form.dataFimMandato &&
       form.dataFimMandato < form.dataInicioMandato
     ) {
-      toast.error("A data fim do mandato não pode ser anterior à data de início.");
+      toast.error(
+        "A data fim do mandato não pode ser anterior à data de início.",
+      );
       return false;
     }
 
@@ -773,12 +1040,16 @@ export default function Diretoria() {
     if (readOnly) return;
 
     if (mode === "create" && !podeCriar) {
-      toast.error("Você não possui permissão para criar registros da diretoria.");
+      toast.error(
+        "Você não possui permissão para criar registros da diretoria.",
+      );
       return;
     }
 
     if (mode === "edit" && !podeEditar) {
-      toast.error("Você não possui permissão para editar registros da diretoria.");
+      toast.error(
+        "Você não possui permissão para editar registros da diretoria.",
+      );
       return;
     }
 
@@ -814,24 +1085,7 @@ export default function Diretoria() {
       notifyImportReviewSaveSuccess("diretoria");
 
       if (isCreating) {
-        salvarProximaAcaoDiretoria();
-
-        const raw = sessionStorage.getItem(DIRETORIA_NEXT_STEP_KEY);
-
-        if (raw) {
-          try {
-            const parsed = JSON.parse(raw) as DiretoriaNextStepCardData;
-            setNextStepCard(parsed);
-          } catch {
-            setNextStepCard(null);
-          }
-
-          sessionStorage.removeItem(DIRETORIA_NEXT_STEP_KEY);
-
-          window.setTimeout(() => {
-            setNextStepCard(null);
-          }, NEXT_STEP_DURATION_MS);
-        }
+        emitJourneyNextStep();
       }
 
       handleCancel();
@@ -865,883 +1119,975 @@ export default function Diretoria() {
   return (
     <AppLayout>
       <div
-        className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"
-          } py-6 sm:py-8`}
+        className={`container ${
+          showForm ? "max-w-4xl" : "max-w-7xl"
+        } py-6 sm:py-8`}
       >
-        {showForm && (
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-          >
-            <ArrowLeft className="h-4 w-4" /> Voltar
-          </button>
-        )}
+        {showForm && <BackButton onClick={handleCancel} />}
 
-        <PageTitle
+        <ListPageHeader
           title="Diretoria"
-          tooltip="Cadastre e acompanhe os membros da diretoria da organização, informando cargo, período de mandato e situação atual. Esses dados ajudam a manter a representação institucional atualizada e podem ser utilizados em documentos oficiais, editais, contratos, relatórios e prestações de contas."
-          showImport={showForm && !readOnly}
+          tooltip="Nesta página são cadastrados e acompanhados os integrantes da diretoria da organização, com informações sobre dados pessoais, cargo, período de mandato, situação atual e vínculo institucional. Esses dados ajudam a manter a representação institucional atualizada e podem ser utilizados em documentos, editais, relatórios e prestações de contas."
+          objective={
+            showForm
+              ? undefined
+              : "Registre e mantenha atualizadas as informações sobre a composição da diretoria, os cargos exercidos, os períodos de mandato e a situação de cada integrante. Esses dados poderão ser utilizados em documentos, editais, relatórios e prestações de contas."
+          }
+          actions={
+            showForm && mode !== "view" ? (
+              <ImportDataButton
+                config={getImportConfigForPath("/diretoria")!}
+                canFillForm
+                variant="glassSecondary"
+              />
+            ) : !showForm && podeCriar ? (
+              <Button
+                type="button"
+                variant="glassPrimary"
+                onClick={handleNew}
+                className="h-9 gap-2 px-4"
+              >
+                <Plus className="h-4 w-4" />
+                Cadastrar diretoria
+              </Button>
+            ) : undefined
+          }
         />
 
-        {!showForm && nextStepCard && (
-          <NextStepCard
-            titulo={nextStepCard.titulo}
-            descricao={nextStepCard.descricao}
-            acaoLabel={nextStepCard.acaoLabel}
-            acaoUrl={nextStepCard.acaoUrl}
-            acaoSecundariaLabel={nextStepCard.acaoSecundariaLabel}
-            acaoSecundariaUrl={nextStepCard.acaoSecundariaUrl}
-            variante={nextStepCard.variante ?? "pendente"}
-            onDismiss={() => setNextStepCard(null)}
-          />
-        )}
+        {showForm && <FormLegend />}
 
         {showForm ? (
-          <>
-            {readOnly && (
-              <div className="mb-5 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Esta tela está em modo de visualização. Para alterar os dados,
-                utilize a opção Editar disponível no menu{" "}
-                <span className="font-semibold">Ações</span>.
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <Section icon={UserRound} title="Dados pessoais">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="nomeCompleto" required={!readOnly}>
+                    Nome Completo
+                  </FieldLabel>
+
+                  <Input
+                    id="nomeCompleto"
+                    value={form.nomeCompleto}
+                    onChange={(e) => setField("nomeCompleto", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="dataNascimento" required={!readOnly}>
+                    Data de Nascimento
+                  </FieldLabel>
+
+                  <Input
+                    id="dataNascimento"
+                    type="date"
+                    value={form.dataNascimento}
+                    onChange={(e) => setField("dataNascimento", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="cpf" required={!readOnly}>
+                    CPF
+                  </FieldLabel>
+
+                  <Input
+                    id="cpf"
+                    value={form.cpf}
+                    onChange={(e) => setField("cpf", maskCPF(e.target.value))}
+                    inputMode="numeric"
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="rg">RG</FieldLabel>
+
+                  <Input
+                    id="rg"
+                    value={form.rg}
+                    onChange={(e) => setField("rg", maskRGFlex(e.target.value))}
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="racaCor" required={!readOnly}>
+                    Raça/cor
+                  </FieldLabel>
+
+                  <Select
+                    value={form.racaCor}
+                    onValueChange={(value) => {
+                      if (readOnly) return;
+                      setField("racaCor", value as RacaCorApi);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="racaCor">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {racasCoresDiretoria.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="genero" required={!readOnly}>
+                    Gênero
+                  </FieldLabel>
+
+                  <Select
+                    value={form.genero}
+                    onValueChange={(value) => {
+                      if (readOnly) return;
+                      setField("genero", value as GeneroApi);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="genero">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {generosDiretoria.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="tipoDeficiencia"
+                    required={!readOnly}
+                    tooltip="Informe se o integrante possui alguma deficiência e, em caso positivo, selecione o tipo correspondente. Se não possuir, selecione Não possui. Caso essa informação não tenha sido fornecida ou não seja conhecida, selecione Não informado."
+                  >
+                    Deficiência
+                  </FieldLabel>
+
+                  <Select
+                    value={form.tipoDeficiencia}
+                    onValueChange={(value) => {
+                      if (readOnly) return;
+                      setField("tipoDeficiencia", value as TipoDeficienciaApi);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="tipoDeficiencia">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent className="max-h-72">
+                      {tiposDeficienciaDiretoria.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="telefone" required={!readOnly}>
+                    Telefone
+                  </FieldLabel>
+
+                  <Input
+                    id="telefone"
+                    value={form.telefone}
+                    onChange={(e) =>
+                      setField("telefone", maskPhone(e.target.value))
+                    }
+                    inputMode="tel"
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="email">E-mail</FieldLabel>
+
+                  <EmailInput
+                    id="email"
+                    value={form.email}
+                    onChange={(e) => setField("email", e.target.value)}
+                    disabled={bloqueado}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            <Section icon={MapPin} title="Endereço">
+              <div className="grid gap-4 sm:grid-cols-6">
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="cep" required={!readOnly}>
+                    CEP
+                  </FieldLabel>
+
+                  <Input
+                    id="cep"
+                    value={form.cep}
+                    onChange={(e) => {
+                      if (readOnly) return;
+
+                      const cepFormatado = maskCEP(e.target.value);
+                      setField("cep", cepFormatado);
+
+                      const cepLimpo = cepFormatado.replace(/\D/g, "");
+
+                      if (cepLimpo.length === 8) {
+                        void buscarEnderecoPorCep(cepFormatado);
+                      }
+                    }}
+                    inputMode="numeric"
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+
+                  {cepLoading && !readOnly && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Buscando endereço...
+                    </p>
+                  )}
+                </Field>
+
+                <Field className="sm:col-span-4">
+                  <FieldLabel htmlFor="logradouro" required={!readOnly}>
+                    Logradouro
+                  </FieldLabel>
+
+                  <Input
+                    id="logradouro"
+                    value={form.logradouro}
+                    onChange={(e) => setField("logradouro", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="numero" required={!readOnly}>
+                    Número
+                  </FieldLabel>
+
+                  <Input
+                    id="numero"
+                    value={form.numero}
+                    onChange={(e) => setField("numero", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-4">
+                  <FieldLabel htmlFor="complemento">Complemento</FieldLabel>
+
+                  <Input
+                    id="complemento"
+                    value={form.complemento}
+                    onChange={(e) => setField("complemento", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="bairro" required={!readOnly}>
+                    Bairro
+                  </FieldLabel>
+
+                  <Input
+                    id="bairro"
+                    value={form.bairro}
+                    onChange={(e) => setField("bairro", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="cidade" required={!readOnly}>
+                    Cidade
+                  </FieldLabel>
+
+                  <Input
+                    id="cidade"
+                    value={form.cidade}
+                    onChange={(e) => setField("cidade", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="estado" required={!readOnly}>
+                    Estado
+                  </FieldLabel>
+
+                  <Select
+                    value={form.estado}
+                    onValueChange={(value) => {
+                      if (readOnly) return;
+                      setField("estado", value);
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="estado">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent className="max-h-72">
+                      {estadosBrasil.map((estado) => (
+                        <SelectItem key={estado} value={estado}>
+                          {estado}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </Section>
+
+            <Section icon={FileText} title="Vínculo institucional">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="organizacaoId"
+                    tooltip="Informe a organização à qual o cargo ou função do integrante está vinculado."
+                  >
+                    Organização
+                  </FieldLabel>
+
+                  <Select
+                    value={form.organizacaoId}
+                    onValueChange={(value) => {
+                      if (readOnly) return;
+                      setField("organizacaoId", value);
+                    }}
+                    disabled={bloqueado || organizacoes.length === 0}
+                  >
+                    <SelectTrigger id="organizacaoId">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent className="max-h-72">
+                      {organizacoes.map((organizacao) => (
+                        <SelectItem key={organizacao.id} value={organizacao.id}>
+                          {organizacao.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </Section>
+
+            <Section icon={Landmark} title="Cargo e mandato">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel
+                    htmlFor="cargoDiretoria"
+                    required={!readOnly}
+                    tooltip="Informe o cargo ou função exercida pelo integrante na diretoria da organização, como Presidente, Conselheiro fiscal, Diretor cultural, Coordenador de projetos ou Secretário."
+                  >
+                    Cargo na Diretoria
+                  </FieldLabel>
+
+                  <FormSearchableSelect
+                    id="cargoDiretoria"
+                    value={form.cargoDiretoria}
+                    options={cargosDiretoria}
+                    onChange={(value) => {
+                      if (!readOnly) setField("cargoDiretoria", value);
+                    }}
+                    placeholder="Selecione"
+                    searchPlaceholder="Buscar cargo na diretoria..."
+                    emptyMessage="Nenhum cargo encontrado."
+                    disabled={bloqueado}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataInicioMandato"
+                    required={!readOnly}
+                    tooltip="Informe a data em que o integrante iniciou o mandato ou passou a exercer o cargo, conforme ata, eleição, nomeação ou documento equivalente."
+                  >
+                    Data de Início do Mandato
+                  </FieldLabel>
+
+                  <Input
+                    id="dataInicioMandato"
+                    type="date"
+                    value={form.dataInicioMandato}
+                    onChange={(e) =>
+                      setField("dataInicioMandato", e.target.value)
+                    }
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="dataFimMandato"
+                    required={!readOnly}
+                    tooltip="Informe a data prevista para o término do mandato ou, caso já tenha sido encerrado, a data em que o integrante deixou o cargo."
+                  >
+                    Data de Fim do Mandato
+                  </FieldLabel>
+
+                  <Input
+                    id="dataFimMandato"
+                    type="date"
+                    value={form.dataFimMandato}
+                    onChange={(e) => setField("dataFimMandato", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="statusDiretoria"
+                    required={!readOnly}
+                    tooltip="Informe a situação atual do integrante na diretoria. Ativo indica mandato em exercício; Encerrado, mandato finalizado; Afastado, afastamento temporário; e Inativo, vínculo que não está mais em exercício."
+                  >
+                    Status da Diretoria
+                  </FieldLabel>
+
+                  <Select
+                    value={form.statusDiretoria}
+                    onValueChange={(value) => {
+                      if (readOnly) return;
+
+                      setForm((prev) => ({
+                        ...prev,
+                        statusDiretoria: value,
+                        dataAfastamento:
+                          value.toUpperCase() === "AFASTADO"
+                            ? prev.dataAfastamento
+                            : "",
+                      }));
+                    }}
+                    disabled={bloqueado}
+                  >
+                    <SelectTrigger id="statusDiretoria">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {statusDiretoriaOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                {statusAfastado && (
+                  <Field>
+                    <FieldLabel
+                      htmlFor="dataAfastamento"
+                      required={!readOnly}
+                      tooltip="Informe a data em que o integrante foi afastado temporariamente do exercício do cargo."
+                    >
+                      Data de Afastamento
+                    </FieldLabel>
+
+                    <Input
+                      id="dataAfastamento"
+                      type="date"
+                      value={form.dataAfastamento}
+                      onChange={(e) =>
+                        setField("dataAfastamento", e.target.value)
+                      }
+                      disabled={bloqueado}
+                      readOnly={readOnly}
+                    />
+                  </Field>
+                )}
+              </div>
+            </Section>
+
+            <Section icon={FileText} title="Observações">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field full>
+                  <FieldLabel
+                    htmlFor="observacao"
+                    tooltip="Registre informações complementares relevantes sobre o cargo, mandato ou vínculo do integrante, como eleição, posse, afastamento, substituição ou recondução."
+                  >
+                    Observação
+                  </FieldLabel>
+
+                  <Input
+                    id="observacao"
+                    value={form.observacao}
+                    onChange={(e) => setField("observacao", e.target.value)}
+                    disabled={bloqueado}
+                    readOnly={readOnly}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            {mode !== "view" && (
+              <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="glassSecondary"
+                  className="h-9 px-4"
+                  onClick={handleCancel}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  variant="glassPrimary"
+                  className="h-9 px-5"
+                  disabled={saving}
+                >
+                  {saving ? "Salvando..." : "Salvar"}
+                </Button>
               </div>
             )}
 
-            {!readOnly && <FormLegend />}
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <Section icon={UserRound} title="Dados pessoais">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel htmlFor="nomeCompleto" required={!readOnly}>
-                      Nome Completo
-                    </FieldLabel>
-
-                    <Input
-                      id="nomeCompleto"
-                      value={form.nomeCompleto}
-                      onChange={(e) => setField("nomeCompleto", e.target.value)}
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="dataNascimento" required={!readOnly}>
-                      Data de Nascimento
-                    </FieldLabel>
-
-                    <Input
-                      id="dataNascimento"
-                      type="date"
-                      value={form.dataNascimento}
-                      onChange={(e) =>
-                        setField("dataNascimento", e.target.value)
-                      }
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="cpf" required={!readOnly}>
-                      CPF
-                    </FieldLabel>
-
-                    <Input
-                      id="cpf"
-                      value={form.cpf}
-                      onChange={(e) => setField("cpf", maskCPF(e.target.value))}
-                      inputMode="numeric"
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="rg">RG</FieldLabel>
-
-                    <Input
-                      id="rg"
-                      value={form.rg}
-                      onChange={(e) =>
-                        setField("rg", maskRGFlex(e.target.value))
-                      }
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="racaCor" required={!readOnly}>
-                      Raça/Cor
-                    </FieldLabel>
-
-                    <Select
-                      value={form.racaCor}
-                      onValueChange={(value) => {
-                        if (readOnly) return;
-                        setField("racaCor", value as RacaCorApi);
-                      }}
-                      disabled={bloqueado}
-                    >
-                      <SelectTrigger id="racaCor">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        {racasCoresDiretoria.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="genero" required={!readOnly}>
-                      Gênero
-                    </FieldLabel>
-
-                    <Select
-                      value={form.genero}
-                      onValueChange={(value) => {
-                        if (readOnly) return;
-                        setField("genero", value as GeneroApi);
-                      }}
-                      disabled={bloqueado}
-                    >
-                      <SelectTrigger id="genero">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        {generosDiretoria.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="tipoDeficiencia" required={!readOnly}>
-                      Deficiência
-                    </FieldLabel>
-
-                    <Select
-                      value={form.tipoDeficiencia}
-                      onValueChange={(value) => {
-                        if (readOnly) return;
-                        setField("tipoDeficiencia", value as TipoDeficienciaApi);
-                      }}
-                      disabled={bloqueado}
-                    >
-                      <SelectTrigger id="tipoDeficiencia">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent className="max-h-72">
-                        {tiposDeficienciaDiretoria.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="telefone" required={!readOnly}>
-                      Telefone
-                    </FieldLabel>
-
-                    <Input
-                      id="telefone"
-                      value={form.telefone}
-                      onChange={(e) =>
-                        setField("telefone", maskPhone(e.target.value))
-                      }
-                      inputMode="tel"
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="email">E-mail</FieldLabel>
-
-                    <EmailInput
-                      id="email"
-                      value={form.email}
-                      onChange={(e) => setField("email", e.target.value)}
-                      disabled={bloqueado}
-                    />
-                  </Field>
-                </div>
-              </Section>
-
-              <Section icon={MapPin} title="Endereço">
-                <div className="grid gap-4 sm:grid-cols-6">
-                  <Field className="sm:col-span-2">
-                    <FieldLabel htmlFor="cep" required={!readOnly}>
-                      CEP
-                    </FieldLabel>
-
-                    <Input
-                      id="cep"
-                      value={form.cep}
-                      onChange={(e) => {
-                        if (readOnly) return;
-
-                        const cepFormatado = maskCEP(e.target.value);
-                        setField("cep", cepFormatado);
-
-                        const cepLimpo = cepFormatado.replace(/\D/g, "");
-
-                        if (cepLimpo.length === 8) {
-                          void buscarEnderecoPorCep(cepFormatado);
-                        }
-                      }}
-                      inputMode="numeric"
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-
-                    {cepLoading && !readOnly && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Buscando endereço...
-                      </p>
-                    )}
-                  </Field>
-
-                  <Field className="sm:col-span-4">
-                    <FieldLabel htmlFor="logradouro" required={!readOnly}>
-                      Logradouro
-                    </FieldLabel>
-
-                    <Input
-                      id="logradouro"
-                      value={form.logradouro}
-                      onChange={(e) => setField("logradouro", e.target.value)}
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  <Field className="sm:col-span-2">
-                    <FieldLabel htmlFor="numero" required={!readOnly}>
-                      Número
-                    </FieldLabel>
-
-                    <Input
-                      id="numero"
-                      value={form.numero}
-                      onChange={(e) => setField("numero", e.target.value)}
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  <Field className="sm:col-span-4">
-                    <FieldLabel htmlFor="complemento">Complemento</FieldLabel>
-
-                    <Input
-                      id="complemento"
-                      value={form.complemento}
-                      onChange={(e) => setField("complemento", e.target.value)}
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  <Field className="sm:col-span-2">
-                    <FieldLabel htmlFor="bairro" required={!readOnly}>
-                      Bairro
-                    </FieldLabel>
-
-                    <Input
-                      id="bairro"
-                      value={form.bairro}
-                      onChange={(e) => setField("bairro", e.target.value)}
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  <Field className="sm:col-span-2">
-                    <FieldLabel htmlFor="cidade" required={!readOnly}>
-                      Cidade
-                    </FieldLabel>
-
-                    <Input
-                      id="cidade"
-                      value={form.cidade}
-                      onChange={(e) => setField("cidade", e.target.value)}
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  <Field className="sm:col-span-2">
-                    <FieldLabel htmlFor="estado" required={!readOnly}>
-                      Estado
-                    </FieldLabel>
-
-                    <Select
-                      value={form.estado}
-                      onValueChange={(value) => {
-                        if (readOnly) return;
-                        setField("estado", value);
-                      }}
-                      disabled={bloqueado}
-                    >
-                      <SelectTrigger id="estado">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent className="max-h-72">
-                        {estadosBrasil.map((estado) => (
-                          <SelectItem key={estado} value={estado}>
-                            {estado}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </div>
-              </Section>
-
-              <Section icon={Landmark} title="Cargo e mandato">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel
-                      htmlFor="cargoDiretoria"
-                      required={!readOnly}
-                      tooltip="Selecione o cargo exercido pela pessoa na diretoria da organização. Ex.: Presidente, Conselheiro fiscal, Diretor cultural, Coordenador de projetos ou Secretário."
-                    >
-                      Cargo na Diretoria
-                    </FieldLabel>
-
-                    <Select
-                      value={form.cargoDiretoria}
-                      onValueChange={(value) => {
-                        if (readOnly) return;
-                        setField("cargoDiretoria", value);
-                      }}
-                      disabled={bloqueado}
-                    >
-                      <SelectTrigger id="cargoDiretoria">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent className="max-h-72">
-                        {cargosDiretoria.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel
-                      htmlFor="statusDiretoria"
-                      required={!readOnly}
-                      tooltip="Indique a situação atual do membro na diretoria. Use “Ativo” para mandato em exercício, “Encerrado” para mandato finalizado, “Afastado” para afastamento temporário e “Inativo” para vínculos que não devem mais ser considerados ativos."
-                    >
-                      Status da Diretoria
-                    </FieldLabel>
-
-                    <Select
-                      value={form.statusDiretoria}
-                      onValueChange={(value) => {
-                        if (readOnly) return;
-
-                        setForm((prev) => ({
-                          ...prev,
-                          statusDiretoria: value,
-                          dataAfastamento:
-                            value.toUpperCase() === "AFASTADO"
-                              ? prev.dataAfastamento
-                              : "",
-                        }));
-                      }}
-                      disabled={bloqueado}
-                    >
-                      <SelectTrigger id="statusDiretoria">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        {statusDiretoriaOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel
-                      htmlFor="dataInicioMandato"
-                      required={!readOnly}
-                      tooltip="Informe a data em que a pessoa iniciou o mandato no cargo da diretoria, conforme ata, eleição, nomeação ou documento equivalente. Ex.: 01/01/2025."
-                    >
-                      Data de Início do Mandato
-                    </FieldLabel>
-
-                    <Input
-                      id="dataInicioMandato"
-                      type="date"
-                      value={form.dataInicioMandato}
-                      onChange={(e) =>
-                        setField("dataInicioMandato", e.target.value)
-                      }
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel
-                      htmlFor="dataFimMandato"
-                      required={!readOnly}
-                      tooltip="Informe a data prevista ou efetiva de encerramento do mandato. Este campo é obrigatório para todos os membros da diretoria, independentemente do status."
-                    >
-                      Data de Fim do Mandato
-                    </FieldLabel>
-
-                    <Input
-                      id="dataFimMandato"
-                      type="date"
-                      value={form.dataFimMandato}
-                      onChange={(e) =>
-                        setField("dataFimMandato", e.target.value)
-                      }
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-
-                  {statusAfastado && (
-                    <Field>
-                      <FieldLabel
-                        htmlFor="dataAfastamento"
-                        required={!readOnly}
-                        tooltip="Informe a data em que o membro foi afastado da diretoria. Este campo é obrigatório quando o status da diretoria estiver como Afastado."
-                      >
-                        Data de Afastamento
-                      </FieldLabel>
-
-                      <Input
-                        id="dataAfastamento"
-                        type="date"
-                        value={form.dataAfastamento}
-                        onChange={(e) =>
-                          setField("dataAfastamento", e.target.value)
-                        }
-                        disabled={bloqueado}
-                        readOnly={readOnly}
-                      />
-                    </Field>
-                  )}
-                </div>
-              </Section>
-
-              <Section icon={FileText} title="Vínculo institucional e observações">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field full>
-                    <FieldLabel
-                      htmlFor="organizacaoId"
-                      tooltip="A organização é definida pela empresa logada. Este campo ajuda apenas na visualização quando houver uma organização cadastrada no tenant."
-                    >
-                      Organização
-                    </FieldLabel>
-
-                    <Select
-                      value={form.organizacaoId}
-                      onValueChange={(value) => {
-                        if (readOnly) return;
-                        setField("organizacaoId", value);
-                      }}
-                      disabled={bloqueado || organizacoes.length === 0}
-                    >
-                      <SelectTrigger id="organizacaoId">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-
-                      <SelectContent className="max-h-72">
-                        {organizacoes.map((organizacao) => (
-                          <SelectItem
-                            key={organizacao.id}
-                            value={organizacao.id}
-                          >
-                            {organizacao.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field full>
-                    <FieldLabel
-                      htmlFor="observacao"
-                      tooltip="Registre informações complementares sobre o mandato, como ata de eleição, posse, afastamentos, substituições, reconduções ou observações institucionais relevantes."
-                    >
-                      Observação
-                    </FieldLabel>
-
-                    <Textarea
-                      id="observacao"
-                      value={form.observacao}
-                      onChange={(e) => setField("observacao", e.target.value)}
-                      className="min-h-24 resize-y"
-                      disabled={bloqueado}
-                      readOnly={readOnly}
-                    />
-                  </Field>
-                </div>
-              </Section>
-
-              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-                <Button type="button" variant="outline" onClick={handleCancel}>
-                  {readOnly ? "Voltar" : "Cancelar"}
-                </Button>
-
-                {!readOnly && (
-                  <Button
-                    type="submit"
-                    className="sm:min-w-32"
-                    disabled={saving}
-                  >
-                    {saving ? "Salvando..." : "Salvar"}
-                  </Button>
-                )}
-              </div>
-            </form>
-          </>
-        ) : (
-          <div className="rounded border border-border bg-card">
-            <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row">
-              <div className="relative max-w-md flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-9 pl-9"
-                  aria-label="Buscar registro da diretoria"
-                />
-              </div>
-
-              {podeCriar && (
+            {mode === "view" && (
+              <div className="flex pt-2 sm:justify-end">
                 <Button
                   type="button"
-                  onClick={handleNew}
-                  className="h-9 gap-2"
+                  variant="glassSecondary"
+                  className="h-9 px-4"
+                  onClick={handleCancel}
                 >
-                  <Plus className="h-4 w-4" />
-                  Cadastrar Diretoria
+                  Voltar
                 </Button>
-              )}
-            </div>
-
-            <div className="hidden overflow-x-auto md:block">
-              <table ref={tableRef} className="w-full min-w-[1260px]">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th
-                      className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                      data-no-copy
-                    >
-                      Ações
-                    </th>
-
-                    <SortableHeader
-                      label="Nome"
-                      sortKey="nome"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+              </div>
+            )}
+          </form>
+        ) : (
+          <div className="space-y-4">
+            <AdvancedSearchPanel
+              open={panelOpen}
+              onOpenChange={setPanelOpen}
+              activeCount={activeFilters.length}
+            >
+              <form onSubmit={handleSearch} noValidate>
+                <SearchFilterGrid>
+                  <div>
+                    <FieldLabel htmlFor="filtroNome">
+                      Nome do integrante
+                    </FieldLabel>
+                    <Input
+                      id="filtroNome"
+                      value={draft.nome}
+                      onChange={(event) =>
+                        setDraftField("nome", event.target.value)
+                      }
+                      placeholder="Digite o nome do integrante"
+                      className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
                     />
-
-                    <SortableHeader
-                      label="Cargo na Diretoria"
-                      sortKey="cargo"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Início do Mandato"
-                      sortKey="inicioMandato"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Fim do Mandato"
-                      sortKey="fimMandato"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Afastamento"
-                      sortKey="afastamento"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Status"
-                      sortKey="status"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    <SortableHeader
-                      label="Organização"
-                      sortKey="organizacao"
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    />
-
-                    {podeGerarPdf && (
-                      <th
-                        className="w-[140px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                        data-no-copy
-                      >
-                        Documento
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {paginated.map((item) => {
-                    const organizacao = organizacaoNome(item.organizacaoId);
-
-                    return (
-                      <tr
-                        key={item.id}
-                        className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/30"
-                      >
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <div className="flex items-center gap-1">
-                            <TableActionIcon
-                              icon={Eye}
-                              label="Visualizar"
-                              onClick={() => openRecord(item, "view")}
-                            />
-
-                            {podeEditar && (
-                              <TableActionIcon
-                                icon={Pencil}
-                                label="Editar"
-                                onClick={() => openRecord(item, "edit")}
-                              />
-                            )}
-
-                            {podeCriar && (
-                              <TableActionIcon
-                                icon={UserPlus}
-                                label="Converter em Colaborador"
-                                onClick={() =>
-                                  void handleConverterParaColaborador(item)
-                                }
-                              />
-                            )}
-
-                            {podeExcluir && (
-                              <TableActionIcon
-                                icon={Trash2}
-                                label="Excluir"
-                                variant="danger"
-                                onClick={() => setConfirmDeleteId(item.id)}
-                              />
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <TableCellText text={item.nomeCompleto || "—"} bold>
-                            {item.nomeCompleto || "—"}
-                          </TableCellText>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <EnumBadge>
-                            {cargoDiretoriaLabel(item.cargoDiretoria)}
-                          </EnumBadge>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <TableCellText
-                            text={formatDateBR(item.dataInicioMandato)}
-                          >
-                            {formatDateBR(item.dataInicioMandato)}
-                          </TableCellText>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <TableCellText
-                            text={formatDateBR(item.dataFimMandato)}
-                            muted={!item.dataFimMandato}
-                          >
-                            {formatDateBR(item.dataFimMandato)}
-                          </TableCellText>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <TableCellText
-                            text={formatDateBR(item.dataAfastamento)}
-                            muted={!item.dataAfastamento}
-                          >
-                            {formatDateBR(item.dataAfastamento)}
-                          </TableCellText>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <EnumBadge>
-                            {statusDiretoriaLabel(item.statusDiretoria)}
-                          </EnumBadge>
-                        </td>
-
-                        <td className="whitespace-nowrap px-6 py-2.5">
-                          <TableCellText text={organizacao}>
-                            {organizacao}
-                          </TableCellText>
-                        </td>
-
-                        {podeGerarPdf && (
-                          <td className="whitespace-nowrap px-6 py-2.5">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => void handleExportPdf(item)}
-                              className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                            >
-                              <FileDown className="h-3.5 w-3.5" />
-                              Gerar ficha
-                            </Button>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-
-                  {paginated.length === 0 && (
-                    <EmptyRow
-                      colSpan={podeGerarPdf ? 9 : 8}
-                      message="Nenhum registro de diretoria encontrado."
-                    />
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="divide-y divide-border md:hidden">
-              {paginated.map((item) => {
-                const organizacao = organizacaoNome(item.organizacaoId);
-
-                return (
-                  <div key={item.id} className="p-4">
-                    <div className="mb-3 flex items-center gap-1">
-                      <TableActionIcon
-                        icon={Eye}
-                        label="Visualizar"
-                        onClick={() => openRecord(item, "view")}
-                      />
-
-                      {podeEditar && (
-                        <TableActionIcon
-                          icon={Pencil}
-                          label="Editar"
-                          onClick={() => openRecord(item, "edit")}
-                        />
-                      )}
-
-                      {podeCriar && (
-                        <TableActionIcon
-                          icon={UserPlus}
-                          label="Converter em Colaborador"
-                          onClick={() =>
-                            void handleConverterParaColaborador(item)
-                          }
-                        />
-                      )}
-
-                      {podeExcluir && (
-                        <TableActionIcon
-                          icon={Trash2}
-                          label="Excluir"
-                          variant="danger"
-                          onClick={() => setConfirmDeleteId(item.id)}
-                        />
-                      )}
-
-                      {podeGerarPdf && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleExportPdf(item)}
-                          className="ml-auto h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                        >
-                          <FileDown className="h-3.5 w-3.5" />
-                          PDF
-                        </Button>
-                      )}
-                    </div>
-
-                    <p className="font-medium text-foreground">
-                      {item.nomeCompleto || "—"}
-                    </p>
-
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <EnumBadge>
-                        {cargoDiretoriaLabel(item.cargoDiretoria)}
-                      </EnumBadge>
-
-                      <EnumBadge>
-                        {statusDiretoriaLabel(item.statusDiretoria)}
-                      </EnumBadge>
-                    </div>
-
-                    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                      <p>Início: {formatDateBR(item.dataInicioMandato)}</p>
-                      <p>Término: {formatDateBR(item.dataFimMandato)}</p>
-                      <p>Afastamento: {formatDateBR(item.dataAfastamento)}</p>
-                      <p>Organização: {organizacao}</p>
-                    </div>
                   </div>
-                );
-              })}
+                  <div>
+                    <FieldLabel htmlFor="filtroCargo">Cargo</FieldLabel>
+                    <FilterMultiSelect
+                      id="filtroCargo"
+                      options={cargosDiretoria}
+                      value={draft.cargo}
+                      onChange={(value) => setDraftField("cargo", value)}
+                      placeholder="Todos os cargos"
+                      searchable
+                      searchPlaceholder="Pesquisar cargo"
+                      summaryNoun="cargos selecionados"
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="filtroSituacao">Situação</FieldLabel>
+                    <FilterMultiSelect
+                      id="filtroSituacao"
+                      options={statusDiretoriaOptions}
+                      value={draft.situacao}
+                      onChange={(value) => setDraftField("situacao", value)}
+                      placeholder="Todas as situações"
+                      summaryNoun="situações selecionadas"
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="filtroSortBy">Ordenar por</FieldLabel>
+                    <Select
+                      value={draft.sortBy}
+                      onValueChange={(value) =>
+                        setDraftField("sortBy", value as SortKey)
+                      }
+                    >
+                      <SelectTrigger
+                        id="filtroSortBy"
+                        className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sortByOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="filtroSortDir">Ordem</FieldLabel>
+                    <Select
+                      value={draft.sortDir}
+                      onValueChange={(value) =>
+                        setDraftField("sortDir", value as SortDirection)
+                      }
+                    >
+                      <SelectTrigger
+                        id="filtroSortDir"
+                        className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="asc">{sortDirLabels.asc}</SelectItem>
+                        <SelectItem value="desc">
+                          {sortDirLabels.desc}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </SearchFilterGrid>
 
-              {paginated.length === 0 && (
-                <MobileEmptyState message="Nenhum registro de diretoria encontrado." />
-              )}
-            </div>
+                <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="glassSecondary"
+                    className="h-9 gap-2 px-4"
+                    onClick={handleClearFiltros}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Limpar filtros
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="glassPrimary"
+                    className="h-9 gap-2 px-5"
+                    disabled={searching}
+                  >
+                    <Search className="h-4 w-4" />
+                    {searching ? "Pesquisando..." : "Pesquisar"}
+                  </Button>
+                </div>
+              </form>
+            </AdvancedSearchPanel>
 
-            <TablePagination
-              totalItems={sortedItems.length}
-              currentPage={currentPage}
-              pageSize={pageSize}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
-              onCopy={handleCopy}
+            <ActiveFilters
+              items={activeFilters}
+              onClearAll={handleClearFiltros}
             />
+
+            <DataTableCard>
+              <DataTableToolbar
+                total={filteredRegistros.length}
+                reportTo="/relatorios/diretoria"
+                documentLayoutsTo="/modelos-documento"
+                exportColumns={exportColumns}
+                getExportData={getExportData}
+                exportFilename="diretoria"
+                canExport={podeBaixar}
+              />
+
+              {filteredRegistros.length === 0 ? (
+                <DataTableEmptyState
+                  emptyTitle="Nenhum integrante da diretoria cadastrado."
+                  createLabel="Cadastrar integrante da diretoria"
+                  onCreate={podeCriar ? handleNew : undefined}
+                  activeCount={activeFilters.length}
+                  onReviewSearch={() => setPanelOpen(true)}
+                  onClearFilters={handleClearFiltros}
+                />
+              ) : (
+                <>
+                  <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full min-w-[1260px]">
+                      <thead>
+                        <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
+                          <th
+                            className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                            data-no-copy
+                          >
+                            Ações
+                          </th>
+
+                          <SortableTh
+                            sortKey="nome"
+                            activeKey={sortConfig.key}
+                            dir={sortConfig.direction}
+                            onSort={handleSort}
+                          >
+                            Nome
+                          </SortableTh>
+                          <SortableTh
+                            sortKey="cargo"
+                            activeKey={sortConfig.key}
+                            dir={sortConfig.direction}
+                            onSort={handleSort}
+                          >
+                            Cargo na diretoria
+                          </SortableTh>
+                          <SortableTh
+                            sortKey="inicioMandato"
+                            activeKey={sortConfig.key}
+                            dir={sortConfig.direction}
+                            onSort={handleSort}
+                          >
+                            Data de início do mandato
+                          </SortableTh>
+                          <SortableTh
+                            sortKey="fimMandato"
+                            activeKey={sortConfig.key}
+                            dir={sortConfig.direction}
+                            onSort={handleSort}
+                          >
+                            Data de término do mandato
+                          </SortableTh>
+                          <SortableTh
+                            sortKey="status"
+                            activeKey={sortConfig.key}
+                            dir={sortConfig.direction}
+                            onSort={handleSort}
+                          >
+                            Status
+                          </SortableTh>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {paginated.map((item) => {
+                          const organizacao = organizacaoNome(
+                            item.organizacaoId,
+                          );
+
+                          return (
+                            <tr
+                              key={item.id}
+                              className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
+                            >
+                              <td className="whitespace-nowrap px-6 py-2.5">
+                                <RowActionsDropdown
+                                  reportEndpoint={
+                                    podeGerarPdf
+                                      ? `/diretorias/${item.id}/relatorio`
+                                      : undefined
+                                  }
+                                  reportFilename={`diretoria-${item.id}.pdf`}
+                                  onView={() => openRecord(item, "view")}
+                                  onEdit={
+                                    podeEditar
+                                      ? () => openRecord(item, "edit")
+                                      : undefined
+                                  }
+                                  onDelete={
+                                    podeExcluir
+                                      ? () => setConfirmDeleteId(item.id)
+                                      : undefined
+                                  }
+                                  extraItems={[
+                                    ...(podeCriar
+                                      ? [
+                                          {
+                                            label: "Duplicar",
+                                            icon: Copy,
+                                            onClick: () =>
+                                              duplicateRecord(item),
+                                          },
+                                          {
+                                            label: "Converter em Colaborador",
+                                            icon: UserPlus,
+                                            onClick: () => setConvertItem(item),
+                                          },
+                                        ]
+                                      : []),
+                                    ...(podeGerarPdf
+                                      ? [
+                                          {
+                                            label: "Gerar declaração de cargo",
+                                            icon: FileText,
+                                            onClick: () =>
+                                              void gerarDeclaracaoCargo(
+                                                item.id,
+                                              ),
+                                          },
+                                        ]
+                                      : []),
+                                  ]}
+                                />
+                              </td>
+
+                              <td className="whitespace-nowrap px-6 py-2.5">
+                                <TableCellText
+                                  text={item.nomeCompleto || "—"}
+                                  bold
+                                >
+                                  {item.nomeCompleto || "—"}
+                                </TableCellText>
+                              </td>
+
+                              <td className="whitespace-nowrap px-6 py-2.5">
+                                <TableCellText
+                                  text={cargoDiretoriaLabel(
+                                    item.cargoDiretoria,
+                                  )}
+                                >
+                                  {cargoDiretoriaLabel(item.cargoDiretoria)}
+                                </TableCellText>
+                              </td>
+
+                              <td className="whitespace-nowrap px-6 py-2.5">
+                                <TableCellText
+                                  text={formatDateBR(item.dataInicioMandato)}
+                                >
+                                  {formatDateBR(item.dataInicioMandato)}
+                                </TableCellText>
+                              </td>
+
+                              <td className="whitespace-nowrap px-6 py-2.5">
+                                <TableCellText
+                                  text={formatDateBR(item.dataFimMandato)}
+                                  muted={!item.dataFimMandato}
+                                >
+                                  {formatDateBR(item.dataFimMandato)}
+                                </TableCellText>
+                              </td>
+
+                              <td className="whitespace-nowrap px-6 py-2.5">
+                                <StatusPill
+                                  status={item.statusDiretoria}
+                                  context="diretoria"
+                                  ariaLabelPrefix="Status na diretoria"
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="divide-y divide-border md:hidden">
+                    {paginated.map((item) => {
+                      const organizacao = organizacaoNome(item.organizacaoId);
+
+                      return (
+                        <div key={item.id} className="p-4">
+                          <div className="mb-3 flex items-center gap-1">
+                            <RowActionsDropdown
+                              reportEndpoint={
+                                podeGerarPdf
+                                  ? `/diretorias/${item.id}/relatorio`
+                                  : undefined
+                              }
+                              reportFilename={`diretoria-${item.id}.pdf`}
+                              onView={() => openRecord(item, "view")}
+                              onEdit={
+                                podeEditar
+                                  ? () => openRecord(item, "edit")
+                                  : undefined
+                              }
+                              onDelete={
+                                podeExcluir
+                                  ? () => setConfirmDeleteId(item.id)
+                                  : undefined
+                              }
+                              extraItems={[
+                                ...(podeCriar
+                                  ? [
+                                      {
+                                        label: "Duplicar",
+                                        icon: Copy,
+                                        onClick: () => duplicateRecord(item),
+                                      },
+                                      {
+                                        label: "Converter em Colaborador",
+                                        icon: UserPlus,
+                                        onClick: () => setConvertItem(item),
+                                      },
+                                    ]
+                                  : []),
+                                ...(podeGerarPdf
+                                  ? [
+                                      {
+                                        label: "Gerar declaração de cargo",
+                                        icon: FileText,
+                                        onClick: () =>
+                                          void gerarDeclaracaoCargo(item.id),
+                                      },
+                                    ]
+                                  : []),
+                              ]}
+                            />
+                          </div>
+
+                          <p className="font-medium text-foreground">
+                            {item.nomeCompleto || "—"}
+                          </p>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              {cargoDiretoriaLabel(item.cargoDiretoria)}
+                            </span>
+
+                            <StatusPill
+                              status={item.statusDiretoria}
+                              context="diretoria"
+                              ariaLabelPrefix="Status na diretoria"
+                            />
+                          </div>
+
+                          <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                            <p>
+                              Início: {formatDateBR(item.dataInicioMandato)}
+                            </p>
+                            <p>Término: {formatDateBR(item.dataFimMandato)}</p>
+                            <p>
+                              Afastamento: {formatDateBR(item.dataAfastamento)}
+                            </p>
+                            <p>Organização: {organizacao}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <DataTablePagination
+                    totalItems={sortedItems.length}
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={setPageSize}
+                    entityLabel="registro"
+                    entityLabelPlural="registros"
+                    pageSizeLabel="Registros por página"
+                  />
+                </>
+              )}
+            </DataTableCard>
           </div>
         )}
       </div>
@@ -1762,19 +2108,26 @@ export default function Diretoria() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
 
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete}>
               Sim, excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
+      <ConvertConfirmDialog
+        open={!!convertItem}
+        onOpenChange={(open) => !open && setConvertItem(null)}
+        sourceLabel="Diretoria"
+        targetLabel="Colaborador"
+        onConfirm={() => {
+          if (convertItem) handleConverterParaColaborador(convertItem);
+        }}
+      />
+
       <WikiFloatingButton
         pageTitle="Diretoria"
-        href="https://www.aurit.com.br/wiki/institucional/diretoria"
+        href="/wiki/institucional/diretoria"
       />
     </AppLayout>
   );
@@ -1785,22 +2138,35 @@ function Section({
   title,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
   children: React.ReactNode;
 }) {
+  const descriptions: Record<string, string> = {
+    "Dados pessoais":
+      "Informe os dados pessoais, de identificação e contato do integrante da diretoria.",
+
+    Endereço:
+      "Informe o endereço principal do integrante da diretoria. Ao preencher o CEP, os dados disponíveis serão preenchidos automaticamente.",
+
+    "Vínculo institucional":
+      "Informe a organização à qual o cargo ou função do integrante está vinculado.",
+
+    "Cargo e mandato":
+      "Informe o cargo ou função exercida, o período de mandato e a situação atual do integrante na diretoria.",
+
+    Observações:
+      "Registre informações complementares sobre o cargo, mandato ou vínculo do integrante, quando necessário.",
+  };
+
   return (
-    <Card className="rounded border border-border p-5 shadow-none sm:p-6">
-      <div className="mb-5 flex items-center gap-2.5 border-b border-border pb-3">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-
-        <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
-          {title}
-        </h2>
-      </div>
-
+    <FormSectionCard
+      icon={Icon}
+      title={title}
+      description={descriptions[title]}
+    >
       {children}
-    </Card>
+    </FormSectionCard>
   );
 }
 
@@ -1816,41 +2182,6 @@ function Field({
   return (
     <div className={`${full ? "sm:col-span-2" : ""} ${className}`}>
       {children}
-    </div>
-  );
-}
-
-function EnumBadge({ children }: { children: React.ReactNode }) {
-  return (
-    <Badge variant="secondary" className="whitespace-nowrap">
-      {children}
-    </Badge>
-  );
-}
-
-function EmptyRow({
-  colSpan,
-  message,
-}: {
-  colSpan: number;
-  message: string;
-}) {
-  return (
-    <tr>
-      <td
-        colSpan={colSpan}
-        className="px-5 py-16 text-center text-sm text-muted-foreground"
-      >
-        {message}
-      </td>
-    </tr>
-  );
-}
-
-function MobileEmptyState({ message }: { message: string }) {
-  return (
-    <div className="p-10 text-center text-sm text-muted-foreground">
-      {message}
     </div>
   );
 }

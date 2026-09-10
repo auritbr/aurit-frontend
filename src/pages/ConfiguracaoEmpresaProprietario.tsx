@@ -11,6 +11,7 @@ import {
   Settings as SettingsIcon,
   Trash2,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { ProprietarioLayout } from "@/components/ProprietarioLayout";
@@ -26,10 +27,12 @@ import {
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
-import { maskCEP, maskPhone } from "@/lib/masks";
+import { FormSectionCard } from "@/components/FormSectionCard";
+import { maskCEP, maskCpfCnpj, maskPhone } from "@/lib/masks";
 import { LIMITE_USUARIOS_PLANO_GRATUITO } from "@/lib/plano";
 import { estadosBrasil } from "@/data/colaboradores";
 import {
+  alterarPlanoEmpresaPorConfiguracao,
   getPlanoVisualEmpresa,
   type TipoPlanoVisual,
 } from "@/data/controleProprietario";
@@ -43,23 +46,6 @@ import {
   type ConfiguracaoEmpresaRequestDTO,
   type TipoPlanoApi,
 } from "@/lib/configuracaoEmpresaStore";
-
-const maskDoc = (v: string) => {
-  const d = v.replace(/\D/g, "").slice(0, 14);
-
-  if (d.length <= 11) {
-    return d
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-  }
-
-  return d
-    .replace(/(\d{2})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1/$2")
-    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
-};
 
 interface ViaCepResponse {
   cep?: string;
@@ -148,46 +134,69 @@ function formatDateTimeBR(value?: string | null) {
   }).format(date);
 }
 
-function mapUfToEstado(uf?: string): string {
-  const valor = (uf ?? "").trim();
+const estadosPorUf: Record<string, string> = {
+  AC: "Acre",
+  AL: "Alagoas",
+  AP: "Amapá",
+  AM: "Amazonas",
+  BA: "Bahia",
+  CE: "Ceará",
+  DF: "Distrito Federal",
+  ES: "Espírito Santo",
+  GO: "Goiás",
+  MA: "Maranhão",
+  MT: "Mato Grosso",
+  MS: "Mato Grosso do Sul",
+  MG: "Minas Gerais",
+  PA: "Pará",
+  PB: "Paraíba",
+  PR: "Paraná",
+  PE: "Pernambuco",
+  PI: "Piauí",
+  RJ: "Rio de Janeiro",
+  RN: "Rio Grande do Norte",
+  RS: "Rio Grande do Sul",
+  RO: "Rondônia",
+  RR: "Roraima",
+  SC: "Santa Catarina",
+  SP: "São Paulo",
+  SE: "Sergipe",
+  TO: "Tocantins",
+};
+
+function normalizarChave(value?: string | null) {
+  return (value ?? "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function resolverEstadoParaSelect(value?: string | null): string {
+  const valor = (value ?? "").trim();
 
   if (!valor) return "";
 
-  const mapa: Record<string, string> = {
-    AC: "Acre",
-    AL: "Alagoas",
-    AP: "Amapá",
-    AM: "Amazonas",
-    BA: "Bahia",
-    CE: "Ceará",
-    DF: "Distrito Federal",
-    ES: "Espírito Santo",
-    GO: "Goiás",
-    MA: "Maranhão",
-    MT: "Mato Grosso",
-    MS: "Mato Grosso do Sul",
-    MG: "Minas Gerais",
-    PA: "Pará",
-    PB: "Paraíba",
-    PR: "Paraná",
-    PE: "Pernambuco",
-    PI: "Piauí",
-    RJ: "Rio de Janeiro",
-    RN: "Rio Grande do Norte",
-    RS: "Rio Grande do Sul",
-    RO: "Rondônia",
-    RR: "Roraima",
-    SC: "Santa Catarina",
-    SP: "São Paulo",
-    SE: "Sergipe",
-    TO: "Tocantins",
-  };
+  const estadoExato = estadosBrasil.find((estado) => estado === valor);
+
+  if (estadoExato) return estadoExato;
 
   const upper = valor.toUpperCase();
+  const nomePorUf = estadosPorUf[upper];
 
-  if (mapa[upper]) return mapa[upper];
+  if (nomePorUf) {
+    return (
+      estadosBrasil.find(
+        (estado) => normalizarChave(estado) === normalizarChave(nomePorUf),
+      ) ?? ""
+    );
+  }
 
-  return estadosBrasil.includes(valor) ? valor : "";
+  return (
+    estadosBrasil.find(
+      (estado) => normalizarChave(estado) === normalizarChave(valor),
+    ) ?? ""
+  );
 }
 
 function mapDataToForm(data: ConfiguracaoEmpresaData): ConfigEmpresaForm {
@@ -195,19 +204,19 @@ function mapDataToForm(data: ConfiguracaoEmpresaData): ConfigEmpresaForm {
     id: data.id ?? null,
     nomeEmpresa: data.nomeEmpresa ?? "",
     slug: data.slug ?? "",
-    documentoIdentificacao: data.documentoIdentificacao ?? "",
+    documentoIdentificacao: maskCpfCnpj(data.documentoIdentificacao ?? ""),
     emailContato: data.emailContato ?? "",
-    telefoneContato: data.telefoneContato ?? "",
+    telefoneContato: maskPhone(data.telefoneContato ?? ""),
     tipoPlano: data.tipoPlano ?? "",
     planoCortesia: data.planoCortesia ?? false,
     limiteUsuarios: data.limiteUsuarios ?? "",
-    cep: data.cep ?? "",
+    cep: maskCEP(data.cep ?? ""),
     logradouro: data.logradouro ?? "",
     numero: data.numero ?? "",
     complemento: data.complemento ?? "",
     bairro: data.bairro ?? "",
     cidade: data.cidade ?? "",
-    estado: data.estado ?? "",
+    estado: resolverEstadoParaSelect(data.estado),
     caminhoLogo: data.caminhoLogo ?? null,
     dataCriacao: formatDateTimeBR(data.dataCriacao),
     dataAtualizacao: formatDateTimeBR(data.dataAtualizacao),
@@ -290,9 +299,9 @@ export default function ConfiguracaoEmpresaProprietario() {
         setPlanoVisual(
           mapped.tipoPlano
             ? getPlanoVisualEmpresa({
-              tipoPlano: mapped.tipoPlano as TipoPlanoApi,
-              planoCortesia: mapped.planoCortesia,
-            })
+                tipoPlano: mapped.tipoPlano as TipoPlanoApi,
+                planoCortesia: mapped.planoCortesia,
+              })
             : "",
         );
 
@@ -366,7 +375,9 @@ export default function ConfiguracaoEmpresaProprietario() {
     try {
       setCepLoading(true);
 
-      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const response = await fetch(
+        `https://viacep.com.br/ws/${cepLimpo}/json/`,
+      );
 
       if (!response.ok) {
         throw new Error("Não foi possível consultar o CEP.");
@@ -385,7 +396,7 @@ export default function ConfiguracaoEmpresaProprietario() {
         complemento: prev.complemento || data.complemento || "",
         bairro: data.bairro ?? "",
         cidade: data.localidade ?? "",
-        estado: mapUfToEstado(data.uf ?? data.estado),
+        estado: resolverEstadoParaSelect(data.uf ?? data.estado),
       }));
     } catch (error) {
       console.error(error);
@@ -401,7 +412,9 @@ export default function ConfiguracaoEmpresaProprietario() {
     if (!file) return;
 
     if (
-      !["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(file.type)
+      !["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(
+        file.type,
+      )
     ) {
       toast.error("Envie uma imagem nos formatos PNG, JPG ou WEBP.");
       return;
@@ -461,12 +474,27 @@ export default function ConfiguracaoEmpresaProprietario() {
       return;
     }
 
+    const documentoLimpo = form.documentoIdentificacao.replace(/\D/g, "");
+
+    if (![11, 14].includes(documentoLimpo.length)) {
+      toast.error("Informe um CPF ou CNPJ válido.");
+      return;
+    }
+
+    if (form.cep.replace(/\D/g, "").length !== 8) {
+      toast.error("Informe um CEP válido com 8 dígitos.");
+      return;
+    }
+
     if (form.tipoPlano !== "PLANO_GRATUITO" && !form.limiteUsuarios.trim()) {
       toast.error("Preencha o campo: Limite de usuários.");
       return;
     }
 
-    if (form.tipoPlano !== "PLANO_GRATUITO" && Number(form.limiteUsuarios) < 1) {
+    if (
+      form.tipoPlano !== "PLANO_GRATUITO" &&
+      Number(form.limiteUsuarios) < 1
+    ) {
       toast.error("O limite de usuários deve ser maior que zero.");
       return;
     }
@@ -482,15 +510,24 @@ export default function ConfiguracaoEmpresaProprietario() {
         logoFile,
       );
 
+      // A tela de detalhes também permite mudar o plano. Centralizamos essa
+      // alteração no endpoint do proprietário para os dois pontos refletirem
+      // exatamente o mesmo estado.
+      await alterarPlanoEmpresaPorConfiguracao(
+        configId,
+        payload.tipoPlano,
+        payload.limiteUsuarios,
+      );
+
       const mapped = mapDataToForm(saved);
 
       setForm(mapped);
       setPlanoVisual(
         mapped.tipoPlano
           ? getPlanoVisualEmpresa({
-            tipoPlano: mapped.tipoPlano as TipoPlanoApi,
-            planoCortesia: mapped.planoCortesia,
-          })
+              tipoPlano: mapped.tipoPlano as TipoPlanoApi,
+              planoCortesia: mapped.planoCortesia,
+            })
           : "",
       );
 
@@ -532,47 +569,35 @@ export default function ConfiguracaoEmpresaProprietario() {
       <div className="container max-w-4xl py-6 sm:py-8">
         <Button
           type="button"
-          variant="ghost"
-          size="sm"
-          className="mb-4 -ml-2 h-8 text-muted-foreground"
+          variant="glassSecondary"
+          className="mb-4 h-9 gap-2 px-4"
           onClick={() =>
             navigate(`/controle-proprietario/empresas/${empresaId}`)
           }
         >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Voltar para Empresa
+          <ArrowLeft className="h-4 w-4" />
+          Voltar para a organização
         </Button>
 
         <PageTitle
-          title="Configuração da Empresa"
-          tooltip="Edite os dados oficiais da organização selecionada, incluindo logo, contatos, plano e endereço. Essas informações serão usadas nos PDFs, documentos e relatórios gerados pelo sistema."
+          title="Configuração da Organização"
+          tooltip="Nesta página são configuradas as principais informações da organização selecionada, como identificação, logo, contatos, plano de acesso e endereço. Esses dados são utilizados no funcionamento do sistema e também podem aparecer em documentos, relatórios e PDFs gerados pela Aurit."
         />
-
-        <div className="mb-5 flex gap-3 rounded border border-primary/15 bg-primary-soft px-4 py-3">
-          <Info
-            className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"
-            strokeWidth={2.2}
-          />
-
-          <p className="text-[13px] leading-relaxed text-foreground">
-            Os dados informados aqui serão utilizados em{" "}
-            <span className="font-semibold">
-              contratos, relatórios e documentos oficiais
-            </span>{" "}
-            gerados pelo sistema da organização selecionada.
-          </p>
-        </div>
 
         <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Section icon={Building2} title="Dados Institucionais">
-            <div className="grid sm:grid-cols-2 gap-4">
+          <Section
+            icon={Building2}
+            title="Dados institucionais"
+            description="Informe os principais dados de identificação da organização e a logo utilizada nos documentos gerados pelo sistema."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field full>
                 <FieldLabel
                   htmlFor="nomeEmpresa"
                   required
-                  tooltip="Informe o nome da organização conforme será exibido em documentos, contratos e relatórios. Ex.: Associação Cultural Arte Viva."
+                  tooltip="Informe o nome oficial da organização, conforme utilizado em seus documentos e registros institucionais."
                 >
                   Nome da Organização
                 </FieldLabel>
@@ -589,18 +614,19 @@ export default function ConfiguracaoEmpresaProprietario() {
                 <FieldLabel
                   htmlFor="documentoIdentificacao"
                   required
-                  tooltip="Informe o CPF ou CNPJ da organização. Ex.: 12345678900 ou 12345678000199."
+                  tooltip="Informe o CPF ou CNPJ utilizado para identificar a organização ou responsável pelo cadastro."
                 >
-                  CPF/CNPJ da Organização
+                  CPF/CNPJ
                 </FieldLabel>
 
                 <Input
                   id="documentoIdentificacao"
                   value={form.documentoIdentificacao}
                   onChange={(e) =>
-                    set("documentoIdentificacao", maskDoc(e.target.value))
+                    set("documentoIdentificacao", maskCpfCnpj(e.target.value))
                   }
                   inputMode="numeric"
+                  maxLength={18}
                   disabled={loading || saving}
                 />
               </Field>
@@ -609,7 +635,7 @@ export default function ConfiguracaoEmpresaProprietario() {
                 <FieldLabel
                   htmlFor="slug"
                   required
-                  tooltip="Subdomínio usado pela organização para acessar o sistema. Este campo vem do cadastro original da empresa."
+                  tooltip="Identifica o endereço utilizado para acessar o ambiente da organização na Aurit. Esse dado é definido no cadastro da empresa e não pode ser alterado nesta página."
                 >
                   Subdomínio
                 </FieldLabel>
@@ -620,18 +646,18 @@ export default function ConfiguracaoEmpresaProprietario() {
                     value={form.slug}
                     disabled
                     readOnly
-                    className="bg-muted/40 cursor-not-allowed"
+                    className="cursor-not-allowed bg-muted/40"
                   />
 
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  <span className="whitespace-nowrap text-xs text-muted-foreground">
                     .aurit.com.br
                   </span>
                 </div>
               </Field>
             </div>
 
-            <div className="mt-5 pt-5 border-t border-border">
-              <div className="flex items-center gap-2 mb-3">
+            <div className="form-section-glass-divider mt-5 border-t pt-5">
+              <div className="mb-3 flex items-center gap-2">
                 <ImageIcon className="h-4 w-4 text-primary" strokeWidth={2.2} />
 
                 <h3 className="text-sm font-semibold text-foreground">
@@ -639,10 +665,10 @@ export default function ConfiguracaoEmpresaProprietario() {
                 </h3>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-5 items-start">
+              <div className="flex flex-col items-start gap-5 sm:flex-row">
                 <div className="flex-shrink-0">
                   {logoPreview ? (
-                    <div className="h-28 w-28 rounded border border-border bg-muted/30 overflow-hidden flex items-center justify-center">
+                    <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[16px] border border-border/70 bg-background/60 p-2 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.18)] backdrop-blur-md supports-[backdrop-filter]:bg-background/45">
                       <img
                         src={logoPreview.dataUrl}
                         alt="Logo da organização"
@@ -655,26 +681,26 @@ export default function ConfiguracaoEmpresaProprietario() {
                       />
                     </div>
                   ) : (
-                    <div className="h-28 w-28 rounded border border-dashed border-border bg-muted/30 flex flex-col items-center justify-center text-muted-foreground">
+                    <div className="flex h-28 w-28 flex-col items-center justify-center rounded-[16px] border border-dashed border-border/70 bg-background/50 text-muted-foreground backdrop-blur-md supports-[backdrop-filter]:bg-background/35">
                       <ImagePlus className="h-6 w-6" strokeWidth={1.8} />
-                      <span className="text-[10px] mt-1">Sem logo</span>
+                      <span className="mt-1 text-[10px]">Sem logo</span>
                     </div>
                   )}
                 </div>
 
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <FieldLabel
                     htmlFor="caminhoLogo"
-                    tooltip="Faça o upload do logotipo da organização. A imagem será utilizada automaticamente em documentos e relatórios gerados pelo sistema."
+                    tooltip="Envie a logo da organização. A imagem poderá ser utilizada automaticamente nos documentos e relatórios gerados pelo sistema."
                   >
                     Logo da Organização
                   </FieldLabel>
 
-                  <div className="flex flex-wrap gap-2 mt-1">
+                  <div className="mt-1 flex flex-wrap gap-2">
                     <Button
                       type="button"
-                      variant="outline"
-                      size="sm"
+                      variant="glassSecondary"
+                      className="h-9 gap-2 px-4"
                       asChild
                       disabled={loading || saving}
                     >
@@ -696,10 +722,9 @@ export default function ConfiguracaoEmpresaProprietario() {
                     {logoPreview && (
                       <Button
                         type="button"
-                        variant="ghost"
-                        size="sm"
+                        variant="glassGhost"
                         onClick={removerLogo}
-                        className="text-muted-foreground"
+                        className="h-9 gap-2 px-3.5 text-muted-foreground"
                         disabled={loading || saving}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -709,28 +734,32 @@ export default function ConfiguracaoEmpresaProprietario() {
                   </div>
 
                   {logoPreview && (
-                    <p className="mt-2 text-xs text-muted-foreground truncate">
+                    <p className="mt-2 truncate text-xs text-muted-foreground">
                       Arquivo: {logoPreview.name}
                     </p>
                   )}
 
-                  <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                     Esta logo será utilizada em documentos, contratos e
-                    relatórios gerados pelo sistema. Formatos aceitos: PNG, JPG
-                    ou WEBP até 4MB.
+                    relatórios gerados pelo sistema. Formatos aceitos: PNG, JPG,
+                    JPEG ou WEBP. Tamanho máximo: 4 MB.
                   </p>
                 </div>
               </div>
             </div>
           </Section>
 
-          <Section icon={Mail} title="Contato">
-            <div className="grid sm:grid-cols-2 gap-4">
+          <Section
+            icon={Mail}
+            title="Contato"
+            description="Informe os principais canais de contato da organização."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="emailContato"
                   required
-                  tooltip="Informe um e-mail válido para contato da organização. Ex.: contato@organizacao.org."
+                  tooltip="Informe o principal endereço de e-mail utilizado para contato com a organização."
                 >
                   E-mail de Contato
                 </FieldLabel>
@@ -748,7 +777,7 @@ export default function ConfiguracaoEmpresaProprietario() {
                 <FieldLabel
                   htmlFor="telefoneContato"
                   required
-                  tooltip="Informe um telefone para contato com DDD. Ex.: (32) 99999-0000."
+                  tooltip="Informe o principal telefone utilizado para contato com a organização, preferencialmente com DDD."
                 >
                   Telefone de Contato
                 </FieldLabel>
@@ -766,13 +795,17 @@ export default function ConfiguracaoEmpresaProprietario() {
             </div>
           </Section>
 
-          <Section icon={SettingsIcon} title="Plano e Acesso">
-            <div className="grid sm:grid-cols-2 gap-4">
+          <Section
+            icon={SettingsIcon}
+            title="Plano e acesso"
+            description="Consulte ou defina o plano da organização e a quantidade de usuários que poderão acessar o sistema."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="tipoPlano"
                   required
-                  tooltip="Indica o tipo de plano cadastrado para a empresa no sistema."
+                  tooltip="Selecione o plano disponibilizado para a organização. O plano pode definir limites e recursos disponíveis no sistema."
                 >
                   Plano Contratado
                 </FieldLabel>
@@ -802,7 +835,7 @@ export default function ConfiguracaoEmpresaProprietario() {
                 <FieldLabel
                   htmlFor="limiteUsuarios"
                   required
-                  tooltip={`No plano gratuito o limite é fixado em ${LIMITE_USUARIOS_PLANO_GRATUITO} usuários. Nos planos pago e cortesia, você pode informar a quantidade permitida.`}
+                  tooltip={`Informe a quantidade máxima de usuários que poderão ter acesso ao ambiente da organização. No plano gratuito, o limite é fixado em ${LIMITE_USUARIOS_PLANO_GRATUITO} usuários.`}
                 >
                   Limite de Usuários
                 </FieldLabel>
@@ -820,13 +853,17 @@ export default function ConfiguracaoEmpresaProprietario() {
             </div>
           </Section>
 
-          <Section icon={MapPin} title="Endereço">
-            <div className="grid sm:grid-cols-6 gap-4">
+          <Section
+            icon={MapPin}
+            title="Endereço"
+            description="Informe o endereço oficial da organização utilizado em documentos e registros do sistema."
+          >
+            <div className="grid gap-4 sm:grid-cols-6">
               <Field className="sm:col-span-2">
                 <FieldLabel
                   htmlFor="cep"
                   required
-                  tooltip="Informe o CEP utilizando apenas números. Ex.: 36000000."
+                  tooltip="Informe o CEP do endereço da organização. Após o preenchimento, o sistema buscará automaticamente os dados disponíveis."
                 >
                   CEP
                 </FieldLabel>
@@ -844,6 +881,7 @@ export default function ConfiguracaoEmpresaProprietario() {
                     }
                   }}
                   inputMode="numeric"
+                  maxLength={9}
                   disabled={loading || saving}
                 />
 
@@ -855,11 +893,7 @@ export default function ConfiguracaoEmpresaProprietario() {
               </Field>
 
               <Field className="sm:col-span-4">
-                <FieldLabel
-                  htmlFor="logradouro"
-                  required
-                  tooltip="Informe o nome da rua, avenida ou via. Ex.: Rua das Flores."
-                >
+                <FieldLabel htmlFor="logradouro" required>
                   Logradouro
                 </FieldLabel>
 
@@ -872,11 +906,7 @@ export default function ConfiguracaoEmpresaProprietario() {
               </Field>
 
               <Field className="sm:col-span-2">
-                <FieldLabel
-                  htmlFor="numero"
-                  required
-                  tooltip="Informe o número do imóvel. Quando não houver número, informe SN."
-                >
+                <FieldLabel htmlFor="numero" required>
                   Número
                 </FieldLabel>
 
@@ -889,12 +919,7 @@ export default function ConfiguracaoEmpresaProprietario() {
               </Field>
 
               <Field className="sm:col-span-4">
-                <FieldLabel
-                  htmlFor="complemento"
-                  tooltip="Adicione informações adicionais, se necessário. Ex.: Sala 02."
-                >
-                  Complemento
-                </FieldLabel>
+                <FieldLabel htmlFor="complemento">Complemento</FieldLabel>
 
                 <Input
                   id="complemento"
@@ -905,11 +930,7 @@ export default function ConfiguracaoEmpresaProprietario() {
               </Field>
 
               <Field className="sm:col-span-2">
-                <FieldLabel
-                  htmlFor="bairro"
-                  required
-                  tooltip="Informe o bairro do endereço. Ex.: Centro."
-                >
+                <FieldLabel htmlFor="bairro" required>
                   Bairro
                 </FieldLabel>
 
@@ -922,11 +943,7 @@ export default function ConfiguracaoEmpresaProprietario() {
               </Field>
 
               <Field className="sm:col-span-2">
-                <FieldLabel
-                  htmlFor="cidade"
-                  required
-                  tooltip="Informe a cidade do endereço. Ex.: Juiz de Fora."
-                >
+                <FieldLabel htmlFor="cidade" required>
                   Cidade
                 </FieldLabel>
 
@@ -939,11 +956,7 @@ export default function ConfiguracaoEmpresaProprietario() {
               </Field>
 
               <Field className="sm:col-span-2">
-                <FieldLabel
-                  htmlFor="estado"
-                  required
-                  tooltip="Selecione o estado correspondente. Ex.: Minas Gerais."
-                >
+                <FieldLabel htmlFor="estado" required>
                   Estado
                 </FieldLabel>
 
@@ -968,12 +981,16 @@ export default function ConfiguracaoEmpresaProprietario() {
             </div>
           </Section>
 
-          <Section icon={Info} title="Informações do Sistema">
-            <div className="grid sm:grid-cols-2 gap-4">
+          <Section
+            icon={Info}
+            title="Informações do sistema"
+            description="Consulte as datas de criação e da última atualização do cadastro da organização."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel
                   htmlFor="dataCriacao"
-                  tooltip="Data em que a organização foi cadastrada no sistema. Este campo é gerado automaticamente e não pode ser alterado."
+                  tooltip="Indica a data em que o cadastro da organização foi criado no sistema. Essa informação é gerada automaticamente e não pode ser alterada."
                 >
                   Data de Criação
                 </FieldLabel>
@@ -983,14 +1000,14 @@ export default function ConfiguracaoEmpresaProprietario() {
                   value={form.dataCriacao}
                   readOnly
                   disabled
-                  className="bg-muted/40 cursor-not-allowed"
+                  className="cursor-not-allowed bg-muted/40"
                 />
               </Field>
 
               <Field>
                 <FieldLabel
                   htmlFor="dataAtualizacao"
-                  tooltip="Data da última atualização realizada nos dados da organização. Este campo é atualizado automaticamente pelo sistema."
+                  tooltip="Indica a data da última alteração realizada no cadastro da organização. Essa informação é atualizada automaticamente pelo sistema."
                 >
                   Última Atualização
                 </FieldLabel>
@@ -1000,16 +1017,17 @@ export default function ConfiguracaoEmpresaProprietario() {
                   value={form.dataAtualizacao}
                   readOnly
                   disabled
-                  className="bg-muted/40 cursor-not-allowed"
+                  className="cursor-not-allowed bg-muted/40"
                 />
               </Field>
             </div>
           </Section>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="glassSecondary"
+              className="h-9 px-4"
               onClick={() =>
                 navigate(`/controle-proprietario/empresas/${empresaId}`)
               }
@@ -1020,7 +1038,8 @@ export default function ConfiguracaoEmpresaProprietario() {
 
             <Button
               type="submit"
-              className="sm:min-w-32"
+              variant="glassPrimary"
+              className="h-9 px-5"
               disabled={loading || saving}
             >
               {saving ? "Salvando..." : "Salvar"}
@@ -1035,23 +1054,18 @@ export default function ConfiguracaoEmpresaProprietario() {
 function Section({
   icon: Icon,
   title,
+  description,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <Icon className="h-4 w-4 text-primary" strokeWidth={2.2} />
-        <h2 className="text-sm font-semibold text-foreground tracking-tight">
-          {title}
-        </h2>
-      </div>
-
+    <FormSectionCard icon={Icon} title={title} description={description}>
       {children}
-    </section>
+    </FormSectionCard>
   );
 }
 

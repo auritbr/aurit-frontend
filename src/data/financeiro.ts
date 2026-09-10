@@ -1,4 +1,5 @@
 import { getJsonHeaders, getMultipartHeaders } from "@/lib/apiHeaders";
+import { invalidateFinancialData } from "@/lib/financialDataInvalidation";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -22,11 +23,7 @@ async function parseError(response: Response): Promise<string> {
       const json = JSON.parse(text);
 
       return (
-        json?.message ||
-        json?.error ||
-        json?.detail ||
-        json?.mensagem ||
-        text
+        json?.message || json?.error || json?.detail || json?.mensagem || text
       );
     } catch {
       return text;
@@ -302,12 +299,8 @@ export function mapFinanceiro(dto: FinanceiroDTO): Financeiro {
     projetoId: normalizeId(dto.projetoId ?? dto.projeto),
     atividadeId: normalizeId(dto.atividadeId ?? dto.atividade),
     colaboradorId: normalizeId(dto.colaboradorId ?? dto.colaborador),
-    eventoCulturalId: normalizeId(
-      dto.eventoCulturalId ?? dto.eventoCultural,
-    ),
-    acaoDivulgacaoId: normalizeId(
-      dto.acaoDivulgacaoId ?? dto.acaoDivulgacao,
-    ),
+    eventoCulturalId: normalizeId(dto.eventoCulturalId ?? dto.eventoCultural),
+    acaoDivulgacaoId: normalizeId(dto.acaoDivulgacaoId ?? dto.acaoDivulgacao),
     planejamentoFinanceiroId: normalizeId(
       dto.planejamentoFinanceiroId ??
         dto.planejamentoId ??
@@ -349,9 +342,7 @@ export function createEmptyFinanceiro(): Financeiro {
   };
 }
 
-export function buildFinanceiroPayload(
-  data: Financeiro,
-): FinanceiroPayloadDTO {
+export function buildFinanceiroPayload(data: Financeiro): FinanceiroPayloadDTO {
   return {
     id: data.id ? Number(data.id) : undefined,
 
@@ -461,7 +452,9 @@ export async function createFinanceiro(
 
   const data: FinanceiroDTO = await response.json();
 
-  return mapFinanceiro(data);
+  const financeiro = mapFinanceiro(data);
+  invalidateFinancialData("financeiro");
+  return financeiro;
 }
 
 export async function updateFinanceiro(
@@ -489,7 +482,9 @@ export async function updateFinanceiro(
 
   const data: FinanceiroDTO = await response.json();
 
-  return mapFinanceiro(data);
+  const financeiro = mapFinanceiro(data);
+  invalidateFinancialData("financeiro");
+  return financeiro;
 }
 
 export async function deleteFinanceiro(id: number): Promise<void> {
@@ -501,6 +496,7 @@ export async function deleteFinanceiro(id: number): Promise<void> {
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
+  invalidateFinancialData("financeiro");
 }
 
 export const labelFromList = (
