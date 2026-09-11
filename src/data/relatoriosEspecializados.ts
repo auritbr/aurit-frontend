@@ -233,11 +233,11 @@ export interface RelatorioExecucaoAtividadeItem {
   inicio: string;
   fim: string;
   vagas: number;
-  turmas: number;
+  turmas: string;
   participantes: number;
   ocupacao: number;
   percentualPresenca: number;
-  colaboradores: number;
+  colaboradores: string;
 }
 
 export interface RelatorioExecucaoAtividades {

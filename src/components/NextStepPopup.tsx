@@ -12,6 +12,13 @@ import {
 
 const NEXT_STEP_POPUP_DURATION_MS = 60_000;
 
+// A aplicação de recursos passou a emitir diretamente o evento global. Chaves
+// antigas dessa tela não representam uma habilitação concluída e não podem abrir
+// um segundo popup depois que a pessoa navega para o formulário de habilitação.
+const OBSOLETE_NEXT_STEP_STORAGE_KEYS = new Set([
+  "aurit:planejamento-financeiro:next-step-card",
+]);
+
 interface NextStepPopupProps {
   open: boolean;
   /** Frase curta da próxima ação. */
@@ -108,6 +115,12 @@ export function NextStepPopupHost() {
     for (let index = 0; index < sessionStorage.length; index += 1) {
       const key = sessionStorage.key(index);
       if (!key || !key.includes("next-step")) continue;
+
+      if (OBSOLETE_NEXT_STEP_STORAGE_KEYS.has(key)) {
+        sessionStorage.removeItem(key);
+        index -= 1;
+        continue;
+      }
 
       const raw = sessionStorage.getItem(key);
       if (!raw) continue;

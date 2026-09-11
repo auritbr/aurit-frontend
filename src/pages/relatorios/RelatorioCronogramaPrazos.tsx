@@ -148,11 +148,6 @@ export default function RelatorioCronogramaPrazos() {
     () => [
       { key: "etapa", label: "Etapa", accessor: (row) => row.etapa || "—" },
       {
-        key: "atividade",
-        label: "Atividade relacionada",
-        accessor: (row) => row.atividade || "—",
-      },
-      {
         key: "projeto",
         label: "Projeto",
         accessor: (row) => row.projeto || "—",
@@ -276,7 +271,7 @@ export default function RelatorioCronogramaPrazos() {
         <div>
           <FieldLabel
             htmlFor="f-busca"
-            tooltip="Busque pela etapa, atividade relacionada ou projeto."
+            tooltip="Busque pela etapa ou projeto."
           >
             Busca
           </FieldLabel>

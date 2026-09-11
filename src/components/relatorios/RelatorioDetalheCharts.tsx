@@ -324,11 +324,11 @@ const C: Record<string, [Spec, Spec]> = {
       category: ["funcao_projeto"],
     },
     {
-      title: "Vínculo ou papel da equipe",
+      title: "Equipe por proposta",
       description:
-        "Veja como as pessoas da equipe estão distribuídas conforme o vínculo ou papel registrado.",
+        "Veja quantas pessoas estão previstas na equipe de cada proposta de edital.",
       kind: "donut",
-      category: ["__papel_equipe"],
+      category: ["proposta_edital"],
     },
   ],
 
@@ -426,7 +426,7 @@ const C: Record<string, [Spec, Spec]> = {
       description:
         "Compare as pendências, exigências ou motivos de inabilitação registrados nos processos de habilitação.",
       kind: "horizontal",
-      category: ["exigencia_ou_pendencia", "motivo_inabilitacao"],
+      category: ["__tipos_pendencia_habilitacao"],
     },
   ],
 
@@ -508,22 +508,21 @@ const firstKey = (rows: Row[], keys: string[] = []) =>
   );
 const label = (value: unknown) => formatValorRelatorio(value);
 const categories = (rows: Row[], keys?: string[]): ChartDatum[] => {
-  const key = firstKey(rows, keys);
+  const key = keys?.includes("__tipos_pendencia_habilitacao")
+    ? "__tipos_pendencia_habilitacao"
+    : firstKey(rows, keys);
   if (!key) return [];
   const totals = new Map<string, number>();
   rows.forEach((row) => {
     const raw: unknown =
-      key === "__papel_equipe"
-        ? row.colaborador
-          ? "COLABORADOR"
-          : row.integrante
-            ? "INTEGRANTE"
-            : row.agente
-              ? "AGENTE"
-              : "OUTRO"
+      key === "__tipos_pendencia_habilitacao"
+        ? [row.exigencia_ou_pendencia, row.motivo_inabilitacao].filter(
+            (value) => String(value ?? "").trim(),
+          )
         : row[key];
-    String(raw ?? "NÃO_INFORMADO")
-      .split(",")
+    const values = Array.isArray(raw) ? raw : [raw ?? "NÃO_INFORMADO"];
+    values
+      .flatMap((value) => String(value).split(","))
       .map((v) => v.trim())
       .filter(Boolean)
       .forEach((value) =>

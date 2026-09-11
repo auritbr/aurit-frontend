@@ -126,29 +126,6 @@ type SortKey =
 
 type FormMode = "create" | "edit" | "view";
 
-const PLANEJAMENTO_FINANCEIRO_NEXT_STEP_KEY =
-  "aurit:planejamento-financeiro:next-step-card";
-const NEXT_STEP_DURATION_MS = 60_000;
-
-interface PlanejamentoFinanceiroNextStepCardData {
-  titulo: string;
-  descricao: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  variante?: "pendente" | "atencao" | "concluido";
-}
-
-function criarProximaAcaoPlanejamentoFinanceiro(): PlanejamentoFinanceiroNextStepCardData {
-  return {
-    titulo: "Registre o resultado da proposta",
-    descricao:
-      "Depois de estruturar a aplicação dos recursos, informe a situação da proposta após a análise do edital.",
-    acaoLabel: "Cadastrar resultado",
-    acaoUrl: "/resultados-propostas/novo",
-    variante: "pendente",
-  };
-}
-
 const requiredFields: Array<[keyof PlanejamentoFinanceiroData, string]> = [
   ["nomePlanejamento", "Item da aplicação"],
   ["classificacaoPlanejamentoFinanceiro", "Classificação"],
@@ -223,8 +200,6 @@ export default function PlanejamentoFinanceiro() {
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
     null,
   );
-  const [nextStepCard, setNextStepCard] =
-    useState<PlanejamentoFinanceiroNextStepCardData | null>(null);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
 
@@ -287,30 +262,6 @@ export default function PlanejamentoFinanceiro() {
 
     return () => {
       active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const raw = sessionStorage.getItem(PLANEJAMENTO_FINANCEIRO_NEXT_STEP_KEY);
-
-    if (!raw) return;
-
-    try {
-      const parsed = JSON.parse(raw) as PlanejamentoFinanceiroNextStepCardData;
-
-      setNextStepCard(parsed);
-    } catch {
-      setNextStepCard(null);
-    }
-
-    sessionStorage.removeItem(PLANEJAMENTO_FINANCEIRO_NEXT_STEP_KEY);
-
-    const timer = window.setTimeout(() => {
-      setNextStepCard(null);
-    }, NEXT_STEP_DURATION_MS);
-
-    return () => {
-      window.clearTimeout(timer);
     };
   }, []);
 
@@ -771,13 +722,6 @@ export default function PlanejamentoFinanceiro() {
       setSelectedId(saved.id);
 
       if (isCreating) {
-        const card = criarProximaAcaoPlanejamentoFinanceiro();
-
-        sessionStorage.setItem(
-          PLANEJAMENTO_FINANCEIRO_NEXT_STEP_KEY,
-          JSON.stringify(card),
-        );
-
         emitJourneyNextStep();
       }
 
