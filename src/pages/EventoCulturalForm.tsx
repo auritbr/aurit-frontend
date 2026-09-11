@@ -16,6 +16,7 @@ import {
 import { AppLayout } from "@/components/AppLayout";
 import { BackButton } from "@/components/BackButton";
 import { FormSectionCard } from "@/components/FormSectionCard";
+import { FormSearchableSelect } from "@/components/FormSearchableSelect";
 import { ImportDataButton } from "@/components/ImportDataButton";
 import { ListPageHeader } from "@/components/list/ListPageHeader";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
@@ -411,26 +412,19 @@ export default function EventoCulturalForm() {
                     Tipo de Evento
                   </FieldLabel>
 
-                  <Select
+                  <FormSearchableSelect
+                    id="tipoEvento"
                     value={form.tipoEvento}
-                    onValueChange={(value) => {
+                    options={tiposEvento}
+                    onChange={(value) => {
                       if (visualizando) return;
                       set("tipoEvento", value as EventoCultural["tipoEvento"]);
                     }}
+                    placeholder="Selecione"
+                    searchPlaceholder="Buscar tipo de evento..."
+                    emptyMessage="Nenhum tipo de evento encontrado."
                     disabled={bloqueado}
-                  >
-                    <SelectTrigger id="tipoEvento">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-
-                    <SelectContent className="max-h-72">
-                      {tiposEvento.map((tipo) => (
-                        <SelectItem key={tipo.value} value={tipo.value}>
-                          {tipo.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 </Field>
 
                 <Field full>
