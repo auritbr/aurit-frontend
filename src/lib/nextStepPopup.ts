@@ -65,7 +65,7 @@ const JOURNEY: Array<{ paths: string[]; next?: NextStepDefinition }> = [
     paths: ["/metas-projeto"],
     next: {
       buttonLabel: "Cadastrar cronograma do projeto",
-      to: "/cronograma/novo",
+      to: "/cronograma",
     },
   },
   {

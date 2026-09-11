@@ -60,6 +60,7 @@ import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { usePagination } from "@/hooks/usePagination";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { downloadCronogramaReport as exportCronogramaPdf } from "@/lib/individualReportDownload";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -155,25 +156,11 @@ const labelOf = (
   value: string,
 ) => options.find((option) => option.value === value)?.label ?? value;
 
-const CRONOGRAMA_NEXT_STEP_KEY = "aurit:cronograma:next-step-card";
-const NEXT_STEP_DURATION_MS = 60_000;
-
-interface CronogramaNextStepCardData {
-  titulo: string;
-  acaoLabel: string;
-  acaoUrl: string;
-  variante?: "pendente" | "atencao" | "concluido";
-}
-
 function salvarProximaAcaoCronograma() {
-  const card: CronogramaNextStepCardData = {
-    titulo: "Após organizar o cronograma, cadastre as atividades do projeto",
-    acaoLabel: "Cadastrar atividades",
-    acaoUrl: "/atividades/novo",
-    variante: "pendente",
-  };
-
-  sessionStorage.setItem(CRONOGRAMA_NEXT_STEP_KEY, JSON.stringify(card));
+  // O cronograma é salvo na própria tela, sem navegação. Por isso o evento
+  // global precisa ser emitido imediatamente; gravar apenas no sessionStorage
+  // fazia o próximo passo nunca ser consumido pelo host do popup.
+  emitJourneyNextStep("/cronograma");
 }
 
 const requiredFields: Array<[keyof CronogramaData, string]> = [
@@ -212,8 +199,6 @@ export default function Cronograma() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [nextStepCard, setNextStepCard] =
-    useState<CronogramaNextStepCardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -272,29 +257,6 @@ export default function Cronograma() {
 
     return () => {
       active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const raw = sessionStorage.getItem(CRONOGRAMA_NEXT_STEP_KEY);
-
-    if (!raw) return;
-
-    try {
-      const parsed = JSON.parse(raw) as CronogramaNextStepCardData;
-      setNextStepCard(parsed);
-    } catch {
-      setNextStepCard(null);
-    }
-
-    sessionStorage.removeItem(CRONOGRAMA_NEXT_STEP_KEY);
-
-    const timer = window.setTimeout(() => {
-      setNextStepCard(null);
-    }, NEXT_STEP_DURATION_MS);
-
-    return () => {
-      window.clearTimeout(timer);
     };
   }, []);
 
