@@ -124,7 +124,7 @@ const PERMISSAO_POR_ROTA: Record<string, ModuloPermissao> = {
   "/relatorios": "RELATORIOS",
 
   "/usuarios": "USUARIOS",
-  "/configuracoes/central-do-cliente": "CONFIGURACOES",
+  "/configuracoes/central-do-cliente": "CENTRAL_CLIENTE",
   "/alertas-email": "CONFIGURACOES",
   "/configuracoes/notificacoes": "CONFIGURACOES",
 };

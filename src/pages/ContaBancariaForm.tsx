@@ -34,6 +34,7 @@ import { getImportConfigForPath } from "@/config/importacoes";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { cn } from "@/lib/utils";
 import { maskBankAccount, maskBankAgency } from "@/lib/masks";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 import { toast } from "sonner";
 import {
   createEmptyContaBancaria,
@@ -278,7 +279,10 @@ export default function ContaBancariaForm() {
       setSaving(true);
       const payload = buildContaBancariaPayload(form);
       if (isEdit && id) await updateContaBancaria(id, payload);
-      else await createContaBancaria(payload);
+      else {
+        await createContaBancaria(payload);
+        emitJourneyNextStep();
+      }
       window.dispatchEvent(
         new CustomEvent("aurit:import-review-save-success", {
           detail: { module: "contas-bancarias" },

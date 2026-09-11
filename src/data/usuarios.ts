@@ -358,7 +358,8 @@ export type ModuloPermissao =
   | "TRAJETORIAS_CULTURAIS"
   | "RELATORIOS"
   | "USUARIOS"
-  | "CONFIGURACOES";
+  | "CONFIGURACOES"
+  | "CENTRAL_CLIENTE";
 
 export type AcaoPermissao =
   | "VISUALIZAR"
@@ -417,6 +418,7 @@ export const moduloLabel: Record<ModuloPermissao, string> = {
   RELATORIOS: "Relatórios",
   USUARIOS: "Usuários",
   CONFIGURACOES: "Configurações",
+  CENTRAL_CLIENTE: "Central do Cliente",
 };
 
 export const acaoLabel: Record<AcaoPermissao, string> = {
@@ -514,7 +516,7 @@ export const GRUPOS_MODULOS: ModuloGrupo[] = [
   { title: "Trajetórias", modulos: ["CURRICULOS", "TRAJETORIAS_CULTURAIS"] },
   {
     title: "Relatórios e configurações",
-    modulos: ["RELATORIOS", "USUARIOS", "CONFIGURACOES"],
+    modulos: ["RELATORIOS", "USUARIOS", "CONFIGURACOES", "CENTRAL_CLIENTE"],
   },
 ];
 

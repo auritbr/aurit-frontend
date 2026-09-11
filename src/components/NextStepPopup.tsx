@@ -6,7 +6,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   nextStepMessage,
-  nextStepForPath,
   subscribeNextStepPopup,
   type NextStepPopupPayload,
 } from "@/lib/nextStepPopup";
@@ -98,24 +97,9 @@ export function NextStepPopupHost() {
   const navigate = useNavigate();
   const location = useLocation();
   const [step, setStep] = React.useState<NextStepPopupPayload | null>(null);
-  const pathnameRef = React.useRef(location.pathname);
 
   React.useEffect(() => {
-    pathnameRef.current = location.pathname;
-  }, [location.pathname]);
-
-  React.useEffect(() => {
-    return subscribeNextStepPopup((payload) => {
-      const officialNext = nextStepForPath(pathnameRef.current);
-      setStep(
-        officialNext
-          ? {
-              message: nextStepMessage(officialNext.buttonLabel),
-              ...officialNext,
-            }
-          : payload,
-      );
-    });
+    return subscribeNextStepPopup(setStep);
   }, []);
 
   // Mantém compatibilidade com formulários que ainda transportam a próxima
@@ -139,11 +123,10 @@ export function NextStepPopupHost() {
         const to = parsed.acaoUrl ?? parsed.to;
 
         if (buttonLabel && to) {
-          const officialNext = nextStepForPath(location.pathname);
           setStep({
-            message: nextStepMessage(officialNext?.buttonLabel ?? buttonLabel),
-            buttonLabel: officialNext?.buttonLabel ?? buttonLabel,
-            to: officialNext?.to ?? to,
+            message: nextStepMessage(buttonLabel),
+            buttonLabel,
+            to,
           });
           sessionStorage.removeItem(key);
           break;

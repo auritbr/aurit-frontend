@@ -41,6 +41,7 @@ import { getImportConfigForPath } from "@/config/importacoes";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { invalidateFinancialData } from "@/lib/financialDataInvalidation";
 import { maskCpfCnpj } from "@/lib/masks";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -668,6 +669,7 @@ export default function ContaPagarForm() {
     try {
       await saveContaPagar(form);
       invalidateFinancialData("conta-pagar");
+      if (!isEdit) emitJourneyNextStep();
       toast.success(
         isEdit
           ? "Alterações salvas com sucesso."

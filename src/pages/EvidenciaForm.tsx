@@ -43,6 +43,7 @@ import { EvidenciaGaleria } from "@/components/evidencias/EvidenciaGaleria";
 import { EvidenciaResumoContexto } from "@/components/evidencias/EvidenciaResumoContexto";
 import { getImportConfigForPath } from "@/config/importacoes";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 import {
   createEvidenciaFotografica,
   getAtividadesEvidenciaOptions,
@@ -436,6 +437,7 @@ export default function EvidenciaForm() {
         refetchType: "none",
       });
 
+      if (!isEdit) emitJourneyNextStep();
       toast.success(
         isEdit
           ? "Evidência atualizada com sucesso."

@@ -55,7 +55,8 @@ export type ModuloPermissao =
   | "TRAJETORIAS_CULTURAIS"
   | "RELATORIOS"
   | "USUARIOS"
-  | "CONFIGURACOES";
+  | "CONFIGURACOES"
+  | "CENTRAL_CLIENTE";
 
 export type AcaoPermissao =
   | "VISUALIZAR"

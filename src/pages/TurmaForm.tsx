@@ -448,10 +448,10 @@ export default function TurmaForm() {
         toast.success("Turma atualizada com sucesso.");
       } else {
         await createTurma(payload);
+        emitJourneyNextStep();
         toast.success("Turma salva com sucesso.");
       }
 
-      emitJourneyNextStep();
       navigate("/turmas");
     } catch (error) {
       const message =

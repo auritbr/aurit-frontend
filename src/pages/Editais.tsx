@@ -81,6 +81,7 @@ import {
   type SimpleOption,
 } from "@/data/propostasEdital";
 import { toast } from "sonner";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 const editaisTooltip =
   "Nesta página são cadastrados e acompanhados os editais de interesse da organização, permitindo reunir as informações necessárias para avaliar oportunidades, acompanhar prazos e manter atualizado o andamento de cada edital. Também podem ser registrados os dados da publicação, os recursos disponíveis, os responsáveis pelo acompanhamento e, quando houver participação, as informações da inscrição.";
@@ -543,6 +544,7 @@ export default function Editais() {
             detail: { module: "editais" },
           }),
         );
+        emitJourneyNextStep();
       }
       handleCancel();
       setSelectedId(saved.id);

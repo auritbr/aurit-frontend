@@ -53,6 +53,7 @@ import {
 
 import { estadosBrasil } from "@/data/colaboradores";
 import { maskCEP, maskCNPJ, maskCPF, maskPhone, maskRGFlex } from "@/lib/masks";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 import { getImportConfigForPath } from "@/config/importacoes";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
@@ -583,6 +584,7 @@ export default function DoadorForm() {
         isEdit ? id : undefined,
       );
 
+      if (!isEdit) emitJourneyNextStep();
       toast.success(isEdit ? "Doador atualizado." : "Doador cadastrado.");
 
       navigate("/doadores");

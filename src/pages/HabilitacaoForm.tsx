@@ -56,6 +56,7 @@ import {
 
 import { toast } from "sonner";
 import { getImportConfigForPath } from "@/config/importacoes";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 interface FormState {
   propostaEdital: string;
@@ -363,6 +364,7 @@ export default function HabilitacaoForm() {
       } else {
         await createHabilitacao(payload);
 
+        emitJourneyNextStep();
         toast.success("Habilitação documental cadastrada com sucesso.");
       }
 

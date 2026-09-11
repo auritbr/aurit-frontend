@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { emitJourneyNextStep } from "@/lib/nextStepPopup";
+import { emitNextStepPopup, nextStepMessage } from "@/lib/nextStepPopup";
 
 export interface NextStep {
   label: string;
@@ -15,7 +15,13 @@ export function toastSuccessNext(
   toast.success(message);
 
   window.setTimeout(() => {
-    if (next) emitJourneyNextStep();
+    if (next) {
+      emitNextStepPopup({
+        message: nextStepMessage(next.label),
+        buttonLabel: next.label,
+        to: next.to,
+      });
+    }
     navigate(listUrl);
   }, 700);
 }

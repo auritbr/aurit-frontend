@@ -107,7 +107,7 @@ const JOURNEY: Array<{ paths: string[]; next?: NextStepDefinition }> = [
     },
   },
   {
-    paths: ["/propostas-editais"],
+    paths: ["/propostas-edital"],
     next: {
       buttonLabel: "Cadastrar equipe da proposta",
       to: "/equipe-edital/novo",
@@ -121,7 +121,7 @@ const JOURNEY: Array<{ paths: string[]; next?: NextStepDefinition }> = [
     },
   },
   {
-    paths: ["/planos-comunicacao"],
+    paths: ["/plano-comunicacao"],
     next: {
       buttonLabel: "Cadastrar ações de divulgação",
       to: "/acoes-divulgacao/novo",

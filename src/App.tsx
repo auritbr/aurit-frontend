@@ -1466,7 +1466,7 @@ function AppRoutes() {
           path="/configuracoes/central-do-cliente"
           element={protectedPage(
             <CentralCliente />,
-            permission("CONFIGURACOES"),
+            permission("CENTRAL_CLIENTE"),
           )}
         />
 

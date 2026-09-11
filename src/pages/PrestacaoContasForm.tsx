@@ -44,6 +44,7 @@ import { StatusPill } from "@/components/StatusPill";
 import { FormMultiSelect } from "@/components/FormMultiSelect";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { DadosAutomaticosHint } from "@/components/prestacao/DadosAutomaticosHint";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 import {
   PrestacaoSectionNav,
   type PrestacaoSectionItem,
@@ -366,6 +367,7 @@ export default function PrestacaoContasForm() {
         ? await atualizarPrestacaoContasDetalhada(id, payload)
         : await iniciarPrestacaoContas(form.projetoId);
       if (!id) await atualizarPrestacaoContasDetalhada(prestacao.id, payload);
+      if (!id) emitJourneyNextStep();
       toast.success("Prestação de contas salva.");
       navigate("/prestacao-contas");
     } catch (error) {

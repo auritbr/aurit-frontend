@@ -132,11 +132,11 @@ interface ResultadoPropostaNextStepCardData {
 function salvarProximaAcaoResultadoProposta() {
   const card: ResultadoPropostaNextStepCardData = {
     titulo:
-      "Após registrar o resultado da proposta, acompanhe a habilitação documental",
+      "Após registrar o resultado da proposta, organize a execução financeira",
     descricao:
-      "A habilitação documental permite acompanhar a etapa de conferência dos documentos exigidos pelo edital, registrando prazos, envio da documentação, pendências, regularizações, recursos e o resultado final da habilitação.",
-    acaoLabel: "Cadastrar habilitação",
-    acaoUrl: "/habilitacoes-propostas/novo",
+      "Cadastre as contas bancárias que serão usadas para acompanhar os recebimentos, pagamentos e movimentações financeiras relacionados à proposta aprovada.",
+    acaoLabel: "Cadastrar contas bancárias",
+    acaoUrl: "/contas-bancarias/novo",
     acaoSecundariaLabel: "Ver resultados da proposta",
     acaoSecundariaUrl: "/resultados-propostas",
     variante: "pendente",

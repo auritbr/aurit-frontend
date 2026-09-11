@@ -77,7 +77,7 @@ export function AppHeader() {
             usuarioTemPermissao("USUARIOS", "VISUALIZAR").catch(
               () => false,
             ),
-            usuarioTemPermissao("CONFIGURACOES", "VISUALIZAR").catch(
+            usuarioTemPermissao("CENTRAL_CLIENTE", "VISUALIZAR").catch(
               () => false,
             ),
           ]);

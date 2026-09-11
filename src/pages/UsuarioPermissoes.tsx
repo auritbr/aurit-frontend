@@ -62,6 +62,8 @@ const MODULOS_PLANO_GRATUITO: ModuloPermissao[] = [
   "EVENTOS_CULTURAIS",
   "ACOES_DIVULGACAO",
 
+  "CENTRAL_CLIENTE",
+
   "USUARIOS",
 ];
 
@@ -97,6 +99,17 @@ function applyPermissoesToState(permissoes: UsuarioPermissao[]) {
         permissao.permitido;
     }
   });
+
+  // Usuários configurados antes da criação da Central do Cliente ainda usam
+  // Configurações como regra de origem no backend. Espelhamos essa decisão na
+  // tela até que uma permissão explícita para a Central seja salva.
+  const centralClienteConfigurada = permissoes.some(
+    (permissao) => permissao.moduloPermissao === "CENTRAL_CLIENTE",
+  );
+
+  if (!centralClienteConfigurada) {
+    next.CENTRAL_CLIENTE = { ...next.CONFIGURACOES };
+  }
 
   return next;
 }

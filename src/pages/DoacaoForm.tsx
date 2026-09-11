@@ -49,6 +49,7 @@ import {
   type Option,
 } from "@/data/doacoes";
 import { toast } from "sonner";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 import { toastSuccessNext } from "@/lib/nextStepToast";
 import { getImportConfigForPath } from "@/config/importacoes";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
@@ -476,7 +477,10 @@ export default function DoacaoForm() {
           label: "Ver conta a receber",
           to: `/contas-receber/${salva.contasReceber}`,
         });
-      else toastSuccessNext(mensagem, navigate, "/doacoes");
+      else {
+        if (!isEdit) emitJourneyNextStep();
+        toastSuccessNext(mensagem, navigate, "/doacoes");
+      }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Erro ao salvar doação.",

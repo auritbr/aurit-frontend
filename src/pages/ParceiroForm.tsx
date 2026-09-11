@@ -59,6 +59,7 @@ import {
 
 import { estadosBrasil } from "@/data/colaboradores";
 import { maskCEP, maskCNPJ, maskCPF, maskPhone, maskRGFlex } from "@/lib/masks";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 import { getImportConfigForPath } from "@/config/importacoes";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 
@@ -212,6 +213,7 @@ export default function ParceiroForm() {
 
       await saveParceiro(payload);
 
+      if (!isEdit) emitJourneyNextStep();
       toast.success(isEdit ? "Parceiro atualizado." : "Parceiro cadastrado.");
 
       navigate("/parceiros");

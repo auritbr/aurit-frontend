@@ -38,6 +38,7 @@ import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { cn } from "@/lib/utils";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 import { toast } from "sonner";
 import {
   classificacaoGrupos,
@@ -672,6 +673,7 @@ export default function ContaReceberForm() {
     try {
       await saveContaReceber(form);
       invalidateFinancialData("conta-receber");
+      if (!isEdit) emitJourneyNextStep();
       toast.success(
         isEdit
           ? "Alterações salvas com sucesso."

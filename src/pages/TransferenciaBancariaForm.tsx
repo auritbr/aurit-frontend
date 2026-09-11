@@ -37,6 +37,7 @@ import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { cn } from "@/lib/utils";
+import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 import { toast } from "sonner";
 import {
   createEmptyTransferencia,
@@ -441,6 +442,7 @@ export default function TransferenciaBancariaForm() {
       return toast.error("Selecione a situação da transferência.");
     try {
       await saveTransferencia(form);
+      if (!isEdit) emitJourneyNextStep();
       toast.success(
         isEdit
           ? "Alterações salvas com sucesso."
