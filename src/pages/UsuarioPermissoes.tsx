@@ -16,6 +16,7 @@ import { isPlanoAccessDenied } from "@/lib/access";
 import { getPlanoLabel } from "@/lib/plano";
 import {
   getPermissoesUsuarioLogadoPorModulo,
+  limparCachePermissoes,
   permissoesVazias,
   verificarPermissaoUsuarioLogado,
   type PermissoesModulo,
@@ -386,6 +387,7 @@ export default function UsuarioPermissoes() {
 
       const saved = await savePermissoes(usuario.id, list);
 
+      limparCachePermissoes();
       setPerms(applyPermissoesToState(saved));
       setHasExisting(true);
 

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { downloadIndividualReport } from "@/lib/individualReportDownload";
+import { useModulePermissionContext } from "@/contexts/ModulePermissionContext";
 
 export interface RowActionItem {
   label: string;
@@ -61,6 +62,11 @@ export function RowActionsDropdown({
   className,
 }: RowActionsDropdownProps) {
   const [generatingReport, setGeneratingReport] = useState(false);
+  const { modulo, carregando, permissoes } = useModulePermissionContext();
+  const podeEditar = !modulo || (!carregando && permissoes.EDITAR);
+  const podeExcluir = !modulo || (!carregando && permissoes.EXCLUIR);
+  const podeGerarPdf =
+    !modulo || (!carregando && permissoes.GERAR_PDF);
 
   const handleReport = async () => {
     if (!reportEndpoint || generatingReport) return;
@@ -113,7 +119,7 @@ export function RowActionsDropdown({
             <Eye className="h-4 w-4 text-muted-foreground" /> Visualizar
           </DropdownMenuItem>
         ) : null}
-        {editTo ? (
+        {podeEditar && editTo ? (
           <DropdownMenuItem asChild>
             <Link
               to={editTo}
@@ -123,7 +129,7 @@ export function RowActionsDropdown({
               Editar
             </Link>
           </DropdownMenuItem>
-        ) : onEdit ? (
+        ) : podeEditar && onEdit ? (
           <DropdownMenuItem
             onClick={onEdit}
             className="gap-2 rounded-[9px] px-2.5 py-2 text-[13px] focus:bg-muted/70"
@@ -156,7 +162,7 @@ export function RowActionsDropdown({
             </DropdownMenuItem>
           );
         })}
-        {reportEndpoint && (
+        {podeGerarPdf && reportEndpoint && (
           <DropdownMenuItem
             onSelect={(event) => {
               event.preventDefault();
@@ -173,7 +179,7 @@ export function RowActionsDropdown({
             {generatingReport ? "Gerando PDF..." : "Gerar PDF"}
           </DropdownMenuItem>
         )}
-        {onDelete && (
+        {podeExcluir && onDelete && (
           <>
             {(viewTo || editTo || onView || onEdit) && (
               <DropdownMenuSeparator className="my-1 bg-border/60" />

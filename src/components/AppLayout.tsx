@@ -9,6 +9,7 @@ import {
   getImportReviewQueue,
   hasActiveImportReviewQueue,
 } from "@/lib/importReviewQueue";
+import { ModulePermissionProvider } from "@/contexts/ModulePermissionContext";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -46,17 +47,19 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, []);
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full flex-col bg-background">
-        <AppHeader />
-        <div className="flex min-h-0 w-full flex-1">
-          <AppSidebar />
-          <main className="min-w-0 flex-1 overflow-x-hidden bg-background">
-            <Breadcrumbs />
-            {children}
-          </main>
+    <ModulePermissionProvider>
+      <SidebarProvider>
+        <div className="flex min-h-screen w-full flex-col bg-background">
+          <AppHeader />
+          <div className="flex min-h-0 w-full flex-1">
+            <AppSidebar />
+            <main className="min-w-0 flex-1 overflow-x-hidden bg-background">
+              <Breadcrumbs />
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </ModulePermissionProvider>
   );
 }

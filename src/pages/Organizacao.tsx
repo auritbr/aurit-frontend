@@ -1353,13 +1353,13 @@ export default function Organizacao() {
               />
             </div>
             <div className="flex flex-wrap items-center justify-start gap-2">
-              {showForm && mode !== "view" ? (
+              {showForm && mode !== "view" && podeCriar ? (
                 <ImportDataButton
                   config={getImportConfigForPath("/organizacoes")!}
                   canFillForm
                   variant="glassSecondary"
                 />
-              ) : !showForm ? (
+              ) : !showForm && podeCriar ? (
                 <>
                   <Button
                     type="button"

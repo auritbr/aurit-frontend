@@ -2,7 +2,6 @@ import {
   getAuthHeaders,
   getUsuarioLogado,
   limparSessaoUsuario,
-  usuarioLogadoEhAdmin,
   type UsuarioLogado,
 } from "@/lib/auth";
 
@@ -102,6 +101,20 @@ export const permissoesTotais: PermissoesModulo = {
   ALTERAR_STATUS: true,
 };
 
+/**
+ * Mantém uma única decisão do backend para cada usuário, tenant e módulo durante
+ * a sessão da página. Assim o menu, a rota protegida e a tela usam exatamente a
+ * mesma matriz, sem decisões divergentes por chamadas paralelas.
+ */
+const permissoesPorModuloEmCache = new Map<
+  string,
+  Promise<PermissoesModulo>
+>();
+
+export function limparCachePermissoes() {
+  permissoesPorModuloEmCache.clear();
+}
+
 async function parseError(response: Response): Promise<string> {
   try {
     const text = await response.text();
@@ -169,50 +182,14 @@ export async function verificarPermissaoUsuarioLogado(
   modulo: ModuloPermissao,
   acao: AcaoPermissao,
 ): Promise<boolean> {
-  const params = new URLSearchParams({
-    modulo,
-    acao,
-  });
-
-  const response = await fetch(
-    `${API_URL}/usuarios-permissoes/me/verificar?${params.toString()}`,
-    {
-      method: "GET",
-      headers: getAuthHeaders(),
-    },
-  );
-
-  if (response.status === 401) {
-    limparSessaoUsuario();
-    throw new Error("Sessão expirada. Faça login novamente.");
-  }
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  return parsePermissaoResponse(await response.json());
+  const permissoes = await getPermissoesUsuarioLogadoPorModulo(modulo);
+  return permissoes[acao] === true;
 }
 
 export async function usuarioTemPermissao(
   modulo: ModuloPermissao,
   acao: AcaoPermissao = "VISUALIZAR",
 ): Promise<boolean> {
-  const usuario = await getUsuarioLogado();
-
-  if (!usuario.id) {
-    return false;
-  }
-
-  if (usuario.statusUsuario === "INATIVO") {
-    limparSessaoUsuario();
-    return false;
-  }
-
-  if (usuarioLogadoEhAdmin()) {
-    return true;
-  }
-
   return verificarPermissaoUsuarioLogado(modulo, acao);
 }
 
@@ -230,35 +207,50 @@ export async function getPermissoesUsuarioLogadoPorModulo(
     return permissoesVazias;
   }
 
-  if (usuarioLogadoEhAdmin()) {
-    return permissoesTotais;
+  const tenant = getAuthHeaders()["X-Tenant-Slug"] ?? "sem-tenant";
+  const chave = `${tenant}:${usuario.id}:${modulo}`;
+  const existente = permissoesPorModuloEmCache.get(chave);
+
+  if (existente) {
+    return existente;
   }
 
-  const params = new URLSearchParams({ modulo });
-  const response = await fetch(
-    `${API_URL}/usuarios-permissoes/me/permissoes?${params.toString()}`,
-    { method: "GET", headers: getAuthHeaders() },
-  );
+  const consulta = (async (): Promise<PermissoesModulo> => {
+    const params = new URLSearchParams({ modulo });
+    const response = await fetch(
+      `${API_URL}/usuarios-permissoes/me/permissoes?${params.toString()}`,
+      { method: "GET", headers: getAuthHeaders() },
+    );
 
-  if (response.status === 401) {
-    limparSessaoUsuario();
-    throw new Error("Sessão expirada. Faça login novamente.");
+    if (response.status === 401) {
+      limparSessaoUsuario();
+      throw new Error("Sessão expirada. Faça login novamente.");
+    }
+
+    if (!response.ok) {
+      throw new Error(await parseError(response));
+    }
+
+    const data = (await response.json()) as Partial<PermissoesModulo>;
+    return {
+      VISUALIZAR: data.VISUALIZAR === true,
+      CRIAR: data.CRIAR === true,
+      EDITAR: data.EDITAR === true,
+      EXCLUIR: data.EXCLUIR === true,
+      BAIXAR: data.BAIXAR === true,
+      GERAR_PDF: data.GERAR_PDF === true,
+      ALTERAR_STATUS: data.ALTERAR_STATUS === true,
+    };
+  })();
+
+  permissoesPorModuloEmCache.set(chave, consulta);
+
+  try {
+    return await consulta;
+  } catch (error) {
+    permissoesPorModuloEmCache.delete(chave);
+    throw error;
   }
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data = (await response.json()) as Partial<PermissoesModulo>;
-  return {
-    VISUALIZAR: data.VISUALIZAR === true,
-    CRIAR: data.CRIAR === true,
-    EDITAR: data.EDITAR === true,
-    EXCLUIR: data.EXCLUIR === true,
-    BAIXAR: data.BAIXAR === true,
-    GERAR_PDF: data.GERAR_PDF === true,
-    ALTERAR_STATUS: data.ALTERAR_STATUS === true,
-  };
 }
 
 export async function usuarioPodeVisualizar(

@@ -1,5 +1,6 @@
 import { FieldTooltip } from "@/components/FieldTooltip";
 import { PageObjective } from "@/components/PageObjective";
+import { useModulePermissionContext } from "@/contexts/ModulePermissionContext";
 
 export interface ListPageHeaderProps {
   title: string;
@@ -9,6 +10,8 @@ export interface ListPageHeaderProps {
   objective?: string;
   /** Ações principais (botão de cadastro, importar dados). */
   actions?: React.ReactNode;
+  /** Ações de cadastro/importação exigem CRIAR por padrão. */
+  actionsRequireCreatePermission?: boolean;
 }
 
 /**
@@ -20,7 +23,15 @@ export function ListPageHeader({
   tooltip,
   objective,
   actions,
+  actionsRequireCreatePermission = true,
 }: ListPageHeaderProps) {
+  const { modulo, carregando, permissoes } = useModulePermissionContext();
+  const exibirAcoes =
+    Boolean(actions) &&
+    (!actionsRequireCreatePermission ||
+      !modulo ||
+      (!carregando && permissoes.CRIAR));
+
   return (
     <header className="mb-5 border-b border-border pb-4">
       <div className="flex flex-col gap-3">
@@ -34,7 +45,7 @@ export function ListPageHeader({
             side="bottom"
           />
         </div>
-        {actions && (
+        {exibirAcoes && (
           <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-start [&>button]:w-full sm:[&>button]:w-auto">
             {actions}
           </div>

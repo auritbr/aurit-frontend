@@ -570,13 +570,25 @@ function getVisibleSections(
   permissoes: Partial<Record<ModuloPermissao, boolean>>,
   permissionsLoaded: boolean,
 ): Section[] {
+  const moduloDaRota = (url: string): ModuloPermissao | undefined => {
+    const rota = Object.entries(PERMISSAO_POR_ROTA)
+      .filter(([prefixo]) =>
+        prefixo === "/"
+          ? url === "/"
+          : url === prefixo || url.startsWith(`${prefixo}/`),
+      )
+      .sort(([a], [b]) => b.length - a.length)[0];
+
+    return rota?.[1];
+  };
+
   return allSections
     .map((section) => {
       const directs =
         section.directs?.filter((direct) => {
           if (isFreePlan && direct.paidOnly) return false;
 
-          const modulo = PERMISSAO_POR_ROTA[direct.url];
+          const modulo = moduloDaRota(direct.url);
 
           if (permissionsLoaded && modulo && permissoes[modulo] !== true) {
             return false;
@@ -599,7 +611,7 @@ function getVisibleSections(
             items: group.items.filter((item) => {
               if (isFreePlan && item.paidOnly) return false;
 
-              const modulo = PERMISSAO_POR_ROTA[item.url];
+              const modulo = moduloDaRota(item.url);
 
               if (permissionsLoaded && modulo && permissoes[modulo] !== true) {
                 return false;

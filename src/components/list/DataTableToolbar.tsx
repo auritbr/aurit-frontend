@@ -14,6 +14,7 @@ import {
   type ExportColumn,
 } from "@/utils/exportUtils";
 import { toast } from "sonner";
+import { useModulePermissionContext } from "@/contexts/ModulePermissionContext";
 
 interface DataTableToolbarProps {
   total: number;
@@ -40,8 +41,12 @@ export function DataTableToolbar({
   additionalActions,
 }: DataTableToolbarProps) {
   const navigate = useNavigate();
+  const { modulo, carregando, permissoes } = useModulePermissionContext();
   const [exportingExcel, setExportingExcel] = useState(false);
   const [exportingCSV, setExportingCSV] = useState(false);
+  const podeExportarModulo =
+    !modulo || (!carregando && permissoes.BAIXAR);
+  const podeExportar = canExport && podeExportarModulo;
 
   const exportExcel = () => {
     try {
@@ -98,7 +103,7 @@ export function DataTableToolbar({
             Ver layouts de impressão
           </Button>
         )}
-        {showExports && canExport && (
+        {showExports && podeExportar && (
           <>
             <Button
               type="button"
