@@ -90,11 +90,11 @@ const C: Record<string, [Spec, Spec]> = {
 
   agentes: [
     {
-      title: "Agentes por área de atuação",
+      title: "Agentes por bairro",
       description:
-        "Compare quantos agentes culturais estão relacionados a cada área de atuação.",
+        "Compare quantos agentes culturais estão cadastrados em cada bairro.",
       kind: "horizontal",
-      category: ["area_atuacao", "areas_atuacao"],
+      category: ["bairro"],
     },
     {
       title: "Tipos de agente",
