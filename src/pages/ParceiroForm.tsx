@@ -58,7 +58,14 @@ import {
 } from "@/data/pessoaCadastro";
 
 import { estadosBrasil } from "@/data/colaboradores";
-import { maskCEP, maskCNPJ, maskCPF, maskPhone, maskRGFlex } from "@/lib/masks";
+import {
+  isValidCNPJ,
+  maskCEP,
+  maskCNPJ,
+  maskCPF,
+  maskPhone,
+  maskRGFlex,
+} from "@/lib/masks";
 import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 import { getImportConfigForPath } from "@/config/importacoes";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
@@ -175,6 +182,13 @@ export default function ParceiroForm() {
       !form.pessoaJuridica.razaoSocial.trim()
     ) {
       return toast.error("Informe a razão social.");
+    }
+
+    if (
+      form.tipoPessoa === "PESSOA_JURIDICA" &&
+      !isValidCNPJ(form.pessoaJuridica.cnpj)
+    ) {
+      return toast.error("Informe um CNPJ válido.");
     }
 
     if (!form.tipoParcerias.length) {
