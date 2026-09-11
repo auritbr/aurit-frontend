@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import { classificacaoGrupos as gruposPagar } from "@/data/contasPagar";
 import { classificacaoGrupos as gruposReceber } from "@/data/contasReceber";
+import { nomeBancoOptions } from "@/data/contasBancarias";
 
 /**
  * Configuração central de CATEGORIAS (não são situações/status).
@@ -653,7 +654,7 @@ const etapasCronograma = [
   ...group("teal", FileText, [["PRESTACAO_CONTAS", "Prestação de Contas"]]),
 ];
 
-const nomesBanco = [
+const nomesBancoBase = [
   ...group("info", Landmark, [
     "BANCO_DO_BRASIL",
     "CAIXA_ECONOMICA_FEDERAL",
@@ -714,6 +715,22 @@ const nomesBanco = [
     "MORGAN_STANLEY",
     "MUFG_BANK",
   ]),
+];
+
+/** Mantém a apresentação dos bancos já categorizados e inclui automaticamente
+ * qualquer nova opção do enum com o mesmo rótulo do formulário de contas. */
+const nomesBanco = [
+  ...nomesBancoBase,
+  ...group(
+    "teal",
+    Landmark,
+    nomeBancoOptions
+      .filter(
+        ({ value }) =>
+          !nomesBancoBase.some(([key]) => key === normalizeKey(value)),
+      )
+      .map(({ value, label }) => [value, label] as [string, string]),
+  ),
 ];
 
 const origensDoador = [
