@@ -320,6 +320,7 @@ export function DashboardPatrimonio({
         rows={filtrados}
         columns={columns}
         reportName="Central de acompanhamento — Patrimônio"
+        showPdf={false}
         rowKey={(r) => r.id}
         emptyMessage="Nenhum bem encontrado com os filtros selecionados."
       />

@@ -290,6 +290,7 @@ export function DashboardAgenda({ agenda }: { agenda: AgendaItem[] }) {
         rows={filtradas}
         columns={columns}
         reportName="Central de acompanhamento — Agenda"
+        showPdf={false}
         rowKey={(r) => r.id}
         emptyMessage="Nenhum compromisso encontrado com os filtros selecionados."
       />

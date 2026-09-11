@@ -306,6 +306,7 @@ export function DashboardExecucao({ execucao }: { execucao: ExecucaoItem[] }) {
         rows={filtradas}
         columns={columns}
         reportName="Central de acompanhamento — Execução"
+        showPdf={false}
         rowKey={(r) => r.id}
         emptyMessage="Nenhuma atividade encontrada com os filtros selecionados."
       />

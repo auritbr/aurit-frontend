@@ -325,6 +325,7 @@ export function DashboardProjetos({ projetos }: { projetos: ProjetoResumo[] }) {
         rows={filtrados}
         columns={columns}
         reportName="Central de acompanhamento — Projetos"
+        showPdf={false}
         rowKey={(r) => r.id}
         emptyMessage="Nenhum projeto encontrado com os filtros selecionados."
       />

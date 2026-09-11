@@ -304,6 +304,7 @@ export function DashboardRegularidade({
         rows={filtrados}
         columns={columns}
         reportName="Central de acompanhamento — Regularidade"
+        showPdf={false}
         rowKey={(r) => r.id}
         emptyMessage="Nenhum documento encontrado com os filtros selecionados."
       />

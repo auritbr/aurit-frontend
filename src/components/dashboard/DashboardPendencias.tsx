@@ -299,6 +299,7 @@ export function DashboardPendencias({
         rows={filtradas}
         columns={columns}
         reportName="Central de acompanhamento — Pendências"
+        showPdf={false}
         rowKey={(r) => r.id}
         emptyMessage="Nenhuma pendência encontrada com os filtros selecionados."
       />

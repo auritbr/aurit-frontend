@@ -858,6 +858,7 @@ export function ReportTable<T>({
   emptyMessage = "Nenhum registro encontrado com os filtros selecionados.",
   rowKey,
   nowrap = false,
+  showPdf = true,
   pdfExport,
 }: {
   title: string;
@@ -870,6 +871,8 @@ export function ReportTable<T>({
   emptyMessage?: string;
   rowKey?: (row: T, index: number) => string;
   nowrap?: boolean;
+  /** Oculta somente a ação PDF, preservando as exportações Excel e CSV. */
+  showPdf?: boolean;
   pdfExport?: {
     slug: string;
     /** Chaves específicas do contrato Jasper, quando diferem da tabela exibida. */
@@ -956,6 +959,7 @@ export function ReportTable<T>({
             indicadoresPdf={indicadoresPdf}
             disabled={sorted.length === 0 || visibleColumns.length === 0}
             showCopy={false}
+            showPdf={showPdf}
             onPdf={
               pdfExport
                 ? () =>
