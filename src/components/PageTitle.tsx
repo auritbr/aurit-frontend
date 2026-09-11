@@ -25,9 +25,9 @@ export function PageTitle({
 
   return (
     <div className="flex flex-col gap-3 mb-5 pb-4 border-b border-border">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="min-w-0 break-words text-lg font-semibold tracking-tight text-foreground sm:text-xl">
             {title}
           </h1>
           <HelpTooltip
@@ -43,7 +43,7 @@ export function PageTitle({
         )}
       </div>
       {(actions || displayImport) && (
-        <div className="flex flex-wrap justify-start gap-2">
+        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-start [&>button]:w-full sm:[&>button]:w-auto">
           {actions}
           {!actions && <ImportDataTitleAction show={displayImport} />}
         </div>

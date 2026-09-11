@@ -28,7 +28,7 @@ export function BackButton({ to, onClick, className }: BackButtonProps) {
       onClick={handleClick}
       aria-label="Voltar"
       className={cn(
-        "mb-4 inline-flex items-center gap-1.5 rounded-[10px] px-1.5 py-1 text-sm text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none",
+        "mb-4 inline-flex min-h-10 items-center gap-1.5 rounded-[10px] px-2 py-1 text-sm text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none",
         className,
       )}
     >

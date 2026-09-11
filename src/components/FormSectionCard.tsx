@@ -27,7 +27,7 @@ export function FormSectionCard({
       className={cn("form-section-glass rounded-[18px] p-5 sm:p-6", className)}
     >
       <div className="mb-5 border-b form-section-glass-divider pb-3.5">
-        <div className="flex items-center gap-2.5">
+        <div className="flex min-w-0 items-start gap-2.5">
           {Icon && (
             <Icon
               className="h-4 w-4 flex-shrink-0 text-primary"
@@ -35,7 +35,7 @@ export function FormSectionCard({
               aria-hidden
             />
           )}
-          <h2 className="text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
+          <h2 className="min-w-0 break-words text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
             {title}
           </h2>
         </div>

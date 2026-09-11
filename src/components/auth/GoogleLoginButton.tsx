@@ -100,6 +100,12 @@ interface Props {
   onCancelado?: () => void;
   tenant?: string;
   exibirSeparador?: boolean;
+  /**
+   * Usado pela janela técnica de autenticação central. A janela já nasce de
+   * um clique válido na página da organização, portanto inicia o OAuth sem
+   * pedir um segundo clique em “Continuar com Google”.
+   */
+  iniciarAutomaticamente?: boolean;
 }
 
 export function GoogleLoginButton({
@@ -111,6 +117,7 @@ export function GoogleLoginButton({
   onCancelado,
   tenant,
   exibirSeparador = true,
+  iniciarAutomaticamente = false,
 }: Props) {
   const central =
     (isAuthCentralHost() || isLocalhost()) && Boolean(onAuthorizationCode);
@@ -120,6 +127,7 @@ export function GoogleLoginButton({
   const popupRef = useRef<Window | null>(null);
   const codigoEmUso = useRef(false);
   const codeClientRef = useRef<GoogleCodeClient | null>(null);
+  const inicioAutomaticoRef = useRef(false);
   const abrirPopupRef = useRef<(() => void) | undefined>(undefined);
   const authorizationCodeRef = useRef(onAuthorizationCode);
   const sucessoRef = useRef(onSucessoPopup);
@@ -188,6 +196,26 @@ export function GoogleLoginButton({
       codeClientRef.current = null;
     };
   }, [central]);
+
+  useEffect(() => {
+    if (
+      !iniciarAutomaticamente ||
+      !central ||
+      !pronto ||
+      processando ||
+      inicioAutomaticoRef.current ||
+      !codeClientRef.current
+    ) {
+      return;
+    }
+
+    inicioAutomaticoRef.current = true;
+    setAguardando(true);
+    // Esta página é aberta diretamente pelo clique no botão da tela de
+    // login. Não mostramos outra tela de confirmação: a próxima interface
+    // apresentada ao usuário é a oficial do Google.
+    codeClientRef.current.requestCode();
+  }, [central, iniciarAutomaticamente, processando, pronto]);
 
   useEffect(() => {
     if (central) return;
@@ -300,6 +328,18 @@ export function GoogleLoginButton({
 
   const semConfiguracao = central && !CLIENT_ID;
   const ocupado = processando || aguardando;
+
+  if (iniciarAutomaticamente) {
+    return (
+      <div
+        className="flex min-h-20 items-center justify-center gap-2 text-sm text-muted-foreground"
+        aria-live="polite"
+      >
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+        <span>Abrindo autenticação do Google...</span>
+      </div>
+    );
+  }
 
   return (
     <>

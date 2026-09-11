@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BarChart3,
@@ -24,6 +24,8 @@ interface DataTableToolbarProps {
   exportFilename: string;
   canExport?: boolean;
   showExports?: boolean;
+  /** Ações contextuais da página que compartilham a barra da tabela. */
+  additionalActions?: ReactNode;
 }
 
 export function DataTableToolbar({
@@ -35,6 +37,7 @@ export function DataTableToolbar({
   exportFilename,
   canExport = true,
   showExports = true,
+  additionalActions,
 }: DataTableToolbarProps) {
   const navigate = useNavigate();
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -72,6 +75,7 @@ export function DataTableToolbar({
           : `${total} ${total === 1 ? "registro encontrado" : "registros encontrados"}`}
       </p>
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        {additionalActions}
         {reportTo && (
           <Button
             type="button"

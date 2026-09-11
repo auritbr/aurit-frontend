@@ -946,7 +946,7 @@ export default function ResultadosPropostas() {
                         {editalNome(item)}
                       </p>
 
-                      <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-3">
                         <div>
                           <p className="text-muted-foreground">Pontuação</p>
 

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
-  ArrowLeft,
   FileText,
   User2,
   Wallet,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { BackButton } from "@/components/BackButton";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { PageTitle } from "@/components/PageTitle";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
@@ -754,12 +754,7 @@ export default function FinanceiroForm() {
   return (
     <AppLayout>
       <div className="container max-w-4xl py-6 sm:py-8">
-        <button
-          onClick={() => navigate("/financeiro")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" /> Voltar
-        </button>
+        <BackButton to="/financeiro" />
 
         <PageTitle
           title="Controle Financeiro"

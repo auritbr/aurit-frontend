@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CircleHelp, PanelLeft, Settings } from "lucide-react";
+import { CircleHelp, CreditCard, PanelLeft, Settings } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
 import { AlertasPopover } from "@/components/AlertasPopover";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
@@ -61,6 +61,8 @@ export function AppHeader() {
   });
   const [loadingUser, setLoadingUser] = useState(true);
   const [podeConfigurar, setPodeConfigurar] = useState(false);
+  const [podeAcessarCentralCliente, setPodeAcessarCentralCliente] =
+    useState(false);
 
   useEffect(() => {
     let active = true;
@@ -71,11 +73,17 @@ export function AppHeader() {
         const usuario = await getUsuarioLogado();
         if (active) {
           setUser(mapUsuarioToHeaderUser(usuario));
-          setPodeConfigurar(
-            await usuarioTemPermissao("USUARIOS", "VISUALIZAR").catch(
+          const [configuracoesUsuario, centralCliente] = await Promise.all([
+            usuarioTemPermissao("USUARIOS", "VISUALIZAR").catch(
               () => false,
             ),
-          );
+            usuarioTemPermissao("CONFIGURACOES", "VISUALIZAR").catch(
+              () => false,
+            ),
+          ]);
+          if (!active) return;
+          setPodeConfigurar(configuracoesUsuario);
+          setPodeAcessarCentralCliente(centralCliente);
         }
       } catch (error) {
         console.error("Erro ao buscar usuário logado:", error);
@@ -124,6 +132,19 @@ export function AppHeader() {
             Ajuda
           </span>
         </a>
+        {podeAcessarCentralCliente ? (
+          <Link
+            to="/configuracoes/central-do-cliente"
+            aria-label="Central do Cliente"
+            title="Central do Cliente"
+            className="header-action-glass inline-flex h-[34px] items-center gap-1.5 rounded-[11px] px-2.5"
+          >
+            <CreditCard className="h-[17px] w-[17px]" strokeWidth={1.9} />
+            <span className="hidden text-[12.5px] font-medium lg:inline">
+              Central do Cliente
+            </span>
+          </Link>
+        ) : null}
         {podeConfigurar ? (
           <Link
             to={configuracoesPath}

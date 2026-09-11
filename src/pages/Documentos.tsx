@@ -488,8 +488,8 @@ export default function DocumentosPage() {
         />
 
         {vencidosCount > 0 && (
-          <div className="alert-expired-glass mb-5 rounded-xl px-4 py-3 text-[13px] flex items-start gap-2.5">
-            <div className="space-y-1">
+          <div className="alert-expired-glass mb-5 flex items-start gap-2.5 rounded-xl px-4 py-3 text-[13px]">
+            <div className="min-w-0 space-y-1">
               <StatusCountBadge
                 count={vencidosCount}
                 label={`documento${vencidosCount > 1 ? "s" : ""} vencido${vencidosCount > 1 ? "s" : ""}`}
@@ -811,7 +811,7 @@ export default function DocumentosPage() {
                         key={d.id}
                         className={`p-4 ${vencido ? "border-l-[3px] border-l-destructive/45 bg-destructive/[0.035]" : ""}`}
                       >
-                        <div className="mb-3 flex items-center gap-1">
+                        <div className="mb-3 flex items-start justify-between gap-3">
                           <RowActionsDropdown
                             viewTo={`/documentos/${d.id}`}
                             editTo={
@@ -825,21 +825,39 @@ export default function DocumentosPage() {
                                 : undefined
                             }
                           />
+                          <StatusBadge doc={d} />
                         </div>
-                        <p className="font-medium text-foreground">
+                        <p className="break-words font-medium text-foreground">
                           {tipoDocumentoLabels[d.tipoDocumento]}
                         </p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <StatusBadge doc={d} />
-                          {d.dataValidade && (
-                            <span className="text-xs text-muted-foreground">
-                              Validade:{" "}
-                              <span className="font-medium text-foreground">
-                                {formatDateBR(d.dataValidade)}
-                              </span>
+                        <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
+                          <div className="min-w-0">
+                            <dt className="text-muted-foreground">Órgão emissor</dt>
+                            <dd className="break-words text-foreground">
+                              {d.orgaoEmissor || "—"}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-muted-foreground">Emissão</dt>
+                            <dd className="text-foreground">
+                              {formatDateBR(d.dataEmissao)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-muted-foreground">Validade</dt>
+                            <dd className="text-foreground">
+                              {formatDateBR(d.dataValidade)}
+                            </dd>
+                          </div>
+                        </dl>
+                        {d.dataValidade && (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Validade: {" "}
+                            <span className="font-medium text-foreground">
+                              {formatDateBR(d.dataValidade)}
                             </span>
-                          )}
-                        </div>
+                          </p>
+                        )}
                         {podeBaixar && d.urlDocumento && (
                           <div className="mt-3">
                             <DocumentActionButton

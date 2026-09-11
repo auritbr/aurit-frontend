@@ -13,8 +13,9 @@ import {
 } from "@/lib/auth";
 
 /**
- * Superfície técnica do domínio auth. O clique neste botão é necessário para
- * que o navegador autorize o popup OAuth oficial do Google nessa origem.
+ * Superfície técnica no domínio autorizado pelo Google. Ela é aberta pelo
+ * clique feito na tela de login da organização e inicia imediatamente o OAuth
+ * oficial, sem uma segunda confirmação para o usuário.
  */
 export default function LoginGoogle() {
   const [params] = useSearchParams();
@@ -70,6 +71,7 @@ export default function LoginGoogle() {
           onErro={setErro}
           onCancelado={cancelar}
           exibirSeparador={false}
+          iniciarAutomaticamente
         />
         {erro ? (
           <p role="alert" className="mt-3 text-sm font-medium text-destructive">

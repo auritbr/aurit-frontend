@@ -24,8 +24,8 @@ export function ListPageHeader({
   return (
     <header className="mb-5 border-b border-border pb-4">
       <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="min-w-0 break-words text-lg font-semibold tracking-tight text-foreground sm:text-xl">
             {title}
           </h1>
           <FieldTooltip
@@ -35,7 +35,7 @@ export function ListPageHeader({
           />
         </div>
         {actions && (
-          <div className="flex flex-wrap items-center justify-start gap-2">
+          <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-start [&>button]:w-full sm:[&>button]:w-auto">
             {actions}
           </div>
         )}

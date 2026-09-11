@@ -92,7 +92,7 @@ const C: Record<string, [Spec, Spec]> = {
     {
       title: "Agentes por bairro",
       description:
-        "Compare quantos agentes culturais estão cadastrados em cada bairro.",
+        "Compare a quantidade de agentes culturais cadastrados em cada bairro e identifique onde estão concentrados os registros.",
       kind: "horizontal",
       category: ["bairro"],
     },

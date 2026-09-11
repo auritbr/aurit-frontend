@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, FileDown, Loader2, Plus, RotateCcw, Search } from "lucide-react";
+import {
+  Copy,
+  FileDown,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Search,
+  UserPlus,
+} from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
@@ -142,6 +150,8 @@ export default function Atividades() {
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
+  const [podeCadastrarParticipantes, setPodeCadastrarParticipantes] =
+    useState(false);
   const [panelOpen, setPanelOpen] = useSessionBoolean(
     "atividades:pesquisa-avancada",
     false,
@@ -161,11 +171,20 @@ export default function Atividades() {
     async function carregarPermissoes() {
       try {
         setLoadingPermissoes(true);
-        const data = await getPermissoesUsuarioLogadoPorModulo("ATIVIDADES");
-        if (active) setPermissoes(data);
+        const [atividadePermissoes, participantePermissoes] = await Promise.all([
+          getPermissoesUsuarioLogadoPorModulo("ATIVIDADES"),
+          getPermissoesUsuarioLogadoPorModulo("PARTICIPANTES"),
+        ]);
+        if (active) {
+          setPermissoes(atividadePermissoes);
+          setPodeCadastrarParticipantes(participantePermissoes.CRIAR);
+        }
       } catch (error) {
         console.error(error);
-        if (active) setPermissoes(permissoesVazias);
+        if (active) {
+          setPermissoes(permissoesVazias);
+          setPodeCadastrarParticipantes(false);
+        }
       } finally {
         if (active) setLoadingPermissoes(false);
       }
@@ -603,6 +622,19 @@ export default function Atividades() {
             <DataTableToolbar
               total={filtered.length}
               reportTo="/relatorios/atividades"
+              additionalActions={
+                podeCadastrarParticipantes ? (
+                  <Button
+                    type="button"
+                    variant="glassSecondary"
+                    onClick={() => navigate("/participantes/novo")}
+                    className="h-8 gap-1.5 rounded-[10px] px-2.5 text-[12px] font-medium"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Cadastrar participantes
+                  </Button>
+                ) : undefined
+              }
               exportColumns={exportColumns}
               getExportData={getExportData}
               exportFilename="atividades"

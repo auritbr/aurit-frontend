@@ -700,7 +700,7 @@ export default function DocumentoForm() {
                   </FieldLabel>
 
                   {arquivoNome ? (
-                    <div className="attachment-file-glass flex items-center justify-between gap-2 px-3 py-2">
+                    <div className="attachment-file-glass flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0 flex items-center gap-2">
                         <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
 
@@ -709,7 +709,7 @@ export default function DocumentoForm() {
                         </span>
                       </div>
 
-                      <div className="flex flex-shrink-0 items-center gap-1">
+                      <div className="flex w-full flex-wrap items-center justify-end gap-1 sm:w-auto sm:flex-shrink-0">
                         {form.urlDocumento && visualizando && (
                           <button
                             type="button"
@@ -790,7 +790,7 @@ export default function DocumentoForm() {
             <Button
               type="button"
               variant="glassSecondary"
-              className="h-9 px-4"
+              className="h-9 w-full px-4 sm:w-auto"
               onClick={() => navigate("/documentos")}
               disabled={saving}
             >
@@ -801,7 +801,7 @@ export default function DocumentoForm() {
               type="button"
               variant="glassPrimary"
               onClick={handleSave}
-              className="h-9 px-5"
+              className="h-9 w-full px-5 sm:w-auto"
               disabled={saving}
             >
               {saving ? "Salvando..." : "Salvar"}
@@ -813,7 +813,7 @@ export default function DocumentoForm() {
             <Button
               type="button"
               variant="glassSecondary"
-              className="h-9 px-4"
+              className="h-9 w-full px-4 sm:w-auto"
               onClick={() => navigate("/documentos")}
             >
               Voltar
