@@ -117,7 +117,7 @@ const JOURNEY: Array<{ paths: string[]; next?: NextStepDefinition }> = [
     paths: ["/equipe-edital"],
     next: {
       buttonLabel: "Cadastrar plano de comunicação",
-      to: "/planos-comunicacao/novo",
+      to: "/plano-comunicacao/novo",
     },
   },
   {
