@@ -422,11 +422,11 @@ const C: Record<string, [Spec, Spec]> = {
       category: ["status_habilitacao"],
     },
     {
-      title: "Tipos de pendência",
+      title: "Documentos por tipo",
       description:
-        "Compare as pendências, exigências ou motivos de inabilitação registrados nos processos de habilitação.",
+        "Compare os documentos vinculados às habilitações conforme o tipo cadastrado.",
       kind: "horizontal",
-      category: ["__tipos_pendencia_habilitacao"],
+      category: ["documentos_habilitacao"],
     },
   ],
 
@@ -508,18 +508,11 @@ const firstKey = (rows: Row[], keys: string[] = []) =>
   );
 const label = (value: unknown) => formatValorRelatorio(value);
 const categories = (rows: Row[], keys?: string[]): ChartDatum[] => {
-  const key = keys?.includes("__tipos_pendencia_habilitacao")
-    ? "__tipos_pendencia_habilitacao"
-    : firstKey(rows, keys);
+  const key = firstKey(rows, keys);
   if (!key) return [];
   const totals = new Map<string, number>();
   rows.forEach((row) => {
-    const raw: unknown =
-      key === "__tipos_pendencia_habilitacao"
-        ? [row.exigencia_ou_pendencia, row.motivo_inabilitacao].filter(
-            (value) => String(value ?? "").trim(),
-          )
-        : row[key];
+    const raw = row[key];
     const values = Array.isArray(raw) ? raw : [raw ?? "NÃO_INFORMADO"];
     values
       .flatMap((value) => String(value).split(","))
