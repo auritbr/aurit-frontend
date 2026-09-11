@@ -627,11 +627,11 @@ export default function Atividades() {
                   <Button
                     type="button"
                     variant="glassSecondary"
-                    onClick={() => navigate("/participantes/novo")}
+                    onClick={() => navigate("/participantes")}
                     className="h-8 gap-1.5 rounded-[10px] px-2.5 text-[12px] font-medium"
                   >
                     <UserPlus className="h-3.5 w-3.5" />
-                    Cadastrar participantes
+                    Cadastrar matrícula
                   </Button>
                 ) : undefined
               }
