@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeftRight,
-  ArrowRight,
   CalendarClock,
   Check,
   ChevronDown,
@@ -79,8 +78,7 @@ function SearchableSelect({
   searchPlaceholder = "Pesquisar...",
   emptyMessage = "Nenhuma opção encontrada.",
   disabled,
-  disabledValues = [],
-  disabledHint,
+  clearLabel,
 }: {
   id?: string;
   groups: readonly Grupo[];
@@ -90,8 +88,7 @@ function SearchableSelect({
   searchPlaceholder?: string;
   emptyMessage?: string;
   disabled?: boolean;
-  disabledValues?: string[];
-  disabledHint?: string;
+  clearLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -183,6 +180,28 @@ function SearchableSelect({
           />
         </div>
         <div className="max-h-64 overflow-y-auto" role="listbox">
+          {clearLabel && (
+            <button
+              type="button"
+              role="option"
+              aria-selected={!value}
+              onClick={() => {
+                onChange("");
+                setOpen(false);
+                setQuery("");
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            >
+              <Check
+                className={cn(
+                  "h-3.5 w-3.5 flex-shrink-0",
+                  !value ? "text-primary" : "opacity-0",
+                )}
+                aria-hidden
+              />
+              <span>{clearLabel}</span>
+            </button>
+          )}
           {filteredGroups.length === 0 && (
             <p className="px-2 py-3 text-center text-[12px] text-muted-foreground">
               {emptyMessage}
@@ -197,16 +216,12 @@ function SearchableSelect({
               )}
               {group.options.map((option) => {
                 const selected = option.value === value;
-                const blocked =
-                  disabledValues.includes(option.value) && !selected;
                 return (
                   <button
                     key={option.value}
                     type="button"
                     role="option"
                     aria-selected={selected}
-                    aria-disabled={blocked}
-                    disabled={blocked}
                     onClick={() => {
                       onChange(option.value);
                       setOpen(false);
@@ -214,9 +229,7 @@ function SearchableSelect({
                     }}
                     className={cn(
                       "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                      blocked
-                        ? "cursor-not-allowed opacity-50"
-                        : "hover:bg-muted",
+                      "hover:bg-muted",
                     )}
                   >
                     <Check
@@ -229,9 +242,9 @@ function SearchableSelect({
                     <span className="min-w-0 flex-1 truncate">
                       {option.label}
                     </span>
-                    {(blocked ? disabledHint : option.hint) && (
+                    {option.hint && (
                       <span className="flex-shrink-0 text-[11px] text-muted-foreground">
-                        {blocked ? disabledHint : option.hint}
+                        {option.hint}
                       </span>
                     )}
                   </button>
@@ -376,6 +389,38 @@ export default function TransferenciaBancariaForm() {
     k: K,
     v: TransferenciaBancariaData[K],
   ) => setForm((p) => ({ ...p, [k]: v }));
+
+  const selecionarContaOrigem = (contaOrigemId: string) => {
+    setForm((atual) =>
+      contaOrigemId && contaOrigemId === atual.contaDestinoId
+        ? {
+            ...atual,
+            contaOrigemId,
+            contaDestinoId: atual.contaOrigemId,
+          }
+        : { ...atual, contaOrigemId },
+    );
+  };
+
+  const selecionarContaDestino = (contaDestinoId: string) => {
+    setForm((atual) =>
+      contaDestinoId && contaDestinoId === atual.contaOrigemId
+        ? {
+            ...atual,
+            contaOrigemId: atual.contaDestinoId,
+            contaDestinoId,
+          }
+        : { ...atual, contaDestinoId },
+    );
+  };
+
+  const inverterContas = () => {
+    setForm((atual) => ({
+      ...atual,
+      contaOrigemId: atual.contaDestinoId,
+      contaDestinoId: atual.contaOrigemId,
+    }));
+  };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -545,64 +590,81 @@ export default function TransferenciaBancariaForm() {
                   Nenhuma conta bancária disponível.
                 </div>
               ) : (
-                <div className="grid min-w-0 items-end gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-                  <div className="min-w-0">
-                    <FieldLabel
-                      htmlFor="contaOrigemId"
-                      required
-                      tooltip="Selecione a conta bancária da qual o valor será retirado para realizar esta transferência."
+                <>
+                  <div className="grid min-w-0 items-end gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+                    <div className="min-w-0">
+                      <FieldLabel
+                        htmlFor="contaOrigemId"
+                        required
+                        tooltip="Selecione a conta bancária da qual o valor será retirado para realizar esta transferência."
+                      >
+                        Conta de Origem
+                      </FieldLabel>
+
+                      <SearchableSelect
+                        id="contaOrigemId"
+                        groups={contaGroups}
+                        value={form.contaOrigemId}
+                        onChange={selecionarContaOrigem}
+                        placeholder="Selecione a conta de origem"
+                        searchPlaceholder="Pesquisar conta bancária..."
+                        emptyMessage="Nenhuma conta bancária encontrada."
+                        disabled={isView}
+                        clearLabel="Selecione"
+                      />
+                    </div>
+
+                    <div className="hidden items-center justify-center pb-1 sm:flex">
+                      <Button
+                        type="button"
+                        variant="glassSecondary"
+                        size="icon"
+                        className="h-8 w-8 rounded-full"
+                        onClick={inverterContas}
+                        disabled={!form.contaOrigemId || !form.contaDestinoId}
+                        aria-label="Inverter contas de origem e destino"
+                        title="Inverter contas"
+                      >
+                        <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden />
+                      </Button>
+                    </div>
+
+                    <div className="min-w-0">
+                      <FieldLabel
+                        htmlFor="contaDestinoId"
+                        required
+                        tooltip="Selecione a conta bancária que receberá o valor desta transferência."
+                      >
+                        Conta de Destino
+                      </FieldLabel>
+
+                      <SearchableSelect
+                        id="contaDestinoId"
+                        groups={contaGroups}
+                        value={form.contaDestinoId}
+                        onChange={selecionarContaDestino}
+                        placeholder="Selecione a conta de destino"
+                        searchPlaceholder="Pesquisar conta bancária..."
+                        emptyMessage="Nenhuma conta bancária encontrada."
+                        disabled={isView}
+                        clearLabel="Selecione"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex justify-center sm:hidden">
+                    <Button
+                      type="button"
+                      variant="glassSecondary"
+                      className="h-8 gap-2 rounded-full px-3 text-xs"
+                      onClick={inverterContas}
+                      disabled={!form.contaOrigemId || !form.contaDestinoId}
                     >
-                      Conta de Origem
-                    </FieldLabel>
-
-                    <SearchableSelect
-                      id="contaOrigemId"
-                      groups={contaGroups}
-                      value={form.contaOrigemId}
-                      onChange={(v) => set("contaOrigemId", v)}
-                      placeholder="Selecione a conta de origem"
-                      searchPlaceholder="Pesquisar conta bancária..."
-                      emptyMessage="Nenhuma conta bancária encontrada."
-                      disabled={isView}
-                      disabledValues={
-                        form.contaDestinoId ? [form.contaDestinoId] : []
-                      }
-                      disabledHint="Conta de destino"
-                    />
+                      <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden />
+                      Inverter contas
+                    </Button>
                   </div>
-
-                  <div className="hidden items-center justify-center pb-2 sm:flex">
-                    <ArrowRight
-                      className="h-4 w-4 text-muted-foreground"
-                      aria-hidden
-                    />
-                  </div>
-
-                  <div className="min-w-0">
-                    <FieldLabel
-                      htmlFor="contaDestinoId"
-                      required
-                      tooltip="Selecione a conta bancária que receberá o valor desta transferência."
-                    >
-                      Conta de Destino
-                    </FieldLabel>
-
-                    <SearchableSelect
-                      id="contaDestinoId"
-                      groups={contaGroups}
-                      value={form.contaDestinoId}
-                      onChange={(v) => set("contaDestinoId", v)}
-                      placeholder="Selecione a conta de destino"
-                      searchPlaceholder="Pesquisar conta bancária..."
-                      emptyMessage="Nenhuma conta bancária encontrada."
-                      disabled={isView}
-                      disabledValues={
-                        form.contaOrigemId ? [form.contaOrigemId] : []
-                      }
-                      disabledHint="Conta de origem"
-                    />
-                  </div>
-                </div>
+                </>
               )}
 
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
