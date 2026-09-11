@@ -43,7 +43,7 @@ async function readErrorPayload(response: Response, path: string) {
     const text = await response.text();
 
     if (!text) {
-      const fallback = `Erro ${response.status} ao acessar ${path}`;
+      const fallback = publicErrorMessage(response.status, path);
 
       return {
         body: "",
@@ -56,27 +56,72 @@ async function readErrorPayload(response: Response, path: string) {
 
       return {
         body: text,
-        message:
+        message: publicErrorMessage(
+          response.status,
+          path,
           json?.message ||
-          json?.error ||
-          json?.detail ||
-          json?.mensagem ||
-          text,
+            json?.error ||
+            json?.detail ||
+            json?.mensagem ||
+            text,
+        ),
       };
     } catch {
       return {
         body: text,
-        message: text,
+        message: publicErrorMessage(response.status, path, text),
       };
     }
   } catch {
-    const fallback = `Erro ${response.status} ao acessar ${path}`;
+    const fallback = publicErrorMessage(response.status, path);
 
     return {
       body: "",
       message: fallback,
     };
   }
+}
+
+function publicErrorMessage(status: number, path: string, rawMessage?: unknown) {
+  const message = String(rawMessage ?? "").trim();
+  const normalized = message.toLowerCase();
+  const isTechnicalMessage =
+    !message ||
+    message.startsWith("<") ||
+    /^(error|bad request|unauthorized|forbidden|not found|internal server error|external server error|service unavailable)$/i.test(
+      message,
+    ) ||
+    /whitelabel|exception|stack trace|org\.springframework|hibernate|postgres|sqlstate|constraint.*violation/.test(
+      normalized,
+    );
+
+  if (!isTechnicalMessage) {
+    return message;
+  }
+
+  if (status === 0) {
+    return "Não foi possível conectar ao sistema. Verifique sua conexão e tente novamente.";
+  }
+  if (status === 400) {
+    return "Os dados informados são inválidos. Revise os campos e tente novamente.";
+  }
+  if (status === 401) {
+    return "Sua sessão expirou. Faça login novamente para continuar.";
+  }
+  if (status === 403) {
+    return "Você não possui permissão para realizar esta ação.";
+  }
+  if (status === 404) {
+    return "O registro solicitado não foi encontrado.";
+  }
+  if (status === 409) {
+    return "Não foi possível concluir a operação porque já existe um registro com esses dados.";
+  }
+  if (status >= 500) {
+    return "Não foi possível concluir esta operação agora. Revise os dados e tente novamente.";
+  }
+
+  return `Não foi possível concluir a operação em ${path}. Tente novamente.`;
 }
 
 function redirectToLogin() {
@@ -126,11 +171,23 @@ export async function apiFetchResponse(
   options: RequestInit = {},
 ): Promise<Response> {
   const url = `${API_URL}${path}`;
-  const response = await fetch(url, {
-    ...options,
-    cache: options.cache ?? "no-store",
-    headers: buildHeaders(options),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      ...options,
+      cache: options.cache ?? "no-store",
+      headers: buildHeaders(options),
+    });
+  } catch {
+    throw new ApiError({
+      status: 0,
+      url,
+      path,
+      body: "",
+      message: publicErrorMessage(0, path),
+    });
+  }
 
   if (response.status === 401) {
     const { body, message } = await readErrorPayload(response, path);

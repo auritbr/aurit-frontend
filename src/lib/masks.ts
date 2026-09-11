@@ -15,6 +15,34 @@ export const maskCNPJ = (v: string) =>
     .replace(/\.(\d{3})(\d)/, ".$1/$2")
     .replace(/(\d{4})(\d)/, "$1-$2");
 
+export const isValidCNPJ = (value: string): boolean => {
+  const digits = value.replace(/\D/g, "");
+
+  if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) {
+    return false;
+  }
+
+  const calculateDigit = (base: string, weights: number[]) => {
+    const total = base
+      .split("")
+      .reduce((sum, digit, index) => sum + Number(digit) * weights[index], 0);
+    const remainder = total % 11;
+
+    return remainder < 2 ? 0 : 11 - remainder;
+  };
+
+  const firstDigit = calculateDigit(
+    digits.slice(0, 12),
+    [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2],
+  );
+  const secondDigit = calculateDigit(
+    digits.slice(0, 12) + firstDigit,
+    [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2],
+  );
+
+  return digits === `${digits.slice(0, 12)}${firstDigit}${secondDigit}`;
+};
+
 export const maskPhone = (v: string) => {
   const d = v.replace(/\D/g, "").slice(0, 11);
   if (d.length <= 10)
