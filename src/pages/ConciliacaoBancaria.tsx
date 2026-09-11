@@ -1200,7 +1200,7 @@ export default function ConciliacaoBancaria() {
                     <p className="text-sm font-semibold text-foreground">
                       {filtrosAtivos > 0
                         ? "Nenhum resultado encontrado"
-                        : "Nenhuma conciliação ancária realizada."}
+                        : "Nenhuma conciliação bancária realizada."}
                     </p>
                     <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-muted-foreground">
                       {filtrosAtivos > 0
@@ -1210,11 +1210,12 @@ export default function ConciliacaoBancaria() {
                   </div>
                   {filtrosAtivos === 0 && (
                     <Button
+                      type="button"
                       variant="glassPrimary"
-                      size="sm"
+                      className="h-9 gap-2 px-5"
                       onClick={() => setImportarAberto(true)}
                     >
-                      <Upload className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                      <Upload className="h-3.5 w-3.5" aria-hidden />
                       Importar extrato
                     </Button>
                   )}
