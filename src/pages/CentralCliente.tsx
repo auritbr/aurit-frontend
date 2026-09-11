@@ -343,7 +343,28 @@ export default function CentralCliente() {
     () => mensalidadesQuery.data ?? [],
     [mensalidadesQuery.data],
   );
-  const gratuito = assinatura ? assinaturaGratuita(assinatura) : false;
+  const semCobranca = assinatura ? assinaturaGratuita(assinatura) : false;
+  const planoCortesia = assinatura?.tipoPlano === "PLANO_CORTESIA";
+  const planoGratuito =
+    assinatura?.tipoPlano === "PLANO_GRATUITO" ||
+    assinatura?.status === "GRATUITO";
+  const mensagemSemCobranca = planoCortesia
+    ? {
+        titulo: "Sua assinatura é uma cortesia",
+        descricao:
+          "Sua assinatura está ativa como cortesia e não possui cobrança de mensalidade.",
+      }
+    : planoGratuito
+      ? {
+          titulo: "Você está no plano gratuito",
+          descricao:
+            "Seu plano atual não possui cobrança de mensalidade. Caso a assinatura seja alterada futuramente para um plano pago, as próximas cobranças passarão a ser apresentadas nesta seção.",
+        }
+      : {
+          titulo: "Sua mensalidade está isenta",
+          descricao:
+            "Sua assinatura está ativa e não possui cobrança de mensalidade no momento.",
+        };
   const ordenadas = useMemo(
     () =>
       [...mensalidades].sort((a, b) =>
@@ -465,15 +486,19 @@ export default function CentralCliente() {
                   <InfoItem
                     label="Mensalidade"
                     value={
-                      gratuito
-                        ? "Gratuito"
+                      planoCortesia
+                        ? "Cortesia"
+                        : planoGratuito
+                          ? "Gratuito"
+                          : semCobranca
+                            ? "Isenta"
                         : assinatura.valorMensalidade === null ||
-                            assinatura.valorMensalidade <= 0
+                              assinatura.valorMensalidade <= 0
                           ? "A definir"
                           : `${formatCurrency(assinatura.valorMensalidade)}/mês`
                     }
                   />
-                  {!gratuito && (
+                  {!semCobranca && (
                     <InfoItem
                       label="Vencimento"
                       value={
@@ -483,7 +508,7 @@ export default function CentralCliente() {
                       }
                     />
                   )}
-                  {!gratuito && (
+                  {!semCobranca && (
                     <InfoItem
                       label="Próxima cobrança"
                       value={formatDate(assinatura.proximaCobranca)}
@@ -515,7 +540,7 @@ export default function CentralCliente() {
                 mensagem="Não foi possível carregar suas mensalidades."
                 onRetry={() => void mensalidadesQuery.refetch()}
               />
-            ) : gratuito ? (
+            ) : semCobranca ? (
               <div className="flex items-start gap-3 rounded-[14px] border border-primary/20 bg-primary/[0.05] px-4 py-3 backdrop-blur-md">
                 <span
                   className="mt-[1px] flex h-6 w-6 shrink-0 items-center justify-center rounded-[8px] border border-primary/25 bg-primary/10 text-primary"
@@ -525,12 +550,10 @@ export default function CentralCliente() {
                 </span>
                 <div>
                   <p className="text-sm font-semibold text-foreground">
-                    Você está no plano gratuito
+                    {mensagemSemCobranca.titulo}
                   </p>
                   <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                    Seu plano atual não possui cobrança de mensalidade. Caso a
-                    assinatura seja alterada futuramente para um plano pago, as
-                    próximas cobranças passarão a ser apresentadas nesta seção.
+                    {mensagemSemCobranca.descricao}
                   </p>
                 </div>
               </div>
@@ -654,19 +677,17 @@ export default function CentralCliente() {
                   <RotateCcw className="h-4 w-4" aria-hidden /> Tentar novamente
                 </Button>
               </div>
-            ) : gratuito && ordenadas.length === 0 ? (
+            ) : semCobranca && ordenadas.length === 0 ? (
               <div className="flex flex-col items-center gap-2.5 px-6 py-11 text-center">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-muted/40 text-muted-foreground">
                   <Sparkles className="h-[18px] w-[18px]" aria-hidden />
                 </span>
                 <div>
                   <p className="text-sm font-semibold text-foreground">
-                    Você está no plano gratuito
+                    {mensagemSemCobranca.titulo}
                   </p>
                   <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                    Seu plano atual não possui cobrança de mensalidade. Caso a
-                    assinatura seja alterada futuramente para um plano pago, as
-                    próximas cobranças passarão a ser apresentadas nesta seção.
+                    {mensagemSemCobranca.descricao}
                   </p>
                 </div>
               </div>
