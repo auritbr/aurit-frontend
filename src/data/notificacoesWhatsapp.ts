@@ -90,11 +90,16 @@ export function formatarTelefoneWhatsapp(value?: string | null): string {
 
 export function formatarDataEnvio(value?: string | null): string {
   if (!value) return "—";
-  const date = new Date(value);
+  const possuiFuso = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
+  // A API devolve os instantes em UTC, mas em alguns casos sem o sufixo "Z".
+  // Sem ele, o navegador interpreta a data como horário local e deixa de aplicar
+  // a conversão para o fuso de São Paulo.
+  const date = new Date(possuiFuso ? value : `${value}Z`);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
   }).format(date);
 }
 
