@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   CalendarClock,
+  Copy,
+  ExternalLink,
   FileText,
   History,
   Landmark,
@@ -11,6 +13,7 @@ import {
   Plus,
   Power,
   PowerOff,
+  QrCode,
   RefreshCw,
   Settings,
   Settings2,
@@ -1936,71 +1939,54 @@ export default function ControleEmpresaDetalhe() {
         open={!!dadosCora}
         onOpenChange={(open) => !open && setDadosCora(null)}
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-lg flex-col overflow-hidden border-border/60 bg-card/90 backdrop-blur-xl sm:max-h-[85vh]">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Dados da cobrança Cora</DialogTitle>
             <DialogDescription>
-              A cobrança foi emitida pela Cora. Estes são os dados reais que
-              também ficam disponíveis para o cliente na Central.
+              Consulte as opções de pagamento disponíveis para esta mensalidade.
             </DialogDescription>
           </DialogHeader>
           {dadosCora && (
-            <div className="space-y-4 text-[13px]">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <InfoRow
-                  label="Competência"
+            <div className="min-h-0 flex-1 space-y-3.5 overflow-y-auto pb-1 pr-1">
+              <div className="grid grid-cols-1 gap-x-5 gap-y-4 rounded-[18px] border border-border/40 bg-background/60 p-4 shadow-[0_1px_3px_0_rgb(0_0_0/0.04)] backdrop-blur-md sm:grid-cols-3">
+                <CoraInfoItem
+                  label="Referência"
                   value={formatCompetencia(dadosCora.referenceMonth)}
                 />
-                <InfoRow
+                <CoraInfoItem label="Valor" value={formatBRL(dadosCora.amount)} />
+                <CoraInfoItem
                   label="Vencimento"
                   value={formatDate(dadosCora.dueDate)}
                 />
-                <InfoRow label="Valor" value={formatBRL(dadosCora.amount)} />
-                <InfoRow
-                  label="Status"
-                  value={<StatusPagamentoBadge status={dadosCora.status} />}
-                />
               </div>
-              {dadosCora.pix?.qrCode && (
-                <img
-                  src={dadosCora.pix.qrCode}
-                  alt="QR Code Pix da cobrança"
-                  className="mx-auto h-40 w-40 rounded border bg-white p-2"
-                />
-              )}
-              {dadosCora.pix?.copyPaste && (
-                <div className="space-y-1.5">
-                  <Label>Pix copia e cola</Label>
-                  <Textarea readOnly rows={3} value={dadosCora.pix.copyPaste} />
-                </div>
-              )}
-              {dadosCora.boleto?.digitableLine && (
-                <div className="space-y-1.5">
-                  <Label>Linha digitável</Label>
-                  <Textarea
-                    readOnly
-                    rows={2}
-                    value={dadosCora.boleto.digitableLine}
-                  />
-                </div>
-              )}
-              {dadosCora.boleto?.url && (
-                <a
-                  href={dadosCora.boleto.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary underline underline-offset-4"
-                >
-                  Abrir boleto
-                </a>
+              {temPixCora(dadosCora) && temBoletoCora(dadosCora) ? (
+                <Tabs defaultValue="pix">
+                  <TabsList className="grid h-9 w-full grid-cols-2">
+                    <TabsTrigger value="pix" className="h-8 gap-2">
+                      <QrCode className="h-4 w-4" aria-hidden /> Pix
+                    </TabsTrigger>
+                    <TabsTrigger value="boleto" className="h-8 gap-2">
+                      <FileText className="h-4 w-4" aria-hidden /> Boleto
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="pix">
+                    <PixCoraContent dados={dadosCora} />
+                  </TabsContent>
+                  <TabsContent value="boleto">
+                    <BoletoCoraContent dados={dadosCora} />
+                  </TabsContent>
+                </Tabs>
+              ) : temPixCora(dadosCora) ? (
+                <PixCoraContent dados={dadosCora} />
+              ) : temBoletoCora(dadosCora) ? (
+                <BoletoCoraContent dados={dadosCora} />
+              ) : (
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                  Esta cobrança não possui uma forma de pagamento disponível no momento.
+                </p>
               )}
             </div>
           )}
-          <DialogFooter>
-            <Button variant="glassSecondary" onClick={() => setDadosCora(null)}>
-              Fechar
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -2336,6 +2322,195 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
     <div className="flex items-center gap-3 py-1">
       <dt className="text-muted-foreground min-w-[140px]">{label}</dt>
       <dd className="font-medium text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+function CoraInfoItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-0.5 text-[13px] font-medium leading-snug text-foreground">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function CampoCoraCopiavel({
+  id,
+  label,
+  value,
+  buttonLabel,
+  successMessage,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  buttonLabel: string;
+  successMessage: string;
+}) {
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(successMessage);
+    } catch {
+      toast.error(
+        "Não foi possível copiar o código. Selecione o conteúdo e copie manualmente.",
+      );
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <label
+        htmlFor={id}
+        className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+      >
+        {label}
+      </label>
+      <Input
+        id={id}
+        readOnly
+        value={value}
+        onFocus={(event) => event.currentTarget.select()}
+        className="h-9 truncate rounded-[10px] border-border/70 bg-background/70 font-mono text-[12px] backdrop-blur-sm"
+      />
+      <Button
+        type="button"
+        variant="glassSecondary"
+        className="h-9 w-full gap-2 px-4"
+        onClick={copiar}
+      >
+        <Copy className="h-4 w-4" aria-hidden /> {buttonLabel}
+      </Button>
+    </div>
+  );
+}
+
+function qrCodeCoraSeguro(value: string | null | undefined) {
+  return Boolean(value?.startsWith("data:image/png;base64,"));
+}
+
+function urlBoletoCoraSegura(value: string | null | undefined) {
+  if (!value) return false;
+  try {
+    return ["https:", "http:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
+function temPixCora(dados: DadosPagamentoCora) {
+  return Boolean(dados.pix?.copyPaste || qrCodeCoraSeguro(dados.pix?.qrCode));
+}
+
+function temBoletoCora(dados: DadosPagamentoCora) {
+  return Boolean(
+    dados.boleto?.digitableLine ||
+      dados.boleto?.barcode ||
+      urlBoletoCoraSegura(dados.boleto?.url),
+  );
+}
+
+function PixCoraContent({ dados }: { dados: DadosPagamentoCora }) {
+  const qrDisponivel = qrCodeCoraSeguro(dados.pix?.qrCode);
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div>
+        <p className="text-sm font-semibold text-foreground">Pague com Pix</p>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">
+          Escaneie o QR Code ou copie o código Pix para realizar o pagamento.
+        </p>
+      </div>
+      <div className="flex items-center justify-center rounded-[18px] border border-border/40 bg-background/60 px-4 py-3 shadow-[0_1px_3px_0_rgb(0_0_0/0.04)] backdrop-blur-md">
+        {qrDisponivel ? (
+          <img
+            src={dados.pix?.qrCode ?? undefined}
+            alt="QR Code Pix da cobrança"
+            className="h-36 w-36 rounded-[10px] bg-white p-2"
+          />
+        ) : (
+          <div className="flex items-center gap-3 py-1 text-left text-muted-foreground">
+            <QrCode className="h-10 w-10 shrink-0" aria-hidden />
+            <p className="max-w-[260px] text-[12px] leading-relaxed">
+              O QR Code Pix não foi disponibilizado para esta cobrança. Utilize o
+              código Pix Copia e Cola abaixo.
+            </p>
+          </div>
+        )}
+      </div>
+      {dados.pix?.copyPaste ? (
+        <CampoCoraCopiavel
+          id="coraPixCopiaCola"
+          label="Pix Copia e Cola"
+          value={dados.pix.copyPaste}
+          buttonLabel="Copiar código Pix"
+          successMessage="Código Pix copiado."
+        />
+      ) : (
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
+          O código Pix desta cobrança não está disponível.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function BoletoCoraContent({ dados }: { dados: DadosPagamentoCora }) {
+  const boletoDisponivel = urlBoletoCoraSegura(dados.boleto?.url);
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div>
+        <p className="text-sm font-semibold text-foreground">Pague com boleto</p>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">
+          Copie a linha digitável ou abra o boleto para pagamento.
+        </p>
+      </div>
+      {dados.boleto?.digitableLine ? (
+        <CampoCoraCopiavel
+          id="coraLinhaDigitavel"
+          label="Linha digitável"
+          value={dados.boleto.digitableLine}
+          buttonLabel="Copiar linha digitável"
+          successMessage="Linha digitável copiada."
+        />
+      ) : (
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
+          A linha digitável desta cobrança não está disponível.
+        </p>
+      )}
+      {dados.boleto?.barcode && (
+        <CampoCoraCopiavel
+          id="coraCodigoBarras"
+          label="Código de barras"
+          value={dados.boleto.barcode}
+          buttonLabel="Copiar código de barras"
+          successMessage="Código de barras copiado."
+        />
+      )}
+      {boletoDisponivel && dados.boleto?.url && (
+        <Button
+          type="button"
+          variant="glassPrimary"
+          className="h-9 w-full gap-2 px-4"
+          asChild
+        >
+          <a href={dados.boleto.url} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-4 w-4" aria-hidden /> Abrir boleto
+          </a>
+        </Button>
+      )}
     </div>
   );
 }
