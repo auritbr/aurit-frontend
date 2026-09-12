@@ -80,6 +80,7 @@ import {
   consultarConfiguracaoCobranca,
   consultarAssinaturaCobranca,
   consultarStatusIntegracaoCora,
+  consultarCobrancaCora,
   emitirCobrancaCora,
   excluirPagamentoEmpresa,
   getPlanoVisualEmpresa,
@@ -828,6 +829,26 @@ export default function ControleEmpresaDetalhe() {
     }
   }
 
+  async function abrirCobrancaCora(pagamento: PagamentoEmpresa) {
+    if (pagamento.coraInvoiceId) {
+      if (processandoCobrancaId !== null) return;
+      try {
+        setProcessandoCobrancaId(pagamento.id);
+        setDadosCora(await consultarCobrancaCora(pagamento.id));
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar os dados da cobrança Cora.",
+        );
+      } finally {
+        setProcessandoCobrancaId(null);
+      }
+      return;
+    }
+    await emitirCobranca(pagamento);
+  }
+
   async function conciliarCobranca(pagamento: PagamentoEmpresa) {
     if (processandoCobrancaId !== null) return;
     try {
@@ -1310,14 +1331,26 @@ export default function ControleEmpresaDetalhe() {
                             }
                             onDelete={() => setConfirmDeletePgto(p.id)}
                             extraItems={[
-                              {
-                                label: p.coraInvoiceId
-                                  ? "Ver Pix e boleto"
-                                  : "Emitir na Cora",
-                                icon: FileText,
-                                disabled: processandoCobrancaId !== null,
-                                onClick: () => emitirCobranca(p),
-                              },
+                              ...(p.coraInvoiceId
+                                ? [
+                                    {
+                                      label: "Ver Pix e boleto",
+                                      icon: FileText,
+                                      disabled: processandoCobrancaId !== null,
+                                      onClick: () => abrirCobrancaCora(p),
+                                    },
+                                  ]
+                                : p.statusPagamento !== "PAGO" &&
+                                    p.statusPagamento !== "CANCELADO"
+                                  ? [
+                                      {
+                                        label: "Emitir na Cora",
+                                        icon: FileText,
+                                        disabled: processandoCobrancaId !== null,
+                                        onClick: () => abrirCobrancaCora(p),
+                                      },
+                                    ]
+                                  : []),
                               ...(p.coraInvoiceId
                                 ? [
                                     {

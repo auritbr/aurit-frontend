@@ -490,6 +490,12 @@ export async function emitirCobrancaCora(pagamentoId: number) {
   );
 }
 
+export async function consultarCobrancaCora(pagamentoId: number) {
+  return apiFetch<DadosPagamentoCora>(
+    `/controle-proprietario/cobrancas/mensalidades/${pagamentoId}/pagamento`,
+  );
+}
+
 export async function conciliarMensalidadeCora(pagamentoId: number) {
   const mensalidade = await apiFetch<{
     id: number;
