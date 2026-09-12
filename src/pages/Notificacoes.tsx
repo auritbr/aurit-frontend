@@ -123,6 +123,7 @@ export default function Notificacoes() {
   const [telefoneDestinatario, setTelefoneDestinatario] = useState("");
   const [destinatarioAtivo, setDestinatarioAtivo] = useState(true);
   const [salvandoDestinatario, setSalvandoDestinatario] = useState(false);
+  const [destinatarioEmTesteId, setDestinatarioEmTesteId] = useState<number | null>(null);
   const [planoGratuito, setPlanoGratuito] = useState(false);
 
   const carregar = useCallback(async () => {
@@ -279,6 +280,23 @@ export default function Notificacoes() {
       setDestinatarios((atuais) => atuais.map((item) => item.id === atualizado.id ? atualizado : item));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível atualizar o destinatário.");
+    }
+  };
+
+  const handleTesteDestinatario = async (destinatario: DestinatarioWhatsapp) => {
+    setDestinatarioEmTesteId(destinatario.id);
+    try {
+      await enviarMensagemTeste(destinatario.nome, destinatario.telefoneWhatsapp);
+      setHistorico(await getHistoricoNotificacoes());
+      toast.success(`Mensagem de teste enviada para ${destinatario.nome}.`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível enviar a mensagem de teste.",
+      );
+    } finally {
+      setDestinatarioEmTesteId(null);
     }
   };
 
@@ -475,33 +493,49 @@ export default function Notificacoes() {
             </FormSectionCard>
 
             <FormSectionCard
-              icon={User}
+              icon={MessageCircle}
               title="Destinatários adicionais"
               description="Cadastre outros responsáveis que também devem receber as notificações automáticas. O número principal acima continua sendo o destinatário principal."
+              className="wa-accent-surface"
             >
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
                 <div>
                   <FieldLabel htmlFor="nome-destinatario">Nome</FieldLabel>
-                  <Input
-                    id="nome-destinatario"
-                    value={nomeDestinatario}
-                    maxLength={150}
-                    onChange={(event) => setNomeDestinatario(event.target.value)}
-                    placeholder="Ex.: Financeiro"
-                  />
+                  <div className="relative">
+                    <User
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <Input
+                      id="nome-destinatario"
+                      value={nomeDestinatario}
+                      maxLength={150}
+                      onChange={(event) => setNomeDestinatario(event.target.value)}
+                      placeholder="Ex.: Financeiro"
+                      className="pl-9"
+                    />
+                  </div>
                 </div>
                 <div>
                   <FieldLabel htmlFor="telefone-destinatario">WhatsApp</FieldLabel>
-                  <Input
-                    id="telefone-destinatario"
-                    value={telefoneDestinatario}
-                    inputMode="tel"
-                    onChange={(event) => setTelefoneDestinatario(maskPhone(event.target.value))}
-                    placeholder="(00) 00000-0000"
-                  />
+                  <div className="relative">
+                    <Smartphone
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <Input
+                      id="telefone-destinatario"
+                      value={telefoneDestinatario}
+                      inputMode="tel"
+                      onChange={(event) => setTelefoneDestinatario(maskPhone(event.target.value))}
+                      placeholder="(00) 00000-0000"
+                      className="pl-9"
+                    />
+                  </div>
                 </div>
                 <Button
                   type="button"
+                  variant="glassSecondary"
                   className="h-10 gap-2"
                   onClick={() => void handleAdicionarDestinatario()}
                   disabled={salvandoDestinatario}
@@ -511,26 +545,44 @@ export default function Notificacoes() {
                 </Button>
               </div>
 
-              <div className="mt-4 flex items-center gap-2 rounded-[13px] border border-border/60 bg-muted/20 px-4 py-3">
+              <div className="wa-accent-item mt-4 flex items-center justify-between gap-3 rounded-[13px] px-4 py-3">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    className="wa-icon-badge flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                    aria-hidden
+                  >
+                    <MessageCircle className="h-[14px] w-[14px]" strokeWidth={2.2} />
+                  </span>
+                  <div>
+                    <FieldLabel htmlFor="situacao-novo-destinatario">Adicionar como ativo</FieldLabel>
+                    <p className="text-[12.5px] text-muted-foreground">O novo contato receberá os avisos automaticamente.</p>
+                  </div>
+                </div>
                 <Switch
                   id="situacao-novo-destinatario"
                   checked={destinatarioAtivo}
                   onCheckedChange={setDestinatarioAtivo}
                 />
-                <FieldLabel htmlFor="situacao-novo-destinatario">Adicionar como ativo</FieldLabel>
               </div>
 
-              <div className="mt-4 divide-y divide-border/60 rounded-[13px] border border-border/60">
+              <div className="mt-4 space-y-2.5">
                 {destinatarios.length === 0 ? (
-                  <p className="px-4 py-4 text-[12.5px] text-muted-foreground">
+                  <div className="wa-accent-item flex items-center gap-2.5 rounded-[13px] px-4 py-4 text-[12.5px] text-muted-foreground">
+                    <span className="wa-icon-badge flex h-7 w-7 shrink-0 items-center justify-center rounded-full" aria-hidden>
+                      <MessageCircle className="h-[14px] w-[14px]" strokeWidth={2.2} />
+                    </span>
                     Nenhum destinatário adicional cadastrado.
-                  </p>
+                  </div>
                 ) : (
                   destinatarios.map((destinatario) => (
-                    <div key={destinatario.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                    <div key={destinatario.id} className="wa-accent-item flex flex-wrap items-center gap-3 rounded-[13px] px-4 py-3">
+                      <span className="wa-icon-badge flex h-8 w-8 shrink-0 items-center justify-center rounded-full" aria-hidden>
+                        <MessageCircle className="h-4 w-4" strokeWidth={2.2} />
+                      </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground">{destinatario.nome}</p>
-                        <p className="text-[12.5px] text-muted-foreground">
+                        <p className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
+                          <Smartphone className="h-3.5 w-3.5" aria-hidden />
                           {formatarTelefoneWhatsapp(destinatario.telefoneWhatsapp)}
                         </p>
                       </div>
@@ -541,6 +593,22 @@ export default function Notificacoes() {
                           onCheckedChange={(ativo) => void handleSituacaoDestinatario(destinatario, ativo)}
                           aria-label={destinatario.ativo ? `Desativar ${destinatario.nome}` : `Ativar ${destinatario.nome}`}
                         />
+                        <Button
+                          type="button"
+                          variant="glassSecondary"
+                          size="sm"
+                          className="h-8 gap-1.5 px-2.5"
+                          onClick={() => void handleTesteDestinatario(destinatario)}
+                          disabled={destinatarioEmTesteId === destinatario.id}
+                          aria-busy={destinatarioEmTesteId === destinatario.id}
+                        >
+                          {destinatarioEmTesteId === destinatario.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                          ) : (
+                            <Send className="h-3.5 w-3.5" aria-hidden />
+                          )}
+                          Testar
+                        </Button>
                         <Button
                           type="button"
                           variant="ghost"
