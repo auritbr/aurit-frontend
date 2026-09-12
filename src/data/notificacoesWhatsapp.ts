@@ -18,6 +18,21 @@ export interface ConfiguracaoWhatsappPayload {
   ativo: boolean;
 }
 
+export interface DestinatarioWhatsapp {
+  id: number;
+  nome: string;
+  telefoneWhatsapp: string;
+  ativo: boolean;
+  dataCriacao?: string | null;
+  dataAtualizacao?: string | null;
+}
+
+export interface DestinatarioWhatsappPayload {
+  nome: string;
+  telefoneWhatsapp: string;
+  ativo: boolean;
+}
+
 export type SituacaoNotificacao = "ENVIANDO" | "ENVIADA" | "ERRO";
 
 export interface NotificacaoEnviada {
@@ -126,5 +141,44 @@ export function getHistoricoNotificacoes(
         cache: "no-store",
       }),
     "Não foi possível carregar o histórico de notificações.",
+  );
+}
+
+export function getDestinatariosWhatsapp(): Promise<DestinatarioWhatsapp[]> {
+  return executar(
+    () => apiFetch<DestinatarioWhatsapp[]>(`${ENDPOINT}/destinatarios`, { cache: "no-store" }),
+    "Não foi possível carregar os destinatários adicionais.",
+  );
+}
+
+export function adicionarDestinatarioWhatsapp(
+  payload: DestinatarioWhatsappPayload,
+): Promise<DestinatarioWhatsapp> {
+  return executar(
+    () => apiFetch<DestinatarioWhatsapp>(`${ENDPOINT}/destinatarios`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+    "Não foi possível adicionar o destinatário.",
+  );
+}
+
+export function atualizarDestinatarioWhatsapp(
+  id: number,
+  payload: DestinatarioWhatsappPayload,
+): Promise<DestinatarioWhatsapp> {
+  return executar(
+    () => apiFetch<DestinatarioWhatsapp>(`${ENDPOINT}/destinatarios/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+    "Não foi possível atualizar o destinatário.",
+  );
+}
+
+export function removerDestinatarioWhatsapp(id: number): Promise<void> {
+  return executar(
+    () => apiFetch<void>(`${ENDPOINT}/destinatarios/${id}`, { method: "DELETE" }),
+    "Não foi possível remover o destinatário.",
   );
 }

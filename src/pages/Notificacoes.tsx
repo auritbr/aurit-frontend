@@ -9,9 +9,11 @@ import {
   MessageCircle,
   Megaphone,
   Package,
+  Plus,
   RotateCcw,
   Send,
   Smartphone,
+  Trash2,
   User,
   UserX,
 } from "lucide-react";
@@ -29,13 +31,18 @@ import { FieldTooltip } from "@/components/FieldTooltip";
 import { maskPhone } from "@/lib/masks";
 import { isPlanoGratuitoAtual } from "@/lib/plano";
 import {
+  adicionarDestinatarioWhatsapp,
+  atualizarDestinatarioWhatsapp,
   enviarMensagemTeste,
   formatarDataEnvio,
   formatarTelefoneWhatsapp,
   getConfiguracaoWhatsapp,
+  getDestinatariosWhatsapp,
   getHistoricoNotificacoes,
   salvarConfiguracaoWhatsapp,
+  removerDestinatarioWhatsapp,
   telefoneWhatsappValido,
+  type DestinatarioWhatsapp,
   type NotificacaoEnviada,
 } from "@/data/notificacoesWhatsapp";
 
@@ -111,21 +118,28 @@ export default function Notificacoes() {
     texto: string;
   } | null>(null);
   const [historico, setHistorico] = useState<NotificacaoEnviada[]>([]);
+  const [destinatarios, setDestinatarios] = useState<DestinatarioWhatsapp[]>([]);
+  const [nomeDestinatario, setNomeDestinatario] = useState("");
+  const [telefoneDestinatario, setTelefoneDestinatario] = useState("");
+  const [destinatarioAtivo, setDestinatarioAtivo] = useState(true);
+  const [salvandoDestinatario, setSalvandoDestinatario] = useState(false);
   const [planoGratuito, setPlanoGratuito] = useState(false);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErroCarregamento(false);
     try {
-      const [config, notificacoes, gratuito] = await Promise.all([
+      const [config, notificacoes, destinatariosCarregados, gratuito] = await Promise.all([
         getConfiguracaoWhatsapp(),
         getHistoricoNotificacoes(),
+        getDestinatariosWhatsapp(),
         isPlanoGratuitoAtual(),
       ]);
       setNomeResponsavel(config.nomeResponsavel ?? "");
       setTelefone(formatarTelefoneWhatsapp(config.telefoneWhatsapp));
       setAtivo(Boolean(config.ativo));
       setHistorico(notificacoes);
+      setDestinatarios(destinatariosCarregados);
       setPlanoGratuito(gratuito);
     } catch (error) {
       setErroCarregamento(true);
@@ -224,6 +238,57 @@ export default function Notificacoes() {
       toast.error(texto);
     } finally {
       setTestando(false);
+    }
+  };
+
+  const handleAdicionarDestinatario = async () => {
+    if (!nomeDestinatario.trim()) {
+      toast.error("Informe o nome do destinatário.");
+      return;
+    }
+    if (!telefoneWhatsappValido(telefoneDestinatario)) {
+      toast.error("Informe um número de WhatsApp válido com DDD.");
+      return;
+    }
+    setSalvandoDestinatario(true);
+    try {
+      const destinatario = await adicionarDestinatarioWhatsapp({
+        nome: nomeDestinatario.trim(),
+        telefoneWhatsapp: telefoneDestinatario,
+        ativo: destinatarioAtivo,
+      });
+      setDestinatarios((atuais) => [...atuais, destinatario].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setNomeDestinatario("");
+      setTelefoneDestinatario("");
+      setDestinatarioAtivo(true);
+      toast.success("Destinatário adicional cadastrado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível adicionar o destinatário.");
+    } finally {
+      setSalvandoDestinatario(false);
+    }
+  };
+
+  const handleSituacaoDestinatario = async (destinatario: DestinatarioWhatsapp, ativo: boolean) => {
+    try {
+      const atualizado = await atualizarDestinatarioWhatsapp(destinatario.id, {
+        nome: destinatario.nome,
+        telefoneWhatsapp: destinatario.telefoneWhatsapp,
+        ativo,
+      });
+      setDestinatarios((atuais) => atuais.map((item) => item.id === atualizado.id ? atualizado : item));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar o destinatário.");
+    }
+  };
+
+  const handleRemoverDestinatario = async (destinatario: DestinatarioWhatsapp) => {
+    try {
+      await removerDestinatarioWhatsapp(destinatario.id);
+      setDestinatarios((atuais) => atuais.filter((item) => item.id !== destinatario.id));
+      toast.success("Destinatário removido.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível remover o destinatário.");
     }
   };
 
@@ -407,6 +472,90 @@ export default function Notificacoes() {
                   {feedbackTeste.texto}
                 </p>
               )}
+            </FormSectionCard>
+
+            <FormSectionCard
+              icon={User}
+              title="Destinatários adicionais"
+              description="Cadastre outros responsáveis que também devem receber as notificações automáticas. O número principal acima continua sendo o destinatário principal."
+            >
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+                <div>
+                  <FieldLabel htmlFor="nome-destinatario">Nome</FieldLabel>
+                  <Input
+                    id="nome-destinatario"
+                    value={nomeDestinatario}
+                    maxLength={150}
+                    onChange={(event) => setNomeDestinatario(event.target.value)}
+                    placeholder="Ex.: Financeiro"
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="telefone-destinatario">WhatsApp</FieldLabel>
+                  <Input
+                    id="telefone-destinatario"
+                    value={telefoneDestinatario}
+                    inputMode="tel"
+                    onChange={(event) => setTelefoneDestinatario(maskPhone(event.target.value))}
+                    placeholder="(00) 00000-0000"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  className="h-10 gap-2"
+                  onClick={() => void handleAdicionarDestinatario()}
+                  disabled={salvandoDestinatario}
+                >
+                  {salvandoDestinatario ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
+                  Adicionar
+                </Button>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2 rounded-[13px] border border-border/60 bg-muted/20 px-4 py-3">
+                <Switch
+                  id="situacao-novo-destinatario"
+                  checked={destinatarioAtivo}
+                  onCheckedChange={setDestinatarioAtivo}
+                />
+                <FieldLabel htmlFor="situacao-novo-destinatario">Adicionar como ativo</FieldLabel>
+              </div>
+
+              <div className="mt-4 divide-y divide-border/60 rounded-[13px] border border-border/60">
+                {destinatarios.length === 0 ? (
+                  <p className="px-4 py-4 text-[12.5px] text-muted-foreground">
+                    Nenhum destinatário adicional cadastrado.
+                  </p>
+                ) : (
+                  destinatarios.map((destinatario) => (
+                    <div key={destinatario.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground">{destinatario.nome}</p>
+                        <p className="text-[12.5px] text-muted-foreground">
+                          {formatarTelefoneWhatsapp(destinatario.telefoneWhatsapp)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <StatusPill status={destinatario.ativo ? "ATIVO" : "INATIVO"} />
+                        <Switch
+                          checked={destinatario.ativo}
+                          onCheckedChange={(ativo) => void handleSituacaoDestinatario(destinatario, ativo)}
+                          aria-label={destinatario.ativo ? `Desativar ${destinatario.nome}` : `Ativar ${destinatario.nome}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => void handleRemoverDestinatario(destinatario)}
+                          aria-label={`Remover ${destinatario.nome}`}
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </FormSectionCard>
 
             <section
