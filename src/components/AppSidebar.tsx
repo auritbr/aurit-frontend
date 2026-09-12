@@ -193,6 +193,7 @@ const sections: Section[] = [
         id: "dashboard",
         title: "Dashboard",
         icon: Gauge,
+        paidOnly: true,
         url: "/dashboard",
       },
     ],
@@ -657,16 +658,14 @@ function RowIcon({
 }) {
   return (
     <span
-      className={`flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-full ${
-        active ? "sb-icon-glass" : ""
-      }`}
+      className={`flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-full ${active ? "sb-icon-glass" : ""
+        }`}
     >
       <Icon
-        className={`h-[17px] w-[17px] ${
-          active
+        className={`h-[17px] w-[17px] ${active
             ? "text-sidebar-accent-foreground"
             : "text-sidebar-foreground/60"
-        }`}
+          }`}
         strokeWidth={1.8}
       />
     </span>
@@ -759,19 +758,19 @@ export function AppSidebar() {
 
             return items.length || groupMatch
               ? {
-                  ...group,
-                  items,
-                }
+                ...group,
+                items,
+              }
               : null;
           })
           .filter((group): group is MenuGroup => group !== null);
 
         return directs.length || groups.length
           ? {
-              ...section,
-              directs,
-              groups,
-            }
+            ...section,
+            directs,
+            groups,
+          }
           : null;
       })
       .filter(
@@ -920,16 +919,14 @@ export function AppSidebar() {
             aria-current={active ? "page" : undefined}
             aria-label={direct.title}
             title={direct.title}
-            className={`${collapsedIconBox} ${
-              active
+            className={`${collapsedIconBox} ${active
                 ? "sb-icon-glass text-sidebar-accent-foreground"
                 : "text-sidebar-foreground/70 hover:text-sidebar-accent-foreground"
-            }`}
+              }`}
           >
             <direct.icon
-              className={`h-[18px] w-[18px] ${
-                active ? "text-sidebar-accent-foreground" : ""
-              }`}
+              className={`h-[18px] w-[18px] ${active ? "text-sidebar-accent-foreground" : ""
+                }`}
               strokeWidth={1.8}
             />
           </NavLink>
@@ -945,11 +942,10 @@ export function AppSidebar() {
             end={direct.url === "/"}
             onClick={closeMobile}
             aria-current={active ? "page" : undefined}
-            className={`${rowBase} group/item ${
-              active
+            className={`${rowBase} group/item ${active
                 ? "sb-item-active font-semibold text-sidebar-accent-foreground"
                 : "font-medium text-sidebar-foreground/80 hover:text-sidebar-accent-foreground"
-            }`}
+              }`}
           >
             <RowIcon icon={direct.icon} active={active} />
 
@@ -984,15 +980,13 @@ export function AppSidebar() {
               to={sub.url}
               onClick={closeMobile}
               aria-current={active ? "page" : undefined}
-              className={`sb-item flex items-center py-[6px] leading-[1.3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring/70 ${
-                variant === "inline"
+              className={`sb-item flex items-center py-[6px] leading-[1.3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring/70 ${variant === "inline"
                   ? "pl-[38px] pr-2.5 text-[12.5px]"
                   : "rounded-[7px] px-2.5 text-[13px]"
-              } ${
-                active
+                } ${active
                   ? "sb-subitem-active font-semibold text-sidebar-accent-foreground"
                   : "text-sidebar-foreground/65 hover:text-sidebar-accent-foreground"
-              }`}
+                }`}
             >
               <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                 {label(sub.title)}
@@ -1022,16 +1016,14 @@ export function AppSidebar() {
               aria-label={group.title}
               aria-haspopup="menu"
               title={group.title}
-              className={`${collapsedIconBox} ${
-                activeInGroup
+              className={`${collapsedIconBox} ${activeInGroup
                   ? "sb-icon-glass text-sidebar-accent-foreground"
                   : "text-sidebar-foreground/70 hover:text-sidebar-accent-foreground"
-              }`}
+                }`}
             >
               <group.icon
-                className={`h-[18px] w-[18px] ${
-                  activeInGroup ? "text-sidebar-accent-foreground" : ""
-                }`}
+                className={`h-[18px] w-[18px] ${activeInGroup ? "text-sidebar-accent-foreground" : ""
+                  }`}
                 strokeWidth={1.8}
               />
             </button>
@@ -1084,11 +1076,10 @@ export function AppSidebar() {
             <button
               type="button"
               aria-expanded={open}
-              className={`${rowBase} group/trigger ${
-                activeInGroup || open
+              className={`${rowBase} group/trigger ${activeInGroup || open
                   ? "font-semibold text-sidebar-accent-foreground"
                   : "font-medium text-sidebar-foreground/80 hover:text-sidebar-accent-foreground"
-              }`}
+                }`}
             >
               <RowIcon icon={group.icon} active={activeInGroup} />
 
@@ -1097,9 +1088,8 @@ export function AppSidebar() {
               </span>
 
               <ChevronRight
-                className={`h-3.5 w-3.5 flex-shrink-0 text-sidebar-foreground/35 transition-transform duration-200 motion-reduce:transition-none ${
-                  open ? "rotate-90 text-sidebar-foreground/55" : ""
-                }`}
+                className={`h-3.5 w-3.5 flex-shrink-0 text-sidebar-foreground/35 transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-90 text-sidebar-foreground/55" : ""
+                  }`}
                 strokeWidth={2}
               />
             </button>
@@ -1129,9 +1119,8 @@ export function AppSidebar() {
           ===================================================== */}
 
       <SidebarHeader
-        className={`sb-brand gap-6 ${
-          collapsed ? "items-center px-0 pb-2 pt-3" : "px-2.5 pb-2.5 pt-3"
-        }`}
+        className={`sb-brand gap-6 ${collapsed ? "items-center px-0 pb-2 pt-3" : "px-2.5 pb-2.5 pt-3"
+          }`}
       >
         <div className="flex flex-col items-center justify-center gap-1.5">
           <AuritLogo size={collapsed ? "sm" : "md"} showText={false} />
@@ -1154,9 +1143,8 @@ export function AppSidebar() {
           ===================================================== */}
 
       <SidebarContent
-        className={`sidebar-scroll overflow-x-hidden border-t border-sidebar-border/30 ${
-          collapsed ? "px-0 pt-1" : "px-0"
-        }`}
+        className={`sidebar-scroll overflow-x-hidden border-t border-sidebar-border/30 ${collapsed ? "px-0 pt-1" : "px-0"
+          }`}
       >
         {noResults && (
           <p className="px-3 py-4 text-[12.5px] leading-relaxed text-sidebar-foreground/60">
@@ -1184,9 +1172,8 @@ export function AppSidebar() {
     ====================================================== */}
 
       <SidebarFooter
-        className={`border-t border-sidebar-border/40 p-0 ${
-          collapsed ? "items-center py-2" : ""
-        }`}
+        className={`border-t border-sidebar-border/40 p-0 ${collapsed ? "items-center py-2" : ""
+          }`}
       >
         <a
           href="https://www.aurit.com.br/wiki"
