@@ -233,7 +233,7 @@ export function Breadcrumbs() {
 
     const items: BreadcrumbItem[] = [
       {
-        label: "Dashboard",
+        label: "Início",
         to: "/",
         isLast: segments.length === 0,
       },
