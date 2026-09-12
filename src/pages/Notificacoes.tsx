@@ -9,6 +9,7 @@ import {
   MessageCircle,
   Megaphone,
   Package,
+  Pencil,
   Plus,
   RotateCcw,
   Send,
@@ -16,6 +17,7 @@ import {
   Trash2,
   User,
   UserX,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
@@ -119,11 +121,18 @@ export default function Notificacoes() {
   } | null>(null);
   const [historico, setHistorico] = useState<NotificacaoEnviada[]>([]);
   const [destinatarios, setDestinatarios] = useState<DestinatarioWhatsapp[]>([]);
-  const [nomeDestinatario, setNomeDestinatario] = useState("");
   const [telefoneDestinatario, setTelefoneDestinatario] = useState("");
+  const [erroTelefoneDestinatario, setErroTelefoneDestinatario] =
+    useState<string | null>(null);
   const [destinatarioAtivo, setDestinatarioAtivo] = useState(true);
   const [salvandoDestinatario, setSalvandoDestinatario] = useState(false);
   const [destinatarioEmTesteId, setDestinatarioEmTesteId] = useState<number | null>(null);
+  const [destinatarioEmEdicaoId, setDestinatarioEmEdicaoId] =
+    useState<number | null>(null);
+  const [telefoneDestinatarioEmEdicao, setTelefoneDestinatarioEmEdicao] =
+    useState("");
+  const [erroEdicaoDestinatario, setErroEdicaoDestinatario] =
+    useState<string | null>(null);
   const [planoGratuito, setPlanoGratuito] = useState(false);
 
   const carregar = useCallback(async () => {
@@ -167,6 +176,24 @@ export default function Notificacoes() {
       avisosAutomaticos.filter((aviso) => !planoGratuito || !aviso.planoPago),
     [planoGratuito],
   );
+
+  const telefoneJaCadastrado = (
+    telefoneParaValidar: string,
+    idIgnorado?: number,
+  ) => {
+    const normalizar = (valor: string) =>
+      valor.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
+    const telefoneNormalizado = normalizar(telefoneParaValidar);
+
+    if (!telefoneNormalizado) return false;
+    if (normalizar(telefone) === telefoneNormalizado) return true;
+
+    return destinatarios.some(
+      (destinatario) =>
+        destinatario.id !== idIgnorado &&
+        normalizar(destinatario.telefoneWhatsapp) === telefoneNormalizado,
+    );
+  };
 
   const validar = () => {
     let valido = true;
@@ -243,30 +270,92 @@ export default function Notificacoes() {
   };
 
   const handleAdicionarDestinatario = async () => {
-    if (!nomeDestinatario.trim()) {
-      toast.error("Informe o nome do destinatário.");
-      return;
-    }
     if (!telefoneWhatsappValido(telefoneDestinatario)) {
-      toast.error("Informe um número de WhatsApp válido com DDD.");
+      setErroTelefoneDestinatario(
+        "Informe um número de WhatsApp válido com DDD.",
+      );
       return;
     }
+    if (telefoneJaCadastrado(telefoneDestinatario)) {
+      setErroTelefoneDestinatario(
+        "Este telefone já está cadastrado para receber notificações.",
+      );
+      return;
+    }
+    setErroTelefoneDestinatario(null);
     setSalvandoDestinatario(true);
     try {
       const destinatario = await adicionarDestinatarioWhatsapp({
-        nome: nomeDestinatario.trim(),
+        // O backend ainda exige um nome para o destinatário. A tela possui um
+        // responsável único, portanto ele é usado para identificar os novos números.
+        nome: nomeResponsavel.trim() || "Responsável",
         telefoneWhatsapp: telefoneDestinatario,
         ativo: destinatarioAtivo,
       });
-      setDestinatarios((atuais) => [...atuais, destinatario].sort((a, b) => a.nome.localeCompare(b.nome)));
-      setNomeDestinatario("");
+      setDestinatarios((atuais) =>
+        [...atuais, destinatario].sort((a, b) => a.nome.localeCompare(b.nome)),
+      );
       setTelefoneDestinatario("");
       setDestinatarioAtivo(true);
-      toast.success("Destinatário adicional cadastrado.");
+      toast.success("Telefone adicional cadastrado.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível adicionar o destinatário.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível adicionar o destinatário.",
+      );
     } finally {
       setSalvandoDestinatario(false);
+    }
+  };
+
+  const iniciarEdicaoDestinatario = (destinatario: DestinatarioWhatsapp) => {
+    setDestinatarioEmEdicaoId(destinatario.id);
+    setTelefoneDestinatarioEmEdicao(
+      formatarTelefoneWhatsapp(destinatario.telefoneWhatsapp),
+    );
+    setErroEdicaoDestinatario(null);
+  };
+
+  const cancelarEdicaoDestinatario = () => {
+    setDestinatarioEmEdicaoId(null);
+    setTelefoneDestinatarioEmEdicao("");
+    setErroEdicaoDestinatario(null);
+  };
+
+  const handleSalvarEdicaoDestinatario = async (
+    destinatario: DestinatarioWhatsapp,
+  ) => {
+    if (!telefoneWhatsappValido(telefoneDestinatarioEmEdicao)) {
+      setErroEdicaoDestinatario(
+        "Informe um número de WhatsApp válido com DDD.",
+      );
+      return;
+    }
+    if (telefoneJaCadastrado(telefoneDestinatarioEmEdicao, destinatario.id)) {
+      setErroEdicaoDestinatario(
+        "Este telefone já está cadastrado para receber notificações.",
+      );
+      return;
+    }
+
+    try {
+      const atualizado = await atualizarDestinatarioWhatsapp(destinatario.id, {
+        nome: destinatario.nome,
+        telefoneWhatsapp: telefoneDestinatarioEmEdicao,
+        ativo: destinatario.ativo,
+      });
+      setDestinatarios((atuais) =>
+        atuais.map((item) => (item.id === atualizado.id ? atualizado : item)),
+      );
+      cancelarEdicaoDestinatario();
+      toast.success("Telefone atualizado com sucesso.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar o destinatário.",
+      );
     }
   };
 
@@ -494,30 +583,13 @@ export default function Notificacoes() {
 
             <FormSectionCard
               icon={MessageCircle}
-              title="Destinatários adicionais"
-              description="Cadastre outros responsáveis que também devem receber as notificações automáticas. O número principal acima continua sendo o destinatário principal."
+              title="Telefones adicionais"
+              description="Cadastre outros números que também devem receber as notificações automáticas. O número principal acima continua sendo o destinatário principal."
               className="wa-accent-surface"
             >
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                 <div>
-                  <FieldLabel htmlFor="nome-destinatario">Nome</FieldLabel>
-                  <div className="relative">
-                    <User
-                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                      aria-hidden
-                    />
-                    <Input
-                      id="nome-destinatario"
-                      value={nomeDestinatario}
-                      maxLength={150}
-                      onChange={(event) => setNomeDestinatario(event.target.value)}
-                      placeholder="Ex.: Financeiro"
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <FieldLabel htmlFor="telefone-destinatario">WhatsApp</FieldLabel>
+                  <FieldLabel htmlFor="telefone-destinatario">Adicionar telefone</FieldLabel>
                   <div className="relative">
                     <Smartphone
                       className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -527,11 +599,34 @@ export default function Notificacoes() {
                       id="telefone-destinatario"
                       value={telefoneDestinatario}
                       inputMode="tel"
-                      onChange={(event) => setTelefoneDestinatario(maskPhone(event.target.value))}
+                      onChange={(event) => {
+                        setTelefoneDestinatario(maskPhone(event.target.value));
+                        if (erroTelefoneDestinatario) setErroTelefoneDestinatario(null);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void handleAdicionarDestinatario();
+                        }
+                      }}
                       placeholder="(00) 00000-0000"
+                      aria-invalid={erroTelefoneDestinatario ? true : undefined}
+                      aria-describedby={
+                        erroTelefoneDestinatario
+                          ? "erro-telefone-destinatario"
+                          : undefined
+                      }
                       className="pl-9"
                     />
                   </div>
+                  {erroTelefoneDestinatario && (
+                    <p
+                      id="erro-telefone-destinatario"
+                      className="mt-1.5 text-[12.5px] text-destructive"
+                    >
+                      {erroTelefoneDestinatario}
+                    </p>
+                  )}
                 </div>
                 <Button
                   type="button"
@@ -541,7 +636,7 @@ export default function Notificacoes() {
                   disabled={salvandoDestinatario}
                 >
                   {salvandoDestinatario ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
-                  Adicionar
+                  Adicionar telefone
                 </Button>
               </div>
 
@@ -555,7 +650,7 @@ export default function Notificacoes() {
                   </span>
                   <div>
                     <FieldLabel htmlFor="situacao-novo-destinatario">Adicionar como ativo</FieldLabel>
-                    <p className="text-[12.5px] text-muted-foreground">O novo contato receberá os avisos automaticamente.</p>
+                    <p className="text-[12.5px] text-muted-foreground">O novo número receberá os avisos automaticamente.</p>
                   </div>
                 </div>
                 <Switch
@@ -571,7 +666,7 @@ export default function Notificacoes() {
                     <span className="wa-icon-badge flex h-7 w-7 shrink-0 items-center justify-center rounded-full" aria-hidden>
                       <MessageCircle className="h-[14px] w-[14px]" strokeWidth={2.2} />
                     </span>
-                    Nenhum destinatário adicional cadastrado.
+                    Nenhum telefone adicional cadastrado.
                   </div>
                 ) : (
                   destinatarios.map((destinatario) => (
@@ -580,45 +675,111 @@ export default function Notificacoes() {
                         <MessageCircle className="h-4 w-4" strokeWidth={2.2} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground">{destinatario.nome}</p>
-                        <p className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
-                          <Smartphone className="h-3.5 w-3.5" aria-hidden />
-                          {formatarTelefoneWhatsapp(destinatario.telefoneWhatsapp)}
-                        </p>
+                        {destinatarioEmEdicaoId === destinatario.id ? (
+                          <>
+                            <label className="sr-only" htmlFor={`editar-destinatario-${destinatario.id}`}>
+                              Editar telefone adicional
+                            </label>
+                            <Input
+                              id={`editar-destinatario-${destinatario.id}`}
+                              value={telefoneDestinatarioEmEdicao}
+                              inputMode="tel"
+                              autoFocus
+                              onChange={(event) => {
+                                setTelefoneDestinatarioEmEdicao(maskPhone(event.target.value));
+                                if (erroEdicaoDestinatario) setErroEdicaoDestinatario(null);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  void handleSalvarEdicaoDestinatario(destinatario);
+                                }
+                                if (event.key === "Escape") cancelarEdicaoDestinatario();
+                              }}
+                              aria-invalid={erroEdicaoDestinatario ? true : undefined}
+                              className="h-9 max-w-[260px]"
+                            />
+                            {erroEdicaoDestinatario && (
+                              <p className="mt-1.5 text-[12.5px] text-destructive">
+                                {erroEdicaoDestinatario}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                            <Smartphone className="h-3.5 w-3.5" aria-hidden />
+                            {formatarTelefoneWhatsapp(destinatario.telefoneWhatsapp)}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <StatusPill status={destinatario.ativo ? "ATIVO" : "INATIVO"} />
-                        <Switch
-                          checked={destinatario.ativo}
-                          onCheckedChange={(ativo) => void handleSituacaoDestinatario(destinatario, ativo)}
-                          aria-label={destinatario.ativo ? `Desativar ${destinatario.nome}` : `Ativar ${destinatario.nome}`}
-                        />
-                        <Button
-                          type="button"
-                          variant="glassSecondary"
-                          size="sm"
-                          className="h-8 gap-1.5 px-2.5"
-                          onClick={() => void handleTesteDestinatario(destinatario)}
-                          disabled={destinatarioEmTesteId === destinatario.id}
-                          aria-busy={destinatarioEmTesteId === destinatario.id}
-                        >
-                          {destinatarioEmTesteId === destinatario.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                          ) : (
-                            <Send className="h-3.5 w-3.5" aria-hidden />
-                          )}
-                          Testar
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-destructive"
-                          onClick={() => void handleRemoverDestinatario(destinatario)}
-                          aria-label={`Remover ${destinatario.nome}`}
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden />
-                        </Button>
+                        {destinatarioEmEdicaoId === destinatario.id ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="glassSecondary"
+                              size="sm"
+                              className="h-8 px-2.5"
+                              onClick={() => void handleSalvarEdicaoDestinatario(destinatario)}
+                            >
+                              Salvar
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1 px-2.5"
+                              onClick={cancelarEdicaoDestinatario}
+                            >
+                              <X className="h-3.5 w-3.5" aria-hidden />
+                              Cancelar
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <StatusPill status={destinatario.ativo ? "ATIVO" : "INATIVO"} />
+                            <Switch
+                              checked={destinatario.ativo}
+                              onCheckedChange={(ativo) => void handleSituacaoDestinatario(destinatario, ativo)}
+                              aria-label={destinatario.ativo ? `Desativar ${formatarTelefoneWhatsapp(destinatario.telefoneWhatsapp)}` : `Ativar ${formatarTelefoneWhatsapp(destinatario.telefoneWhatsapp)}`}
+                            />
+                            <Button
+                              type="button"
+                              variant="glassSecondary"
+                              size="sm"
+                              className="h-8 gap-1.5 px-2.5"
+                              onClick={() => void handleTesteDestinatario(destinatario)}
+                              disabled={destinatarioEmTesteId === destinatario.id}
+                              aria-busy={destinatarioEmTesteId === destinatario.id}
+                            >
+                              {destinatarioEmTesteId === destinatario.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                              ) : (
+                                <Send className="h-3.5 w-3.5" aria-hidden />
+                              )}
+                              Testar
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => iniciarEdicaoDestinatario(destinatario)}
+                              aria-label={`Editar ${formatarTelefoneWhatsapp(destinatario.telefoneWhatsapp)}`}
+                            >
+                              <Pencil className="h-4 w-4" aria-hidden />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => void handleRemoverDestinatario(destinatario)}
+                              aria-label={`Remover ${formatarTelefoneWhatsapp(destinatario.telefoneWhatsapp)}`}
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))
