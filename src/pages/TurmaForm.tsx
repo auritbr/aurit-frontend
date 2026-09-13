@@ -30,7 +30,6 @@ import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { AccessDenied } from "@/components/AccessDenied";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -72,7 +71,6 @@ import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 interface FormState {
   nomeTurma: string;
-  descricaoTurma: string;
   horarioInicio: string;
   horarioFim: string;
   quantidadeVagas: string;
@@ -86,7 +84,6 @@ interface FormState {
 
 interface TurmaCarregada {
   nomeTurma?: string | null;
-  descricaoTurma?: string | null;
   horarioInicio?: string | null;
   horarioFim?: string | null;
   quantidadeVagas?: number | string | null;
@@ -108,7 +105,6 @@ const SEM_NIVEL_TURMA = "__SEM_NIVEL_TURMA__";
 
 const initial: FormState = {
   nomeTurma: "",
-  descricaoTurma: "",
   horarioInicio: "",
   horarioFim: "",
   quantidadeVagas: "",
@@ -298,7 +294,6 @@ export default function TurmaForm() {
             nomeTurma: duplicarId
               ? `${turma.nomeTurma ?? "Turma"} (cópia)`
               : (turma.nomeTurma ?? ""),
-            descricaoTurma: turma.descricaoTurma ?? "",
             horarioInicio: turma.horarioInicio ?? "",
             horarioFim: turma.horarioFim ?? "",
             quantidadeVagas:
@@ -362,11 +357,6 @@ export default function TurmaForm() {
 
     if (!formComAtividade.nomeTurma.trim()) {
       toast.error("Informe o nome da turma.");
-      return;
-    }
-
-    if (!formComAtividade.descricaoTurma.trim()) {
-      toast.error("Informe a descrição da turma.");
       return;
     }
 
@@ -571,26 +561,6 @@ export default function TurmaForm() {
                   />
                 </Field>
 
-                <Field full>
-                  <FieldLabel
-                    htmlFor="descricaoTurma"
-                    required={!visualizando}
-                    tooltip="Descreva as principais características da turma, como perfil dos participantes, faixa etária, forma de organização ou outras informações que ajudem a diferenciá-la."
-                  >
-                    Descrição da Turma
-                  </FieldLabel>
-
-                  <Textarea
-                    id="descricaoTurma"
-                    value={form.descricaoTurma}
-                    onChange={(event) =>
-                      set("descricaoTurma", event.target.value)
-                    }
-                    rows={3}
-                    disabled={bloqueado}
-                    readOnly={visualizando}
-                  />
-                </Field>
               </div>
             </FormSectionCard>
 

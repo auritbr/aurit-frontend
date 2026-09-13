@@ -144,7 +144,7 @@ export const nivelTurmaLabel = (value?: string | null) =>
 export interface TurmaDTO {
   id?: number | string;
   nomeTurma: string;
-  descricaoTurma: string;
+  descricaoTurma?: string | null;
   horarioInicio: string;
   horarioFim: string;
   quantidadeVagas?: number | string | null;
@@ -189,7 +189,6 @@ export interface Turma {
 
 export interface TurmaPayload {
   nomeTurma: string;
-  descricaoTurma: string;
   horarioInicio: string;
   horarioFim: string;
   quantidadeVagas?: number | null;
@@ -203,7 +202,6 @@ export interface TurmaPayload {
 
 export interface TurmaFormPayloadSource {
   nomeTurma: string;
-  descricaoTurma: string;
   horarioInicio: string;
   horarioFim: string;
   quantidadeVagas?: string;
@@ -301,7 +299,6 @@ export function buildTurmaPayload(data: TurmaFormPayloadSource): TurmaPayload {
 
   return {
     nomeTurma: data.nomeTurma.trim(),
-    descricaoTurma: data.descricaoTurma.trim(),
     horarioInicio: primeiroHorario?.horarioInicio ?? data.horarioInicio,
     horarioFim: primeiroHorario?.horarioFim ?? data.horarioFim,
     quantidadeVagas: data.quantidadeVagas?.trim()
