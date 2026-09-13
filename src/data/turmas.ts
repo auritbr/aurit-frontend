@@ -139,7 +139,7 @@ export const diaLabel = (value?: string) =>
 export const nivelTurmaLabel = (value?: string | null) =>
   value
     ? (niveisTurma.find((nivel) => nivel.value === value)?.label ?? value)
-    : "—";
+    : "Não se aplica";
 
 export interface TurmaDTO {
   id?: number | string;

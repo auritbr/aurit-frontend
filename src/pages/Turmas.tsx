@@ -827,7 +827,7 @@ export default function Turmas() {
                             </td>
                             <td className="whitespace-nowrap px-6 py-2.5">
                               <StatusPill
-                                status={turma.nivelTurma}
+                                status={nivelTurmaLabel(turma.nivelTurma)}
                                 ariaLabelPrefix="Nível da turma"
                               />
                             </td>
