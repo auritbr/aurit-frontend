@@ -95,6 +95,7 @@ export interface AtividadeDTO {
   id?: number | string;
   nomeAtividade: string;
   descricaoAtividade: string;
+  conteudoProgramatico?: string | null;
   publicoBeneficiadoAtividade: string;
   quantidadeVagas: number | string | null;
   dataInicio: string;
@@ -128,6 +129,7 @@ export interface Atividade {
   id: string;
   nomeAtividade: string;
   descricaoAtividade: string;
+  conteudoProgramatico: string;
   publicoBeneficiadoAtividade: string;
   tipoAtividade: string;
   status: string;
@@ -235,6 +237,7 @@ export function mapAtividade(dto: AtividadeDTO): Atividade {
     id: normalizeId(dto.id),
     nomeAtividade: dto.nomeAtividade ?? "",
     descricaoAtividade: dto.descricaoAtividade ?? "",
+    conteudoProgramatico: dto.conteudoProgramatico ?? "",
     publicoBeneficiadoAtividade: dto.publicoBeneficiadoAtividade ?? "",
     tipoAtividade: dto.tipoAtividade ?? "",
     status: dto.status ?? "",
@@ -261,6 +264,7 @@ export function buildAtividadePayload(data: Atividade): AtividadeDTO {
     id: data.id ? Number(data.id) : undefined,
     nomeAtividade: data.nomeAtividade.trim(),
     descricaoAtividade: data.descricaoAtividade.trim(),
+    conteudoProgramatico: data.conteudoProgramatico.trim() || null,
     publicoBeneficiadoAtividade: data.publicoBeneficiadoAtividade.trim(),
     quantidadeVagas: data.quantidadeVagas.trim()
       ? Number(data.quantidadeVagas)

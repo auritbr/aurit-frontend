@@ -51,6 +51,7 @@ interface FormState {
   id: string;
   nomeAtividade: string;
   descricaoAtividade: string;
+  conteudoProgramatico: string;
   publicoBeneficiadoAtividade: string;
   localAtividade: string;
   dataInicio: string;
@@ -67,6 +68,7 @@ const initial: FormState = {
   id: "",
   nomeAtividade: "",
   descricaoAtividade: "",
+  conteudoProgramatico: "",
   publicoBeneficiadoAtividade: "",
   localAtividade: "",
   dataInicio: "",
@@ -105,6 +107,7 @@ function mapAtividadeToForm(atividade: Atividade): FormState {
     id: atividade.id ?? "",
     nomeAtividade: atividade.nomeAtividade ?? "",
     descricaoAtividade: atividade.descricaoAtividade ?? "",
+    conteudoProgramatico: atividade.conteudoProgramatico ?? "",
     publicoBeneficiadoAtividade: atividade.publicoBeneficiadoAtividade ?? "",
     localAtividade: atividade.localAtividade ?? "",
     dataInicio: atividade.dataInicio ?? "",
@@ -363,6 +366,7 @@ export default function AtividadeForm() {
       id: id ?? "",
       nomeAtividade: formComProjeto.nomeAtividade.trim(),
       descricaoAtividade: formComProjeto.descricaoAtividade.trim(),
+      conteudoProgramatico: formComProjeto.conteudoProgramatico.trim(),
       publicoBeneficiadoAtividade:
         formComProjeto.publicoBeneficiadoAtividade.trim(),
       localAtividade: formComProjeto.localAtividade.trim(),
@@ -547,6 +551,26 @@ export default function AtividadeForm() {
                     id="descricaoAtividade"
                     value={form.descricaoAtividade}
                     onChange={(e) => set("descricaoAtividade", e.target.value)}
+                    rows={4}
+                    disabled={bloqueado}
+                    readOnly={visualizando}
+                  />
+                </Field>
+
+                <Field full>
+                  <FieldLabel
+                    htmlFor="conteudoProgramatico"
+                    tooltip="Descreva os temas, conteúdos, práticas ou tópicos previstos para o desenvolvimento da atividade, quando aplicável. Esse registro ajuda a organizar sua proposta e a documentar o que será trabalhado com o público participante."
+                  >
+                    Conteúdo Programático
+                  </FieldLabel>
+
+                  <Textarea
+                    id="conteudoProgramatico"
+                    value={form.conteudoProgramatico}
+                    onChange={(e) =>
+                      set("conteudoProgramatico", e.target.value)
+                    }
                     rows={4}
                     disabled={bloqueado}
                     readOnly={visualizando}
