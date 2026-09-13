@@ -170,6 +170,14 @@ const finsTurmaTexto = (turma: Turma) =>
     .map((horario) => normalizeTime(horario.horarioFim))
     .join(" · ");
 
+const horariosTurmaIntervalosTexto = (turma: Turma) =>
+  horariosDaTurma(turma)
+    .map(
+      (horario) =>
+        `${normalizeTime(horario.horarioInicio)} – ${normalizeTime(horario.horarioFim)}`,
+    )
+    .join(" · ");
+
 const horariosTurmaTexto = (turma: Turma) =>
   horariosDaTurma(turma)
     .map(
@@ -703,7 +711,7 @@ export default function Turmas() {
                           dir={filtros.sortDir}
                           onSort={toggleSort}
                         >
-                          Nome da turma
+                          Nome da Turma
                         </SortableTh>
                         <SortableTh
                           sortKey="atividade"
@@ -735,15 +743,7 @@ export default function Turmas() {
                           dir={filtros.sortDir}
                           onSort={toggleSort}
                         >
-                          Horário de início
-                        </SortableTh>
-                        <SortableTh
-                          sortKey="fim"
-                          activeKey={filtros.sortBy}
-                          dir={filtros.sortDir}
-                          onSort={toggleSort}
-                        >
-                          Horário de término
+                          Horário
                         </SortableTh>
                         <SortableTh
                           sortKey="vagas"
@@ -835,10 +835,7 @@ export default function Turmas() {
                               {diasTurmaTexto(turma)}
                             </td>
                             <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                              {iniciosTurmaTexto(turma)}
-                            </td>
-                            <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-muted-foreground">
-                              {finsTurmaTexto(turma)}
+                              {horariosTurmaIntervalosTexto(turma)}
                             </td>
                             <td className="whitespace-nowrap px-6 py-2.5 text-[13px]">
                               {turma.quantidadeVagas ?? "—"}
