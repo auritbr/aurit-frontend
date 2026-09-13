@@ -301,6 +301,9 @@ export default function IntegranteForm() {
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
+  const conversionSeed = (
+    location.state as { conversionSeed?: { data?: Partial<FormState> } } | null
+  )?.conversionSeed;
 
   const bloqueado = visualizando || loading || saving;
   const statusConcluido = isStatusConcluido(form.status);
@@ -345,6 +348,9 @@ export default function IntegranteForm() {
 
   useEffect(() => {
     if (!id) {
+      if (conversionSeed?.data) {
+        setForm((previous) => ({ ...previous, ...conversionSeed.data }));
+      }
       setLoading(false);
       return;
     }
@@ -413,7 +419,7 @@ export default function IntegranteForm() {
     return () => {
       active = false;
     };
-  }, [id, navigate]);
+  }, [conversionSeed?.data, id, navigate]);
 
   async function buscarEnderecoPorCep(cepFormatado: string) {
     const cepLimpo = onlyDigits(cepFormatado);

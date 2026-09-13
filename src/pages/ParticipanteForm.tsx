@@ -6,7 +6,13 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import {
   UserRound,
   MapPin,
@@ -500,7 +506,9 @@ export default function ParticipanteForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const duplicarId = !id ? searchParams.get("duplicar") : null;
 
   const visualizando = !!id && !location.pathname.endsWith("/editar");
   const isEdit = !!id && location.pathname.endsWith("/editar");
@@ -518,6 +526,9 @@ export default function ParticipanteForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
+  const conversionSeed = (
+    location.state as { conversionSeed?: { data?: Partial<FormState> } } | null
+  )?.conversionSeed;
 
   const bloqueado = loading || saving || visualizando;
 
@@ -640,7 +651,9 @@ export default function ParticipanteForm() {
           getAtividadesOptions(),
           getTurmasOptions(),
           getOrganizacoesParticipante(),
-          id ? getParticipanteById(Number(id)) : Promise.resolve(null),
+          id || duplicarId
+            ? getParticipanteById(Number(id ?? duplicarId))
+            : Promise.resolve(null),
           getPatrimonios().catch(() => [] as Patrimonio[]),
           getEmprestimos().catch(() => [] as Emprestimo[]),
         ]);
@@ -658,10 +671,17 @@ export default function ParticipanteForm() {
         if (participanteData) {
           const mapped = mapParticipanteToForm(participanteData);
 
-          setExistingParticipante(participanteData);
+          setExistingParticipante(duplicarId ? null : participanteData);
 
           setForm({
             ...mapped,
+            id: duplicarId ? "" : mapped.id,
+            nomeCompleto: duplicarId
+              ? `Cópia de ${mapped.nomeCompleto}`
+              : mapped.nomeCompleto,
+            cpf: duplicarId ? "" : mapped.cpf,
+            urlDocumento: duplicarId ? "" : mapped.urlDocumento,
+            vinculos: duplicarId ? [] : mapped.vinculos,
             organizacaoId:
               mapped.organizacaoId || getOrganizacaoId(organizacaoPadrao),
             organizacaoNome:
@@ -669,7 +689,7 @@ export default function ParticipanteForm() {
           });
           setDocumento(null);
           setDocumentoNome(
-            mapped.urlDocumento
+            !duplicarId && mapped.urlDocumento
               ? getNomeArquivoDocumento(mapped.urlDocumento)
               : "",
           );
@@ -680,8 +700,13 @@ export default function ParticipanteForm() {
 
           setForm({
             ...initial,
-            organizacaoId: getOrganizacaoId(organizacaoPadrao),
-            organizacaoNome: getOrganizacaoNome(organizacaoPadrao),
+            ...conversionSeed?.data,
+            organizacaoId:
+              conversionSeed?.data?.organizacaoId ||
+              getOrganizacaoId(organizacaoPadrao),
+            organizacaoNome:
+              conversionSeed?.data?.organizacaoNome ||
+              getOrganizacaoNome(organizacaoPadrao),
           });
         }
       } catch (error) {
@@ -693,7 +718,7 @@ export default function ParticipanteForm() {
             : "Erro ao carregar formulário.",
         );
 
-        if (id) {
+        if (id || duplicarId) {
           navigate("/participantes");
         }
       } finally {
@@ -706,7 +731,7 @@ export default function ParticipanteForm() {
     return () => {
       active = false;
     };
-  }, [id, navigate]);
+  }, [conversionSeed?.data, duplicarId, id, navigate]);
 
   const handleDocumentoFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (visualizando) return;

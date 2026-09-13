@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Plus, RotateCcw, Search, FileText } from "lucide-react";
+import { Loader2, Plus, RotateCcw, Search, FileText, Copy } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { GerarDocumentoButton } from "@/components/GerarDocumentoButton";
@@ -994,7 +994,21 @@ export default function Participantes() {
                                     ? () => setConfirmDelete(p.id)
                                     : undefined
                                 }
-                                extraItems={acoesDeclaracao(p.id)}
+                                extraItems={[
+                                  ...(podeCriar
+                                    ? [
+                                        {
+                                          label: "Duplicar",
+                                          icon: Copy,
+                                          onClick: () =>
+                                            navigate(
+                                              `/participantes/novo?duplicar=${p.id}`,
+                                            ),
+                                        },
+                                      ]
+                                    : []),
+                                  ...acoesDeclaracao(p.id),
+                                ]}
                               />
                             </td>
 
@@ -1077,7 +1091,21 @@ export default function Participantes() {
                               ? () => setConfirmDelete(p.id)
                               : undefined
                           }
-                          extraItems={acoesDeclaracao(p.id)}
+                          extraItems={[
+                            ...(podeCriar
+                              ? [
+                                  {
+                                    label: "Duplicar",
+                                    icon: Copy,
+                                    onClick: () =>
+                                      navigate(
+                                        `/participantes/novo?duplicar=${p.id}`,
+                                      ),
+                                  },
+                                ]
+                              : []),
+                            ...acoesDeclaracao(p.id),
+                          ]}
                         />
 
                         {podeGerarPdf && (

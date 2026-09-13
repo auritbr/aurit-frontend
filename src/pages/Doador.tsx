@@ -6,6 +6,7 @@ import {
   RotateCcw,
   Search,
   UserCheck,
+  UserPlus,
   UserRound,
   Users,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import { DataTablePagination } from "@/components/DataTablePagination";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FilterMultiSelect } from "@/components/FilterMultiSelect";
 import { RowActionsDropdown } from "@/components/RowActionsDropdown";
+import { ConvertConfirmDialog } from "@/components/ConvertConfirmDialog";
 import { StatusPill } from "@/components/StatusPill";
 import { SummaryStatCard } from "@/components/SummaryStatCard";
 import { TableCellText } from "@/components/TableCellText";
@@ -103,11 +105,21 @@ const labelOf = (
   v: string,
 ) => opts.find((o) => o.value === v)?.label ?? v;
 
+type ConversionTarget =
+  | "Colaborador"
+  | "Integrante"
+  | "Participante"
+  | "Parceiro"
+  | "Fornecedor";
+
 export default function DoadoresPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState<Doador[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [convertItem, setConvertItem] = useState<Doador | null>(null);
+  const [conversionTarget, setConversionTarget] =
+    useState<ConversionTarget | null>(null);
   const [panelOpen, setPanelOpen] = useSessionBoolean(
     "doadores:pesquisa-avancada",
     false,
@@ -223,6 +235,121 @@ export default function DoadoresPage() {
       setConfirmDelete(null);
     }
   };
+  const iniciarConversao = (doador: Doador, destino: ConversionTarget) => {
+    if (
+      doador.tipoPessoa === "PESSOA_JURIDICA" &&
+      ["Colaborador", "Participante"].includes(destino)
+    ) {
+      toast.error(`${destino} aceita somente pessoa física.`);
+      return;
+    }
+    setConvertItem(doador);
+    setConversionTarget(destino);
+  };
+  const confirmarConversao = () => {
+    if (!convertItem || !conversionTarget) return;
+    const doador = convertItem;
+    const pessoaFisica = doador.pessoaFisica;
+    const dataNascimento = pessoaFisica?.dataNascimento
+      ? pessoaFisica.dataNascimento.split("-").reverse().join("/")
+      : "";
+    const dadosComuns = {
+      tipoPessoa: doador.tipoPessoa,
+      pessoaFisica: doador.pessoaFisica ?? {
+        nomeCompleto: "",
+        dataNascimento: "",
+        cpf: "",
+        rg: "",
+        telefone: "",
+        email: "",
+      },
+      pessoaJuridica: doador.pessoaJuridica ?? {
+        razaoSocial: "",
+        nomeFantasia: "",
+        cnpj: "",
+        dataFundacao: "",
+        telefone: "",
+        email: "",
+      },
+      endereco: doador.endereco ?? {
+        cep: "",
+        logradouro: "",
+        numero: "",
+        complemento: "",
+        bairro: "",
+        cidade: "",
+        estado: "",
+      },
+      status: doador.status,
+      observacao: doador.observacao,
+    };
+    const destinos: Record<ConversionTarget, { rota: string; data: object }> = {
+      Colaborador: {
+        rota: "/colaboradores/novo",
+        data: {
+          nomeCompleto: pessoaFisica?.nomeCompleto ?? "",
+          dataNascimento: pessoaFisica?.dataNascimento ?? "",
+          cpf: pessoaFisica?.cpf ?? "",
+          rg: pessoaFisica?.rg ?? "",
+          telefone: pessoaFisica?.telefone ?? "",
+          email: pessoaFisica?.email ?? "",
+          ...(doador.endereco ?? {}),
+          status: doador.status,
+          tipoVinculo: "PESSOA_FISICA",
+          organizacaoId: doador.organizacaoId,
+        },
+      },
+      Integrante: {
+        rota: "/integrantes/novo",
+        data: {
+          tipoPessoaIntegrante: doador.tipoPessoa,
+          nomeCompleto: pessoaFisica?.nomeCompleto ?? "",
+          dataNascimento,
+          cpf: pessoaFisica?.cpf ?? "",
+          rg: pessoaFisica?.rg ?? "",
+          cnpj: doador.pessoaJuridica?.cnpj ?? "",
+          nomeSocial: doador.pessoaJuridica?.razaoSocial ?? "",
+          nomeFantasia: doador.pessoaJuridica?.nomeFantasia ?? "",
+          telefone: doador.telefone,
+          email: doador.email,
+          ...(doador.endereco ?? {}),
+          status: doador.status,
+          organizacaoId: doador.organizacaoId,
+        },
+      },
+      Participante: {
+        rota: "/participantes/novo",
+        data: {
+          nomeCompleto: pessoaFisica?.nomeCompleto ?? "",
+          dataNascimento,
+          cpf: pessoaFisica?.cpf ?? "",
+          rg: pessoaFisica?.rg ?? "",
+          telefone: pessoaFisica?.telefone ?? "",
+          email: pessoaFisica?.email ?? "",
+          ...(doador.endereco ?? {}),
+          status: doador.status,
+          organizacaoId: doador.organizacaoId,
+        },
+      },
+      Parceiro: { rota: "/parceiros/novo", data: dadosComuns },
+      Fornecedor: { rota: "/fornecedores/novo", data: dadosComuns },
+    };
+    const destino = destinos[conversionTarget];
+    setConvertItem(null);
+    setConversionTarget(null);
+    navigate(destino.rota, {
+      state: { conversionSeed: { origem: "Doadores", data: destino.data } },
+    });
+    toast.success("Dados carregados. Revise o cadastro e clique em Salvar.");
+  };
+  const acoesConversao = (doador: Doador) =>
+    (["Colaborador", "Integrante", "Participante", "Parceiro", "Fornecedor"] as const).map(
+      (destino) => ({
+        label: `Converter em ${destino}`,
+        icon: UserPlus,
+        onClick: () => iniciarConversao(doador, destino),
+      }),
+    );
   const exportColumns = [
     { header: "Doador", key: "nome" },
     { header: "Tipo", key: "tipo" },
@@ -481,6 +608,7 @@ export default function DoadoresPage() {
                               viewTo={`/doadores/${d.id}`}
                               editTo={`/doadores/${d.id}/editar`}
                               onDelete={() => setConfirmDelete(d.id)}
+                              extraItems={acoesConversao(d)}
                             />
                           </td>
                           <td className="px-6 py-2.5">
@@ -539,6 +667,18 @@ export default function DoadoresPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <ConvertConfirmDialog
+        open={!!convertItem && !!conversionTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConvertItem(null);
+            setConversionTarget(null);
+          }
+        }}
+        sourceLabel="Doador"
+        targetLabel={conversionTarget ?? "Cadastro"}
+        onConfirm={confirmarConversao}
+      />
       <WikiFloatingButton
         pageTitle="Doadores"
         href="/wiki/financeiro/doadores"

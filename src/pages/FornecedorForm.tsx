@@ -89,11 +89,19 @@ export default function FornecedorForm() {
   const [form, setForm] = useState<FormState>(initial);
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
+  const conversionSeed = (
+    location.state as { conversionSeed?: { data?: Partial<FormState> } } | null
+  )?.conversionSeed;
 
   useImportFormFill("fornecedores", setForm);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      if (conversionSeed?.data) {
+        setForm((previous) => ({ ...previous, ...conversionSeed.data }));
+      }
+      return;
+    }
     let active = true;
     getFornecedorById(id)
       .then((f) => {
@@ -118,7 +126,7 @@ export default function FornecedorForm() {
     return () => {
       active = false;
     };
-  }, [id, navigate]);
+  }, [conversionSeed?.data, id, navigate]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((p) => ({ ...p, [key]: value }));
