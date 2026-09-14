@@ -12,7 +12,10 @@ export interface UsuarioLogado {
   contaAtivada?: boolean;
 }
 
-export type EtapaPrimeiroAcesso = "CONFIRMAR_EMAIL" | "CONFIRMAR_CODIGO";
+export type EtapaPrimeiroAcesso =
+  | "CONFIRMAR_EMAIL"
+  | "CONFIRMAR_CODIGO"
+  | "TROCAR_SENHA";
 
 export interface PrimeiroAcessoState {
   etapa: EtapaPrimeiroAcesso;
@@ -211,19 +214,20 @@ export function salvarSessaoPrimeiroAcesso(
 export function getPrimeiroAcessoStorage(): PrimeiroAcessoState | null {
   const raw = localStorage.getItem(FIRST_ACCESS_KEY);
   const scope = getTokenScope(getStoredToken());
-  const etapaDoToken =
-    scope === "EMAIL_CONFIRMATION" ? "CONFIRMAR_EMAIL" : null;
-  if (!raw) return etapaDoToken ? { etapa: etapaDoToken } : null;
+  const possuiTokenPrimeiroAcesso = scope === "EMAIL_CONFIRMATION";
+  if (!raw)
+    return possuiTokenPrimeiroAcesso ? { etapa: "CONFIRMAR_EMAIL" } : null;
 
   try {
     const state = JSON.parse(raw) as PrimeiroAcessoState;
     if (
       state.etapa !== "CONFIRMAR_EMAIL" &&
-      state.etapa !== "CONFIRMAR_CODIGO"
+      state.etapa !== "CONFIRMAR_CODIGO" &&
+      state.etapa !== "TROCAR_SENHA"
     ) {
       return null;
     }
-    return etapaDoToken ? { ...state, etapa: etapaDoToken } : state;
+    return possuiTokenPrimeiroAcesso ? state : null;
   } catch {
     return null;
   }

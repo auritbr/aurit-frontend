@@ -111,6 +111,18 @@ export function confirmarCodigoEmail(codigo: string, token: string) {
   );
 }
 
+export function definirSenhaPrimeiroAcesso(
+  novaSenha: string,
+  confirmarNovaSenha: string,
+  token: string,
+) {
+  return requisicao<RespostaAutenticacao>(
+    "/usuarios/primeiro-acesso/definir-senha",
+    { novaSenha, confirmarNovaSenha },
+    token,
+  );
+}
+
 export function esqueciSenha(email: string) {
   return requisicao<{ message: string }>("/usuarios/esqueci-senha", { email });
 }

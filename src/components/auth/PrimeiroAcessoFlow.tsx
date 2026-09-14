@@ -10,12 +10,18 @@ import {
   getStoredToken,
   logoutUsuario,
 } from "@/lib/auth";
-import { confirmarCodigoEmail, solicitarConfirmacaoEmail } from "@/lib/authApi";
+import {
+  confirmarCodigoEmail,
+  definirSenhaPrimeiroAcesso,
+  solicitarConfirmacaoEmail,
+} from "@/lib/authApi";
 import {
   AuthField,
   AuthHeading,
   AuthLogo,
   AuthSubmit,
+  NovaSenhaFields,
+  senhaAtendePolitica,
 } from "@/components/auth/AuthShell";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
@@ -51,6 +57,8 @@ export function PrimeiroAcessoFlow({
   const [etapa, setEtapa] = useState(primeiroAcesso.etapa);
   const [email, setEmail] = useState(primeiroAcesso.email ?? "");
   const [codigo, setCodigo] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [reenvioDisponivelEm, setReenvioDisponivelEm] = useState<number | null>(
@@ -132,13 +140,54 @@ export function PrimeiroAcessoFlow({
     try {
       const resposta = await confirmarCodigoEmail(codigo, getStoredToken());
       const estado = aplicarRespostaAutenticacao(resposta, { email });
-      if (estado.primeiroAcessoPendente) {
-        throw new Error("Não foi possível concluir a confirmação do e-mail.");
+      if (estado.primeiroAcessoPendente && estado.etapa === "TROCAR_SENHA") {
+        setEtapa("TROCAR_SENHA");
+        toast.success("E-mail confirmado com sucesso.");
+        return;
       }
+      if (estado.primeiroAcessoPendente) {
+		throw new Error("Não foi possível concluir a confirmação do e-mail.");
+	  }
       toast.success("E-mail confirmado com sucesso.");
       onConcluido();
     } catch (error) {
       setErro(mensagemCodigo(error));
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function definirSenha(event: React.FormEvent) {
+    event.preventDefault();
+    if (!Object.values(senhaAtendePolitica(novaSenha)).every(Boolean)) {
+      setErro("A nova senha ainda não atende aos requisitos.");
+      return;
+    }
+    if (novaSenha !== confirmarSenha) {
+      setErro("As senhas informadas não coincidem.");
+      return;
+    }
+
+    setCarregando(true);
+    setErro(null);
+    try {
+      const resposta = await definirSenhaPrimeiroAcesso(
+        novaSenha,
+        confirmarSenha,
+        getStoredToken(),
+      );
+      const estado = aplicarRespostaAutenticacao(resposta, { email });
+      if (estado.primeiroAcessoPendente) {
+        throw new Error("Não foi possível concluir a definição da senha.");
+      }
+      toast.success("Senha definida com sucesso.");
+      onConcluido();
+    } catch (error) {
+      setErro(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível definir a nova senha.",
+      );
     } finally {
       setCarregando(false);
     }
@@ -285,6 +334,43 @@ export function PrimeiroAcessoFlow({
               Cancelar
             </button>
           </div>
+        </form>
+      </>
+    );
+
+  if (etapa === "TROCAR_SENHA")
+    return (
+      <>
+        <AuthLogo compact />
+        <AuthHeading
+          title="Defina uma nova senha"
+          description="Para concluir seu primeiro acesso, substitua a senha inicial por uma senha pessoal."
+        />
+        <form onSubmit={definirSenha} className="space-y-3" noValidate>
+          <NovaSenhaFields
+            novaSenha={novaSenha}
+            confirmarSenha={confirmarSenha}
+            onNovaSenha={(valor) => {
+              setNovaSenha(valor);
+              setErro(null);
+            }}
+            onConfirmarSenha={(valor) => {
+              setConfirmarSenha(valor);
+              setErro(null);
+            }}
+            disabled={carregando}
+          />
+          {erro && (
+            <p
+              role="alert"
+              className="text-[11.5px] font-medium text-destructive"
+            >
+              {erro}
+            </p>
+          )}
+          <AuthSubmit loading={carregando} loadingLabel="Definindo senha...">
+            Concluir acesso
+          </AuthSubmit>
         </form>
       </>
     );
