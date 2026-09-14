@@ -305,6 +305,7 @@ export interface Participante {
 export interface AtividadeOption {
   id: string;
   nomeAtividade: string;
+  status: string;
 }
 
 export interface TurmaOption {
@@ -312,6 +313,7 @@ export interface TurmaOption {
   nomeTurma: string;
   atividadeId: string;
   nivelTurma?: string;
+  status: string;
 }
 
 export interface OrganizacaoOption {
@@ -455,6 +457,7 @@ interface AtividadeApiDTO {
   id?: number | string | null;
   nomeAtividade?: string | null;
   nome?: string | null;
+  status?: string | null;
 }
 
 interface TurmaApiDTO {
@@ -462,6 +465,7 @@ interface TurmaApiDTO {
   nomeTurma?: string | null;
   nome?: string | null;
   nivelTurma?: string | null;
+  status?: string | null;
   atividadeId?: number | string | null;
   atividade?: {
     id?: number | string | null;
@@ -855,6 +859,7 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
       id: normalizeId(item.id),
       nomeAtividade:
         pickText(item.nomeAtividade, item.nome) || `Atividade ${item.id}`,
+      status: item.status ?? "",
     }))
     .filter((item) => item.id);
 }
@@ -877,6 +882,7 @@ export async function getTurmasOptions(): Promise<TurmaOption[]> {
       nomeTurma: pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
       atividadeId: normalizeId(item.atividadeId ?? item.atividade),
       nivelTurma: item.nivelTurma ?? "",
+      status: item.status ?? "",
     }))
     .filter((item) => item.id);
 }

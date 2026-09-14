@@ -566,6 +566,16 @@ export default function ParticipanteForm() {
     [turmas],
   );
 
+  const turmasAtivasPorAtividade = useMemo(
+    () => (atividadeId: string, turmaSelecionadaId?: string) =>
+      turmasPorAtividade(atividadeId).filter(
+        (turma) =>
+          turma.status === "ATIVO" ||
+          String(turma.id) === String(turmaSelecionadaId),
+      ),
+    [turmasPorAtividade],
+  );
+
   const patrimoniosDisponiveis = useMemo(
     () => patrimonios.filter((item) => item.statusPatrimonio !== "BAIXADO"),
     [patrimonios],
@@ -1868,8 +1878,14 @@ export default function ParticipanteForm() {
 
                   {vinculosOrdenados.map(({ v, originalIndex }, idx) => {
                     const turmasDaAtividade = v.atividadeId
-                      ? turmasPorAtividade(v.atividadeId)
+                      ? turmasAtivasPorAtividade(v.atividadeId, v.turmaId)
                       : [];
+
+                    const atividadesParaMatricula = atividades.filter(
+                      (atividade) =>
+                        atividade.status === "ATIVO" ||
+                        String(atividade.id) === String(v.atividadeId),
+                    );
 
                     const semTurmas =
                       !!v.atividadeId && turmasDaAtividade.length === 0;
@@ -1963,7 +1979,7 @@ export default function ParticipanteForm() {
                               </SelectTrigger>
 
                               <SelectContent>
-                                {[...atividades]
+                                {[...atividadesParaMatricula]
                                   .sort((a, b) =>
                                     a.nomeAtividade.localeCompare(
                                       b.nomeAtividade,
