@@ -131,6 +131,116 @@ function estadoSelecionado(value: string) {
   );
 }
 
+function DoadorIdentificacaoEssencial({
+  form,
+  set,
+}: {
+  form: FormState;
+  set: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
+}) {
+  const pessoaFisica = <K extends keyof PessoaFisicaCadastro>(
+    key: K,
+    value: PessoaFisicaCadastro[K],
+  ) =>
+    set("pessoaFisica", {
+      ...form.pessoaFisica,
+      [key]: value,
+    });
+
+  return (
+    <FormSectionCard
+      icon={UserRound}
+      title="Identificação"
+      description="Informe apenas os dados essenciais do doador."
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <FieldLabel htmlFor="doador-tipo" required>
+            Tipo de pessoa
+          </FieldLabel>
+          <Select
+            value={form.tipoPessoa}
+            onValueChange={(value) =>
+              set("tipoPessoa", value as TipoPessoaCadastro)
+            }
+          >
+            <SelectTrigger id="doador-tipo">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {tipoPessoaCadastroOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {form.tipoPessoa === "PESSOA_FISICA" ? (
+          <>
+            <DoadorField
+              id="doador-nome"
+              label="Nome completo"
+              required
+              value={form.pessoaFisica.nomeCompleto}
+              onChange={(value) => pessoaFisica("nomeCompleto", value)}
+            />
+            <DoadorField
+              id="doador-cpf"
+              label="CPF"
+              required
+              value={maskCPF(form.pessoaFisica.cpf)}
+              onChange={(value) => pessoaFisica("cpf", maskCPF(value))}
+              inputMode="numeric"
+              maxLength={14}
+            />
+          </>
+        ) : (
+          <DoadorPessoaJuridicaEssencial form={form} set={set} />
+        )}
+      </div>
+    </FormSectionCard>
+  );
+}
+
+function DoadorPessoaJuridicaEssencial({
+  form,
+  set,
+}: {
+  form: FormState;
+  set: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
+}) {
+  const pessoaJuridica = <K extends keyof PessoaJuridicaCadastro>(
+    key: K,
+    value: PessoaJuridicaCadastro[K],
+  ) =>
+    set("pessoaJuridica", {
+      ...form.pessoaJuridica,
+      [key]: value,
+    });
+
+  return (
+    <>
+      <DoadorField
+        id="doador-razao-social"
+        label="Razão social"
+        required
+        value={form.pessoaJuridica.razaoSocial}
+        onChange={(value) => pessoaJuridica("razaoSocial", value)}
+      />
+      <DoadorField
+        id="doador-cnpj"
+        label="CNPJ"
+        required
+        value={maskCNPJ(form.pessoaJuridica.cnpj)}
+        onChange={(value) => pessoaJuridica("cnpj", maskCNPJ(value))}
+        inputMode="numeric"
+        maxLength={18}
+      />
+    </>
+  );
+}
+
 function DoadorPessoaFields({
   form,
   set,
@@ -542,22 +652,20 @@ export default function DoadorForm() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (
-      form.tipoPessoa === "PESSOA_FISICA" &&
-      !form.pessoaFisica.nomeCompleto.trim()
-    ) {
-      return toast.error("Informe o nome completo.");
-    }
-
-    if (
-      form.tipoPessoa === "PESSOA_JURIDICA" &&
-      !form.pessoaJuridica.razaoSocial.trim()
-    ) {
-      return toast.error("Informe a razão social.");
-    }
-
-    if (!form.status) {
-      return toast.error("Selecione a situação do doador.");
+    if (form.tipoPessoa === "PESSOA_FISICA") {
+      if (!form.pessoaFisica.nomeCompleto.trim()) {
+        return toast.error("Informe o nome completo.");
+      }
+      if (form.pessoaFisica.cpf.replace(/\D/g, "").length !== 11) {
+        return toast.error("Informe um CPF com 11 dígitos.");
+      }
+    } else {
+      if (!form.pessoaJuridica.razaoSocial.trim()) {
+        return toast.error("Informe a razão social.");
+      }
+      if (form.pessoaJuridica.cnpj.replace(/\D/g, "").length !== 14) {
+        return toast.error("Informe um CNPJ com 14 dígitos.");
+      }
     }
 
     try {
@@ -566,20 +674,22 @@ export default function DoadorForm() {
       await saveDoador(
         {
           tipoPessoa: form.tipoPessoa,
-
           pessoaFisica:
-            form.tipoPessoa === "PESSOA_FISICA" ? form.pessoaFisica : null,
-
+            form.tipoPessoa === "PESSOA_FISICA"
+              ? {
+                  ...pessoaFisicaVazia,
+                  nomeCompleto: form.pessoaFisica.nomeCompleto.trim(),
+                  cpf: form.pessoaFisica.cpf.replace(/\D/g, ""),
+                }
+              : null,
           pessoaJuridica:
-            form.tipoPessoa === "PESSOA_JURIDICA" ? form.pessoaJuridica : null,
-
-          endereco: form.endereco,
-
-          origemDoador: form.origemDoador || null,
-
-          status: form.status as StatusDoador,
-
-          observacao: form.observacao.trim() || null,
+            form.tipoPessoa === "PESSOA_JURIDICA"
+              ? {
+                  ...pessoaJuridicaVazia,
+                  razaoSocial: form.pessoaJuridica.razaoSocial.trim(),
+                  cnpj: form.pessoaJuridica.cnpj.replace(/\D/g, ""),
+                }
+              : null,
         },
         isEdit ? id : undefined,
       );
@@ -640,9 +750,9 @@ export default function DoadorForm() {
               disabled={isView || saving}
               className="m-0 min-w-0 space-y-5 border-0 p-0"
             >
-              <DoadorPessoaFields form={form} set={set} />
+              <DoadorIdentificacaoEssencial form={form} set={set} />
 
-              <FormSectionCard
+              {false && <FormSectionCard
                 icon={Compass}
                 title="Origem e situação"
                 description="Registre como o doador chegou até a organização e mantenha atualizada sua situação para o acompanhamento das doações."
@@ -713,9 +823,9 @@ export default function DoadorForm() {
                     </Select>
                   </div>
                 </div>
-              </FormSectionCard>
+              </FormSectionCard>}
 
-              <FormSectionCard
+              {false && <FormSectionCard
                 icon={StickyNote}
                 title="Observações"
                 description="Mantenha registradas informações que possam ser úteis para compreender e acompanhar o relacionamento da organização com este doador."
@@ -733,7 +843,7 @@ export default function DoadorForm() {
                   value={form.observacao}
                   onChange={(e) => set("observacao", e.target.value)}
                 />
-              </FormSectionCard>
+              </FormSectionCard>}
             </fieldset>
 
             <Actions
