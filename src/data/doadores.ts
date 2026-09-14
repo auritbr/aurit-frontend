@@ -47,6 +47,9 @@ export interface DoadorPayload {
   tipoPessoa: TipoPessoa;
   pessoaFisica: PessoaFisicaCadastro | null;
   pessoaJuridica: PessoaJuridicaCadastro | null;
+  status: StatusDoador;
+  origemDoador: OrigemDoador | null;
+  observacao: string | null;
 }
 
 interface DoadorDTO {

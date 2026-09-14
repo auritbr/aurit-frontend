@@ -194,6 +194,34 @@ function DoadorIdentificacaoEssencial({
               inputMode="numeric"
               maxLength={14}
             />
+            <DoadorField
+              id="doador-nascimento"
+              label="Data de nascimento"
+              type="date"
+              value={form.pessoaFisica.dataNascimento}
+              onChange={(value) => pessoaFisica("dataNascimento", value)}
+            />
+            <DoadorField
+              id="doador-rg"
+              label="RG"
+              value={maskRGFlex(form.pessoaFisica.rg)}
+              onChange={(value) => pessoaFisica("rg", maskRGFlex(value))}
+            />
+            <DoadorField
+              id="doador-telefone"
+              label="Telefone"
+              value={form.pessoaFisica.telefone}
+              onChange={(value) => pessoaFisica("telefone", maskPhone(value))}
+            />
+            <div>
+              <FieldLabel htmlFor="doador-email">E-mail</FieldLabel>
+              <EmailInput
+                id="doador-email"
+                value={form.pessoaFisica.email}
+                onValueChange={(value) => pessoaFisica("email", value)}
+                placeholder="nome@exemplo.com"
+              />
+            </div>
           </>
         ) : (
           <DoadorPessoaJuridicaEssencial form={form} set={set} />
@@ -237,6 +265,34 @@ function DoadorPessoaJuridicaEssencial({
         inputMode="numeric"
         maxLength={18}
       />
+      <DoadorField
+        id="doador-nome-fantasia"
+        label="Nome fantasia"
+        value={form.pessoaJuridica.nomeFantasia}
+        onChange={(value) => pessoaJuridica("nomeFantasia", value)}
+      />
+      <DoadorField
+        id="doador-fundacao"
+        label="Data de fundação"
+        type="date"
+        value={form.pessoaJuridica.dataFundacao}
+        onChange={(value) => pessoaJuridica("dataFundacao", value)}
+      />
+      <DoadorField
+        id="doador-telefone-pj"
+        label="Telefone"
+        value={form.pessoaJuridica.telefone}
+        onChange={(value) => pessoaJuridica("telefone", maskPhone(value))}
+      />
+      <div>
+        <FieldLabel htmlFor="doador-email-pj">E-mail</FieldLabel>
+        <EmailInput
+          id="doador-email-pj"
+          value={form.pessoaJuridica.email}
+          onValueChange={(value) => pessoaJuridica("email", value)}
+          placeholder="contato@empresa.com"
+        />
+      </div>
     </>
   );
 }
@@ -652,20 +708,14 @@ export default function DoadorForm() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (form.tipoPessoa === "PESSOA_FISICA") {
-      if (!form.pessoaFisica.nomeCompleto.trim()) {
-        return toast.error("Informe o nome completo.");
-      }
-      if (form.pessoaFisica.cpf.replace(/\D/g, "").length !== 11) {
-        return toast.error("Informe um CPF com 11 dígitos.");
-      }
-    } else {
-      if (!form.pessoaJuridica.razaoSocial.trim()) {
-        return toast.error("Informe a razão social.");
-      }
-      if (form.pessoaJuridica.cnpj.replace(/\D/g, "").length !== 14) {
-        return toast.error("Informe um CNPJ com 14 dígitos.");
-      }
+    if (form.tipoPessoa === "PESSOA_FISICA" && !form.pessoaFisica.nomeCompleto.trim()) {
+      return toast.error("Informe o nome completo.");
+    }
+    if (form.tipoPessoa === "PESSOA_JURIDICA" && !form.pessoaJuridica.razaoSocial.trim()) {
+      return toast.error("Informe a razão social.");
+    }
+    if (!form.status) {
+      return toast.error("Selecione a situação do doador.");
     }
 
     try {
@@ -676,20 +726,15 @@ export default function DoadorForm() {
           tipoPessoa: form.tipoPessoa,
           pessoaFisica:
             form.tipoPessoa === "PESSOA_FISICA"
-              ? {
-                  ...pessoaFisicaVazia,
-                  nomeCompleto: form.pessoaFisica.nomeCompleto.trim(),
-                  cpf: form.pessoaFisica.cpf.replace(/\D/g, ""),
-                }
+              ? form.pessoaFisica
               : null,
           pessoaJuridica:
             form.tipoPessoa === "PESSOA_JURIDICA"
-              ? {
-                  ...pessoaJuridicaVazia,
-                  razaoSocial: form.pessoaJuridica.razaoSocial.trim(),
-                  cnpj: form.pessoaJuridica.cnpj.replace(/\D/g, ""),
-                }
+              ? form.pessoaJuridica
               : null,
+          origemDoador: form.origemDoador || null,
+          status: form.status as StatusDoador,
+          observacao: form.observacao.trim() || null,
         },
         isEdit ? id : undefined,
       );
@@ -752,7 +797,7 @@ export default function DoadorForm() {
             >
               <DoadorIdentificacaoEssencial form={form} set={set} />
 
-              {false && <FormSectionCard
+              <FormSectionCard
                 icon={Compass}
                 title="Origem e situação"
                 description="Registre como o doador chegou até a organização e mantenha atualizada sua situação para o acompanhamento das doações."
@@ -823,9 +868,9 @@ export default function DoadorForm() {
                     </Select>
                   </div>
                 </div>
-              </FormSectionCard>}
+              </FormSectionCard>
 
-              {false && <FormSectionCard
+              <FormSectionCard
                 icon={StickyNote}
                 title="Observações"
                 description="Mantenha registradas informações que possam ser úteis para compreender e acompanhar o relacionamento da organização com este doador."
@@ -843,7 +888,7 @@ export default function DoadorForm() {
                   value={form.observacao}
                   onChange={(e) => set("observacao", e.target.value)}
                 />
-              </FormSectionCard>}
+              </FormSectionCard>
             </fieldset>
 
             <Actions
