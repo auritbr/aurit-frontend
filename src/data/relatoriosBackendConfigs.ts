@@ -59,9 +59,12 @@ const carregarFinanceiroGenerico =
       busca: String(filters.busca ?? ""),
     } as FiltrosFinanceiros)) as unknown as Record<string, unknown>;
 
-const colunasEndereco = [
+const colunasContato = [
   { key: "telefone", label: "Telefone" },
   { key: "email", label: "E-mail" },
+] as const;
+
+const colunasEndereco = [
   { key: "cep", label: "CEP" },
   { key: "logradouro", label: "Logradouro" },
   { key: "numero", label: "Número" },
@@ -149,7 +152,7 @@ export const doadoresConfig: BackendReportConfig = {
       format: "enum",
       hiddenByDefault: true,
     },
-    ...colunasEndereco.map((column) => ({
+    ...colunasContato.map((column) => ({
       ...column,
       hiddenByDefault: true,
     })),
@@ -254,6 +257,10 @@ export const parceirosConfig: BackendReportConfig = {
       format: "date",
       hiddenByDefault: true,
     },
+    ...colunasContato.map((column) => ({
+      ...column,
+      hiddenByDefault: true,
+    })),
     ...colunasEndereco.map((column) => ({
       ...column,
       hiddenByDefault: true,
