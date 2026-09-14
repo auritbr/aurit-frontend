@@ -34,7 +34,6 @@ import {
   configureGenericReportColumns,
   isDefaultGenericReportColumn,
 } from "@/report/general/reportColumnConfig";
-import { REPORT_DATA_INVALIDATED_EVENT } from "@/lib/reportDataInvalidation";
 
 type Row = Record<string, unknown>;
 
@@ -135,22 +134,6 @@ export default function RelatorioDetalhePage() {
 
   useEffect(() => {
     void fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    const refresh = () => void fetchData();
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-
-    window.addEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
   }, [fetchData]);
 
   const columns = useMemo<RelatorioColumn<Row>[]>(() => {

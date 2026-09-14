@@ -90,7 +90,6 @@ import {
 import { usePagination } from "@/hooks/usePagination";
 import type { RelatorioColumn } from "@/lib/relatorioExports";
 import { downloadGeneralReportPdf } from "@/lib/generalReportPdf";
-import { REPORT_DATA_INVALIDATED_EVENT } from "@/lib/reportDataInvalidation";
 
 type SortKey = "nome" | "status" | "atividade" | "turma" | "percentual";
 type SortDir = "asc" | "desc";
@@ -251,20 +250,7 @@ export default function RelatorioParticipantes() {
   }
 
   useEffect(() => {
-    const refresh = () => void carregar();
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-
-    refresh();
-    window.addEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
+    void carregar();
   }, []);
 
   const filtradas = useMemo(

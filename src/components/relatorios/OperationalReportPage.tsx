@@ -57,7 +57,6 @@ import {
   tipoDestinatarioLabel,
 } from "@/data/emprestimos";
 import { apiFetch } from "@/lib/api";
-import { REPORT_DATA_INVALIDATED_EVENT } from "@/lib/reportDataInvalidation";
 import type { ActiveFilterItem } from "@/components/ActiveFilters";
 import { getRelatorioDetalhado, type Indicador } from "@/data/relatorios";
 
@@ -486,21 +485,6 @@ export function OperationalReportPage({ kind }: { kind: Kind }) {
   }, [kind]);
   useEffect(() => {
     void load();
-  }, [load]);
-  useEffect(() => {
-    const refresh = () => void load();
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-
-    window.addEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
   }, [load]);
   const situacoes = useMemo(
     () =>

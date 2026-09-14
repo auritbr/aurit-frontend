@@ -43,7 +43,6 @@ import {
 import { AccessDenied } from "@/components/AccessDenied";
 import { AppLayout } from "@/components/AppLayout";
 import { isPlanoAccessDenied } from "@/lib/access";
-import { REPORT_DATA_INVALIDATED_EVENT } from "@/lib/reportDataInvalidation";
 
 const situacoes = domainStatusOptions("cronograma");
 interface Filtros {
@@ -69,7 +68,6 @@ export default function RelatorioCronogramaPrazos() {
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const requestId = useRef(0);
-  const appliedRef = useRef(filtrosIniciais);
 
   const carregar = useCallback(async (next: Filtros) => {
     const currentRequest = ++requestId.current;
@@ -101,22 +99,6 @@ export default function RelatorioCronogramaPrazos() {
   useEffect(() => {
     void carregar(filtrosIniciais);
   }, [carregar]);
-  useEffect(() => {
-    const refresh = () => void carregar(appliedRef.current);
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-
-    window.addEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [carregar]);
-
   const aplicar = async (next: Filtros, showToast = false) => {
     if (next.de && next.ate && next.de > next.ate) {
       toast.error("A data inicial não pode ser posterior à data final.");
@@ -128,7 +110,6 @@ export default function RelatorioCronogramaPrazos() {
 
     if (success) {
       setAplicados(next);
-      appliedRef.current = next;
       if (showToast) toast.success("Filtros aplicados.");
     }
   };

@@ -20,7 +20,7 @@ export interface TablePaginationProps {
   showCopy?: boolean;
 }
 
-const DEFAULT_OPTIONS = [10, 25, 50, 100, 200];
+const DEFAULT_OPTIONS = [10, 25, 50, 100, 200, 500, 1000];
 
 export function TablePagination({
   totalItems,

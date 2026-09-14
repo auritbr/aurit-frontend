@@ -21,7 +21,6 @@ import {
 } from "@/components/relatorios/ReportKit";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api";
-import { REPORT_DATA_INVALIDATED_EVENT } from "@/lib/reportDataInvalidation";
 import {
   produtoGeradoLabel,
   statusPrestacaoContasLabel,
@@ -506,21 +505,6 @@ export default function RelatorioPrestacaoContas() {
   }, []);
   useEffect(() => {
     void load();
-  }, [load]);
-  useEffect(() => {
-    const refresh = () => void load();
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-
-    window.addEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
   }, [load]);
   const projects = useMemo(() => options(rows, "projeto"), [rows]);
   const responsibles = useMemo(() => options(rows, "responsavel"), [rows]);

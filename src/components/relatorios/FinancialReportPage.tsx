@@ -33,7 +33,6 @@ import {
   type RelatorioFinanceiroResponse,
 } from "@/lib/relatoriosFinanceirosApi";
 import type { ActiveFilterItem } from "@/components/ActiveFilters";
-import { REPORT_DATA_INVALIDATED_EVENT } from "@/lib/reportDataInvalidation";
 import { maskCpfCnpj } from "@/lib/masks";
 
 type Field = {
@@ -440,22 +439,6 @@ export function FinancialReportPage({ slug }: { slug: string }) {
   useEffect(() => {
     void load();
   }, [load]);
-  useEffect(() => {
-    const refresh = () => void load();
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-
-    window.addEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [load]);
-
   const columns = useMemo<ReportTableColumn<LinhaFinanceira>[]>(
     () =>
       config.fields.map((field, index) => ({

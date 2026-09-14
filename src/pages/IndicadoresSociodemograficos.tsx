@@ -52,7 +52,6 @@ import {
 import { exportToCSV, exportToExcel } from "@/lib/indicadoresExport";
 
 import { downloadGeneralReportPdf } from "@/lib/generalReportPdf";
-import { REPORT_DATA_INVALIDATED_EVENT } from "@/lib/reportDataInvalidation";
 
 import { toast } from "sonner";
 
@@ -627,22 +626,6 @@ export default function IndicadoresSociodemograficos() {
 
     void carregarRelatorio();
   }, [aplicados]);
-
-  useEffect(() => {
-    const refresh = () => setAplicados((current) => ({ ...current }));
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-
-    window.addEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, []);
 
   useEffect(() => {
     if (

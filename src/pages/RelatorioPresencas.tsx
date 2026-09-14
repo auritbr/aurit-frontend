@@ -58,7 +58,6 @@ import {
 } from "@/data/relatorioPresencas";
 import { RelatorioExportButtons } from "@/components/relatorios/RelatorioExportButtons";
 import { ColumnSelector } from "@/components/relatorios/ColumnSelector";
-import { REPORT_DATA_INVALIDATED_EVENT } from "@/lib/reportDataInvalidation";
 
 type Filtros = {
   participante: string;
@@ -310,20 +309,7 @@ export default function RelatorioPresencas() {
   }
 
   useEffect(() => {
-    const refresh = () => void carregar();
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-
-    refresh();
-    window.addEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
+    void carregar();
   }, []);
 
   const resultado = useMemo(
@@ -1042,7 +1028,7 @@ export default function RelatorioPresencas() {
                 setPageSize(size);
                 setCurrentPage(1);
               }}
-              pageSizeOptions={[25, 50, 100, 200, 500]}
+              pageSizeOptions={[25, 50, 100, 200, 500, 1000]}
               showCopy={false}
             />
           )}

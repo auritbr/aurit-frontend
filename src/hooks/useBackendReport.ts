@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { isPlanoAccessDenied } from "@/lib/access";
-import { REPORT_DATA_INVALIDATED_EVENT } from "@/lib/reportDataInvalidation";
 
 export function useBackendReport<TFilters, TData>(
   initialFilters: TFilters,
@@ -14,7 +13,6 @@ export function useBackendReport<TFilters, TData>(
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const requestId = useRef(0);
-  const appliedRef = useRef(initialFilters);
 
   const load = useCallback(
     async (next: TFilters, successMessage?: string) => {
@@ -25,7 +23,6 @@ export function useBackendReport<TFilters, TData>(
         if (currentRequest !== requestId.current) return false;
         setData(response);
         setApplied(next);
-        appliedRef.current = next;
         setAccessDenied(false);
         if (successMessage) toast.success(successMessage);
         return true;
@@ -48,23 +45,6 @@ export function useBackendReport<TFilters, TData>(
   useEffect(() => {
     void load(initialFilters);
   }, [initialFilters, load]);
-
-  useEffect(() => {
-    const refresh = () => void load(appliedRef.current);
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-
-    window.addEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-
-    return () => {
-      window.removeEventListener(REPORT_DATA_INVALIDATED_EVENT, refresh);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [load]);
 
   const apply = useCallback(
     (next: TFilters, showSuccess = false) => {
