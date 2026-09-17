@@ -1,6 +1,7 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { isPlanoGratuitoAtual } from "@/lib/plano";
+import { nameWithYear } from "@/lib/entityYear";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -54,6 +55,8 @@ export interface AtividadeApiDTO {
   id?: number | string;
   nomeAtividade?: string | null;
   nome?: string | null;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 export interface TurmaApiDTO {
@@ -63,7 +66,11 @@ export interface TurmaApiDTO {
   atividadeId?: number | string | null;
   atividade?: {
     id?: number | string | null;
+    ano?: number | string | null;
+    dataInicio?: string | null;
   } | null;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 export interface PlanoAulaApiDTO {
@@ -257,8 +264,11 @@ export function mapAtividadeOption(dto: AtividadeApiDTO): AtividadeOption {
 
   return {
     id,
-    nomeAtividade:
+    nomeAtividade: nameWithYear(
       pickText(dto.nomeAtividade, dto.nome) || `Atividade ${id || ""}`.trim(),
+      dto.ano,
+      dto.dataInicio,
+    ),
   };
 }
 
@@ -269,7 +279,13 @@ export function mapTurmaOption(dto: TurmaApiDTO): TurmaOption {
   return {
     id,
     atividadeId,
-    nomeTurma: pickText(dto.nomeTurma, dto.nome) || `Turma ${id || ""}`.trim(),
+    nomeTurma: nameWithYear(
+      pickText(dto.nomeTurma, dto.nome) || `Turma ${id || ""}`.trim(),
+      dto.ano,
+      dto.dataInicio,
+      dto.atividade?.ano,
+      dto.atividade?.dataInicio,
+    ),
   };
 }
 

@@ -90,6 +90,7 @@ import {
 import { usePagination } from "@/hooks/usePagination";
 import type { RelatorioColumn } from "@/lib/relatorioExports";
 import { downloadGeneralReportPdf } from "@/lib/generalReportPdf";
+import { nameWithYear } from "@/lib/entityYear";
 
 type SortKey = "nome" | "status" | "atividade" | "turma" | "percentual";
 type SortDir = "asc" | "desc";
@@ -756,7 +757,13 @@ export default function RelatorioParticipantes() {
                       <SelectItem value="TODOS">Todas</SelectItem>
                       {turmasDisponiveis.map((item) => (
                         <SelectItem key={item.id} value={item.id}>
-                          {item.nomeTurma}
+                          {nameWithYear(
+                            item.nomeTurma,
+                            atividades.find(
+                              (atividade) =>
+                                atividade.id === item.atividadeId,
+                            )?.nomeAtividade,
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -1,6 +1,7 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
 import { invalidateFinancialData } from "@/lib/financialDataInvalidation";
 import type { StatusContext } from "@/components/StatusPill";
+import { nameWithYear } from "@/lib/entityYear";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -319,6 +320,14 @@ function mapItem(item: ItemApi): RegistroExecucao {
   };
 }
 
+function mapItemWithYear(item: ItemApi): RegistroExecucao {
+  const mapped = mapItem(item);
+  return {
+    ...mapped,
+    titulo: nameWithYear(mapped.titulo, item.inicio),
+  };
+}
+
 function toIdList(values: string[]) {
   return values.map(Number).filter(Number.isFinite);
 }
@@ -332,8 +341,12 @@ function mapDetalhada(raw: Record<string, unknown>): PrestacaoDetalhada {
     dataEntrega: String(raw.dataEntrega ?? ""),
     projeto: mapItem((raw.projeto ?? {}) as ItemApi),
     responsavel: raw.responsavel ? mapItem(raw.responsavel as ItemApi) : null,
-    atividades: list("atividades"),
-    turmas: list("turmas"),
+    atividades: Array.isArray(raw.atividades)
+      ? (raw.atividades as ItemApi[]).map(mapItemWithYear)
+      : [],
+    turmas: Array.isArray(raw.turmas)
+      ? (raw.turmas as ItemApi[]).map(mapItemWithYear)
+      : [],
     planosAula: list("planosAula"),
     eventos: list("eventosCulturais"),
     cronograma: list("cronogramas"),
@@ -428,8 +441,8 @@ export async function carregarExecucaoProjeto(
         value: period(filtro.dataInicio, filtro.dataFim),
       },
     ],
-    atividades: (data.atividades ?? []).map(mapItem),
-    turmas: (data.turmas ?? []).map(mapItem),
+    atividades: (data.atividades ?? []).map(mapItemWithYear),
+    turmas: (data.turmas ?? []).map(mapItemWithYear),
     planosAula: (data.planosAula ?? []).map(mapItem),
     planosAulaSomenteLeitura: false,
     eventos: (data.eventosCulturais ?? []).map(mapItem),

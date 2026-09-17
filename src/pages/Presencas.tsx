@@ -47,6 +47,7 @@ import {
 } from "@/data/presencas";
 import { toast } from "sonner";
 import { emitJourneyNextStep } from "@/lib/nextStepPopup";
+import { nameWithYear } from "@/lib/entityYear";
 
 const SEM_TURMA = "__SEM_TURMA__";
 const SEM_PLANO_AULA = "__SEM_PLANO_AULA__";
@@ -459,7 +460,10 @@ export default function Presencas() {
 
                     {turmasDaAtividade.map((turma) => (
                       <SelectItem key={turma.id} value={turma.id}>
-                        {turma.nomeTurma}
+                        {nameWithYear(
+                          turma.nomeTurma,
+                          atividadeSelecionada?.nomeAtividade,
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -81,6 +81,7 @@ import { getParticipantes } from "@/data/participantes";
 import { getIntegrantes } from "@/data/integrantes";
 import { getProjetos } from "@/data/projetos";
 import { getAtividades } from "@/data/atividades";
+import { nameWithYear } from "@/lib/entityYear";
 import { getEventosCulturais } from "@/data/eventosCulturais";
 import { getAcoesDivulgacao } from "@/data/acoesDivulgacao";
 
@@ -261,7 +262,7 @@ export default function ContasPagar() {
       setAtividadeOptions(
         atividades.map((item) => ({
           value: item.id,
-          label: item.nomeAtividade,
+          label: nameWithYear(item.nomeAtividade, item.dataInicio),
         })),
       );
       setEventoOptions(

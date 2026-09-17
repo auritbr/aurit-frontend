@@ -33,6 +33,7 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { maskCpfCnpj } from "@/lib/masks";
+import { nameWithYear } from "@/lib/entityYear";
 import {
   formasPagamento,
   aplicacoesFinanceiro,
@@ -244,6 +245,8 @@ interface ApiOptionRecord {
   titulo?: string;
   projetoId?: string | number | null;
   cpf?: string;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 function optionName(item: ApiOptionRecord, fallback: string) {
@@ -419,7 +422,11 @@ export default function FinanceiroForm() {
       setAtividades(
         (atividadesData ?? []).map((item: ApiOptionRecord) => ({
           id: String(item.id),
-          nome: optionName(item, `Atividade ${item.id}`),
+          nome: nameWithYear(
+            optionName(item, `Atividade ${item.id}`),
+            item.ano,
+            item.dataInicio,
+          ),
         })),
       );
 

@@ -52,6 +52,7 @@ import {
 import { exportToCSV, exportToExcel } from "@/lib/indicadoresExport";
 
 import { downloadGeneralReportPdf } from "@/lib/generalReportPdf";
+import { nameWithYear } from "@/lib/entityYear";
 
 import { toast } from "sonner";
 
@@ -1034,7 +1035,13 @@ export default function IndicadoresSociodemograficos() {
                   allLabel="Todas"
                   options={turmasFiltradas.map((item) => ({
                     value: String(item.id),
-                    label: item.nomeTurma,
+                    label: nameWithYear(
+                      item.nomeTurma,
+                      atividades.find(
+                        (atividade) =>
+                          String(atividade.id) === String(item.atividadeId),
+                      )?.nomeAtividade,
+                    ),
                   }))}
                   disabled={
                     filtros.atividadeId === TODOS ||
@@ -1322,7 +1329,14 @@ export default function IndicadoresSociodemograficos() {
 
                   {turmasFiltradas.map((turma) => (
                     <SelectItem key={turma.id} value={String(turma.id)}>
-                      {turma.nomeTurma}
+                      {nameWithYear(
+                        turma.nomeTurma,
+                        atividades.find(
+                          (atividade) =>
+                            String(atividade.id) ===
+                            String(turma.atividadeId),
+                        )?.nomeAtividade,
+                      )}
                     </SelectItem>
                   ))}
                 </SelectContent>

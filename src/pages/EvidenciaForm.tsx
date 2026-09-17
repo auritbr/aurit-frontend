@@ -44,6 +44,7 @@ import { EvidenciaResumoContexto } from "@/components/evidencias/EvidenciaResumo
 import { getImportConfigForPath } from "@/config/importacoes";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { emitJourneyNextStep } from "@/lib/nextStepPopup";
+import { nameWithYear } from "@/lib/entityYear";
 import {
   createEvidenciaFotografica,
   getAtividadesEvidenciaOptions,
@@ -677,7 +678,10 @@ export default function EvidenciaForm() {
                         ? "Carregando turmas..."
                         : "Selecione uma turma"
                   }
-                  options={turmas}
+                  options={turmas.map((turma) => ({
+                    ...turma,
+                    nome: nameWithYear(turma.nome, atividadeNome),
+                  }))}
                   disabled={!form.atividadeId || turmasQ.isLoading}
                   required
                 />

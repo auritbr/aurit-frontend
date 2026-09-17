@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import { nameWithYear } from "@/lib/entityYear";
 
 export type StatusPresenca =
   | "PRESENTE"
@@ -79,6 +80,8 @@ interface AtividadeApiDTO {
   nome?: string | null;
   titulo?: string | null;
   descricao?: string | null;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 interface TurmaApiDTO {
@@ -89,7 +92,11 @@ interface TurmaApiDTO {
   atividadeId?: number | string | null;
   atividade?: {
     id?: number | string | null;
+    ano?: number | string | null;
+    dataInicio?: string | null;
   } | null;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 interface ParticipanteApiDTO {
@@ -242,13 +249,16 @@ function mapAtividades(data: AtividadeApiDTO[]): RelatorioOption[] {
 
       return {
         id,
-        nome:
+        nome: nameWithYear(
           pickText(
             item.nomeAtividade,
             item.nome,
             item.titulo,
             item.descricao,
           ) || `Atividade ${id}`,
+          item.ano,
+          item.dataInicio,
+        ),
       };
     });
 }
@@ -263,8 +273,13 @@ function mapTurmas(data: TurmaApiDTO[]): RelatorioOption[] {
       return {
         id,
         atividadeId,
-        nome:
+        nome: nameWithYear(
           pickText(item.nome, item.nomeTurma, item.descricao) || `Turma ${id}`,
+          item.ano,
+          item.dataInicio,
+          item.atividade?.ano,
+          item.atividade?.dataInicio,
+        ),
       };
     });
 }

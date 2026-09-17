@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { nameWithYear } from "@/lib/entityYear";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -228,6 +229,8 @@ interface AtividadeApiDTO {
   nomeAtividade?: string | null;
   nome?: string | null;
   titulo?: string | null;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 interface ColaboradorApiDTO {
@@ -432,9 +435,12 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
 
       return {
         id,
-        nome:
+        nome: nameWithYear(
           pickText(atividade.nomeAtividade, atividade.nome, atividade.titulo) ||
-          `Atividade ${id}`,
+            `Atividade ${id}`,
+          atividade.ano,
+          atividade.dataInicio,
+        ),
       };
     })
     .filter((atividade) => atividade.id)

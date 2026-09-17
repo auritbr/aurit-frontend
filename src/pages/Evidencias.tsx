@@ -56,6 +56,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { isPlanoAccessDenied } from "@/lib/access";
+import { nameWithYear } from "@/lib/entityYear";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -254,7 +255,13 @@ export default function EvidenciasPage() {
   const contextoOptions = contextos.map((c) => ({ ...c }));
   const projetoOptions = projetos.map(filterOption);
   const atividadeOptions = atividades.map(filterOption);
-  const turmaOptions = turmas.map(filterOption);
+  const turmaOptions = turmas.map((turma) => ({
+    value: String(turma.id),
+    label: nameWithYear(
+      turma.nome,
+      atividades.find((atividade) => atividade.id === turma.atividadeId)?.nome,
+    ),
+  }));
   const eventoOptions = eventos.map(filterOption);
 
   const setDraftField = <K extends keyof Filtros>(key: K, value: Filtros[K]) =>

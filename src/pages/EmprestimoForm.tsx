@@ -23,6 +23,7 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { maskDate } from "@/lib/masks";
+import { nameWithYear } from "@/lib/entityYear";
 import {
   tipoDestinatarioOptions,
   estadoConservacaoEmprestimoOptions,
@@ -121,6 +122,8 @@ interface PropostaEditalApiDTO {
 interface AtividadeApiDTO {
   id: number;
   nomeAtividade: string;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 interface EventoCulturalApiDTO {
@@ -393,7 +396,11 @@ export default function EmprestimoForm() {
         setAtividades(
           (atividadesData ?? []).map((atividade) => ({
             id: String(atividade.id),
-            nome: atividade.nomeAtividade,
+            nome: nameWithYear(
+              atividade.nomeAtividade,
+              atividade.ano,
+              atividade.dataInicio,
+            ),
           })),
         );
 

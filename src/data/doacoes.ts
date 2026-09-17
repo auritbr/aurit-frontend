@@ -5,6 +5,7 @@ import { getAtividades } from "@/data/atividades";
 import { getEventosCulturais } from "@/data/eventosCulturais";
 import { getContasBancarias } from "@/data/contasBancarias";
 import { invalidateFinancialData } from "@/lib/financialDataInvalidation";
+import { nameWithYear } from "@/lib/entityYear";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -311,7 +312,7 @@ export async function getDoacaoOptions() {
     projetos: projetos.map((p) => ({ id: String(p.id), nome: p.nomeProjeto })),
     atividades: atividades.map((a) => ({
       id: String(a.id),
-      nome: a.nomeAtividade,
+      nome: nameWithYear(a.nomeAtividade, a.dataInicio),
       projetoId: String(a.projetoId ?? ""),
     })),
     eventos: eventos.map((e) => ({

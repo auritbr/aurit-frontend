@@ -44,6 +44,7 @@ import { StatusPill } from "@/components/StatusPill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { usePagination } from "@/hooks/usePagination";
 import { maskDate } from "@/lib/masks";
+import { nameWithYear } from "@/lib/entityYear";
 import { downloadIndividualReport } from "@/lib/individualReportDownload";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
@@ -212,6 +213,8 @@ interface PropostaEditalApiDTO {
 interface AtividadeApiDTO {
   id: number;
   nomeAtividade: string;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 interface EventoCulturalApiDTO {
@@ -447,7 +450,11 @@ export default function Emprestimos() {
       setAtividades(
         (atividadesData ?? []).map((atividade) => ({
           id: String(atividade.id),
-          nome: atividade.nomeAtividade,
+          nome: nameWithYear(
+            atividade.nomeAtividade,
+            atividade.ano,
+            atividade.dataInicio,
+          ),
         })),
       );
 

@@ -46,6 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePagination } from "@/hooks/usePagination";
+import { nameWithYear } from "@/lib/entityYear";
 import { isPlanoAccessDenied } from "@/lib/access";
 import {
   deletePlanoAula,
@@ -267,8 +268,16 @@ export default function PlanosAula() {
     [atividades],
   );
   const turmaOptions = useMemo(
-    () => turmas.map((item) => ({ value: item.id, label: item.nomeTurma })),
-    [turmas],
+    () =>
+      turmas.map((item) => ({
+        value: item.id,
+        label: nameWithYear(
+          item.nomeTurma,
+          atividades.find((atividade) => atividade.id === item.atividadeId)
+            ?.nomeAtividade,
+        ),
+      })),
+    [turmas, atividades],
   );
   const responsavelOptions = useMemo(
     () => colaboradores.map((item) => ({ value: item.id, label: item.nome })),

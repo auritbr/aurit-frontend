@@ -39,6 +39,7 @@ import { getImportConfigForPath } from "@/config/importacoes";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { toast } from "sonner";
 import { emitJourneyNextStep } from "@/lib/nextStepPopup";
+import { nameWithYear } from "@/lib/entityYear";
 import {
   buildPlanoAulaPayload,
   createPlanoAula,
@@ -395,10 +396,17 @@ export default function PlanoAulaForm() {
 
     if (!atividadeId) return [];
 
-    return turmas.filter(
-      (turma) => String(turma.atividadeId) === String(atividadeId),
+    const atividade = atividadesOptions.find(
+      (item) => String(item.id) === String(atividadeId),
     );
-  }, [turmas, atividadeAtualId]);
+
+    return turmas
+      .filter((turma) => String(turma.atividadeId) === String(atividadeId))
+      .map((turma) => ({
+        ...turma,
+        nomeTurma: nameWithYear(turma.nomeTurma, atividade?.nomeAtividade),
+      }));
+  }, [turmas, atividadeAtualId, atividadesOptions]);
 
   const turmasOptions = useMemo(() => {
     const options = [...turmasDaAtividade];

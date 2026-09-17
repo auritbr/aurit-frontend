@@ -1,6 +1,7 @@
 import { getJsonHeaders, getMultipartHeaders } from "@/lib/apiHeaders";
 import { sortOptionsByLabel } from "@/lib/sortOptions";
 import { maskCEP, maskCPF, maskPhone, maskRGFlex } from "@/lib/masks";
+import { nameWithYear } from "@/lib/entityYear";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -458,6 +459,8 @@ interface AtividadeApiDTO {
   nomeAtividade?: string | null;
   nome?: string | null;
   status?: string | null;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 interface TurmaApiDTO {
@@ -469,7 +472,11 @@ interface TurmaApiDTO {
   atividadeId?: number | string | null;
   atividade?: {
     id?: number | string | null;
+    ano?: number | string | null;
+    dataInicio?: string | null;
   } | null;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 interface OrganizacaoApiDTO {
@@ -857,8 +864,11 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
   return (Array.isArray(data) ? data : [])
     .map((item) => ({
       id: normalizeId(item.id),
-      nomeAtividade:
+      nomeAtividade: nameWithYear(
         pickText(item.nomeAtividade, item.nome) || `Atividade ${item.id}`,
+        item.ano,
+        item.dataInicio,
+      ),
       status: item.status ?? "",
     }))
     .filter((item) => item.id);
@@ -879,7 +889,13 @@ export async function getTurmasOptions(): Promise<TurmaOption[]> {
   return (Array.isArray(data) ? data : [])
     .map((item) => ({
       id: normalizeId(item.id),
-      nomeTurma: pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
+      nomeTurma: nameWithYear(
+        pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
+        item.ano,
+        item.dataInicio,
+        item.atividade?.ano,
+        item.atividade?.dataInicio,
+      ),
       atividadeId: normalizeId(item.atividadeId ?? item.atividade),
       nivelTurma: item.nivelTurma ?? "",
       status: item.status ?? "",

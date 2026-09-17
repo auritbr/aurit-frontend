@@ -66,6 +66,7 @@ import { getFornecedores } from "@/data/fornecedores";
 import { getParceiros } from "@/data/parceiros";
 import { getProjetos } from "@/data/projetos";
 import { getAtividades } from "@/data/atividades";
+import { nameWithYear } from "@/lib/entityYear";
 import { getEventosCulturais } from "@/data/eventosCulturais";
 import { getAcoesDivulgacao } from "@/data/acoesDivulgacao";
 import { getImportConfigForPath } from "@/config/importacoes";
@@ -481,7 +482,7 @@ export default function ContaReceberForm() {
           setAtividadeRecords(
             atividades.map((item) => ({
               value: item.id,
-              label: item.nomeAtividade,
+              label: nameWithYear(item.nomeAtividade, item.dataInicio),
               projetoId: item.projetoId,
             })),
           );

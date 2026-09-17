@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/table";
 import type { RelatorioColumn } from "@/lib/relatorioExports";
 import { downloadFilteredPresenceReport } from "@/lib/individualReportDownload";
+import { nameWithYear } from "@/lib/entityYear";
 import {
   anosDisponiveisPresenca,
   mesesDisponiveisPresenca,
@@ -561,7 +562,13 @@ export default function RelatorioPresencas() {
                       <SelectItem value="TODOS">Todas</SelectItem>
                       {turmas.map((item) => (
                         <SelectItem key={item.id} value={item.id}>
-                          {item.nome}
+                          {nameWithYear(
+                            item.nome,
+                            atividades.find(
+                              (atividade) =>
+                                atividade.id === item.atividadeId,
+                            )?.nome,
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -767,7 +774,13 @@ export default function RelatorioPresencas() {
 
                   {turmas.map((turma) => (
                     <SelectItem key={turma.id} value={turma.id}>
-                      {turma.nome}
+                      {nameWithYear(
+                        turma.nome,
+                        atividades.find(
+                          (atividade) =>
+                            atividade.id === turma.atividadeId,
+                        )?.nome,
+                      )}
                     </SelectItem>
                   ))}
                 </SelectContent>

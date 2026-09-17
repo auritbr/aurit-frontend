@@ -37,6 +37,7 @@ import { TableCellText } from "@/components/TableCellText";
 import { StatusPill } from "@/components/StatusPill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { usePagination } from "@/hooks/usePagination";
+import { nameWithYear } from "@/lib/entityYear";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { downloadDeclaracaoParticipacao } from "@/lib/individualReportDownload";
 import { maskPhone } from "@/lib/masks";
@@ -324,9 +325,13 @@ export default function Participantes() {
     () =>
       turmas.map((turma) => ({
         value: turma.id,
-        label: turma.nomeTurma,
+        label: nameWithYear(
+          turma.nomeTurma,
+          atividades.find((atividade) => atividade.id === turma.atividadeId)
+            ?.nomeAtividade,
+        ),
       })),
-    [turmas],
+    [turmas, atividades],
   );
 
   const setDraftField = <K extends keyof ParticipantesFiltros>(

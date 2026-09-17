@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { nameWithYear } from "@/lib/entityYear";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -137,6 +138,8 @@ interface AtividadeApiDTO {
   projeto?: {
     id?: number | null;
   } | null;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 interface EventoApiDTO {
@@ -354,7 +357,11 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
     .filter((atividade) => atividade.id != null)
     .map((atividade) => ({
       id: String(atividade.id),
-      nome: atividade.nomeAtividade?.trim() || `Atividade ${atividade.id}`,
+      nome: nameWithYear(
+        atividade.nomeAtividade?.trim() || `Atividade ${atividade.id}`,
+        atividade.ano,
+        atividade.dataInicio,
+      ),
       projetoId:
         atividade.projetoId != null
           ? String(atividade.projetoId)

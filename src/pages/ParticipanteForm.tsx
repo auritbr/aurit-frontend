@@ -62,6 +62,7 @@ import {
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormLegend } from "@/components/FormLegend";
 import { maskCPF, maskPhone, maskCEP, maskDate } from "@/lib/masks";
+import { nameWithYear } from "@/lib/entityYear";
 import { estadosBrasil } from "@/data/colaboradores";
 import {
   buildParticipantePayload,
@@ -2058,7 +2059,14 @@ export default function ParticipanteForm() {
                                         key={String(t.id)}
                                         value={String(t.id)}
                                       >
-                                        {t.nomeTurma}
+                                        {nameWithYear(
+                                          t.nomeTurma,
+                                          atividades.find(
+                                            (atividade) =>
+                                              String(atividade.id) ===
+                                              String(v.atividadeId),
+                                          )?.nomeAtividade,
+                                        )}
                                       </SelectItem>
                                     ))}
                                 </SelectContent>

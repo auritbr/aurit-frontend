@@ -46,6 +46,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { useSortableData } from "@/hooks/useSortableData";
 import { copyTableFromRef } from "@/lib/copyTableDom";
 import { isPlanoAccessDenied } from "@/lib/access";
+import { nameWithYear } from "@/lib/entityYear";
 import { downloadFinanceiroReport as exportFinanceiroPdf } from "@/lib/individualReportDownload";
 import {
   getPermissoesUsuarioLogadoPorModulo,
@@ -416,8 +417,13 @@ export default function FinanceiroPage() {
       setAtividades(
         asRecords(atividadesData).map((a) => ({
           id: String(a.id),
-          nome:
+          nome: nameWithYear(
             pickText(a.nomeAtividade, a.nome, a.titulo) || `Atividade ${a.id}`,
+            typeof a.ano === "number" || typeof a.ano === "string"
+              ? a.ano
+              : undefined,
+            typeof a.dataInicio === "string" ? a.dataInicio : undefined,
+          ),
         })),
       );
 

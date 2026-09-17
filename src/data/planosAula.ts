@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { nameWithYear } from "@/lib/entityYear";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -178,6 +179,8 @@ interface AtividadeApiDTO {
   nomeAtividade?: string | null;
   titulo?: string | null;
   nome?: string | null;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 interface TurmaApiDTO {
@@ -187,7 +190,11 @@ interface TurmaApiDTO {
   atividadeId?: number | string | null;
   atividade?: {
     id?: number | string | null;
+    ano?: number | string | null;
+    dataInicio?: string | null;
   } | null;
+  ano?: number | string | null;
+  dataInicio?: string | null;
 }
 
 interface ColaboradorApiDTO {
@@ -555,9 +562,12 @@ export async function getAtividadesPlanoAulaOptions(): Promise<
   return (Array.isArray(data) ? data : [])
     .map((item) => ({
       id: normalizeId(item.id),
-      nomeAtividade:
+      nomeAtividade: nameWithYear(
         pickText(item.nomeAtividade, item.titulo, item.nome) ||
-        `Atividade ${item.id}`,
+          `Atividade ${item.id}`,
+        item.ano,
+        item.dataInicio,
+      ),
     }))
     .filter((item) => item.id);
 }
@@ -577,7 +587,13 @@ export async function getTurmasPlanoAulaOptions(): Promise<TurmaOption[]> {
   return (Array.isArray(data) ? data : [])
     .map((item) => ({
       id: normalizeId(item.id),
-      nomeTurma: pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
+      nomeTurma: nameWithYear(
+        pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
+        item.ano,
+        item.dataInicio,
+        item.atividade?.ano,
+        item.atividade?.dataInicio,
+      ),
       atividadeId: normalizeId(item.atividadeId ?? item.atividade),
     }))
     .filter((item) => item.id);
