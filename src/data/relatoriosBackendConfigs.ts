@@ -641,7 +641,7 @@ export const turmasAtendimentoConfig: BackendReportConfig = {
       label: "% Presença",
       format: "percent",
     },
-    { key: "colaboradores", label: "Colaboradores" },
+    { key: "equipeResponsavel", label: "Equipe responsável" },
   ],
   emptyMessage: "Nenhuma turma encontrada com os filtros selecionados.",
 };

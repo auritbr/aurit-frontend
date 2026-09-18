@@ -556,7 +556,7 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         slug: "turmas-atendimento",
         title: "Turmas e Atendimento",
         description:
-          "Relaciona as turmas com suas atividades, participantes, vagas disponíveis, percentual de vagas preenchidas, horários e registros de presença.",
+          "Relaciona as turmas com suas atividades, equipe responsável, participantes, vagas disponíveis, percentual de vagas preenchidas, horários e registros de presença.",
         icon: GraduationCap,
         plano: "pago",
         tooltip:

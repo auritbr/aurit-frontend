@@ -60,7 +60,7 @@ export interface RelatorioTurmaAtendimentoItem {
   presencas: number;
   registrosPresenca: number;
   percentualPresenca: number;
-  colaboradores: number;
+  equipeResponsavel: number;
 }
 
 export interface RelatorioTurmasAtendimento {
