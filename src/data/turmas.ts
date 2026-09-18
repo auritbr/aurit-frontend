@@ -168,6 +168,13 @@ export interface TurmaDTO {
     nomeCompleto?: string | null;
     nome?: string | null;
   }> | null;
+  integrantesIds?: Array<number | string> | null;
+  integrantes?: Array<{
+    id?: number | string | null;
+    nomeCompleto?: string | null;
+    nomeSocial?: string | null;
+    nomeFantasia?: string | null;
+  }> | null;
 }
 
 export interface Turma {
@@ -186,6 +193,8 @@ export interface Turma {
   atividadeNome?: string;
   colaboradoresIds: string[];
   colaboradoresNomes: string[];
+  integrantesIds: string[];
+  integrantesNomes: string[];
 }
 
 export interface TurmaPayload {
@@ -199,6 +208,7 @@ export interface TurmaPayload {
   nivelTurma?: string | null;
   atividadeId: number;
   colaboradoresIds: number[];
+  integrantesIds: number[];
 }
 
 export interface TurmaFormPayloadSource {
@@ -222,6 +232,10 @@ export interface AtividadeOption {
 export interface ColaboradorOption {
   id: string;
   nome: string;
+}
+
+export interface EquipeOption extends ColaboradorOption {
+  tipo: "COLABORADOR" | "INTEGRANTE";
 }
 
 interface AtividadeApiDTO {
@@ -261,6 +275,25 @@ function extractColaboradoresNomes(dto: TurmaDTO): string[] {
     .filter(Boolean);
 }
 
+function extractIntegrantesIds(dto: TurmaDTO): string[] {
+  if (Array.isArray(dto.integrantesIds)) {
+    return dto.integrantesIds.map(normalizeId).filter(Boolean);
+  }
+  if (Array.isArray(dto.integrantes)) {
+    return dto.integrantes.map((item) => normalizeId(item.id)).filter(Boolean);
+  }
+  return [];
+}
+
+function extractIntegrantesNomes(dto: TurmaDTO): string[] {
+  if (!Array.isArray(dto.integrantes)) return [];
+  return dto.integrantes
+    .map((item) =>
+      pickText(item.nomeCompleto, item.nomeSocial, item.nomeFantasia),
+    )
+    .filter(Boolean);
+}
+
 export function mapTurma(dto: TurmaDTO): Turma {
   const atividadeId = normalizeId(dto.atividadeId ?? dto.atividade?.id);
   const horarios = normalizarHorariosTurma(dto);
@@ -288,6 +321,8 @@ export function mapTurma(dto: TurmaDTO): Turma {
     atividadeNome: pickText(dto.atividade?.nomeAtividade, dto.atividade?.nome),
     colaboradoresIds: extractColaboradoresIds(dto),
     colaboradoresNomes: extractColaboradoresNomes(dto),
+    integrantesIds: extractIntegrantesIds(dto),
+    integrantesNomes: extractIntegrantesNomes(dto),
   };
 }
 
@@ -313,7 +348,12 @@ export function buildTurmaPayload(data: TurmaFormPayloadSource): TurmaPayload {
     nivelTurma: data.nivelTurma || null,
     atividadeId: Number(data.atividadeId),
     colaboradoresIds: data.colaboradores
+      .filter((id) => !id.startsWith("integrante:"))
       .map(Number)
+      .filter((id) => Number.isFinite(id)),
+    integrantesIds: data.colaboradores
+      .filter((id) => id.startsWith("integrante:"))
+      .map((id) => Number(id.slice("integrante:".length)))
       .filter((id) => Number.isFinite(id)),
   };
 }
@@ -471,5 +511,25 @@ export async function getColaboradoresOptions(): Promise<ColaboradorOption[]> {
       };
     })
     .filter((colaborador) => colaborador.id)
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+export async function getEquipeOptions(): Promise<EquipeOption[]> {
+  const response = await fetch(`${API_URL}/turmas/equipe-options`, {
+    method: "GET",
+    headers: getJsonHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const equipe: EquipeOption[] = await response.json();
+  return (Array.isArray(equipe) ? equipe : [])
+    .filter((item) => item.id && item.nome)
+    .map((item) => ({
+      ...item,
+      nome: `${item.nome} (${item.tipo === "INTEGRANTE" ? "Integrante" : "Colaborador"})`,
+    }))
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }

@@ -47,7 +47,7 @@ import {
   diaLabel,
   diasSemana,
   getAtividadesOptions,
-  getColaboradoresOptions,
+  getEquipeOptions,
   getTurmas,
   nivelTurmaLabel,
   statusTurma,
@@ -264,14 +264,14 @@ export default function Turmas() {
     try {
       setLoading(true);
       setAccessDeniedMessage(null);
-      const [turmasData, atividadesData, colaboradoresData] = await Promise.all(
-        [getTurmas(), getAtividadesOptions(), getColaboradoresOptions()],
+      const [turmasData, atividadesData, equipeData] = await Promise.all(
+        [getTurmas(), getAtividadesOptions(), getEquipeOptions()],
       );
       const atividadesMap = new Map(
         atividadesData.map((item) => [String(item.id), item.nome]),
       );
-      const colaboradoresMap = new Map(
-        colaboradoresData.map((item) => [String(item.id), item.nome]),
+      const equipeMap = new Map(
+        equipeData.map((item) => [String(item.id), item.nome]),
       );
       setItems(
         turmasData.map((turma) => ({
@@ -282,13 +282,19 @@ export default function Turmas() {
             turma.atividadeNome ||
             atividadesMap.get(String(turma.atividadeId)) ||
             "—",
-          colaboradoresNomes:
-            turma.colaboradoresNomes.length > 0
+          colaboradoresNomes: [
+            ...(turma.colaboradoresNomes.length > 0
               ? turma.colaboradoresNomes
               : turma.colaboradoresIds.map(
+                  (id) => equipeMap.get(String(id)) ?? `Colaborador ${id}`,
+                )),
+            ...(turma.integrantesNomes.length > 0
+              ? turma.integrantesNomes
+              : turma.integrantesIds.map(
                   (id) =>
-                    colaboradoresMap.get(String(id)) ?? `Colaborador ${id}`,
-                ),
+                    equipeMap.get(`integrante:${id}`) ?? `Integrante ${id}`,
+                )),
+          ],
         })),
       );
     } catch (error) {

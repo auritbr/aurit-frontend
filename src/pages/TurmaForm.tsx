@@ -55,7 +55,7 @@ import {
   diaLabel,
   diasSemana,
   getAtividadesOptions,
-  getColaboradoresOptions,
+  getEquipeOptions,
   getTurmaById,
   horarioTurmaChave,
   niveisTurma,
@@ -63,7 +63,7 @@ import {
   statusTurma,
   updateTurma,
   type AtividadeOption,
-  type ColaboradorOption,
+  type EquipeOption,
   type HorarioTurma,
 } from "@/data/turmas";
 import { toast } from "sonner";
@@ -99,6 +99,7 @@ interface TurmaCarregada {
   atividadeNome?: string | null;
   nomeAtividade?: string | null;
   colaboradoresIds?: Array<string | number>;
+  integrantesIds?: Array<string | number>;
 }
 
 const SEM_NIVEL_TURMA = "__SEM_NIVEL_TURMA__";
@@ -148,7 +149,7 @@ export default function TurmaForm() {
     null,
   );
   const [atividades, setAtividades] = useState<AtividadeOption[]>([]);
-  const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
+  const [colaboradores, setColaboradores] = useState<EquipeOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
@@ -270,7 +271,7 @@ export default function TurmaForm() {
         const [atividadesData, colaboradoresData, turmaData] =
           await Promise.all([
             getAtividadesOptions(),
-            getColaboradoresOptions(),
+            getEquipeOptions(),
             id || duplicarId
               ? getTurmaById(Number(id ?? duplicarId))
               : Promise.resolve(null),
@@ -309,7 +310,12 @@ export default function TurmaForm() {
             status: turma.status ?? "",
             nivelTurma: turma.nivelTurma ?? "",
             atividadeId,
-            colaboradores: (turma.colaboradoresIds ?? []).map(String),
+            colaboradores: [
+              ...(turma.colaboradoresIds ?? []).map(String),
+              ...(turma.integrantesIds ?? []).map(
+                (integranteId) => `integrante:${integranteId}`,
+              ),
+            ],
           });
         } else {
           setExistingTurma(null);
@@ -423,7 +429,7 @@ export default function TurmaForm() {
     }
 
     if (formComAtividade.colaboradores.length === 0) {
-      toast.error("Vincule ao menos um colaborador à turma.");
+      toast.error("Vincule ao menos uma pessoa à equipe da turma.");
       return;
     }
 
@@ -815,16 +821,16 @@ export default function TurmaForm() {
             <FormSectionCard
               icon={Users}
               title="Equipe responsável"
-              description="Identifique os colaboradores que ficarão responsáveis pela condução, pelo apoio e pelo acompanhamento das atividades desta turma."
+              description="Identifique os colaboradores e integrantes que ficarão responsáveis pela condução, pelo apoio e pelo acompanhamento das atividades desta turma."
             >
               <div className="grid grid-cols-1 gap-4">
                 <Field>
                   <FieldLabel
                     htmlFor="colaboradores"
                     required={!visualizando}
-                    tooltip="Selecione os colaboradores responsáveis pela condução, apoio, coordenação ou acompanhamento das atividades desta turma."
+                    tooltip="Selecione colaboradores e integrantes responsáveis pela condução, apoio, coordenação ou acompanhamento das atividades desta turma."
                   >
-                    Colaboradores
+                    Equipe
                   </FieldLabel>
 
                   <div

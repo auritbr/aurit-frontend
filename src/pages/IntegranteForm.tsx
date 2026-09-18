@@ -472,7 +472,7 @@ export default function IntegranteForm() {
           tipoDeficiencia: null,
           cnpj: onlyDigits(form.cnpj),
           nomeSocial: form.nomeSocial.trim(),
-          nomeFantasia: form.nomeFantasia.trim(),
+          nomeFantasia: form.nomeFantasia.trim() || null,
         }
       : {
           nomeCompleto: form.nomeCompleto.trim(),
@@ -529,10 +529,6 @@ export default function IntegranteForm() {
         return false;
       }
 
-      if (!form.nomeFantasia.trim()) {
-        toast.error("Informe o nome fantasia.");
-        return false;
-      }
     } else {
       if (!form.nomeCompleto.trim()) {
         toast.error("Informe o nome completo.");
