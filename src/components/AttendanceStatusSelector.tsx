@@ -1,6 +1,13 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const selectedStatusClass: Record<string, string> = {
+  PRESENTE: "status-active",
+  AUSENTE: "status-expired",
+  NAO_TEVE_AULA: "status-na",
+  FERIADO: "status-special",
+};
+
 export interface AttendanceStatusOption<T extends string = string> {
   value: T;
   label: string;
@@ -46,7 +53,11 @@ export function AttendanceStatusSelector<T extends string = string>({
             className={cn(
               "inline-flex min-h-8 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-[10px] px-2.5 py-1.5 text-[12.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background motion-reduce:transition-none",
               selected
-                ? "border border-primary/30 bg-primary/10 text-primary shadow-[inset_0_1px_0_0_hsl(0_0%_100%_/_0.5)]"
+                ? cn(
+                    "border shadow-[inset_0_1px_0_0_hsl(0_0%_100%_/_0.5)]",
+                    selectedStatusClass[String(option.value)] ??
+                      "border-primary/30 bg-primary/10 text-primary",
+                  )
                 : "border border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground",
             )}
           >
