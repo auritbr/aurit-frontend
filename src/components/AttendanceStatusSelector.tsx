@@ -2,7 +2,7 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const selectedStatusClass: Record<string, string> = {
-  PRESENTE: "status-active",
+  PRESENTE: "border-primary/30 bg-primary/10 text-primary",
   AUSENTE: "status-expired",
   NAO_TEVE_AULA: "status-na",
   FERIADO: "status-special",
