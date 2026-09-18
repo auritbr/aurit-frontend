@@ -122,13 +122,18 @@ export default function Notificacoes() {
   } | null>(null);
   const [historico, setHistorico] = useState<NotificacaoEnviada[]>([]);
   const [destinatarios, setDestinatarios] = useState<DestinatarioWhatsapp[]>([]);
+  const [nomeDestinatario, setNomeDestinatario] = useState("");
   const [telefoneDestinatario, setTelefoneDestinatario] = useState("");
+  const [erroNomeDestinatario, setErroNomeDestinatario] =
+    useState<string | null>(null);
   const [erroTelefoneDestinatario, setErroTelefoneDestinatario] =
     useState<string | null>(null);
   const [salvandoDestinatario, setSalvandoDestinatario] = useState(false);
   const [destinatarioEmTesteId, setDestinatarioEmTesteId] = useState<number | null>(null);
   const [destinatarioEmEdicaoId, setDestinatarioEmEdicaoId] =
     useState<number | null>(null);
+  const [nomeDestinatarioEmEdicao, setNomeDestinatarioEmEdicao] =
+    useState("");
   const [telefoneDestinatarioEmEdicao, setTelefoneDestinatarioEmEdicao] =
     useState("");
   const [erroEdicaoDestinatario, setErroEdicaoDestinatario] =
@@ -273,6 +278,10 @@ export default function Notificacoes() {
   };
 
   const handleAdicionarDestinatario = async () => {
+    if (!nomeDestinatario.trim()) {
+      setErroNomeDestinatario("Informe o nome da pessoa responsável por este telefone.");
+      return;
+    }
     if (!telefoneWhatsappValido(telefoneDestinatario)) {
       setErroTelefoneDestinatario(
         "Informe um número de WhatsApp válido com DDD.",
@@ -285,11 +294,14 @@ export default function Notificacoes() {
       );
       return;
     }
+    setErroNomeDestinatario(null);
     setErroTelefoneDestinatario(null);
 
     if (!telefoneWhatsappValido(telefone)) {
+      setNomeResponsavel(nomeDestinatario.trim());
       setTelefone(telefoneDestinatario);
       setAtivo(true);
+      setNomeDestinatario("");
       setTelefoneDestinatario("");
       toast.success("Telefone principal adicionado. Salve as configurações para concluir.");
       return;
@@ -298,15 +310,14 @@ export default function Notificacoes() {
     setSalvandoDestinatario(true);
     try {
       const destinatario = await adicionarDestinatarioWhatsapp({
-        // O backend ainda exige um nome para o destinatário. A tela possui um
-        // responsável único, portanto ele é usado para identificar os novos números.
-        nome: nomeResponsavel.trim() || "Responsável",
+        nome: nomeDestinatario.trim(),
         telefoneWhatsapp: telefoneDestinatario,
         ativo: true,
       });
       setDestinatarios((atuais) =>
         [...atuais, destinatario].sort((a, b) => a.nome.localeCompare(b.nome)),
       );
+      setNomeDestinatario("");
       setTelefoneDestinatario("");
       toast.success("Telefone adicional cadastrado.");
     } catch (error) {
@@ -345,6 +356,7 @@ export default function Notificacoes() {
 
   const iniciarEdicaoDestinatario = (destinatario: DestinatarioWhatsapp) => {
     setDestinatarioEmEdicaoId(destinatario.id);
+    setNomeDestinatarioEmEdicao(destinatario.nome);
     setTelefoneDestinatarioEmEdicao(
       formatarTelefoneWhatsapp(destinatario.telefoneWhatsapp),
     );
@@ -353,6 +365,7 @@ export default function Notificacoes() {
 
   const cancelarEdicaoDestinatario = () => {
     setDestinatarioEmEdicaoId(null);
+    setNomeDestinatarioEmEdicao("");
     setTelefoneDestinatarioEmEdicao("");
     setErroEdicaoDestinatario(null);
   };
@@ -360,6 +373,10 @@ export default function Notificacoes() {
   const handleSalvarEdicaoDestinatario = async (
     destinatario: DestinatarioWhatsapp,
   ) => {
+    if (!nomeDestinatarioEmEdicao.trim()) {
+      setErroEdicaoDestinatario("Informe o nome da pessoa responsável.");
+      return;
+    }
     if (!telefoneWhatsappValido(telefoneDestinatarioEmEdicao)) {
       setErroEdicaoDestinatario(
         "Informe um número de WhatsApp válido com DDD.",
@@ -375,7 +392,7 @@ export default function Notificacoes() {
 
     try {
       const atualizado = await atualizarDestinatarioWhatsapp(destinatario.id, {
-        nome: destinatario.nome,
+        nome: nomeDestinatarioEmEdicao.trim(),
         telefoneWhatsapp: telefoneDestinatarioEmEdicao,
         ativo: destinatario.ativo,
       });
@@ -505,10 +522,28 @@ export default function Notificacoes() {
                   )}
                 </div>
                 <div>
-                  <FieldLabel htmlFor="telefone-destinatario" tooltip={TOOLTIP_TELEFONE}>
-                    Adicionar telefone
+                  <FieldLabel htmlFor="nome-destinatario" tooltip={TOOLTIP_TELEFONE}>
+                    Adicionar destinatário
                   </FieldLabel>
-                  <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="relative">
+                      <User
+                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                        aria-hidden
+                      />
+                      <Input
+                        id="nome-destinatario"
+                        value={nomeDestinatario}
+                        onChange={(event) => {
+                          setNomeDestinatario(event.target.value);
+                          if (erroNomeDestinatario) setErroNomeDestinatario(null);
+                        }}
+                        maxLength={150}
+                        placeholder="Nome"
+                        aria-invalid={erroNomeDestinatario ? true : undefined}
+                        className="pl-9"
+                      />
+                    </div>
                     <div className="relative flex-1">
                       <Smartphone
                         className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -543,7 +578,7 @@ export default function Notificacoes() {
                     <Button
                       type="button"
                       variant="glassSecondary"
-                      className="h-10 shrink-0 gap-1.5 px-3.5"
+                      className="h-10 gap-1.5 px-3.5 sm:col-span-2"
                       onClick={() => void handleAdicionarDestinatario()}
                       disabled={salvandoDestinatario}
                     >
@@ -552,9 +587,14 @@ export default function Notificacoes() {
                       ) : (
                         <Plus className="h-4 w-4" aria-hidden />
                       )}
-                      Adicionar telefone
+                      Adicionar destinatário
                     </Button>
                   </div>
+                  {erroNomeDestinatario && (
+                    <p className="mt-1.5 text-[12.5px] text-destructive">
+                      {erroNomeDestinatario}
+                    </p>
+                  )}
                   {erroTelefoneDestinatario && (
                     <p
                       id="erro-telefone-destinatario"
@@ -641,6 +681,9 @@ export default function Notificacoes() {
                             ) : (
                               <div className="flex min-w-0 items-center gap-2.5">
                                 <Smartphone className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                                <span className="text-[13.5px] font-semibold text-foreground">
+                                  {nomeResponsavel}
+                                </span>
                                 <span className="text-[13.5px] font-medium text-foreground">
                                   {formatarTelefoneWhatsapp(telefone)}
                                 </span>
@@ -682,28 +725,40 @@ export default function Notificacoes() {
                       <div className="min-w-0 flex-1">
                         {destinatarioEmEdicaoId === destinatario.id ? (
                           <>
-                            <label className="sr-only" htmlFor={`editar-destinatario-${destinatario.id}`}>
-                              Editar telefone adicional
-                            </label>
-                            <Input
-                              id={`editar-destinatario-${destinatario.id}`}
-                              value={telefoneDestinatarioEmEdicao}
-                              inputMode="tel"
-                              autoFocus
-                              onChange={(event) => {
-                                setTelefoneDestinatarioEmEdicao(maskPhone(event.target.value));
-                                if (erroEdicaoDestinatario) setErroEdicaoDestinatario(null);
-                              }}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                  event.preventDefault();
-                                  void handleSalvarEdicaoDestinatario(destinatario);
-                                }
-                                if (event.key === "Escape") cancelarEdicaoDestinatario();
-                              }}
-                              aria-invalid={erroEdicaoDestinatario ? true : undefined}
-                              className="h-9 max-w-[260px]"
-                            />
+                            <div className="grid max-w-[520px] gap-2 sm:grid-cols-2">
+                              <Input
+                                value={nomeDestinatarioEmEdicao}
+                                autoFocus
+                                onChange={(event) => {
+                                  setNomeDestinatarioEmEdicao(event.target.value);
+                                  if (erroEdicaoDestinatario) setErroEdicaoDestinatario(null);
+                                }}
+                                placeholder="Nome"
+                                aria-label="Nome do destinatário"
+                                aria-invalid={erroEdicaoDestinatario ? true : undefined}
+                                className="h-9"
+                              />
+                              <Input
+                                id={`editar-destinatario-${destinatario.id}`}
+                                value={telefoneDestinatarioEmEdicao}
+                                inputMode="tel"
+                                onChange={(event) => {
+                                  setTelefoneDestinatarioEmEdicao(maskPhone(event.target.value));
+                                  if (erroEdicaoDestinatario) setErroEdicaoDestinatario(null);
+                                }}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    void handleSalvarEdicaoDestinatario(destinatario);
+                                  }
+                                  if (event.key === "Escape") cancelarEdicaoDestinatario();
+                                }}
+                                placeholder="Telefone"
+                                aria-label="Telefone do destinatário"
+                                aria-invalid={erroEdicaoDestinatario ? true : undefined}
+                                className="h-9"
+                              />
+                            </div>
                             {erroEdicaoDestinatario && (
                               <p className="mt-1.5 text-[12.5px] text-destructive">
                                 {erroEdicaoDestinatario}
@@ -711,9 +766,12 @@ export default function Notificacoes() {
                             )}
                           </>
                         ) : (
-                          <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                          <p className="flex items-center gap-2.5 text-sm text-foreground">
                             <Smartphone className="h-3.5 w-3.5" aria-hidden />
-                            {formatarTelefoneWhatsapp(destinatario.telefoneWhatsapp)}
+                            <span className="font-semibold">{destinatario.nome}</span>
+                            <span className="font-medium">
+                              {formatarTelefoneWhatsapp(destinatario.telefoneWhatsapp)}
+                            </span>
                           </p>
                         )}
                       </div>
@@ -751,8 +809,7 @@ export default function Notificacoes() {
                             <Button
                               type="button"
                               variant="glassSecondary"
-                              size="sm"
-                              className="h-8 gap-1.5 px-2.5"
+                              className="h-8 gap-1.5 px-2.5 text-[12.5px]"
                               onClick={() => void handleTesteDestinatario(destinatario)}
                               disabled={destinatarioEmTesteId === destinatario.id}
                               aria-busy={destinatarioEmTesteId === destinatario.id}
