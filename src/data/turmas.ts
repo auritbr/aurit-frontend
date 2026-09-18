@@ -529,7 +529,7 @@ export async function getEquipeOptions(): Promise<EquipeOption[]> {
     .filter((item) => item.id && item.nome)
     .map((item) => ({
       ...item,
-      nome: `${item.nome} (${item.tipo === "INTEGRANTE" ? "Integrante" : "Colaborador"})`,
+      nome: item.nome,
     }))
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
