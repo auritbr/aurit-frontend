@@ -384,8 +384,9 @@ export function getParticipantesVinculadosPresenca(params: {
   participantes: ParticipanteApiDTO[];
   atividadeId: string;
   turmaId?: string;
+  dataPresenca: string;
 }): ParticipanteRow[] {
-  const { participantes, atividadeId, turmaId } = params;
+  const { participantes, atividadeId, turmaId, dataPresenca } = params;
 
   const vinculados = participantes.filter((participante) =>
     getVinculosParticipante(participante).some((vinculo) => {
@@ -400,6 +401,13 @@ export function getParticipantesVinculadosPresenca(params: {
       if (!mesmaAtividade) return false;
 
       if (!matriculaPermitePresenca(vinculo.statusMatricula)) {
+        return false;
+      }
+
+      if (
+        !vinculo.dataMatricula ||
+        vinculo.dataMatricula.slice(0, 10) > dataPresenca
+      ) {
         return false;
       }
 

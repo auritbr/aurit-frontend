@@ -247,6 +247,9 @@ export default function Presencas() {
   const handleDataAulaChange = (value: string) => {
     setDataAula(value);
     setPlanoAulaId("");
+    setSearched(false);
+    setRows([]);
+    setNextStepCard(null);
 
     const year = value ? value.split("-")[0] : "";
 
@@ -261,10 +264,16 @@ export default function Presencas() {
       return;
     }
 
+    if (!dataAula) {
+      toast.error("Informe a data da aula para buscar os participantes.");
+      return;
+    }
+
     const nextRows = getParticipantesVinculadosPresenca({
       participantes,
       atividadeId,
       turmaId,
+      dataPresenca: dataAula,
     });
 
     if (nextRows.length === 0) {
