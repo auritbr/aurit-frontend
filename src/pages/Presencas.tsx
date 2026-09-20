@@ -249,6 +249,11 @@ export default function Presencas() {
     setPlanoAulaId("");
     setNextStepCard(null);
     if (searched && atividadeId) {
+      if (rows.some((row) => row.status !== "PRESENTE")) {
+        toast.info(
+          "A data da aula mudou. Confira novamente os status antes de salvar.",
+        );
+      }
       setRows(
         getParticipantesVinculadosPresenca({
           participantes,
