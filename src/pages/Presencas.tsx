@@ -247,9 +247,17 @@ export default function Presencas() {
   const handleDataAulaChange = (value: string) => {
     setDataAula(value);
     setPlanoAulaId("");
-    setSearched(false);
-    setRows([]);
     setNextStepCard(null);
+    if (searched && atividadeId) {
+      setRows(
+        getParticipantesVinculadosPresenca({
+          participantes,
+          atividadeId,
+          turmaId,
+          dataPresenca: value,
+        }),
+      );
+    }
 
     const year = value ? value.split("-")[0] : "";
 
@@ -261,11 +269,6 @@ export default function Presencas() {
   const handleBuscar = () => {
     if (!atividadeId) {
       toast.error("Selecione uma atividade para buscar.");
-      return;
-    }
-
-    if (!dataAula) {
-      toast.error("Informe a data da aula para buscar os participantes.");
       return;
     }
 
@@ -547,6 +550,9 @@ export default function Presencas() {
                       value={dataAula}
                       onChange={(e) => handleDataAulaChange(e.target.value)}
                     />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      A lista será ajustada automaticamente à data de matrícula dos participantes.
+                    </p>
                   </div>
 
                   <div className="md:col-span-6">
@@ -667,7 +673,9 @@ export default function Presencas() {
                     <Users className="mx-auto h-10 w-10 text-muted-foreground/40" />
 
                     <p className="mt-3 text-sm text-muted-foreground">
-                      Nenhum participante vinculado a esta atividade/turma.
+                      {dataAula
+                        ? "Nenhum participante matriculado nesta atividade/turma até a data da aula."
+                        : "Nenhum participante vinculado a esta atividade/turma."}
                     </p>
                   </div>
                 ) : (

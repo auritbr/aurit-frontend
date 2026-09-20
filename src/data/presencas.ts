@@ -384,7 +384,7 @@ export function getParticipantesVinculadosPresenca(params: {
   participantes: ParticipanteApiDTO[];
   atividadeId: string;
   turmaId?: string;
-  dataPresenca: string;
+  dataPresenca?: string;
 }): ParticipanteRow[] {
   const { participantes, atividadeId, turmaId, dataPresenca } = params;
 
@@ -405,8 +405,9 @@ export function getParticipantesVinculadosPresenca(params: {
       }
 
       if (
-        !vinculo.dataMatricula ||
-        vinculo.dataMatricula.slice(0, 10) > dataPresenca
+        dataPresenca &&
+        (!vinculo.dataMatricula ||
+          vinculo.dataMatricula.slice(0, 10) > dataPresenca)
       ) {
         return false;
       }
