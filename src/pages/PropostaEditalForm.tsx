@@ -241,8 +241,7 @@ export default function PropostaEditalForm() {
   const editalSelectValue =
     form.edital || normalizeId(existingProposta?.edital);
 
-  const projetoSelectValue =
-    form.projeto || normalizeId(existingProposta?.projeto);
+  const projetoSelectValue = form.projeto;
 
   const agenteSelectValue =
     form.agente || normalizeId(existingProposta?.agente);
@@ -377,7 +376,6 @@ export default function PropostaEditalForm() {
       ["impactoEsperado", "Informe o impacto esperado."],
       ["organizacao", "Selecione a organização."],
       ["edital", "Selecione o edital."],
-      ["projeto", "Selecione o projeto base."],
       ["agente", "Selecione o agente responsável."],
       ["statusPropostaEdital", "Selecione a situação da proposta."],
     ];
@@ -596,8 +594,7 @@ export default function PropostaEditalForm() {
               <Field>
                 <FieldLabel
                   htmlFor="projeto"
-                  required
-                  tooltip="Selecione o projeto já cadastrado que servirá como base para esta proposta. As informações da proposta podem ser adaptadas para atender às exigências específicas do edital."
+                  tooltip="Opcionalmente, selecione um projeto já cadastrado que servirá como base para esta proposta."
                 >
                   Projeto de Referência
                 </FieldLabel>
@@ -606,7 +603,7 @@ export default function PropostaEditalForm() {
                   value={projetoSelectValue}
                   onValueChange={(value) => {
                     if (visualizando) return;
-                    set("projeto", normalizeId(value));
+                    set("projeto", value === "sem-projeto" ? "" : normalizeId(value));
                   }}
                   disabled={bloqueado}
                 >
@@ -615,8 +612,9 @@ export default function PropostaEditalForm() {
                   </SelectTrigger>
 
                   <SelectContent>
+                    <SelectItem value="sem-projeto">Sem projeto de referência</SelectItem>
                     {projetosComFallback.length === 0 ? (
-                      <SelectItem value="sem-projeto" disabled>
+                      <SelectItem value="nenhum-projeto-cadastrado" disabled>
                         Nenhum projeto cadastrado
                       </SelectItem>
                     ) : (
