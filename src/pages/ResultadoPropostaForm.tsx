@@ -541,23 +541,13 @@ export default function ResultadoPropostaForm() {
 
     const pontuacao = parsePontuacao(formComProposta.pontuacao);
 
-    if (pontuacao === null) {
-      toast.error("Informe a pontuação.");
+    if (formComProposta.pontuacao.trim() && pontuacao === null) {
+      toast.error("Informe uma pontuação válida.");
       return;
     }
 
-    if (pontuacao < 0) {
+    if (pontuacao !== null && pontuacao < 0) {
       toast.error("A pontuação não pode ser negativa.");
-      return;
-    }
-
-    if (criando && !novoRelatorio) {
-      toast.error("Anexe o relatório de avaliação.");
-      return;
-    }
-
-    if (editando && !novoRelatorio && !formComProposta.urlRelatorioAvaliacao) {
-      toast.error("Anexe o relatório de avaliação.");
       return;
     }
 
@@ -845,8 +835,7 @@ export default function ResultadoPropostaForm() {
                 <Field>
                   <FieldLabel
                     htmlFor="pontuacao"
-                    required
-                    tooltip="Informe a pontuação final atribuída ao projeto, conforme o resultado, parecer ou relatório de avaliação. Utilize o mesmo valor divulgado oficialmente."
+                    tooltip="Quando houver, informe a pontuação final atribuída ao projeto conforme o resultado, parecer ou relatório de avaliação."
                   >
                     Pontuação
                   </FieldLabel>
