@@ -1,3 +1,4 @@
+import { useDoadorConversion } from "@/hooks/useDoadorConversion";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -86,6 +87,7 @@ const normalize = (v: string) =>
 
 export default function FornecedoresPage() {
   const navigate = useNavigate();
+  const { doadorAction, doadorDialog } = useDoadorConversion("Fornecedor");
   const [items, setItems] = useState<Fornecedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -428,6 +430,7 @@ export default function FornecedoresPage() {
                               viewTo={`/fornecedores/${f.id}`}
                               editTo={`/fornecedores/${f.id}/editar`}
                               onDelete={() => setConfirmDelete(f.id)}
+                              extraItems={[doadorAction(f)]}
                             />
                           </td>
                           <td className="px-6 py-2.5">
@@ -491,6 +494,7 @@ export default function FornecedoresPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {doadorDialog}
       <WikiFloatingButton
         pageTitle="Fornecedores"
         href="/wiki/financeiro/fornecedores"

@@ -1,3 +1,4 @@
+import { useDoadorConversion } from "@/hooks/useDoadorConversion";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, Plus, RotateCcw, Search, FileText, Copy } from "lucide-react";
@@ -147,6 +148,7 @@ interface ParticipanteNextStepCardData {
 
 export default function Participantes() {
   const navigate = useNavigate();
+  const { doadorAction, doadorDialog } = useDoadorConversion("Participante");
   const [items, setItems] = useState<Participante[]>([]);
   const [atividades, setAtividades] = useState<AtividadeOption[]>([]);
   const [turmas, setTurmas] = useState<TurmaOption[]>([]);
@@ -1002,6 +1004,7 @@ export default function Participantes() {
                                 extraItems={[
                                   ...(podeCriar
                                     ? [
+                                        doadorAction(p),
                                         {
                                           label: "Duplicar",
                                           icon: Copy,
@@ -1099,6 +1102,7 @@ export default function Participantes() {
                           extraItems={[
                             ...(podeCriar
                               ? [
+                                  doadorAction(p),
                                   {
                                     label: "Duplicar",
                                     icon: Copy,
@@ -1195,6 +1199,7 @@ export default function Participantes() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {doadorDialog}
       <WikiFloatingButton
         pageTitle="Participantes"
         href="https://www.aurit.com.br/wiki/pessoas/participantes"

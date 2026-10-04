@@ -1,3 +1,4 @@
+import { useDoadorConversion } from "@/hooks/useDoadorConversion";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, RotateCcw, Search, UserPlus } from "lucide-react";
@@ -108,6 +109,7 @@ interface NextStepData {
 
 export default function Integrantes() {
   const navigate = useNavigate();
+  const { doadorAction, doadorDialog } = useDoadorConversion("Integrante");
   const [items, setItems] = useState<Integrante[]>([]);
   const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -658,6 +660,7 @@ export default function Integrantes() {
                               extraItems={
                                 podeCriar
                                   ? [
+                                      doadorAction(item),
                                       {
                                         label: "Converter em colaborador",
                                         icon: UserPlus,
@@ -748,6 +751,7 @@ export default function Integrantes() {
                           extraItems={
                             podeCriar
                               ? [
+                                  doadorAction(item),
                                   {
                                     label: "Converter em colaborador",
                                     icon: UserPlus,
@@ -827,6 +831,7 @@ export default function Integrantes() {
         onConfirm={handleConvert}
       />
 
+      {doadorDialog}
       <WikiFloatingButton
         pageTitle="Integrantes"
         href="/wiki/pessoas/integrantes"

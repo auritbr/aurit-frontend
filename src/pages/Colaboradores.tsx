@@ -1,3 +1,4 @@
+import { useDoadorConversion } from "@/hooks/useDoadorConversion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -125,6 +126,7 @@ interface ColaboradorNextStepCardData {
 
 export default function Colaboradores() {
   const navigate = useNavigate();
+  const { doadorAction, doadorDialog } = useDoadorConversion("Colaborador");
   const tableRef = useRef<HTMLTableElement>(null);
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<Colaborador[]>([]);
@@ -785,6 +787,7 @@ export default function Colaboradores() {
                                 extraItems={
                                   podeCriar
                                     ? [
+                                        doadorAction(c),
                                         {
                                           label: "Converter em Diretoria",
                                           icon: Landmark,
@@ -880,6 +883,7 @@ export default function Colaboradores() {
                               extraItems={
                                 podeCriar
                                   ? [
+                                      doadorAction(c),
                                       {
                                         label: "Converter em Diretoria",
                                         icon: Landmark,
@@ -984,6 +988,7 @@ export default function Colaboradores() {
         }}
       />
 
+      {doadorDialog}
       <WikiFloatingButton
         pageTitle="Colaboradores"
         href="https://www.aurit.com.br/wiki/pessoas/colaboradores"

@@ -644,6 +644,9 @@ export default function DoadorForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const conversionSeed = (
+    location.state as { conversionSeed?: { data?: Partial<FormState> } } | null
+  )?.conversionSeed;
 
   const isView = !!id && !location.pathname.endsWith("/editar");
 
@@ -659,6 +662,9 @@ export default function DoadorForm() {
 
   useEffect(() => {
     if (!id) {
+      if (conversionSeed?.data) {
+        setForm({ ...initial, ...conversionSeed.data });
+      }
       return;
     }
 
@@ -696,7 +702,7 @@ export default function DoadorForm() {
     return () => {
       active = false;
     };
-  }, [id, navigate]);
+  }, [conversionSeed?.data, id, navigate]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((p) => ({
