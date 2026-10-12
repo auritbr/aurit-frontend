@@ -54,7 +54,7 @@ import {
   deleteAtividade,
   formatDateBr,
   getAtividades,
-  getColaboradoresOptions,
+  getEquipeOptions,
   getProjetosOptions,
   statusAtividade,
   statusValueToLabel,
@@ -226,7 +226,7 @@ export default function Atividades() {
           await Promise.all([
             getAtividades(),
             getProjetosOptions(),
-            getColaboradoresOptions(),
+            getEquipeOptions(),
           ]);
         if (!active) return;
 
@@ -240,10 +240,10 @@ export default function Atividades() {
           atividadesData.map((atividade) => ({
             ...atividade,
             projetoNome: projetosMap.get(atividade.projetoId) ?? "—",
-            colaboradoresNomes: atividade.colaboradoresIds.map(
-              (colaboradorId) =>
-                colaboradoresMap.get(colaboradorId) ?? `ID ${colaboradorId}`,
-            ),
+            colaboradoresNomes: [
+              ...atividade.colaboradoresIds,
+              ...(atividade.integrantesIds ?? []).map((id) => `integrante:${id}`),
+            ].map((id) => colaboradoresMap.get(id) ?? `ID ${id}`),
           })),
         );
       } catch (error) {

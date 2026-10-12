@@ -31,7 +31,7 @@ import {
   buildAtividadePayload,
   createAtividade,
   getAtividadeById,
-  getColaboradoresOptions,
+  getEquipeOptions,
   getProjetosOptions,
   statusAtividade,
   tiposAtividade,
@@ -117,7 +117,10 @@ function mapAtividadeToForm(atividade: Atividade): FormState {
     status: atividade.status ?? "",
     projeto: atividade.projetoId ?? "",
     projetoNome: atividade.projetoNome ?? "",
-    colaboradores: atividade.colaboradoresIds ?? [],
+    colaboradores: [
+      ...(atividade.colaboradoresIds ?? []),
+      ...(atividade.integrantesIds ?? []).map((id) => `integrante:${id}`),
+    ],
   };
 }
 
@@ -191,7 +194,7 @@ export default function AtividadeForm() {
         const [projetosData, colaboradoresData, atividadeData] =
           await Promise.all([
             getProjetosOptions(),
-            getColaboradoresOptions(),
+            getEquipeOptions(),
             id || duplicarId
               ? getAtividadeById(Number(id ?? duplicarId))
               : Promise.resolve(null),
@@ -377,7 +380,10 @@ export default function AtividadeForm() {
       status: formComProjeto.status,
       projetoId: formComProjeto.projeto,
       projetoNome: formComProjeto.projetoNome,
-      colaboradoresIds: formComProjeto.colaboradores,
+      colaboradoresIds: formComProjeto.colaboradores.filter((id) => !id.startsWith("integrante:")),
+      integrantesIds: formComProjeto.colaboradores
+        .filter((id) => id.startsWith("integrante:"))
+        .map((id) => id.slice("integrante:".length)),
       colaboradoresNomes: [],
     };
 

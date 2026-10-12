@@ -117,6 +117,7 @@ export interface AtividadeDTO {
     | string
     | null;
 
+  integrantesIds?: Array<number | string> | null;
   colaboradoresIds?: Array<number | string> | null;
   colaboradores?: Array<{
     id?: number | string | null;
@@ -135,6 +136,7 @@ export interface Atividade {
   status: string;
   projetoId: string;
   projetoNome?: string;
+  integrantesIds: string[];
   colaboradoresIds: string[];
   colaboradoresNomes: string[];
   dataInicio: string;
@@ -249,6 +251,7 @@ export function mapAtividade(dto: AtividadeDTO): Atividade {
         projetoRecord?.nome,
         projetoRecord?.titulo,
       ) || undefined,
+    integrantesIds: (dto.integrantesIds ?? []).map(normalizeId).filter(Boolean),
     colaboradoresIds: extractColaboradoresIds(dto),
     colaboradoresNomes: extractColaboradoresNomes(dto),
     dataInicio: dto.dataInicio ?? "",
@@ -275,6 +278,7 @@ export function buildAtividadePayload(data: Atividade): AtividadeDTO {
     tipoAtividade: data.tipoAtividade,
     status: data.status,
     projetoId: Number(data.projetoId),
+    integrantesIds: (data.integrantesIds ?? []).map(Number).filter((id) => Number.isFinite(id) && id > 0),
     colaboradoresIds: (data.colaboradoresIds ?? [])
       .filter(
         (id) => id !== null && id !== undefined && String(id).trim() !== "",
@@ -428,4 +432,16 @@ export async function getColaboradoresOptions(): Promise<ColaboradorOption[]> {
       };
     })
     .filter((colaborador) => colaborador.id);
+}
+
+export async function getEquipeOptions(): Promise<ColaboradorOption[]> {
+  const response = await fetch(`${API_URL}/atividades/equipe-options`, {
+    method: "GET",
+    headers: getJsonHeaders(),
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+  const equipe: ColaboradorOption[] = await response.json();
+  return (Array.isArray(equipe) ? equipe : [])
+    .filter((item) => item.id && item.nome)
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
