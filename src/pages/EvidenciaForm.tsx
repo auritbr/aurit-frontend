@@ -94,10 +94,10 @@ const TOOLTIP_ATIVIDADE =
   "Selecione a atividade em que a aula foi realizada. As opções apresentadas correspondem às atividades vinculadas ao projeto selecionado.";
 
 const TOOLTIP_TURMA =
-  "Selecione a turma em que a evidência foi produzida. Serão apresentadas somente as turmas vinculadas à atividade escolhida.";
+  "Se houver, selecione a turma em que a evidência foi produzida. Serão apresentadas somente as turmas vinculadas à atividade escolhida.";
 
 const TOOLTIP_PLANO_AULA =
-  "Selecione o plano de aula correspondente ao encontro registrado nas fotografias. A data da aula será preenchida automaticamente a partir desse cadastro.";
+  "Se houver, selecione o plano de aula correspondente ao encontro registrado nas fotografias. A data da aula será preenchida automaticamente a partir desse cadastro.";
 
 const TOOLTIP_DATA_AULA =
   "Esta data é preenchida automaticamente a partir do Plano de Aula selecionado e identifica quando o encontro registrado ocorreu.";
@@ -188,9 +188,9 @@ export default function EvidenciaForm() {
     queryFn: () =>
       getPlanosAulaEvidenciaOptions(
         Number(form.atividadeId),
-        Number(form.turmaId),
+        form.turmaId ? Number(form.turmaId) : undefined,
       ),
-    enabled: form.contexto === "AULA" && !!form.atividadeId && !!form.turmaId,
+    enabled: form.contexto === "AULA" && !!form.atividadeId,
     retry: false,
   });
 
@@ -371,9 +371,9 @@ export default function EvidenciaForm() {
 
       if (
         form.contexto === "AULA" &&
-        (!form.atividadeId || !form.turmaId || !form.planoAulaId)
+        !form.atividadeId
       ) {
-        throw new Error("Selecione a atividade, a turma e o plano de aula.");
+        throw new Error("Selecione a atividade.");
       }
 
       if (form.contexto === "EVENTO_CULTURAL" && !form.eventoCulturalId) {
@@ -400,8 +400,8 @@ export default function EvidenciaForm() {
         tipoEvidencia: "FOTO",
         projetoId: Number(form.projetoId),
         atividadeId: form.contexto === "AULA" ? Number(form.atividadeId) : null,
-        turmaId: form.contexto === "AULA" ? Number(form.turmaId) : null,
-        planoAulaId: form.contexto === "AULA" ? Number(form.planoAulaId) : null,
+        turmaId: form.contexto === "AULA" && form.turmaId ? Number(form.turmaId) : null,
+        planoAulaId: form.contexto === "AULA" && form.planoAulaId ? Number(form.planoAulaId) : null,
         eventoCulturalId:
           form.contexto === "EVENTO_CULTURAL"
             ? Number(form.eventoCulturalId)
@@ -645,7 +645,7 @@ export default function EvidenciaForm() {
             <FormSectionCard
               icon={CalendarDays}
               title="Encontro registrado"
-              description="Identifique a atividade, a turma e o plano de aula correspondentes ao encontro em que a evidência foi produzida."
+              description="Selecione a atividade. Turma e plano de aula podem ser informados quando houver."
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <SelectField
@@ -684,7 +684,6 @@ export default function EvidenciaForm() {
                     nome: nameWithYear(turma.nome, atividadeNome),
                   }))}
                   disabled={!form.atividadeId || turmasQ.isLoading}
-                  required
                 />
 
                 <SelectField
@@ -699,8 +698,8 @@ export default function EvidenciaForm() {
                     }))
                   }
                   placeholder={
-                    !form.turmaId
-                      ? "Selecione primeiro uma turma"
+                    !form.atividadeId
+                      ? "Selecione primeiro uma atividade"
                       : planosQ.isLoading
                         ? "Carregando planos de aula..."
                         : "Selecione um plano de aula"
@@ -709,8 +708,7 @@ export default function EvidenciaForm() {
                     id: p.id,
                     nome: `${dataBR(p.dataInicio)} — ${p.nome || "Aula"}`,
                   }))}
-                  disabled={!form.turmaId || planosQ.isLoading}
-                  required
+                  disabled={!form.atividadeId || planosQ.isLoading}
                 />
 
                 {form.planoAulaId && (
@@ -970,12 +968,13 @@ function SelectField({
         {label}
       </FieldLabel>
 
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <Select value={value} onValueChange={(v) => onChange(v === "__none__" ? "" : v)} disabled={disabled}>
         <SelectTrigger id={id}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
 
         <SelectContent>
+          {!required && <SelectItem value="__none__">Não informado</SelectItem>}
           {options.length ? (
             options.map((item) => (
               <SelectItem key={item.id} value={item.id}>

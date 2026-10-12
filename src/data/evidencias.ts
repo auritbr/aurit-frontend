@@ -855,12 +855,12 @@ export async function getTurmasEvidenciaOptions(
 
 export async function getPlanosAulaEvidenciaOptions(
   atividadeId: number,
-  turmaId: number,
+  turmaId?: number,
 ): Promise<PlanoAulaEvidenciaOption[]> {
   const params = new URLSearchParams({
     atividadeId: String(atividadeId),
-    turmaId: String(turmaId),
   });
+  if (turmaId != null) params.set("turmaId", String(turmaId));
   const response = await fetch(`${API_URL}/planos-aula?${params}`, {
     headers: getJsonHeaders(),
   });
