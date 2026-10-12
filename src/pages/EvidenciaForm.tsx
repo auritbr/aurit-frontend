@@ -314,6 +314,7 @@ export default function EvidenciaForm() {
   const gallery = existingImages.map((image, index) => ({
     id: image.id,
     nome: image.nomeOriginal,
+    contentType: image.contentType,
     url: imageQueries[index]?.data,
   }));
 
@@ -380,7 +381,7 @@ export default function EvidenciaForm() {
       }
 
       if (existingImages.length + newImages.length > 10) {
-        throw new Error("É possível adicionar até 10 imagens por registro.");
+        throw new Error("É possível adicionar até 10 arquivos por registro.");
       }
 
       const validLinks = links.filter(
@@ -548,8 +549,8 @@ export default function EvidenciaForm() {
 
               <FormSectionCard
                 icon={Images}
-                title="Fotografias"
-                description="Consulte as fotografias anexadas para comprovar a realização da ação registrada."
+                title="Arquivos"
+                description="Consulte as imagens e os PDFs anexados para comprovar a realização da ação registrada."
               >
                 <EvidenciaGaleria imagens={gallery} />
               </FormSectionCard>
@@ -851,8 +852,8 @@ export default function EvidenciaForm() {
 
               <FormSectionCard
                 icon={Images}
-                title="Fotografias"
-                description="Adicione fotografias quando estiverem disponíveis. Elas também podem ser incluídas depois, ao editar a evidência."
+                title="Arquivos"
+                description="Adicione imagens ou PDFs quando estiverem disponíveis. Eles também podem ser incluídos depois, ao editar a evidência."
               >
                 <EvidenciaImagensUploader
                   imagensAtuais={existingImagesWithUrls}
@@ -1033,8 +1034,8 @@ const wiki = [
       "Registrar fotografias e links que comprovam aulas e eventos culturais.",
   },
   {
-    title: "Fotografias",
-    content: "Até 10 imagens de 5 MB em JPEG, JPG, PNG ou WEBP.",
+    title: "Arquivos",
+    content: "Até 10 arquivos de 5 MB em JPEG, JPG, PNG, WEBP ou PDF.",
   },
   {
     title: "Informações automáticas",

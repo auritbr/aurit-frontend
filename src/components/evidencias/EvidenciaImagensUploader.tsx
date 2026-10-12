@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Images, Upload, X } from "lucide-react";
+import { FileText, Images, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { EvidenciaImagem } from "@/data/evidencias";
@@ -11,7 +11,7 @@ export interface NovaImagemEvidencia {
 }
 const MAX_FILES = 10;
 const MAX_SIZE = 5 * 1024 * 1024;
-const TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 export function EvidenciaImagensUploader({
   imagensAtuais,
   onRemoverAtual,
@@ -44,16 +44,16 @@ export function EvidenciaImagensUploader({
     Array.from(files).forEach((file) => {
       if (valid.length >= slots) {
         toast.error(
-          `É possível adicionar até ${MAX_FILES} imagens por registro.`,
+          `É possível adicionar até ${MAX_FILES} arquivos por registro.`,
         );
         return;
       }
       if (!TYPES.has(file.type)) {
-        toast.error(`O formato da imagem '${file.name}' não é permitido.`);
+        toast.error(`O formato do arquivo '${file.name}' não é permitido.`);
         return;
       }
       if (file.size > MAX_SIZE) {
-        toast.error(`A imagem '${file.name}' ultrapassa o limite de 5 MB.`);
+        toast.error(`O arquivo '${file.name}' ultrapassa o limite de 5 MB.`);
         return;
       }
       valid.push({
@@ -76,7 +76,7 @@ export function EvidenciaImagensUploader({
         ref={inputRef}
         type="file"
         multiple
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png,image/webp,application/pdf,.pdf"
         className="hidden"
         onChange={(e) => choose(e.target.files)}
         disabled={disabled}
@@ -91,10 +91,10 @@ export function EvidenciaImagensUploader({
         }
       >
         <Upload className="h-4 w-4" />
-        Selecionar fotografias
+        Selecionar arquivos
       </Button>
       <p className="text-[12px] text-muted-foreground">
-        Até 10 imagens, com no máximo 5 MB cada, em JPEG, JPG, PNG ou WEBP.
+        Até 10 arquivos, com no máximo 5 MB cada, em JPEG, JPG, PNG, WEBP ou PDF.
       </p>
       {imagensAtuais.length + novasImagens.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -108,11 +108,18 @@ export function EvidenciaImagensUploader({
               key={image.id}
               className="attachment-file-glass relative overflow-hidden rounded-[13px]"
             >
+              {image.file.type === "application/pdf" ? (
+                <a href={image.previewUrl} target="_blank" rel="noopener noreferrer" className="flex aspect-[4/3] flex-col items-center justify-center gap-2 text-primary">
+                  <FileText className="h-9 w-9" />
+                  <span className="text-sm">Abrir PDF</span>
+                </a>
+              ) : (
               <img
                 src={image.previewUrl}
                 alt={image.file.name}
                 className="aspect-[4/3] w-full object-cover"
               />
+              )}
               <figcaption className="truncate px-2.5 py-2 text-[11px] text-muted-foreground">
                 {image.file.name}
               </figcaption>
@@ -132,7 +139,7 @@ export function EvidenciaImagensUploader({
       {imagensAtuais.length + novasImagens.length === 0 && (
         <div className="flex items-center gap-2 rounded-[12px] border border-dashed border-border/70 px-4 py-6 text-[13px] text-muted-foreground">
           <Images className="h-4 w-4" />
-          Nenhuma fotografia selecionada.
+          Nenhum arquivo selecionado.
         </div>
       )}
     </div>
@@ -154,7 +161,12 @@ function Existing({
           key={image.id}
           className="attachment-file-glass relative overflow-hidden rounded-[13px]"
         >
-          {image.visualizacaoUrl ? (
+          {image.contentType === "application/pdf" ? (
+            <a href={image.visualizacaoUrl} target="_blank" rel="noopener noreferrer" className="flex aspect-[4/3] flex-col items-center justify-center gap-2 text-primary">
+              <FileText className="h-9 w-9" />
+              <span className="text-sm">{image.visualizacaoUrl ? "Abrir PDF" : "PDF"}</span>
+            </a>
+          ) : image.visualizacaoUrl ? (
             <img
               src={image.visualizacaoUrl}
               alt={image.nomeOriginal}

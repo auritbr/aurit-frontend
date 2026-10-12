@@ -90,7 +90,7 @@ const sortByOptions = [
   { value: "contexto", label: "Contexto" },
   { value: "projeto", label: "Projeto" },
   { value: "referencia", label: "Referência" },
-  { value: "imagens", label: "Quantidade de imagens" },
+  { value: "imagens", label: "Quantidade de arquivos" },
 ] as const;
 type SortBy = (typeof sortByOptions)[number]["value"];
 type SortDir = "asc" | "desc";
@@ -421,7 +421,7 @@ export default function EvidenciasPage() {
     { header: "Projeto", key: "projeto" },
     { header: "Referência", key: "referencia" },
     { header: "Data", key: "data" },
-    { header: "Imagens", key: "imagens" },
+    { header: "Arquivos", key: "imagens" },
     { header: "Links", key: "links" },
   ];
   const getExportData = () =>
@@ -483,7 +483,7 @@ export default function EvidenciasPage() {
             icon={Camera}
           />
           <SummaryStatCard
-            title="Registros fotográficos"
+            title="Arquivos anexados"
             value={stats.imagens}
             icon={Images}
             variant="info"
@@ -709,7 +709,7 @@ export default function EvidenciasPage() {
                             {k === "referencia"
                               ? "Referência"
                               : k === "imagens"
-                                ? "Imagens"
+                                ? "Arquivos"
                                 : `${k[0].toUpperCase()}${k.slice(1)}`}
                           </SortableTh>
                         ))}
@@ -766,7 +766,7 @@ export default function EvidenciasPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir evidência?</AlertDialogTitle>
             <AlertDialogDescription>
-              As fotografias e os links deste registro serão removidos. Esta
+              Os arquivos e os links deste registro serão removidos. Esta
               ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -888,7 +888,7 @@ function DesktopRow({
         {dataBR(item.dataReferencia) || "—"}
       </td>
       <td className="px-5 py-2.5 text-[13px] text-muted-foreground">
-        {countText(item.quantidadeImagens, "imagem", "imagens")}
+        {countText(item.quantidadeImagens, "arquivo", "arquivos")}
       </td>
       <td className="px-5 py-2.5 text-[13px] text-muted-foreground">
         {countText(item.quantidadeLinks, "link", "links")}
@@ -923,7 +923,7 @@ function MobileRow(props: Parameters<typeof DesktopRow>[0]) {
         {item.projeto?.nome ?? "—"} · {dataBR(item.dataReferencia) || "—"}
       </p>
       <p className="mt-2 text-xs text-muted-foreground">
-        {countText(item.quantidadeImagens, "imagem", "imagens")} ·{" "}
+        {countText(item.quantidadeImagens, "arquivo", "arquivos")} ·{" "}
         {countText(item.quantidadeLinks, "link", "links")}
       </p>
     </div>
@@ -973,7 +973,7 @@ const wiki = [
       "Reunir fotografias e links que comprovam aulas e eventos culturais.",
   },
   {
-    title: "Fotografias",
-    content: "Até 10 imagens de 5 MB nos formatos JPEG, JPG, PNG ou WEBP.",
+    title: "Arquivos",
+    content: "Até 10 arquivos de 5 MB nos formatos JPEG, JPG, PNG, WEBP ou PDF.",
   },
 ];

@@ -1,14 +1,15 @@
-import { Images } from "lucide-react";
+import { FileText, Images } from "lucide-react";
 export interface ImagemGaleria {
   id: number;
   nome: string;
+  contentType?: string;
   url?: string;
 }
 export function EvidenciaGaleria({ imagens }: { imagens: ImagemGaleria[] }) {
   if (!imagens.length)
     return (
       <p className="text-[13px] text-muted-foreground">
-        Nenhuma fotografia anexada.
+        Nenhum arquivo anexado.
       </p>
     );
   return (
@@ -22,11 +23,18 @@ export function EvidenciaGaleria({ imagens }: { imagens: ImagemGaleria[] }) {
             rel="noopener noreferrer"
             className="group overflow-hidden rounded-[13px] border border-border/60 bg-background/60"
           >
+            {image.contentType === "application/pdf" ? (
+              <div className="flex aspect-[4/3] flex-col items-center justify-center gap-2 text-primary">
+                <FileText className="h-9 w-9" />
+                <span className="text-sm">Abrir PDF</span>
+              </div>
+            ) : (
             <img
               src={image.url}
               alt={image.nome}
               className="aspect-[4/3] w-full object-cover transition-transform group-hover:scale-[1.02]"
             />
+            )}
             <p className="truncate px-2.5 py-2 text-[11px] text-muted-foreground">
               {image.nome}
             </p>

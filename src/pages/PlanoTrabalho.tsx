@@ -658,12 +658,16 @@ function PlanoEvidenciaImagem({
     <figure className="attachment-file-glass overflow-hidden rounded-[13px]">
       {url && !falhou ? (
         <a href={url} target="_blank" rel="noopener noreferrer">
+          {/\.pdf$/i.test(imagem.nome ?? "") ? (
+            <div className="flex aspect-[4/3] items-center justify-center text-sm text-primary">Abrir PDF</div>
+          ) : (
           <img
             src={url}
             alt={imagem.nome || "Imagem da evidência"}
             className="aspect-[4/3] w-full object-cover"
             onError={() => setFalhou(true)}
           />
+          )}
         </a>
       ) : (
         <div className="flex aspect-[4/3] items-center justify-center bg-muted/25 text-muted-foreground">
