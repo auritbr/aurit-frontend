@@ -972,7 +972,7 @@ export function ReportTable<T>({
                         ),
                       filters: pdfExport.filters,
                       filterLabels: pdfExport.filterLabels,
-                      sortKey,
+                      sortKey: columns.find((column) => column.key === sortKey)?.pdfKey ?? sortKey,
                       sortDirection: sortDir,
                     })
                 : undefined

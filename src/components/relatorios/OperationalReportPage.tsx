@@ -402,6 +402,20 @@ function columnsFor(kind: Kind): ReportTableColumn<Row>[] {
     ...base[kind].map(([key, label], index) => ({
       key,
       label,
+      pdfKey: kind === "evidencias" ? ({
+        titulo: "titulo_evidencia",
+        tipo: "tipo_evidencia",
+        vinculo: "tipo_vinculo_evidencia",
+        projeto: "projeto",
+        proposta: "proposta_edital",
+        planoAula: "plano_aula",
+        atividade: "atividade",
+        turma: "turma",
+        evento: "evento_cultural",
+        acaoDivulgacao: "acao_divulgacao",
+        presenca: "presenca",
+        observacao: "observacao_evidencia",
+      } as Record<string, string>)[key] : undefined,
       alwaysVisible: index < 2,
       hiddenByDefault: key === "observacao",
       accessor: (row: Row) =>
@@ -422,11 +436,11 @@ function columnsFor(kind: Kind): ReportTableColumn<Row>[] {
           }
         : undefined,
     })),
-    {
+    ...(kind === "evidencias" ? [] : [{
       key: "situacao",
       label: kind === "prestacoes-metas" ? "Cumprimento" : "Situação",
       accessor: (row: Row) => row.situacao,
-    },
+    }]),
   ];
 }
 
@@ -750,25 +764,10 @@ export function OperationalReportPage({ kind }: { kind: Kind }) {
               ],
             ]
           : null;
+  const tableColumns = useMemo(() => columnsFor(kind), [kind]);
   const jasperColumns =
     kind === "evidencias"
-      ? [
-          "titulo_evidencia",
-          "tipo_evidencia",
-          "tipo_vinculo_evidencia",
-          "contexto",
-          "descricao",
-          "projeto",
-          "proposta_edital",
-          "plano_aula",
-          "atividade",
-          "turma",
-          "evento_cultural",
-          "acao_divulgacao",
-          "presenca",
-          "situacao",
-          "observacao_evidencia",
-        ]
+      ? undefined
       : kind === "prestacoes-contas"
         ? [
             "proposta_edital",
@@ -971,7 +970,7 @@ export function OperationalReportPage({ kind }: { kind: Kind }) {
         title={meta.table}
         description={loading ? "Carregando dados atualizados..." : undefined}
         rows={filtered}
-        columns={columnsFor(kind)}
+        columns={tableColumns}
         reportName={meta.title}
         rowKey={(row) => row.id}
         emptyMessage={
@@ -980,7 +979,7 @@ export function OperationalReportPage({ kind }: { kind: Kind }) {
             : "Nenhum registro encontrado com os filtros selecionados."
         }
         pdfExport={
-          jasperColumns
+          jasperColumns || kind === "evidencias"
             ? {
                 slug: kind,
                 columns: jasperColumns,
