@@ -101,8 +101,8 @@ const emptyFiltros: EventosFiltros = {
   projetos: [],
   tipos: [],
   status: [],
-  sortBy: "nome",
-  sortDir: "asc",
+  sortBy: "periodo",
+  sortDir: "desc",
 };
 
 const sortByOptions: Array<{ value: SortBy; label: string }> = [
