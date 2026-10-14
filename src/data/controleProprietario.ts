@@ -86,6 +86,7 @@ export interface PagamentoEmpresa {
   dataAtualizacao?: string;
   /** Identificador da cobrança criada na Cora, quando já emitida. */
   coraInvoiceId?: string | null;
+  cobrancaAvulsa?: boolean;
 }
 
 export interface ConfiguracaoCobranca {
@@ -465,6 +466,8 @@ export async function listarMensalidadesCora(controleId: number) {
       formaPagamento: FormaPagamento | null;
       coraInvoiceId: string | null;
       dataCriacao: string | null;
+      cobrancaAvulsa: boolean;
+      observacao: string | null;
     }>
   >(`/controle-proprietario/cobrancas/mensalidades?controleId=${controleId}`);
 
@@ -477,10 +480,29 @@ export async function listarMensalidadesCora(controleId: number) {
     statusPagamento: mensalidade.status,
     formaPagamento: mensalidade.formaPagamento,
     referenciaExterna: null,
-    observacao: null,
+    observacao: mensalidade.observacao ?? null,
+    cobrancaAvulsa: mensalidade.cobrancaAvulsa,
     dataCriacao: mensalidade.dataCriacao ?? undefined,
     coraInvoiceId: mensalidade.coraInvoiceId,
   }));
+}
+
+export interface CriarCobrancaAvulsaPayload {
+  valor: number;
+  dataVencimento: string;
+  descricao: string | null;
+  chaveIdempotencia: string;
+}
+
+export async function criarCobrancaAvulsa(controleId: number, payload: CriarCobrancaAvulsaPayload) {
+  return apiFetch<{
+    cobranca: { id: number };
+    pagamento: DadosPagamentoCora | null;
+    aviso: string | null;
+  }>(`/controle-proprietario/cobrancas/assinaturas/${controleId}/avulsas`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function emitirCobrancaCora(pagamentoId: number) {
@@ -507,6 +529,8 @@ export async function conciliarMensalidadeCora(pagamentoId: number) {
     formaPagamento: FormaPagamento | null;
     coraInvoiceId: string | null;
     dataCriacao: string | null;
+    cobrancaAvulsa: boolean;
+    observacao: string | null;
   }>(`/controle-proprietario/cobrancas/mensalidades/${pagamentoId}/conciliar`, {
     method: "POST",
   });
@@ -520,7 +544,8 @@ export async function conciliarMensalidadeCora(pagamentoId: number) {
     statusPagamento: mensalidade.status,
     formaPagamento: mensalidade.formaPagamento,
     referenciaExterna: null,
-    observacao: null,
+    observacao: mensalidade.observacao ?? null,
+    cobrancaAvulsa: mensalidade.cobrancaAvulsa,
     dataCriacao: mensalidade.dataCriacao ?? undefined,
     coraInvoiceId: mensalidade.coraInvoiceId,
   } satisfies PagamentoEmpresa;

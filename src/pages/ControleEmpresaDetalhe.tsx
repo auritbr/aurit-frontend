@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ApiError } from "@/lib/api";
 
 import { ProprietarioLayout } from "@/components/ProprietarioLayout";
 import { PageTitle } from "@/components/PageTitle";
@@ -85,6 +86,8 @@ import {
   consultarStatusIntegracaoCora,
   consultarCobrancaCora,
   emitirCobrancaCora,
+  criarCobrancaAvulsa,
+  type CriarCobrancaAvulsaPayload,
   excluirPagamentoEmpresa,
   getPlanoVisualEmpresa,
   listarLogsEmpresa,
@@ -423,6 +426,14 @@ export default function ControleEmpresaDetalhe() {
   const [confirmStatus, setConfirmStatus] =
     useState<StatusControleProprietario | null>(null);
 
+  const [avulsaOpen, setAvulsaOpen] = useState(false);
+  const [salvandoAvulsa, setSalvandoAvulsa] = useState(false);
+  const [valorAvulsa, setValorAvulsa] = useState("");
+  const [vencimentoAvulsa, setVencimentoAvulsa] = useState("");
+  const [descricaoAvulsa, setDescricaoAvulsa] = useState("");
+  // Mantém o pedido após uma falha de rede, inclusive se o usuário fechar o diálogo.
+  const [pedidoAvulsa, setPedidoAvulsa] = useState<CriarCobrancaAvulsaPayload | null>(null);
+  const [erroAvulsa, setErroAvulsa] = useState<string | null>(null);
   const [pagamentoOpen, setPagamentoOpen] = useState(false);
   const [editingPgto, setEditingPgto] = useState<PagamentoEmpresa | null>(null);
   const [viewPgto, setViewPgto] = useState<PagamentoEmpresa | null>(null);
@@ -810,6 +821,48 @@ export default function ControleEmpresaDetalhe() {
       );
     } finally {
       setTestandoCora(false);
+    }
+  }
+
+  async function salvarCobrancaAvulsa() {
+    if (!empresa || salvandoAvulsa || processandoCobrancaId !== null) return;
+    const valor = parseMoney(valorAvulsa);
+    const hoje = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo" }).format(new Date());
+    if (!pedidoAvulsa && (!Number.isFinite(valor) || valor < 5 || valor > 21474836.47)) {
+      setErroAvulsa("Informe um valor entre R$ 5,00 e R$ 21.474.836,47.");
+      return;
+    }
+    if (!pedidoAvulsa && (!vencimentoAvulsa || vencimentoAvulsa < hoje)) {
+      setErroAvulsa("Informe um vencimento para hoje ou uma data futura.");
+      return;
+    }
+    const payload = pedidoAvulsa ?? {
+      valor,
+      dataVencimento: vencimentoAvulsa,
+      descricao: descricaoAvulsa.trim() || null,
+      chaveIdempotencia: crypto.randomUUID(),
+    };
+    setPedidoAvulsa(payload);
+    setErroAvulsa(null);
+    setSalvandoAvulsa(true);
+    try {
+      const resultado = await criarCobrancaAvulsa(empresa.id, payload);
+      setAvulsaOpen(false);
+      setPedidoAvulsa(null);
+      setValorAvulsa("");
+      setVencimentoAvulsa("");
+      setDescricaoAvulsa("");
+      if (resultado.pagamento) setDadosCora(resultado.pagamento);
+      if (resultado.aviso) toast.warning(resultado.aviso, { duration: 10000 });
+      else toast.success("Cobrança avulsa emitida na Cora.");
+      await listarMensalidadesCora(empresa.id).then(setPagamentos).catch(() => {
+        toast.warning("Cobrança registrada. Atualize a página para recarregar a lista.");
+      });
+    } catch (error) {
+      if (error instanceof ApiError && [400, 403, 404].includes(error.status)) setPedidoAvulsa(null);
+      setErroAvulsa(error instanceof Error ? error.message : "Não foi possível criar a cobrança. Tente novamente.");
+    } finally {
+      setSalvandoAvulsa(false);
     }
   }
 
@@ -1281,6 +1334,16 @@ export default function ControleEmpresaDetalhe() {
                 actions={
                   <div className="flex flex-wrap gap-2">
                     <Button
+                      variant="glassPrimary"
+                      size="compact"
+                      className="gap-1.5"
+                      disabled={empresa?.tipoPlano !== "PLANO_PAGO" || empresa?.statusControleProprietario !== "ATIVO" || salvandoAvulsa || processandoCobrancaId !== null}
+                      onClick={() => setAvulsaOpen(true)}
+                    >
+                      <Plus className="h-4 w-4" strokeWidth={2} />
+                      Nova cobrança avulsa
+                    </Button>
+                    <Button
                       variant="glassSecondary"
                       size="compact"
                       className="gap-1.5"
@@ -1328,18 +1391,18 @@ export default function ControleEmpresaDetalhe() {
                           <RowActionsDropdown
                             onView={() => setViewPgto(p)}
                             onEdit={
-                              p.coraInvoiceId
+                              p.coraInvoiceId || p.cobrancaAvulsa
                                 ? undefined
                                 : () => openEditarPagamento(p)
                             }
-                            onDelete={() => setConfirmDeletePgto(p.id)}
+                            onDelete={p.cobrancaAvulsa && !p.coraInvoiceId ? undefined : () => setConfirmDeletePgto(p.id)}
                             extraItems={[
                               ...(p.coraInvoiceId
                                 ? [
                                     {
                                       label: "Ver Pix e boleto",
                                       icon: FileText,
-                                      disabled: processandoCobrancaId !== null,
+                                      disabled: processandoCobrancaId !== null || salvandoAvulsa,
                                       onClick: () => abrirCobrancaCora(p),
                                     },
                                   ]
@@ -1349,7 +1412,7 @@ export default function ControleEmpresaDetalhe() {
                                       {
                                         label: "Emitir na Cora",
                                         icon: FileText,
-                                        disabled: processandoCobrancaId !== null,
+                                        disabled: processandoCobrancaId !== null || salvandoAvulsa,
                                         onClick: () => abrirCobrancaCora(p),
                                       },
                                     ]
@@ -1359,7 +1422,7 @@ export default function ControleEmpresaDetalhe() {
                                     {
                                       label: "Conciliar pagamento",
                                       icon: RefreshCw,
-                                      disabled: processandoCobrancaId !== null,
+                                      disabled: processandoCobrancaId !== null || salvandoAvulsa,
                                       onClick: () => conciliarCobranca(p),
                                     },
                                   ]
@@ -1369,6 +1432,7 @@ export default function ControleEmpresaDetalhe() {
                         </td>
                         <td className="px-5 py-2.5 whitespace-nowrap font-medium text-foreground">
                           {formatCompetencia(p.competencia)}
+                          {p.cobrancaAvulsa && <span className="ml-2 rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">Avulsa</span>}
                         </td>
                         <td className="px-5 py-2.5 whitespace-nowrap text-right tabular-nums">
                           {formatBRL(p.valor)}
@@ -1785,6 +1849,47 @@ export default function ControleEmpresaDetalhe() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={avulsaOpen} onOpenChange={(open) => { if (!salvandoAvulsa) setAvulsaOpen(open); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nova cobrança avulsa</DialogTitle>
+            <DialogDescription>
+              Emita uma cobrança única para {empresa?.nomeEmpresa}. Não gera novas mensalidades nem altera a configuração da assinatura.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(event) => { event.preventDefault(); void salvarCobrancaAvulsa(); }} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="valor-avulsa">Valor *</Label>
+              <Input id="valor-avulsa" inputMode="decimal" placeholder="R$ 0,00" required
+                value={valorAvulsa} disabled={salvandoAvulsa || pedidoAvulsa !== null}
+                onChange={(event) => { setValorAvulsa(maskMoney(event.target.value)); setErroAvulsa(null); }} />
+              <p className="text-xs text-muted-foreground">Valor mínimo para emissão na Cora: R$ 5,00.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="vencimento-avulsa">Vencimento *</Label>
+              <Input id="vencimento-avulsa" type="date" required value={vencimentoAvulsa}
+                min={new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo" }).format(new Date())}
+                disabled={salvandoAvulsa || pedidoAvulsa !== null}
+                onChange={(event) => { setVencimentoAvulsa(event.target.value); setErroAvulsa(null); }} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="descricao-avulsa">Descrição (opcional)</Label>
+              <Textarea id="descricao-avulsa" rows={3} maxLength={255} value={descricaoAvulsa}
+                placeholder="Ex.: Pagamento único do plano Aurit" disabled={salvandoAvulsa || pedidoAvulsa !== null}
+                onChange={(event) => setDescricaoAvulsa(event.target.value)} />
+            </div>
+            {erroAvulsa && <p role="alert" className="text-sm text-destructive">{erroAvulsa}</p>}
+            {erroAvulsa && pedidoAvulsa && <p className="text-xs text-muted-foreground">Tente novamente para consultar ou concluir esta mesma cobrança, sem duplicá-la.</p>}
+            <DialogFooter>
+              <Button type="button" variant="glassSecondary" disabled={salvandoAvulsa} onClick={() => setAvulsaOpen(false)}>Fechar</Button>
+              <Button type="submit" variant="glassPrimary" disabled={salvandoAvulsa || processandoCobrancaId !== null}>
+                {salvandoAvulsa ? "Emitindo..." : pedidoAvulsa ? "Tentar novamente" : "Criar e emitir na Cora"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={cobrancaConfigOpen} onOpenChange={setCobrancaConfigOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -1943,7 +2048,7 @@ export default function ControleEmpresaDetalhe() {
           <DialogHeader className="shrink-0">
             <DialogTitle>Dados da cobrança Cora</DialogTitle>
             <DialogDescription>
-              Consulte as opções de pagamento disponíveis para esta mensalidade.
+              Consulte as opções de pagamento disponíveis para esta cobrança.
             </DialogDescription>
           </DialogHeader>
           {dadosCora && (
