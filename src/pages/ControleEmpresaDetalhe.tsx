@@ -1334,7 +1334,7 @@ export default function ControleEmpresaDetalhe() {
                 actions={
                   <div className="flex flex-wrap gap-2">
                     <Button
-                      variant="glassPrimary"
+                      variant="glassSecondary"
                       size="compact"
                       className="gap-1.5"
                       disabled={empresa?.tipoPlano !== "PLANO_PAGO" || empresa?.statusControleProprietario !== "ATIVO" || salvandoAvulsa || processandoCobrancaId !== null}
