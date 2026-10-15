@@ -276,9 +276,17 @@ export default function AlertasEmail() {
 
         {planoGratuito && (
           <div className="mb-5 rounded-[14px] border border-amber-300/50 bg-amber-50/60 px-4 py-3 text-[13px] leading-relaxed text-amber-950 backdrop-blur-md">
-            No plano gratuito, os alertas de documentos, empréstimos e editais
-            não são enviados. Os avisos de aniversários e de três faltas
+            No plano gratuito, os alertas de documentos, empréstimos, editais,
+            contas a pagar e contas a receber não são enviados. Os avisos de aniversários e de três faltas
             consecutivas permanecem disponíveis.
+          </div>
+        )}
+
+        {!planoGratuito && (
+          <div className="mb-5 rounded-[14px] border border-border/60 bg-muted/30 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
+            Os e-mails ativos também recebem lembretes de contas a pagar e contas a receber em aberto,
+            10 dias antes, 5 dias antes e no dia do vencimento, com nome da conta, valor pendente e data.
+            Contas liquidadas não geram novos lembretes.
           </div>
         )}
 

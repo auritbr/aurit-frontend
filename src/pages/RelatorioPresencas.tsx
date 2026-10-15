@@ -14,6 +14,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
 import { PageObjective } from "@/components/PageObjective";
 import { FieldLabel } from "@/components/FieldLabel";
+import { FormSearchableSelect } from "@/components/FormSearchableSelect";
 import { FilterMultiSelect } from "@/components/FilterMultiSelect";
 import {
   ActiveFilters,
@@ -239,6 +240,12 @@ export default function RelatorioPresencas() {
   const [aplicados, setAplicados] = useState<Filtros>(FILTROS_INICIAIS);
   const [registros, setRegistros] = useState<RegistroPresenca[]>([]);
   const [atividades, setAtividades] = useState<RelatorioOption[]>([]);
+  const atividadesOptions = useMemo(() => [
+    { value: "TODOS", label: "Todas" },
+    ...[...atividades]
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }))
+      .map((item) => ({ value: item.id, label: item.nome })),
+  ], [atividades]);
   const [turmasTodas, setTurmasTodas] = useState<RelatorioOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -504,34 +511,22 @@ export default function RelatorioPresencas() {
                   <FieldLabel htmlFor="pesquisa-atividade">
                     Atividade
                   </FieldLabel>
-                  <Select
+                  <FormSearchableSelect
+                    id="pesquisa-atividade"
                     value={filtros.atividadeId}
-                    onValueChange={(value) =>
+                    options={atividadesOptions}
+                    placeholder="Selecione"
+                    searchPlaceholder="Buscar atividade..."
+                    emptyMessage="Nenhuma atividade encontrada."
+                    className="min-h-9"
+                    onChange={(value) =>
                       setFiltros((previous) => ({
                         ...previous,
                         atividadeId: value,
                         turmaId: SELECIONE,
                       }))
                     }
-                  >
-                    <SelectTrigger
-                      id="pesquisa-atividade"
-                      className="h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECIONE} disabled>
-                        Selecione
-                      </SelectItem>
-                      <SelectItem value="TODOS">Todas</SelectItem>
-                      {atividades.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 </div>
                 <div>
                   <FieldLabel htmlFor="pesquisa-turma">Turma</FieldLabel>

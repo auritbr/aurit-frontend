@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BellRing,
+  ArrowDownCircle,
+  ArrowUpCircle,
   Cake,
   CheckCircle2,
   FileText,
@@ -82,6 +84,24 @@ const avisosAutomaticos = [
     descricao:
       "Avisos sobre o encerramento do período de inscrição dos editais cadastrados, ajudando a acompanhar os prazos das oportunidades de interesse.",
     prazos: ["10 dias antes", "5 dias antes", "No dia do encerramento"],
+    planoPago: true,
+  },
+
+  {
+    icon: ArrowUpCircle,
+    titulo: "Contas a pagar",
+    descricao:
+      "Lembretes das contas a pagar em aberto, com nome, valor pendente e vencimento, para organizar os pagamentos da organização.",
+    prazos: ["10 dias antes", "5 dias antes", "No dia do vencimento"],
+    planoPago: true,
+  },
+
+  {
+    icon: ArrowDownCircle,
+    titulo: "Contas a receber",
+    descricao:
+      "Lembretes das contas a receber em aberto, com nome, valor pendente e vencimento, para acompanhar os recebimentos da organização.",
+    prazos: ["10 dias antes", "5 dias antes", "No dia do vencimento"],
     planoPago: true,
   },
 
