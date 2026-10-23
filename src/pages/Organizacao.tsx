@@ -587,7 +587,7 @@ function buildPayload(form: OrganizacaoForm) {
   return {
     razaoSocial: form.razaoSocial.trim(),
     nomeFantasia: form.nomeFantasia.trim() || null,
-    cnpj: isColetivo(form.tipoAgente) ? "" : onlyDigits(form.cnpj),
+    cnpj: isColetivo(form.tipoAgente) ? null : onlyDigits(form.cnpj),
     dataFundacao: form.dataFundacao || null,
     emailInstitucional: form.emailInstitucional.trim(),
     telefoneInstitucional: onlyDigits(form.telefoneInstitucional),
@@ -1545,6 +1545,13 @@ export default function Organizacao() {
                     disabled={readOnly}
                   />
                 </Field>
+
+                {isColetivo(form.tipoAgente) && (
+                  <p className="text-sm text-muted-foreground sm:col-span-2">
+                    Grupos e coletivos podem ser cadastrados sem CNPJ ou documento de identificação próprio.
+                    Informe os dados do representante na seção correspondente.
+                  </p>
+                )}
 
                 {!isColetivo(form.tipoAgente) && (
                   <Field>
