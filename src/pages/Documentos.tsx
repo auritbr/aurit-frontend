@@ -70,6 +70,13 @@ import {
   type PermissoesModulo,
 } from "@/lib/permissoes";
 
+function getNomeDocumento(documento: Pick<Documento, "tipoDocumento" | "observacao">) {
+  if (documento.tipoDocumento === "OUTROS" && documento.observacao?.trim()) {
+    return documento.observacao.trim();
+  }
+  return tipoDocumentoLabels[documento.tipoDocumento] ?? documento.tipoDocumento;
+}
+
 function StatusBadge({ doc }: { doc: Documento }) {
   return (
     <StatusPill status={statusDocumentoLabels[doc.statusDocumento]} tooltip />
@@ -305,7 +312,7 @@ export default function DocumentosPage() {
       if (
         nome &&
         ![
-          tipoDocumentoLabels[d.tipoDocumento],
+          getNomeDocumento(d),
           getOrganizacaoNome(d.organizacaoId),
           d.orgaoEmissor,
           statusDocumentoLabels[d.statusDocumento],
@@ -340,7 +347,7 @@ export default function DocumentosPage() {
         case "status":
           return statusDocumentoLabels[d.statusDocumento];
         default:
-          return tipoDocumentoLabels[d.tipoDocumento] || d.tipoDocumento;
+          return getNomeDocumento(d);
       }
     };
 
@@ -444,7 +451,7 @@ export default function DocumentosPage() {
   const getExportData = () =>
     filtered.map((d) => ({
       ...d,
-      tipoLabel: tipoDocumentoLabels[d.tipoDocumento] || d.tipoDocumento,
+      tipoLabel: getNomeDocumento(d),
       organizacaoNome: getOrganizacaoNome(d.organizacaoId),
       statusLabel: statusDocumentoLabels[d.statusDocumento],
     }));
@@ -718,9 +725,7 @@ export default function DocumentosPage() {
                         const vencido =
                           d.statusDocumento !== "NAO_SE_APLICA" &&
                           isDocumentoVencido(d);
-                        const tipo =
-                          tipoDocumentoLabels[d.tipoDocumento] ??
-                          d.tipoDocumento;
+                        const tipo = getNomeDocumento(d);
                         return (
                           <tr
                             key={d.id}
@@ -828,7 +833,7 @@ export default function DocumentosPage() {
                           <StatusBadge doc={d} />
                         </div>
                         <p className="break-words font-medium text-foreground">
-                          {tipoDocumentoLabels[d.tipoDocumento]}
+                          {getNomeDocumento(d)}
                         </p>
                         <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
                           <div className="min-w-0">
