@@ -1,5 +1,5 @@
+import { sortOptionsByLabel, sortOptionsByName } from "@/lib/sortOptions";
 import { getJsonHeaders, getMultipartHeaders } from "@/lib/apiHeaders";
-import { sortOptionsByLabel } from "@/lib/sortOptions";
 import { maskCEP, maskCPF, maskPhone, maskRGFlex } from "@/lib/masks";
 import { nameWithYear } from "@/lib/entityYear";
 
@@ -861,7 +861,7 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
 
   const data: AtividadeApiDTO[] = await response.json();
 
-  return (Array.isArray(data) ? data : [])
+  return sortOptionsByName((Array.isArray(data) ? data : [])
     .map((item) => ({
       id: normalizeId(item.id),
       nomeAtividade: nameWithYear(
@@ -871,7 +871,7 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
       ),
       status: item.status ?? "",
     }))
-    .filter((item) => item.id);
+    .filter((item) => item.id), (item) => item.nomeAtividade);
 }
 
 export async function getTurmasOptions(): Promise<TurmaOption[]> {
@@ -886,7 +886,7 @@ export async function getTurmasOptions(): Promise<TurmaOption[]> {
 
   const data: TurmaApiDTO[] = await response.json();
 
-  return (Array.isArray(data) ? data : [])
+  return sortOptionsByName((Array.isArray(data) ? data : [])
     .map((item) => ({
       id: normalizeId(item.id),
       nomeTurma: nameWithYear(
@@ -900,7 +900,7 @@ export async function getTurmasOptions(): Promise<TurmaOption[]> {
       nivelTurma: item.nivelTurma ?? "",
       status: item.status ?? "",
     }))
-    .filter((item) => item.id);
+    .filter((item) => item.id), (item) => item.nomeTurma);
 }
 
 export async function getOrganizacoesParticipante(): Promise<

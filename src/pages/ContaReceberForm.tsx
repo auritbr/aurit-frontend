@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -480,11 +481,11 @@ export default function ContaReceberForm() {
             })),
           );
           setAtividadeRecords(
-            atividades.map((item) => ({
+            sortOptionsByName(atividades.map((item) => ({
               value: item.id,
               label: nameWithYear(item.nomeAtividade, item.dataInicio),
               projetoId: item.projetoId,
-            })),
+            })), (item) => item.label),
           );
           setEventoRecords(
             eventos.map((item) => ({

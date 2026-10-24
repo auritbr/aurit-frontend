@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import {
   useEffect,
   useMemo,
@@ -346,23 +347,9 @@ export default function PlanoAulaForm() {
 
   const atividadeOriginalId = String(existingPlanoAula?.atividadeId ?? "");
   const atividadeAtualId = form.atividadeId || atividadeOriginalId;
-  const atividadeFoiAlterada = Boolean(
-    atividadeOriginalId &&
-      form.atividadeId &&
-      String(form.atividadeId) !== String(atividadeOriginalId),
-  );
-
   const atividadeSelectValue = atividadeAtualId;
 
-  const turmaIdsSelecionados = uniqueStringArray(
-    form.turmaIds.length
-      ? form.turmaIds
-      : !atividadeFoiAlterada && existingPlanoAula?.turmaIds?.length
-        ? existingPlanoAula.turmaIds
-        : !atividadeFoiAlterada && existingPlanoAula?.turmaId
-          ? [existingPlanoAula.turmaId]
-          : [],
-  );
+  const turmaIdsSelecionados = uniqueStringArray(form.turmaIds);
 
   const colaboradorSelectValue =
     form.colaboradorId || String(existingPlanoAula?.colaboradorId ?? "");
@@ -388,7 +375,7 @@ export default function PlanoAulaForm() {
       });
     }
 
-    return options;
+    return sortOptionsByName(options, (item) => item.nomeAtividade);
   }, [atividades, atividadeAtualId, form.atividadeNome, existingPlanoAula]);
 
   const turmasDaAtividade = useMemo(() => {
@@ -432,7 +419,7 @@ export default function PlanoAulaForm() {
       }
     });
 
-    return options;
+    return sortOptionsByName(options, (item) => item.nomeTurma);
   }, [
     turmas,
     turmasDaAtividade,

@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -448,14 +449,14 @@ export default function Emprestimos() {
       );
 
       setAtividades(
-        (atividadesData ?? []).map((atividade) => ({
+        sortOptionsByName((atividadesData ?? []).map((atividade) => ({
           id: String(atividade.id),
           nome: nameWithYear(
             atividade.nomeAtividade,
             atividade.ano,
             atividade.dataInicio,
           ),
-        })),
+        })), (item) => item.nome),
       );
 
       setEventosCulturais(

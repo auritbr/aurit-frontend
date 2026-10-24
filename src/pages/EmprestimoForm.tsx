@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Package, CalendarRange, Layers, Info, Link2 } from "lucide-react";
@@ -394,14 +395,14 @@ export default function EmprestimoForm() {
         );
 
         setAtividades(
-          (atividadesData ?? []).map((atividade) => ({
+          sortOptionsByName((atividadesData ?? []).map((atividade) => ({
             id: String(atividade.id),
             nome: nameWithYear(
               atividade.nomeAtividade,
               atividade.ano,
               atividade.dataInicio,
             ),
-          })),
+          })), (item) => item.nome),
         );
 
         setEventosCulturais(

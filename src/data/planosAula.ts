@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { getJsonHeaders } from "@/lib/apiHeaders";
 import { nameWithYear } from "@/lib/entityYear";
 
@@ -559,7 +560,7 @@ export async function getAtividadesPlanoAulaOptions(): Promise<
 
   const data: AtividadeApiDTO[] = await response.json();
 
-  return (Array.isArray(data) ? data : [])
+  return sortOptionsByName((Array.isArray(data) ? data : [])
     .map((item) => ({
       id: normalizeId(item.id),
       nomeAtividade: nameWithYear(
@@ -569,7 +570,7 @@ export async function getAtividadesPlanoAulaOptions(): Promise<
         item.dataInicio,
       ),
     }))
-    .filter((item) => item.id);
+    .filter((item) => item.id), (item) => item.nomeAtividade);
 }
 
 export async function getTurmasPlanoAulaOptions(): Promise<TurmaOption[]> {
@@ -584,7 +585,7 @@ export async function getTurmasPlanoAulaOptions(): Promise<TurmaOption[]> {
 
   const data: TurmaApiDTO[] = await response.json();
 
-  return (Array.isArray(data) ? data : [])
+  return sortOptionsByName((Array.isArray(data) ? data : [])
     .map((item) => ({
       id: normalizeId(item.id),
       nomeTurma: nameWithYear(
@@ -596,7 +597,7 @@ export async function getTurmasPlanoAulaOptions(): Promise<TurmaOption[]> {
       ),
       atividadeId: normalizeId(item.atividadeId ?? item.atividade),
     }))
-    .filter((item) => item.id);
+    .filter((item) => item.id), (item) => item.nomeTurma);
 }
 
 export async function getColaboradoresPlanoAulaOptions(): Promise<

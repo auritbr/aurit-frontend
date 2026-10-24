@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { getJsonHeaders } from "@/lib/apiHeaders";
 import { nameWithYear } from "@/lib/entityYear";
 
@@ -353,7 +354,7 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
 
   const data: AtividadeApiDTO[] = await response.json();
 
-  return (data ?? [])
+  return sortOptionsByName((data ?? [])
     .filter((atividade) => atividade.id != null)
     .map((atividade) => ({
       id: String(atividade.id),
@@ -368,7 +369,7 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
           : atividade.projeto?.id != null
             ? String(atividade.projeto.id)
             : undefined,
-    }));
+    })), (item) => item.nome);
 }
 
 export async function getEventosOptions(): Promise<EventoOption[]> {

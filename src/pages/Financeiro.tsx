@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -415,7 +416,7 @@ export default function FinanceiroPage() {
       );
 
       setAtividades(
-        asRecords(atividadesData).map((a) => ({
+        sortOptionsByName(asRecords(atividadesData).map((a) => ({
           id: String(a.id),
           nome: nameWithYear(
             pickText(a.nomeAtividade, a.nome, a.titulo) || `Atividade ${a.id}`,
@@ -424,7 +425,7 @@ export default function FinanceiroPage() {
               : undefined,
             typeof a.dataInicio === "string" ? a.dataInicio : undefined,
           ),
-        })),
+        })), (item) => item.nome),
       );
 
       setEventos(

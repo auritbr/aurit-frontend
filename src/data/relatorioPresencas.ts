@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { apiFetch } from "@/lib/api";
 import { nameWithYear } from "@/lib/entityYear";
 
@@ -242,7 +243,7 @@ function normalizarStatus(value?: string | null): StatusPresenca {
 }
 
 function mapAtividades(data: AtividadeApiDTO[]): RelatorioOption[] {
-  return data
+  return sortOptionsByName(data
     .filter((item) => item.id !== null && item.id !== undefined)
     .map((item) => {
       const id = toIdString(item.id);
@@ -260,11 +261,11 @@ function mapAtividades(data: AtividadeApiDTO[]): RelatorioOption[] {
           item.dataInicio,
         ),
       };
-    });
+    }), (item) => item.nome);
 }
 
 function mapTurmas(data: TurmaApiDTO[]): RelatorioOption[] {
-  return data
+  return sortOptionsByName(data
     .filter((item) => item.id !== null && item.id !== undefined)
     .map((item) => {
       const id = toIdString(item.id);
@@ -281,7 +282,7 @@ function mapTurmas(data: TurmaApiDTO[]): RelatorioOption[] {
           item.atividade?.dataInicio,
         ),
       };
-    });
+    }), (item) => item.nome);
 }
 
 function mapParticipantes(data: ParticipanteApiDTO[]): RelatorioOption[] {

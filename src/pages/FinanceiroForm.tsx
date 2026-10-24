@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
@@ -420,14 +421,14 @@ export default function FinanceiroForm() {
       );
 
       setAtividades(
-        (atividadesData ?? []).map((item: ApiOptionRecord) => ({
+        sortOptionsByName((atividadesData ?? []).map((item: ApiOptionRecord) => ({
           id: String(item.id),
           nome: nameWithYear(
             optionName(item, `Atividade ${item.id}`),
             item.ano,
             item.dataInicio,
           ),
-        })),
+        })), (item) => item.nome),
       );
 
       setEventos(

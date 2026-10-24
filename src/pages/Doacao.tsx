@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -149,7 +150,7 @@ export default function DoacoesPage() {
           setItems(data);
           setDoadores(options.doadores);
           setProjetos(options.projetos);
-          setAtividades(options.atividades);
+          setAtividades(sortOptionsByName(options.atividades, (item) => item.nome));
           setEventos(options.eventos);
         }
       })

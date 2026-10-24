@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { getJsonHeaders, getMultipartHeaders } from "@/lib/apiHeaders";
 import { nameWithYear } from "@/lib/entityYear";
 
@@ -418,14 +419,14 @@ export async function getAtividadesOptions(): Promise<OptionItem[]> {
 
   const data = await response.json();
 
-  return (Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => ({
+  return sortOptionsByName((Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => ({
     id: String(item.id),
     nome: nameWithYear(
       pickText(item.nomeAtividade, item.nome) || `Atividade ${item.id}`,
       String(item.ano ?? item.dataInicio ?? ""),
     ),
     projetoId: pickProjetoId(item),
-  }));
+  })), (item) => item.nome);
 }
 
 export async function getTurmasOptions(): Promise<OptionItem[]> {
@@ -440,7 +441,7 @@ export async function getTurmasOptions(): Promise<OptionItem[]> {
 
   const data = await response.json();
 
-  return (Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => {
+  return sortOptionsByName((Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => {
     const atividade = asRecord(item.atividade);
     return {
       id: String(item.id),
@@ -459,7 +460,7 @@ export async function getTurmasOptions(): Promise<OptionItem[]> {
         item.atividadeId ?? asRecord(item.atividade).id ?? "",
       ),
     };
-  });
+  }), (item) => item.nome);
 }
 
 export async function getEventosCulturaisOptions(): Promise<OptionItem[]> {
@@ -814,14 +815,14 @@ export async function getAtividadesEvidenciaOptions(
   });
   if (!response.ok) throw new Error(await parseError(response));
   const data: ApiOptionRecord[] = await response.json();
-  return (Array.isArray(data) ? data : []).map((item) => ({
+  return sortOptionsByName((Array.isArray(data) ? data : []).map((item) => ({
     id: String(item.id),
     nome: nameWithYear(
       pickText(item.nomeAtividade, item.nome) || `Atividade ${item.id}`,
       String(item.ano ?? item.dataInicio ?? ""),
     ),
     projetoId: String(projetoId),
-  }));
+  })), (item) => item.nome);
 }
 
 export async function getTurmasEvidenciaOptions(
@@ -832,7 +833,7 @@ export async function getTurmasEvidenciaOptions(
   });
   if (!response.ok) throw new Error(await parseError(response));
   const data: ApiOptionRecord[] = await response.json();
-  return (Array.isArray(data) ? data : []).map((item) => {
+  return sortOptionsByName((Array.isArray(data) ? data : []).map((item) => {
     const atividade = asRecord(item.atividade);
     return {
       id: String(item.id),
@@ -850,7 +851,7 @@ export async function getTurmasEvidenciaOptions(
         item.atividadeId ?? asRecord(item.atividade).id ?? atividadeId,
       ),
     };
-  });
+  }), (item) => item.nome);
 }
 
 export async function getPlanosAulaEvidenciaOptions(

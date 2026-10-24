@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import {
   useEffect,
   useMemo,
@@ -199,21 +200,21 @@ export default function TurmaForm() {
     const atividadeId =
       form.atividadeId || String(existingTurma?.atividadeId ?? "");
 
-    if (!atividadeId) return options;
+    if (!atividadeId) return sortOptionsByName(options, (item) => item.nome);
 
     const existe = options.some(
       (atividade) => String(atividade.id) === String(atividadeId),
     );
 
-    if (existe) return options;
+    if (existe) return sortOptionsByName(options, (item) => item.nome);
 
-    return [
+    return sortOptionsByName([
       ...options,
       {
         id: atividadeId,
         nome: getAtividadeNome(atividades, atividadeId, existingTurma),
       },
-    ];
+    ], (item) => item.nome);
   }, [atividades, form.atividadeId, existingTurma]);
 
   const colaboradoresComFallback = useMemo(() => {

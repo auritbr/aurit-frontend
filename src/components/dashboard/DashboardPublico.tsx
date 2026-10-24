@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useState } from "react";
 import { HeartHandshake, IdCard, Users, UserCheck } from "lucide-react";
 import { FieldLabel } from "@/components/FieldLabel";
@@ -118,7 +119,7 @@ export function DashboardPublico({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="TODAS">Todas as atividades</SelectItem>
-              {atividades.map((a) => (
+              {sortOptionsByName(atividades, (item) => item.nome).map((a) => (
                 <SelectItem key={a.id} value={a.id}>
                   {a.nome}
                 </SelectItem>

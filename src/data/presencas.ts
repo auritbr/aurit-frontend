@@ -230,7 +230,7 @@ function compareByName<
   const nomeA = a.nomeAtividade ?? a.nomeTurma ?? "";
   const nomeB = b.nomeAtividade ?? b.nomeTurma ?? "";
 
-  return nomeA.localeCompare(nomeB, "pt-BR");
+  return nomeA.localeCompare(nomeB, "pt-BR", { sensitivity: "base" });
 }
 
 function comparePlanosAula(a: PlanoAulaOption, b: PlanoAulaOption) {

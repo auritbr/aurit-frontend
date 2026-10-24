@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -143,7 +144,7 @@ export default function DoacaoForm() {
         if (!active) return;
         setDoadores(options.doadores);
         setProjetos(options.projetos);
-        setAtividades(options.atividades);
+        setAtividades(sortOptionsByName(options.atividades, (item) => item.nome));
         setEventos(options.eventos);
         setContasBancarias(options.contasBancarias);
         if (found) {
@@ -171,12 +172,12 @@ export default function DoacaoForm() {
             ),
           );
           setAtividades(
-            incluirOpcaoVinculada(
+            sortOptionsByName(incluirOpcaoVinculada(
               options.atividades,
               found.atividade,
               found.nomeAtividade,
               found.projeto,
-            ),
+            ), (item) => item.nome),
           );
           setEventos(
             incluirOpcaoVinculada(
@@ -319,12 +320,12 @@ export default function DoacaoForm() {
   );
   const atividadeOptionsComVinculo = useMemo(
     () =>
-      incluirVinculoSelecionado(
+      sortOptionsByName(incluirVinculoSelecionado(
         atividadeOptions,
         form.atividade,
         destinacaoCarregada.atividade,
         form.projeto,
-      ),
+      ), (item) => item.nome),
     [
       atividadeOptions,
       form.atividade,

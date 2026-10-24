@@ -1,3 +1,4 @@
+import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -256,10 +257,10 @@ export default function ContasReceber() {
         })),
       );
       setAtividadeOptions(
-        atividades.map((item) => ({
+        sortOptionsByName(atividades.map((item) => ({
           value: item.id,
           label: nameWithYear(item.nomeAtividade, item.dataInicio),
-        })),
+        })), (item) => item.label),
       );
       setEventoOptions(
         eventos.map((item) => ({ value: item.id, label: item.nomeEvento })),
