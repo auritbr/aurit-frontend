@@ -815,9 +815,9 @@ export default function PlanoAulaForm() {
                   </FieldLabel>
 
                   <Select
-                    value={atividadeSelectValue || undefined}
+                    value={atividadeSelectValue}
                     onValueChange={(value) => {
-                      if (visualizando) return;
+                      if (bloqueado || !value) return;
 
                       const atividadeSelecionada = atividadesOptions.find(
                         (atividade) => String(atividade.id) === String(value),
@@ -946,9 +946,9 @@ export default function PlanoAulaForm() {
                   </FieldLabel>
 
                   <Select
-                    value={colaboradorSelectValue || undefined}
+                    value={colaboradorSelectValue}
                     onValueChange={(value) => {
-                      if (visualizando) return;
+                      if (bloqueado || !value) return;
 
                       const colaboradorSelecionado = colaboradoresOptions.find(
                         (colaborador) =>
