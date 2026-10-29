@@ -2,3 +2,12 @@ node_modules/
 dist/
 coverage/
 .DS_Store
+
+# Build web específico do app e arquivos locais do Android
+dist-mobile/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/**/build/
+*.jks
+*.keystore

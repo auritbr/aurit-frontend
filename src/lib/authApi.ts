@@ -1,3 +1,4 @@
+import { isNativeApp } from "@/lib/native";
 import {
   getTenantSlug,
   normalizarToken,
@@ -48,6 +49,7 @@ function headers(token?: string): HeadersInit {
   const tenantSlug = getTenantSlug();
   return {
     "Content-Type": "application/json",
+    Accept: "application/json",
     ...(token ? { Authorization: `Bearer ${normalizarToken(token)}` } : {}),
     ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}),
   };
@@ -72,12 +74,15 @@ async function requisicao<T>(
   path: string,
   body: unknown,
   token?: string,
+  semTenant = false,
 ): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, {
       method: "POST",
-      headers: headers(token),
+      headers: semTenant
+        ? { "Content-Type": "application/json", Accept: "application/json" }
+        : headers(token),
       body: JSON.stringify(body),
     });
   } catch {
@@ -124,7 +129,14 @@ export function definirSenhaPrimeiroAcesso(
 }
 
 export function esqueciSenha(email: string) {
-  return requisicao<{ message: string }>("/usuarios/esqueci-senha", { email });
+  return isNativeApp()
+    ? requisicao<{ message: string }>(
+        "/usuarios/mobile/esqueci-senha",
+        { email },
+        undefined,
+        true,
+      )
+    : requisicao<{ message: string }>("/usuarios/esqueci-senha", { email });
 }
 
 export function validarTokenAtivacao(token: string) {

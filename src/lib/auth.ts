@@ -1,3 +1,6 @@
+import { isNativeApp } from "@/lib/native";
+import { limparSelecaoContaGoogle } from "@/lib/nativeGoogleAuth";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export interface UsuarioLogado {
@@ -82,7 +85,24 @@ export function getTenantOrigin(tenantSlug: string): string | null {
     : `https://${tenant}.aurit.com.br`;
 }
 
+const MOBILE_TENANT_KEY = "aurit-mobile-tenant";
+
+export function setMobileTenantSlug(value: string): string {
+  if (!isNativeApp()) return "";
+  const slug = normalizarTenantSlug(value);
+  if (slug !== getTenantSlug()) {
+    limparSessaoUsuario();
+    localStorage.removeItem("configuracao-empresa-cache");
+  }
+  if (slug) localStorage.setItem(MOBILE_TENANT_KEY, slug);
+  else localStorage.removeItem(MOBILE_TENANT_KEY);
+  return slug;
+}
+
 export function getTenantSlug() {
+  if (isNativeApp()) {
+    return normalizarTenantSlug(localStorage.getItem(MOBILE_TENANT_KEY));
+  }
   const hostname = window.location.hostname.toLowerCase();
 
   if (isLocalhost()) {
@@ -266,6 +286,7 @@ export async function logoutUsuario(redirect = true): Promise<void> {
     console.error("Erro ao registrar logout:", error);
   } finally {
     limparSessaoUsuario();
+    await limparSelecaoContaGoogle();
 
     if (redirect) {
       window.location.href = "/login";
@@ -455,6 +476,7 @@ async function requisitarLogin(
       headers: {
         "Content-Type": "application/json",
         "X-Requested-With": "XMLHttpRequest",
+        Accept: "application/json",
         ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}),
       },
       body: JSON.stringify(body),

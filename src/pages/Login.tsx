@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Building2, Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -9,10 +10,19 @@ import {
   AuthPage,
   AuthSubmit,
 } from "@/components/auth/AuthShell";
+import { NativeGoogleLoginButton } from "@/components/auth/NativeGoogleLoginButton";
+import {
+  isNativeGoogleLoginAvailable,
+  isNativeGoogleLoginCancelled,
+  obterGoogleIdTokenNativo,
+  limparSelecaoContaGoogle,
+} from "@/lib/nativeGoogleAuth";
 import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 import { PrimeiroAcessoFlow } from "@/components/auth/PrimeiroAcessoFlow";
 import {
   getStoredUserRole,
+  setMobileTenantSlug,
+  limparSessaoUsuario,
   isAuthenticated,
   isFirstAccessPending,
   isLocalhost,
@@ -21,11 +31,40 @@ import {
   loginUsuario,
 } from "@/lib/auth";
 
+import {
+  autenticarMobile,
+  aplicarLoginMobile,
+  organizacoesParaEscolha,
+  type CredenciaisMobile,
+  type OrganizacaoMobile,
+  type MobileLoginResponse,
+} from "@/lib/mobileLogin";
+import { isNativeApp } from "@/lib/native";
+
 const redirectByRole = (role?: string | null) =>
   role === "ADMIN_PROPRIETARIO" ? "/controle-proprietario/empresas" : "/";
 
 export default function Login() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const native = isNativeApp();
+  const [escolha, setEscolha] = useState<{
+    credenciais: CredenciaisMobile;
+    organizacoes: OrganizacaoMobile[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!escolha) return;
+    const timer = window.setTimeout(
+      () => {
+        setEscolha(null);
+        setSenha("");
+        setErro("Seu acesso expirou. Entre novamente.");
+      },
+      5 * 60 * 1000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [escolha]);
   const [identificador, setIdentificador] = useState("");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -49,6 +88,16 @@ export default function Login() {
     setCarregando(true);
     setErro(null);
     try {
+      if (native) {
+        prepararLoginMobile();
+        const credenciais: CredenciaisMobile = {
+          tipo: "senha",
+          identificador,
+          senha,
+        };
+        receberLoginMobile(await autenticarMobile(credenciais), credenciais);
+        return;
+      }
       const resposta = await loginUsuario(identificador, senha);
       setSenha("");
       if (resposta.primeiroAcessoPendente) {
@@ -95,6 +144,81 @@ export default function Login() {
     }
   }
 
+  function prepararLoginMobile() {
+    queryClient.clear();
+    limparSessaoUsuario();
+    setMobileTenantSlug("");
+    setEscolha(null);
+  }
+
+  function receberLoginMobile(
+    data: MobileLoginResponse,
+    credenciais: CredenciaisMobile,
+  ) {
+    if (!data.token) {
+      setEscolha({ credenciais, organizacoes: organizacoesParaEscolha(data) });
+      setSenha("");
+      return;
+    }
+    const resposta = aplicarLoginMobile(data);
+    setEscolha(null);
+    setSenha("");
+    if (resposta.primeiroAcessoPendente) {
+      setPrimeiroAcesso(true);
+      return;
+    }
+    toast.success("Acesso realizado com sucesso.");
+    navigate(redirectByRole(resposta.usuario.userRole), { replace: true });
+  }
+
+  async function escolherOrganizacao(slug: string) {
+    if (!escolha || carregando || carregandoGoogle) return;
+    const { credenciais } = escolha;
+    setCarregando(true);
+    setErro(null);
+    try {
+      const data = await autenticarMobile(credenciais, slug);
+      if (!data.token)
+        throw new Error("Não foi possível concluir o acesso. Entre novamente.");
+      receberLoginMobile(data, credenciais);
+    } catch {
+      setEscolha(null);
+      setSenha("");
+      setErro("Não foi possível acessar essa organização. Entre novamente.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  function cancelarEscolha() {
+    setEscolha(null);
+    setSenha("");
+    setErro(null);
+    void limparSelecaoContaGoogle();
+  }
+
+  async function entrarGoogleNativo() {
+    if (carregando || carregandoGoogle) return;
+    prepararLoginMobile();
+    setCarregandoGoogle(true);
+    setErro(null);
+    try {
+      const idToken = await obterGoogleIdTokenNativo();
+      const credenciais: CredenciaisMobile = { tipo: "google", idToken };
+      receberLoginMobile(await autenticarMobile(credenciais), credenciais);
+    } catch (error) {
+      if (!isNativeGoogleLoginCancelled(error)) {
+        setErro(
+          error instanceof Error && error.message
+            ? error.message
+            : "Não foi possível entrar com o Google.",
+        );
+      }
+    } finally {
+      setCarregandoGoogle(false);
+    }
+  }
+
   // Localhost já é uma origem autorizada no cliente OAuth. Iniciar o fluxo
   // aqui preserva o gesto do clique original e evita que o navegador bloqueie
   // uma segunda janela aberta a partir do popup técnico.
@@ -132,6 +256,46 @@ export default function Login() {
             }
             onCancelar={() => setPrimeiroAcesso(false)}
           />
+        ) : escolha ? (
+          <>
+            <AuthLogo />
+            <h1 className="mt-5 text-lg font-semibold">
+              Escolha sua organização
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Você tem acesso a mais de uma organização. Selecione onde deseja
+              entrar.
+            </p>
+            <div className="mt-5 space-y-3">
+              {escolha.organizacoes.map((organizacao) => (
+                <button
+                  key={organizacao.slug}
+                  type="button"
+                  onClick={() => void escolherOrganizacao(organizacao.slug)}
+                  disabled={carregando}
+                  className="login-submit-glass flex min-h-12 w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm disabled:opacity-60"
+                >
+                  <Building2 className="h-5 w-5 shrink-0" aria-hidden />
+                  <span className="min-w-0 break-words">
+                    {organizacao.nome}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {carregando && (
+              <p role="status" className="mt-3 text-sm">
+                Entrando...
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={cancelarEscolha}
+              disabled={carregando}
+              className="login-forgot-link mt-5 min-h-11 text-sm"
+            >
+              Voltar ao login
+            </button>
+          </>
         ) : (
           <>
             <h1 className="sr-only">Acessar a Aurit</h1>
@@ -215,15 +379,26 @@ export default function Login() {
               >
                 Entrar
               </AuthSubmit>
-              <GoogleLoginButton
-                processando={carregandoGoogle}
-                desabilitado={carregando}
-                onErro={setErro}
-                onAuthorizationCode={
-                  isLocalhost() ? concluirCodigoGoogleLocal : undefined
-                }
-                onSucessoPopup={isLocalhost() ? undefined : concluirLoginGoogle}
-              />
+              {native && isNativeGoogleLoginAvailable() && (
+                <NativeGoogleLoginButton
+                  processando={carregandoGoogle}
+                  desabilitado={carregando}
+                  onClick={entrarGoogleNativo}
+                />
+              )}
+              {!native && (
+                <GoogleLoginButton
+                  processando={carregandoGoogle}
+                  desabilitado={carregando}
+                  onErro={setErro}
+                  onAuthorizationCode={
+                    isLocalhost() ? concluirCodigoGoogleLocal : undefined
+                  }
+                  onSucessoPopup={
+                    isLocalhost() ? undefined : concluirLoginGoogle
+                  }
+                />
+              )}
             </form>
           </>
         )}

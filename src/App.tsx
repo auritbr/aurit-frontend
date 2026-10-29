@@ -1,3 +1,4 @@
+import { NativeNavigation } from "@/components/NativeNavigation";
 import { useEffect, type ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -1569,6 +1570,7 @@ const App = () => (
       <BrowserRouter
         future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
       >
+        <NativeNavigation />
         <PlanNetworkGuard />
         <AppRoutes />
         <NextStepPopupHost />

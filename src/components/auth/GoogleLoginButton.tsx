@@ -61,7 +61,7 @@ function carregarGsi(): Promise<void> {
   return gsiPromise;
 }
 
-function GoogleIcon() {
+export function GoogleIcon() {
   return (
     <svg
       className="h-[17px] w-[17px]"
