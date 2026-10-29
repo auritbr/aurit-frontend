@@ -1958,3 +1958,336 @@
     }
   }
 }
+
+/* Mobile comfort for the reviewed data pages; desktop utilities remain unchanged. */
+@media (max-width: 767px) {
+  [data-mobile-data-page] :is(fieldset, .grid > *) {
+    min-width: 0;
+  }
+
+  [data-mobile-data-page]
+    :is(
+      input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not(
+          [type="file"]
+        ),
+      textarea,
+      [role="combobox"]
+    ) {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 16px;
+  }
+
+  [data-mobile-data-page]
+    :is(
+      input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not(
+          [type="file"]
+        ),
+      [role="combobox"],
+      button.h-7,
+      button.h-8,
+      button.h-9,
+      a.h-8,
+      a.h-9,
+      button[aria-haspopup="menu"],
+      button[aria-haspopup="dialog"],
+      button[aria-expanded][aria-controls]
+    ) {
+    min-height: 44px;
+  }
+
+  [data-mobile-data-page] :is(button, a):is(.w-8, .w-9) {
+    min-width: 44px;
+  }
+
+  [data-mobile-data-page] :is(p, dd) {
+    overflow-wrap: anywhere;
+  }
+
+  /* Radix portals live outside the page container. Apply these rules only
+     while one of the reviewed data pages is mounted. */
+  body:has([data-mobile-data-page])
+    [data-radix-popper-content-wrapper]
+    :is(
+      [role="option"],
+      [role="menuitem"],
+      [role="menuitemcheckbox"],
+      button[role="checkbox"]
+    ) {
+    min-height: 44px;
+  }
+
+  body:has([data-mobile-data-page]) [data-radix-popper-content-wrapper] input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  body:has([data-mobile-data-page])
+    [data-radix-popper-content-wrapper]
+    > [role="menu"] {
+    max-width: calc(100vw - 2rem);
+    max-height: min(
+      var(--radix-dropdown-menu-content-available-height, 100dvh),
+      calc(100dvh - 2rem)
+    );
+    overflow-y: auto;
+  }
+
+  body:has([data-mobile-data-page])
+    [data-radix-popper-content-wrapper]
+    > [role="dialog"] {
+    max-width: calc(100vw - 2rem);
+    max-height: min(
+      var(--radix-popover-content-available-height, 100dvh),
+      calc(100dvh - 2rem)
+    );
+    overflow-y: auto;
+  }
+
+  body:has([data-mobile-data-page]) [role="alertdialog"] {
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+  }
+
+  body:has([data-mobile-data-page]) [role="alertdialog"] button {
+    min-height: 44px;
+  }
+}
+
+/* Additional touch controls for the reviewed application pages. */
+@media (max-width: 767px) {
+  :is(
+      [data-mobile-data-page="people"],
+      [data-mobile-data-page="execution"],
+      [data-mobile-data-page="grants"],
+      [data-mobile-data-page="account"],
+      [data-mobile-data-page="finance"],
+      [data-mobile-data-page="reports"]
+    )
+    :is(button.h-10, button.min-h-10, a.h-10, [role="tab"]) {
+    min-height: 44px;
+  }
+
+  :is(
+      [data-mobile-data-page="people"],
+      [data-mobile-data-page="execution"],
+      [data-mobile-data-page="grants"],
+      [data-mobile-data-page="account"],
+      [data-mobile-data-page="finance"],
+      [data-mobile-data-page="reports"]
+    )
+    :is(button, a).w-10 {
+    min-width: 44px;
+  }
+
+  [data-mobile-data-page="people"] .mobile-document-action {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+  }
+
+  /* MultiSelect renders plain buttons inside its portalled option list. */
+  body:has(
+      :is(
+        [data-mobile-data-page="people"],
+        [data-mobile-data-page="execution"],
+        [data-mobile-data-page="grants"],
+        [data-mobile-data-page="account"],
+        [data-mobile-data-page="finance"],
+        [data-mobile-data-page="reports"]
+      )
+    )
+    [data-radix-popper-content-wrapper]
+    > [role="dialog"]
+    button {
+    min-height: 44px;
+  }
+
+  /* Keep the switch track compact, with a full-height touch target in its row. */
+  :is(
+      [data-mobile-data-page="people"],
+      [data-mobile-data-page="execution"],
+      [data-mobile-data-page="grants"],
+      [data-mobile-data-page="account"],
+      [data-mobile-data-page="finance"],
+      [data-mobile-data-page="reports"]
+    )
+    button[role="switch"] {
+    position: relative;
+  }
+
+  :is(
+      [data-mobile-data-page="people"],
+      [data-mobile-data-page="execution"],
+      [data-mobile-data-page="grants"],
+      [data-mobile-data-page="account"],
+      [data-mobile-data-page="finance"],
+      [data-mobile-data-page="reports"]
+    )
+    button[role="switch"]::after {
+    content: "";
+    position: absolute;
+    inset: -12px -2px;
+  }
+}
+
+@media (max-width: 767px) {
+  :is(
+      [data-mobile-data-page="grants"],
+      [data-mobile-data-page="account"],
+      [data-mobile-data-page="finance"],
+      [data-mobile-data-page="reports"]
+    )
+    button.w-7 {
+    min-width: 44px;
+  }
+
+  [data-mobile-data-page="grants"]
+    nav[aria-label="Seções da prestação de contas"]
+    button {
+    min-height: 44px;
+  }
+
+  [data-mobile-data-page="grants"] summary {
+    min-height: 44px;
+    padding-block: 12px;
+  }
+}
+
+@media (max-width: 767px) {
+  [data-mobile-data-page="account"]
+    nav[aria-label="Seções da central de acompanhamento"]
+    button {
+    min-height: 44px;
+  }
+
+  [role="dialog"][data-mobile-data-page="account"] {
+    max-width: calc(100vw - 2rem);
+    min-width: 0;
+  }
+
+  [role="dialog"][data-mobile-data-page="account"]:not(.journey-glass)
+    > button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    top: 8px;
+    right: 8px;
+  }
+
+  body:has([data-mobile-data-page="account"]) .login-page-shell nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  [data-mobile-data-page="account"] label:has(> button[role="checkbox"]) {
+    min-height: 44px;
+  }
+
+  [data-mobile-data-page="account"] .login-field-toggle {
+    min-width: 44px;
+  }
+
+  [data-mobile-data-page="account"] .login-forgot-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  [data-mobile-data-page="account"] [contenteditable="true"][role="textbox"] {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 767px) {
+  [role="dialog"][data-mobile-data-page="finance"] {
+    min-width: 0;
+    max-height: 90dvh;
+    overflow-y: auto;
+  }
+
+  [role="dialog"][data-mobile-data-page="finance"][data-state] > button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    top: 8px;
+    right: 8px;
+  }
+
+  [data-mobile-data-page="finance"] label:has(> button[role="checkbox"]) {
+    min-height: 44px;
+  }
+
+  [data-mobile-data-page="finance"] :is(button, a).h-6,
+  [data-mobile-data-page="finance"] button[aria-label^="Remover "] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  [role="dialog"][data-mobile-data-page="finance"]:not(.inset-x-0) {
+    max-width: calc(100vw - 2rem);
+  }
+}
+
+@media (max-width: 767px) {
+  button[aria-label^="Ajuda sobre "] {
+    position: relative;
+  }
+
+  button[aria-label^="Ajuda sobre "]::after {
+    content: "";
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  [role="tooltip"] {
+    max-height: min(
+      var(--radix-tooltip-content-available-height, 100dvh),
+      calc(100dvh - 2rem)
+    );
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 767px) {
+  :is([data-mobile-data-page="reports"], [data-mobile-data-page="finance"])
+    dd
+    .truncate {
+    max-width: 100%;
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+  }
+}
+
+@media (max-width: 767px) {
+  /* Keep chart details inside the chart when a bar is tapped near its edge. */
+  :is([data-mobile-data-page="reports"], [data-mobile-data-page="finance"])
+    .recharts-tooltip-wrapper {
+    left: 0 !important;
+    top: 0 !important;
+    transform: translate(0, 0) !important;
+    max-width: 100% !important;
+  }
+
+  :is([data-mobile-data-page="reports"], [data-mobile-data-page="finance"])
+    .recharts-tooltip-wrapper
+    > div {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+}

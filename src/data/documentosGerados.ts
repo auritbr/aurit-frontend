@@ -1,10 +1,7 @@
 import { apiFetch, apiFetchResponse } from "@/lib/api";
 
 export type TipoDestinatarioDocumento =
-  | "COLABORADOR"
-  | "INTEGRANTE"
-  | "PARTICIPANTE"
-  | "EMPRESTIMO";
+  "COLABORADOR" | "INTEGRANTE" | "PARTICIPANTE" | "EMPRESTIMO";
 
 export interface ModeloDocumentoCompativel {
   id: number;

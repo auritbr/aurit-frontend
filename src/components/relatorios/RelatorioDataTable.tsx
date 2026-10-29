@@ -26,6 +26,7 @@ interface RelatorioDataTableProps<T> {
   emptyMessage?: string;
   indicadoresPdf?: { label: string; valor: string }[];
   enablePdfExport?: boolean;
+  mobileCards?: boolean;
 }
 
 function getCellRawValue<T>(row: T, column: RelatorioColumn<T>): unknown {
@@ -80,6 +81,7 @@ export function RelatorioDataTable<T>({
   emptyMessage = "Nenhum registro encontrado para este relatório.",
   indicadoresPdf,
   enablePdfExport = false,
+  mobileCards = true,
 }: RelatorioDataTableProps<T>) {
   const [search, setSearch] = useState("");
 
@@ -172,48 +174,74 @@ export function RelatorioDataTable<T>({
             <p className="text-sm text-muted-foreground">{emptyMessage}</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {visibleColumns.map((column) => (
-                  <TableHead
-                    key={column.key}
-                    className="max-w-[260px] whitespace-nowrap text-xs"
-                    title={column.label}
-                  >
-                    <span className="block truncate">{column.label}</span>
-                  </TableHead>
+          <>
+            {mobileCards && (
+              <div className="divide-y divide-border md:hidden">
+                {paginated.map((row, rowIndex) => (
+                  <dl key={rowIndex} className="space-y-3 p-4">
+                    {visibleColumns.map((column) => (
+                      <div key={column.key} className="min-w-0">
+                        <dt className="text-xs text-muted-foreground">
+                          {column.label}
+                        </dt>
+                        <dd className="mt-1 text-sm text-foreground">
+                          {column.render
+                            ? column.render(row)
+                            : formatCellDisplayValue(
+                                getCellRawValue(row, column),
+                              )}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
                 ))}
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {paginated.map((row, rowIndex) => (
-                <TableRow key={rowIndex}>
-                  {visibleColumns.map((column) => {
-                    const rawValue = getCellRawValue(row, column);
-                    const displayValue = column.render
-                      ? column.render(row)
-                      : formatCellDisplayValue(rawValue);
-
-                    const titleValue = formatCellDisplayValue(rawValue);
-
-                    return (
-                      <TableCell
+              </div>
+            )}
+            <div className={mobileCards ? "hidden md:block" : undefined}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {visibleColumns.map((column) => (
+                      <TableHead
                         key={column.key}
-                        className="max-w-[260px] text-xs align-top"
-                        title={titleValue}
+                        className="max-w-[260px] whitespace-nowrap text-xs"
+                        title={column.label}
                       >
-                        <span className="block max-w-[260px] truncate">
-                          {displayValue}
-                        </span>
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                        <span className="block truncate">{column.label}</span>
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+
+                <TableBody>
+                  {paginated.map((row, rowIndex) => (
+                    <TableRow key={rowIndex}>
+                      {visibleColumns.map((column) => {
+                        const rawValue = getCellRawValue(row, column);
+                        const displayValue = column.render
+                          ? column.render(row)
+                          : formatCellDisplayValue(rawValue);
+
+                        const titleValue = formatCellDisplayValue(rawValue);
+
+                        return (
+                          <TableCell
+                            key={column.key}
+                            className="max-w-[260px] text-xs align-top"
+                            title={titleValue}
+                          >
+                            <span className="block max-w-[260px] truncate">
+                              {displayValue}
+                            </span>
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </div>
 

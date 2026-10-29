@@ -196,11 +196,13 @@ export function TabelaLinhasRelatorio({
   items = [],
   nomeEmpresa,
   dataGeracao,
+  mobileCards = true,
 }: {
   titulo: string;
   items?: LinhaRelatorio[];
   nomeEmpresa?: string;
   dataGeracao?: string;
+  mobileCards?: boolean;
 }) {
   type Row = Record<string, unknown>;
   const rows: Row[] = items.map((item) => ({
@@ -282,6 +284,7 @@ export function TabelaLinhasRelatorio({
         </ReportChartGrid>
       )}
       <RelatorioDataTable
+        mobileCards={mobileCards}
         reportName={titulo}
         organizacaoNome={nomeEmpresa}
         dataGeracao={dataGeracao}

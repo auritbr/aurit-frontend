@@ -446,7 +446,10 @@ export default function TrajetoriasCulturais() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="people"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Trajetórias Culturais"
           tooltip="Nesta página é registrada, em formato narrativo, a trajetória profissional e cultural do colaborador, desde o início de sua atuação até o momento atual. O texto pode destacar experiências, áreas de atuação, projetos, realizações, públicos envolvidos e a evolução de sua atuação ao longo do tempo."

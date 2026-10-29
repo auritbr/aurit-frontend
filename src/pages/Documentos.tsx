@@ -70,11 +70,15 @@ import {
   type PermissoesModulo,
 } from "@/lib/permissoes";
 
-function getNomeDocumento(documento: Pick<Documento, "tipoDocumento" | "observacao">) {
+function getNomeDocumento(
+  documento: Pick<Documento, "tipoDocumento" | "observacao">,
+) {
   if (documento.tipoDocumento === "OUTROS" && documento.observacao?.trim()) {
     return documento.observacao.trim();
   }
-  return tipoDocumentoLabels[documento.tipoDocumento] ?? documento.tipoDocumento;
+  return (
+    tipoDocumentoLabels[documento.tipoDocumento] ?? documento.tipoDocumento
+  );
 }
 
 function StatusBadge({ doc }: { doc: Documento }) {
@@ -474,7 +478,7 @@ export default function DocumentosPage() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div data-mobile-data-page className="container max-w-7xl py-6 sm:py-8">
         <ListPageHeader
           title="Documentos"
           tooltip="Nesta página são cadastrados e acompanhados os documentos da organização, com informações sobre tipo, vínculo institucional, órgão emissor, datas de emissão e validade, situação e arquivo. Esses dados ajudam a manter a documentação institucional organizada e podem ser utilizados em projetos, editais, relatórios e outras áreas do sistema."
@@ -837,7 +841,9 @@ export default function DocumentosPage() {
                         </p>
                         <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
                           <div className="min-w-0">
-                            <dt className="text-muted-foreground">Órgão emissor</dt>
+                            <dt className="text-muted-foreground">
+                              Órgão emissor
+                            </dt>
                             <dd className="break-words text-foreground">
                               {d.orgaoEmissor || "—"}
                             </dd>
@@ -857,7 +863,7 @@ export default function DocumentosPage() {
                         </dl>
                         {d.dataValidade && (
                           <p className="mt-2 text-xs text-muted-foreground">
-                            Validade: {" "}
+                            {"Validade: "}{" "}
                             <span className="font-medium text-foreground">
                               {formatDateBR(d.dataValidade)}
                             </span>

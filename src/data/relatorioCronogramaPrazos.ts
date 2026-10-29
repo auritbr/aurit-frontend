@@ -1,9 +1,7 @@
 import { apiFetch } from "@/lib/api";
 
 export type SituacaoCronogramaPrazo =
-  | "NAO_INICIADA"
-  | "EM_ANDAMENTO"
-  | "PRAZO_ENCERRADO";
+  "NAO_INICIADA" | "EM_ANDAMENTO" | "PRAZO_ENCERRADO";
 
 export interface RelatorioOpcao {
   id: number;

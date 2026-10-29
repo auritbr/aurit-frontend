@@ -248,7 +248,10 @@ export default function CurriculoForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="people"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/curriculos" />
 
         <PageTitle

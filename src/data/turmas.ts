@@ -470,21 +470,27 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
 
   const data: AtividadeApiDTO[] = await response.json();
 
-  return sortOptionsByName((Array.isArray(data) ? data : [])
-    .map((atividade) => {
-      const id = normalizeId(atividade.id);
+  return sortOptionsByName(
+    (Array.isArray(data) ? data : [])
+      .map((atividade) => {
+        const id = normalizeId(atividade.id);
 
-      return {
-        id,
-        nome: nameWithYear(
-          pickText(atividade.nomeAtividade, atividade.nome, atividade.titulo) ||
-            `Atividade ${id}`,
-          atividade.ano,
-          atividade.dataInicio,
-        ),
-      };
-    })
-    .filter((atividade) => atividade.id), (item) => item.nome);
+        return {
+          id,
+          nome: nameWithYear(
+            pickText(
+              atividade.nomeAtividade,
+              atividade.nome,
+              atividade.titulo,
+            ) || `Atividade ${id}`,
+            atividade.ano,
+            atividade.dataInicio,
+          ),
+        };
+      })
+      .filter((atividade) => atividade.id),
+    (item) => item.nome,
+  );
 }
 
 export async function getColaboradoresOptions(): Promise<ColaboradorOption[]> {

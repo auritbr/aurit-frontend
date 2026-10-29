@@ -144,7 +144,9 @@ export default function DoacaoForm() {
         if (!active) return;
         setDoadores(options.doadores);
         setProjetos(options.projetos);
-        setAtividades(sortOptionsByName(options.atividades, (item) => item.nome));
+        setAtividades(
+          sortOptionsByName(options.atividades, (item) => item.nome),
+        );
         setEventos(options.eventos);
         setContasBancarias(options.contasBancarias);
         if (found) {
@@ -172,12 +174,15 @@ export default function DoacaoForm() {
             ),
           );
           setAtividades(
-            sortOptionsByName(incluirOpcaoVinculada(
-              options.atividades,
-              found.atividade,
-              found.nomeAtividade,
-              found.projeto,
-            ), (item) => item.nome),
+            sortOptionsByName(
+              incluirOpcaoVinculada(
+                options.atividades,
+                found.atividade,
+                found.nomeAtividade,
+                found.projeto,
+              ),
+              (item) => item.nome,
+            ),
           );
           setEventos(
             incluirOpcaoVinculada(
@@ -320,12 +325,15 @@ export default function DoacaoForm() {
   );
   const atividadeOptionsComVinculo = useMemo(
     () =>
-      sortOptionsByName(incluirVinculoSelecionado(
-        atividadeOptions,
-        form.atividade,
-        destinacaoCarregada.atividade,
-        form.projeto,
-      ), (item) => item.nome),
+      sortOptionsByName(
+        incluirVinculoSelecionado(
+          atividadeOptions,
+          form.atividade,
+          destinacaoCarregada.atividade,
+          form.projeto,
+        ),
+        (item) => item.nome,
+      ),
     [
       atividadeOptions,
       form.atividade,
@@ -493,7 +501,10 @@ export default function DoacaoForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton />
         <header className="mb-5 border-b border-border pb-4">
           <div className="flex flex-col gap-3">

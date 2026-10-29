@@ -208,13 +208,16 @@ export default function TurmaForm() {
 
     if (existe) return sortOptionsByName(options, (item) => item.nome);
 
-    return sortOptionsByName([
-      ...options,
-      {
-        id: atividadeId,
-        nome: getAtividadeNome(atividades, atividadeId, existingTurma),
-      },
-    ], (item) => item.nome);
+    return sortOptionsByName(
+      [
+        ...options,
+        {
+          id: atividadeId,
+          nome: getAtividadeNome(atividades, atividadeId, existingTurma),
+        },
+      ],
+      (item) => item.nome,
+    );
   }, [atividades, form.atividadeId, existingTurma]);
 
   const colaboradoresComFallback = useMemo(() => {
@@ -486,7 +489,10 @@ export default function TurmaForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="execution"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/turmas" />
 
         <ListPageHeader
@@ -567,7 +573,6 @@ export default function TurmaForm() {
                     readOnly={visualizando}
                   />
                 </Field>
-
               </div>
             </FormSectionCard>
 

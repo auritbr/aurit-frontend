@@ -354,22 +354,25 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
 
   const data: AtividadeApiDTO[] = await response.json();
 
-  return sortOptionsByName((data ?? [])
-    .filter((atividade) => atividade.id != null)
-    .map((atividade) => ({
-      id: String(atividade.id),
-      nome: nameWithYear(
-        atividade.nomeAtividade?.trim() || `Atividade ${atividade.id}`,
-        atividade.ano,
-        atividade.dataInicio,
-      ),
-      projetoId:
-        atividade.projetoId != null
-          ? String(atividade.projetoId)
-          : atividade.projeto?.id != null
-            ? String(atividade.projeto.id)
-            : undefined,
-    })), (item) => item.nome);
+  return sortOptionsByName(
+    (data ?? [])
+      .filter((atividade) => atividade.id != null)
+      .map((atividade) => ({
+        id: String(atividade.id),
+        nome: nameWithYear(
+          atividade.nomeAtividade?.trim() || `Atividade ${atividade.id}`,
+          atividade.ano,
+          atividade.dataInicio,
+        ),
+        projetoId:
+          atividade.projetoId != null
+            ? String(atividade.projetoId)
+            : atividade.projeto?.id != null
+              ? String(atividade.projeto.id)
+              : undefined,
+      })),
+    (item) => item.nome,
+  );
 }
 
 export async function getEventosOptions(): Promise<EventoOption[]> {

@@ -164,7 +164,10 @@ export default function RelatorioDetalhePage() {
   if (!item) {
     return (
       <AppLayout>
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <div
+          data-mobile-data-page="reports"
+          className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+        >
           <Link
             to="/relatorios"
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
@@ -207,7 +210,10 @@ export default function RelatorioDetalhePage() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div
+        data-mobile-data-page="reports"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      >
         <RelatorioHeader
           title={title}
           tooltip={item.tooltip}

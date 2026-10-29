@@ -250,10 +250,7 @@ export default function RelatorioCronogramaPrazos() {
         hidden
       >
         <div>
-          <FieldLabel
-            htmlFor="f-busca"
-            tooltip="Busque pela etapa ou projeto."
-          >
+          <FieldLabel htmlFor="f-busca" tooltip="Busque pela etapa ou projeto.">
             Busca
           </FieldLabel>
           <div className="relative">

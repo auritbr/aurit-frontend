@@ -264,9 +264,11 @@ export default function Turmas() {
     try {
       setLoading(true);
       setAccessDeniedMessage(null);
-      const [turmasData, atividadesData, equipeData] = await Promise.all(
-        [getTurmas(), getAtividadesOptions(), getEquipeOptions()],
-      );
+      const [turmasData, atividadesData, equipeData] = await Promise.all([
+        getTurmas(),
+        getAtividadesOptions(),
+        getEquipeOptions(),
+      ]);
       const atividadesMap = new Map(
         atividadesData.map((item) => [String(item.id), item.nome]),
       );
@@ -533,7 +535,10 @@ export default function Turmas() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="execution"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Turmas"
           tooltip="Nesta página são cadastradas e acompanhadas as turmas vinculadas às atividades dos projetos, com informações sobre identificação, nível, quantidade de vagas, dias e horários de realização, situação atual e equipe responsável. Esses registros ajudam a organizar os participantes, acompanhar os encontros e presenças e apoiar a execução das atividades."

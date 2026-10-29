@@ -799,7 +799,10 @@ export default function Cronograma() {
   if (loadingPermissoes) {
     return (
       <AppLayout>
-        <div className="container max-w-7xl py-6 sm:py-8">
+        <div
+          data-mobile-data-page="execution"
+          className="container max-w-7xl py-6 sm:py-8"
+        >
           <p className="text-sm text-muted-foreground">
             Carregando permissões...
           </p>
@@ -827,6 +830,7 @@ export default function Cronograma() {
   return (
     <AppLayout>
       <div
+        data-mobile-data-page="execution"
         className={`container ${
           showForm ? "max-w-4xl" : "max-w-7xl"
         } py-6 sm:py-8`}

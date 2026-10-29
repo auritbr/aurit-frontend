@@ -387,7 +387,10 @@ export default function AcoesDivulgacao() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="grants"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Ações de Divulgação"
           tooltip="Nesta página são registradas e acompanhadas as ações de divulgação do projeto apresentado ao edital, com informações sobre sua finalidade, forma de realização, acessibilidade, resultados esperados, produtos previstos e situação atual."

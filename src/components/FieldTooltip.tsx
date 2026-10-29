@@ -44,6 +44,8 @@ export function FieldTooltip({
   const autoId = useId();
   const contentId = id ?? `tooltip-${autoId}`;
   const [open, setOpen] = useState(false);
+  // Focus can open the tooltip before the touch generates its click.
+  const openOnPointerDown = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [autoSide, setAutoSide] = useState<"top" | "right" | "bottom" | "left">(
     "top",
@@ -92,10 +94,13 @@ export function FieldTooltip({
           }
           aria-describedby={open ? contentId : undefined}
           aria-expanded={open}
+          onPointerDown={() => {
+            openOnPointerDown.current = open;
+          }}
           onClick={(event) => {
             event.preventDefault();
             resolvePlacement();
-            setOpen((prev) => !prev);
+            setOpen(event.detail === 0 ? !open : !openOnPointerDown.current);
           }}
           className={className}
         />

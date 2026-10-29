@@ -458,7 +458,10 @@ export default function EvidenciasPage() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="grants"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Evidências"
           tooltip={tooltip}
@@ -766,8 +769,8 @@ export default function EvidenciasPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir evidência?</AlertDialogTitle>
             <AlertDialogDescription>
-              Os arquivos e os links deste registro serão removidos. Esta
-              ação não pode ser desfeita.
+              Os arquivos e os links deste registro serão removidos. Esta ação
+              não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -974,6 +977,7 @@ const wiki = [
   },
   {
     title: "Arquivos",
-    content: "Até 10 arquivos de 5 MB nos formatos JPEG, JPG, PNG, WEBP ou PDF.",
+    content:
+      "Até 10 arquivos de 5 MB nos formatos JPEG, JPG, PNG, WEBP ou PDF.",
   },
 ];

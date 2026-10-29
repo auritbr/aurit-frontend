@@ -82,7 +82,11 @@ async function readErrorPayload(response: Response, path: string) {
   }
 }
 
-function publicErrorMessage(status: number, path: string, rawMessage?: unknown) {
+function publicErrorMessage(
+  status: number,
+  path: string,
+  rawMessage?: unknown,
+) {
   const message = String(rawMessage ?? "").trim();
   const normalized = message.toLowerCase();
   const isTechnicalMessage =

@@ -494,7 +494,10 @@ export interface CriarCobrancaAvulsaPayload {
   chaveIdempotencia: string;
 }
 
-export async function criarCobrancaAvulsa(controleId: number, payload: CriarCobrancaAvulsaPayload) {
+export async function criarCobrancaAvulsa(
+  controleId: number,
+  payload: CriarCobrancaAvulsaPayload,
+) {
   return apiFetch<{
     cobranca: { id: number };
     pagamento: DadosPagamentoCora | null;

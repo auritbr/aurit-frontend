@@ -120,10 +120,7 @@ export function estrategiasPlanoComunicacaoTexto(
 }
 
 export type StatusPlanoComunicacao =
-  | "PLANEJADO"
-  | "EM_EXECUCAO"
-  | "CONCLUIDO"
-  | "CANCELADO";
+  "PLANEJADO" | "EM_EXECUCAO" | "CONCLUIDO" | "CANCELADO";
 
 export interface PlanoComunicacaoDTO {
   id?: number;

@@ -68,11 +68,10 @@ export interface Doacao {
   nomeEventoCultural?: string;
   contaBancaria: string;
 }
-export interface DoacaoPayload
-  extends Omit<
-    Doacao,
-    "id" | "nomeDoador" | "nomeProjeto" | "nomeAtividade" | "nomeEventoCultural"
-  > {
+export interface DoacaoPayload extends Omit<
+  Doacao,
+  "id" | "nomeDoador" | "nomeProjeto" | "nomeAtividade" | "nomeEventoCultural"
+> {
   id?: string;
   comprovanteFile?: File;
   removerComprovante?: boolean;
@@ -113,8 +112,7 @@ interface DoacaoDTO {
   atividade?: number | { id?: number; nomeAtividade?: string; nome?: string };
   nomeAtividade?: string;
   eventoCulturalId?:
-    | number
-    | { id?: number; nomeEvento?: string; nome?: string };
+    number | { id?: number; nomeEvento?: string; nome?: string };
   eventoCultural?: number | { id?: number; nomeEvento?: string; nome?: string };
   nomeEventoCultural?: string;
 }

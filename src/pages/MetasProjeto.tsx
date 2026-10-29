@@ -66,12 +66,7 @@ import {
 import { toast } from "sonner";
 
 type SortBy =
-  | "titulo"
-  | "quantidade"
-  | "projeto"
-  | "proposta"
-  | "comprovacao"
-  | "ordem";
+  "titulo" | "quantidade" | "projeto" | "proposta" | "comprovacao" | "ordem";
 type SortDir = "asc" | "desc";
 
 interface Filtros {
@@ -440,7 +435,10 @@ export default function MetasProjetoPage() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="execution"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Metas do Projeto"
           tooltip="Nesta página são cadastradas e acompanhadas as metas dos projetos, com a definição do resultado ou entrega esperada, da quantidade prevista e da forma de comprovação. Cada meta fica vinculada ao projeto correspondente e, quando aplicável, a uma proposta de edital."

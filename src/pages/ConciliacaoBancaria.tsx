@@ -617,7 +617,10 @@ export default function ConciliacaoBancaria() {
 
   return (
     <AppLayout>
-      <div className="px-4 py-5 sm:px-6 lg:px-8">
+      <div
+        data-mobile-data-page="finance"
+        className="px-4 py-5 sm:px-6 lg:px-8"
+      >
         <ListPageHeader
           title="Conciliação Bancária"
           tooltip={TOOLTIP}
@@ -985,6 +988,7 @@ export default function ConciliacaoBancaria() {
               onOpenChange={setPainelMobileAberto}
             >
               <SheetContent
+                data-mobile-data-page="finance"
                 side="bottom"
                 className="max-h-[88vh] overflow-y-auto rounded-t-[18px]"
               >

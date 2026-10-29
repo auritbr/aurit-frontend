@@ -397,8 +397,8 @@ export default function PainelFinanceiro() {
   const [podeCriarFinanceiro, setPodeCriarFinanceiro] = useState(false);
   const periodoInvalido = Boolean(
     filtros.dataInicial &&
-      filtros.dataFinal &&
-      filtros.dataInicial > filtros.dataFinal,
+    filtros.dataFinal &&
+    filtros.dataInicial > filtros.dataFinal,
   );
 
   const load = async (aplicados: Filtros) => {
@@ -550,7 +550,10 @@ export default function PainelFinanceiro() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Painel Financeiro"
           tooltip="Nesta página são apresentados os principais indicadores financeiros da organização em uma visão resumida. Utilize os filtros para acompanhar saldos, entradas, saídas, valores previstos, contas pendentes e a evolução financeira de um período específico."

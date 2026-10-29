@@ -458,7 +458,10 @@ export default function UsuarioPermissoes() {
 
   return (
     <AppLayout>
-      <div className="container max-w-6xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="account"
+        className="container max-w-6xl py-6 sm:py-8"
+      >
         <BackButton to="/usuarios" />
 
         <PageTitle
@@ -604,7 +607,7 @@ export default function UsuarioPermissoes() {
                           <button
                             type="button"
                             onClick={() => setModulo(modulo, !todas)}
-                            className="rounded-[8px] px-1.5 py-0.5 text-[12px] font-medium text-primary transition-colors hover:bg-primary/10"
+                            className="min-h-11 rounded-[8px] px-1.5 py-0.5 text-[12px] font-medium text-primary transition-colors hover:bg-primary/10 md:min-h-0"
                           >
                             {todas ? "Desmarcar módulo" : "Marcar módulo"}
                           </button>

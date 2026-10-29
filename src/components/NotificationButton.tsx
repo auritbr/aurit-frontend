@@ -2,8 +2,7 @@ import { forwardRef } from "react";
 import { Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export interface NotificationButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface NotificationButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   count?: number;
   open?: boolean;
 }

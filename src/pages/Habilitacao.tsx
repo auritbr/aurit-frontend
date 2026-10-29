@@ -498,7 +498,10 @@ export default function HabilitacaoPage() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="grants"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Habilitação Documental"
           tooltip="Nesta página são organizados e acompanhados os documentos exigidos para a habilitação do projeto apresentado ao edital. Vincule os documentos já cadastrados no sistema, acompanhe a situação de cada um e registre o andamento da preparação, do envio e da análise da documentação."

@@ -5,16 +5,10 @@ import { maskCNPJ, maskCPF, maskPhone, maskRGFlex } from "@/lib/masks";
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export type IntegranteStatusApi =
-  | "ATIVO"
-  | "INATIVO"
-  | "PENDENTE"
-  | "CONCLUIDO";
+  "ATIVO" | "INATIVO" | "PENDENTE" | "CONCLUIDO";
 
 export type IntegranteStatusLabel =
-  | "Ativo"
-  | "Inativo"
-  | "Pendente"
-  | "Concluído";
+  "Ativo" | "Inativo" | "Pendente" | "Concluído";
 
 export type RacaCorApi =
   | "BRANCA"
@@ -25,11 +19,7 @@ export type RacaCorApi =
   | "PREFERE_NAO_INFORMAR";
 
 export type GeneroApi =
-  | "FEMININO"
-  | "MASCULINO"
-  | "NAO_BINARIO"
-  | "OUTRO"
-  | "PREFERE_NAO_INFORMAR";
+  "FEMININO" | "MASCULINO" | "NAO_BINARIO" | "OUTRO" | "PREFERE_NAO_INFORMAR";
 
 export type TipoDeficienciaApi =
   | "NAO_POSSUI"

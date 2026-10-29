@@ -472,7 +472,10 @@ export default function PrestacaoMetasPage() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="grants"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Cumprimento de Metas"
           tooltip={cumprimentoMetasTooltip}

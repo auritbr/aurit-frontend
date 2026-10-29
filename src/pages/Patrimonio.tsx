@@ -497,7 +497,10 @@ export default function Patrimonio() {
   if (loadingPermissoes) {
     return (
       <AppLayout>
-        <div className="container max-w-7xl py-6 sm:py-8">
+        <div
+          data-mobile-data-page="account"
+          className="container max-w-7xl py-6 sm:py-8"
+        >
           <p className="text-sm text-muted-foreground">
             Carregando permissões...
           </p>
@@ -524,7 +527,10 @@ export default function Patrimonio() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="account"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Patrimônios"
           tooltip="Nesta página são cadastrados e acompanhados os bens patrimoniais da organização, como equipamentos, instrumentos, mobiliário e outros materiais permanentes. Os registros reúnem informações de identificação, características, aquisição, vínculo institucional, estado de conservação e situação atual, apoiando o controle, os inventários, os relatórios e as prestações de contas."

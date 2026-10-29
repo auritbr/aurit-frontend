@@ -275,10 +275,10 @@ function hasOrganizacaoValida(organizacoes: OrganizacaoLike[]) {
 
   return Boolean(
     org.razaoSocial?.trim() ||
-      org.nomeFantasia?.trim() ||
-      org.nomeOrganizacao?.trim() ||
-      org.nome?.trim() ||
-      org.cnpj?.trim(),
+    org.nomeFantasia?.trim() ||
+    org.nomeOrganizacao?.trim() ||
+    org.nome?.trim() ||
+    org.cnpj?.trim(),
   );
 }
 

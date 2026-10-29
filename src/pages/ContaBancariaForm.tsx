@@ -308,7 +308,10 @@ export default function ContaBancariaForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/contas-bancarias" />
         <PageTitle
           title="Contas Bancárias"

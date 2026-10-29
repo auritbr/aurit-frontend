@@ -35,8 +35,8 @@ function mapUsuarioToHeaderUser(usuario?: UsuarioLogado | null): HeaderUser {
 }
 
 function SidebarToggle() {
-  const { state, isMobile, toggleSidebar } = useSidebar();
-  const expanded = isMobile ? false : state === "expanded";
+  const { state, isMobile, openMobile, toggleSidebar } = useSidebar();
+  const expanded = isMobile ? openMobile : state === "expanded";
 
   return (
     <button
@@ -45,7 +45,7 @@ function SidebarToggle() {
       aria-label={expanded ? "Recolher menu lateral" : "Expandir menu lateral"}
       aria-expanded={expanded}
       aria-controls="app-sidebar"
-      className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-[11px] border border-border/70 bg-card/70 text-muted-foreground backdrop-blur-md shadow-[inset_0_1px_0_0_hsl(0_0%_100%_/_0.5)] transition-[background-color,color,transform] duration-150 hover:bg-card hover:text-foreground active:scale-[0.96] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-[11px] md:h-[34px] md:w-[34px] border border-border/70 bg-card/70 text-muted-foreground backdrop-blur-md shadow-[inset_0_1px_0_0_hsl(0_0%_100%_/_0.5)] transition-[background-color,color,transform] duration-150 hover:bg-card hover:text-foreground active:scale-[0.96] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
     >
       <PanelLeft className="h-[17px] w-[17px]" strokeWidth={1.9} />
     </button>
@@ -74,9 +74,7 @@ export function AppHeader() {
         if (active) {
           setUser(mapUsuarioToHeaderUser(usuario));
           const [configuracoesUsuario, centralCliente] = await Promise.all([
-            usuarioTemPermissao("USUARIOS", "VISUALIZAR").catch(
-              () => false,
-            ),
+            usuarioTemPermissao("USUARIOS", "VISUALIZAR").catch(() => false),
             usuarioTemPermissao("CENTRAL_CLIENTE", "VISUALIZAR").catch(
               () => false,
             ),

@@ -55,18 +55,17 @@ export interface Parceiro {
   pessoaJuridica: PessoaJuridicaCadastro | null;
   endereco: EnderecoCadastro | null;
 }
-export interface ParceiroPayload
-  extends Omit<
-    Parceiro,
-    | "id"
-    | "organizacaoId"
-    | "pessoaFisicaId"
-    | "pessoaJuridicaId"
-    | "nomeParceiro"
-    | "documentoParceiro"
-    | "telefone"
-    | "email"
-  > {
+export interface ParceiroPayload extends Omit<
+  Parceiro,
+  | "id"
+  | "organizacaoId"
+  | "pessoaFisicaId"
+  | "pessoaJuridicaId"
+  | "nomeParceiro"
+  | "documentoParceiro"
+  | "telefone"
+  | "email"
+> {
   id?: string;
   documentoFile?: File;
   removerDocumentoParceria?: boolean;

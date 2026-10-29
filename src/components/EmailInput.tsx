@@ -51,8 +51,10 @@ export function getEmailSuggestions(value: string): string[] {
   return matches.map((d) => `${local}${d}`);
 }
 
-export interface EmailInputProps
-  extends Omit<React.ComponentProps<"input">, "type" | "list" | "onChange"> {
+export interface EmailInputProps extends Omit<
+  React.ComponentProps<"input">,
+  "type" | "list" | "onChange"
+> {
   /** Mantém compatibilidade com formulários existentes (evento padrão). */
   onChange?: React.ChangeEventHandler<HTMLInputElement>;
   /** Callback opcional que recebe apenas o valor (string). */

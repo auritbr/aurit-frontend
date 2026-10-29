@@ -58,7 +58,10 @@ export default function RelatorioFinanceiroPatrimonioPage() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div
+        data-mobile-data-page="reports"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      >
         <RelatorioHeader
           title="Financeiro e Patrimônio"
           tooltip="Acompanhe movimentações financeiras, aplicação de resursos, patrimônio e empréstimos de bens."
@@ -73,7 +76,9 @@ export default function RelatorioFinanceiroPatrimonioPage() {
 
         {data && (
           <div>
-            {data.resumo?.map((g, i) => <GrupoIndicadores key={i} grupo={g} />)}
+            {data.resumo?.map((g, i) => (
+              <GrupoIndicadores key={i} grupo={g} />
+            ))}
 
             <TabelaLinhasRelatorio
               titulo="Movimentações financeiras"

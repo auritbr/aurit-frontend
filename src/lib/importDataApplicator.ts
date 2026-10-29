@@ -1,8 +1,5 @@
 export type ImportFieldKind =
-  | "enum"
-  | "enum-array"
-  | "relationship"
-  | "relationship-array";
+  "enum" | "enum-array" | "relationship" | "relationship-array";
 
 export interface ImportFieldRule {
   targetField?: string;

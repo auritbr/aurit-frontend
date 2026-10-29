@@ -35,7 +35,7 @@ export function UserProfileMenu({
       <DropdownMenuTrigger
         aria-label={`Menu do usuário ${name}`}
         title={name}
-        className="group flex h-[38px] max-w-[230px] items-center gap-2 rounded-[15px] border border-border/70 bg-card/70 pl-2 pr-2 backdrop-blur-md shadow-[0_1px_2px_-1px_hsl(215_28%_17%_/_0.10),inset_0_1px_0_0_hsl(0_0%_100%_/_0.5)] transition-[background-color,box-shadow] duration-150 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-1 focus-visible:ring-offset-background data-[state=open]:bg-card data-[state=open]:ring-1 data-[state=open]:ring-primary/25"
+        className="group flex h-11 md:h-[38px] max-w-[230px] items-center gap-2 rounded-[15px] border border-border/70 bg-card/70 pl-2 pr-2 backdrop-blur-md shadow-[0_1px_2px_-1px_hsl(215_28%_17%_/_0.10),inset_0_1px_0_0_hsl(0_0%_100%_/_0.5)] transition-[background-color,box-shadow] duration-150 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-1 focus-visible:ring-offset-background data-[state=open]:bg-card data-[state=open]:ring-1 data-[state=open]:ring-primary/25"
       >
         <span className="hidden min-w-0 flex-1 text-right leading-tight md:block">
           <span className="block truncate text-[13px] font-semibold text-foreground">
@@ -69,14 +69,14 @@ export function UserProfileMenu({
       <DropdownMenuContent
         align="end"
         sideOffset={8}
-        className="w-60 rounded-[15px] border-border/70 bg-popover/95 p-1.5 shadow-[0_16px_40px_-18px_hsl(215_28%_17%_/_0.35)] backdrop-blur-xl"
+        className="w-60 max-w-[calc(100vw-2rem)] md:max-w-none rounded-[15px] border-border/70 bg-popover/95 p-1.5 shadow-[0_16px_40px_-18px_hsl(215_28%_17%_/_0.35)] backdrop-blur-xl"
       >
         <DropdownMenuLabel className="px-2 py-1.5 font-normal">
-          <p className="truncate text-[13px] font-semibold text-foreground">
+          <p className="break-words text-[13px] font-semibold text-foreground md:truncate">
             {name}
           </p>
           {perfil ? (
-            <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
+            <p className="mt-0.5 break-words text-[11.5px] text-muted-foreground md:truncate">
               {perfil}
             </p>
           ) : null}
@@ -85,7 +85,7 @@ export function UserProfileMenu({
         {settingsPath ? (
           <DropdownMenuItem
             onClick={() => navigate(settingsPath)}
-            className="cursor-pointer rounded-[10px] px-2 py-2 text-[13px]"
+            className="min-h-11 md:min-h-0 cursor-pointer rounded-[10px] px-2 py-2 text-[13px]"
           >
             <Settings className="mr-2 h-4 w-4" strokeWidth={2} />
             Configurações
@@ -93,7 +93,7 @@ export function UserProfileMenu({
         ) : null}
         <DropdownMenuItem
           onClick={onLogout}
-          className="cursor-pointer rounded-[10px] px-2 py-2 text-[13px] text-foreground focus:bg-accent focus:text-accent-foreground"
+          className="min-h-11 md:min-h-0 cursor-pointer rounded-[10px] px-2 py-2 text-[13px] text-foreground focus:bg-accent focus:text-accent-foreground"
         >
           <LogOut className="mr-2 h-4 w-4" strokeWidth={2} />
           Sair

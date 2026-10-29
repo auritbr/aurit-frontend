@@ -261,10 +261,13 @@ export default function ContasPagar() {
         })),
       );
       setAtividadeOptions(
-        sortOptionsByName(atividades.map((item) => ({
-          value: item.id,
-          label: nameWithYear(item.nomeAtividade, item.dataInicio),
-        })), (item) => item.label),
+        sortOptionsByName(
+          atividades.map((item) => ({
+            value: item.id,
+            label: nameWithYear(item.nomeAtividade, item.dataInicio),
+          })),
+          (item) => item.label,
+        ),
       );
       setEventoOptions(
         eventos.map((item) => ({ value: item.id, label: item.nomeEvento })),
@@ -607,7 +610,10 @@ export default function ContasPagar() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Contas a Pagar"
           tooltip="Nesta página são cadastradas e acompanhadas as despesas da organização, desde o registro do valor e do vencimento até a realização do pagamento. Também podem ser informados o credor, a forma de pagamento e os projetos ou ações relacionados à despesa."

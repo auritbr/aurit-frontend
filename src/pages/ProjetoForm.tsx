@@ -599,7 +599,10 @@ export default function ProjetoForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="execution"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/projetos" />
 
         <PageTitle
@@ -844,7 +847,7 @@ export default function ProjetoForm() {
                     key={`${objetivo.id ?? "novo"}-${idx}`}
                     className="flex items-start gap-2"
                   >
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <FieldLabel
                         htmlFor={`objetivo-${idx}`}
                         required
@@ -868,7 +871,7 @@ export default function ProjetoForm() {
                         type="button"
                         onClick={() => removeObjetivo(idx)}
                         aria-label={`Remover objetivo ${idx + 1}`}
-                        className="mt-7 rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        className="mt-7 min-h-11 min-w-11 shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive md:min-h-0 md:min-w-0"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

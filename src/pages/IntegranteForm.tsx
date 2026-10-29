@@ -528,7 +528,6 @@ export default function IntegranteForm() {
         toast.error("Informe o nome social/razão social.");
         return false;
       }
-
     } else {
       if (!form.nomeCompleto.trim()) {
         toast.error("Informe o nome completo.");
@@ -669,7 +668,10 @@ export default function IntegranteForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="people"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/integrantes" />
 
         <PageTitle

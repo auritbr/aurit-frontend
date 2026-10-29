@@ -58,7 +58,10 @@ export default function RelatorioProjetosExecucaoPage() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div
+        data-mobile-data-page="reports"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      >
         <RelatorioHeader
           title="Projetos e Execução"
           tooltip="Visualize o andamento dos projetos, etapas de execução, eventos culturais, propostas de edital e prestações de contas."
@@ -73,7 +76,9 @@ export default function RelatorioProjetosExecucaoPage() {
 
         {data && (
           <div>
-            {data.resumo?.map((g, i) => <GrupoIndicadores key={i} grupo={g} />)}
+            {data.resumo?.map((g, i) => (
+              <GrupoIndicadores key={i} grupo={g} />
+            ))}
 
             <TabelaLinhasRelatorio
               titulo="Projetos"

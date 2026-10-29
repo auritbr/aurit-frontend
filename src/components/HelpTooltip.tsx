@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import { HelpCircle } from "lucide-react";
 import {
   Tooltip,
@@ -51,13 +52,39 @@ export function HelpTooltip({
   className,
   contentClassName,
 }: HelpTooltipProps) {
+  const [open, setOpen] = useState(false);
+  // Focus can open the tooltip before the touch generates its click.
+  const openOnPointerDown = useRef(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const dim = size === "md" ? "h-5 w-5" : "h-[18px] w-[18px]";
   const icon = size === "md" ? "h-3.5 w-3.5" : "h-3 w-3";
   return (
-    <Tooltip delayDuration={120}>
+    <Tooltip
+      open={open}
+      onOpenChange={(next) => {
+        const trigger = triggerRef.current;
+        if (
+          next &&
+          trigger &&
+          !trigger.matches(":hover") &&
+          !trigger.matches(":focus-visible")
+        )
+          return;
+        setOpen(next);
+      }}
+      delayDuration={120}
+    >
       <TooltipTrigger asChild>
         <button
+          ref={triggerRef}
           type="button"
+          aria-expanded={open}
+          onPointerDown={() => {
+            openOnPointerDown.current = open;
+          }}
+          onClick={(event) =>
+            setOpen(event.detail === 0 ? !open : !openOnPointerDown.current)
+          }
           aria-label={`Ajuda sobre ${label}`}
           className={cn(
             "inline-flex items-center justify-center rounded-full bg-primary-soft text-primary border border-primary/20 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",

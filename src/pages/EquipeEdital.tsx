@@ -385,7 +385,10 @@ export default function EquipeEditalPage() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="grants"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Equipe da Proposta"
           tooltip={equipeEditalTooltip}

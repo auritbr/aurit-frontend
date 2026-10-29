@@ -395,14 +395,17 @@ export default function EmprestimoForm() {
         );
 
         setAtividades(
-          sortOptionsByName((atividadesData ?? []).map((atividade) => ({
-            id: String(atividade.id),
-            nome: nameWithYear(
-              atividade.nomeAtividade,
-              atividade.ano,
-              atividade.dataInicio,
-            ),
-          })), (item) => item.nome),
+          sortOptionsByName(
+            (atividadesData ?? []).map((atividade) => ({
+              id: String(atividade.id),
+              nome: nameWithYear(
+                atividade.nomeAtividade,
+                atividade.ano,
+                atividade.dataInicio,
+              ),
+            })),
+            (item) => item.nome,
+          ),
         );
 
         setEventosCulturais(
@@ -706,7 +709,10 @@ export default function EmprestimoForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="account"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to={returnTo} />
 
         <PageTitle

@@ -75,12 +75,7 @@ import { toast } from "sonner";
 import type { ExportColumn } from "@/utils/exportUtils";
 
 type SortKey =
-  | "proposta"
-  | "edital"
-  | "status"
-  | "pontuacao"
-  | "dataResultado"
-  | "recurso";
+  "proposta" | "edital" | "status" | "pontuacao" | "dataResultado" | "recurso";
 
 interface ResultadoFiltros {
   termo: string;
@@ -563,7 +558,10 @@ export default function ResultadosPropostas() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="grants"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Resultado da Proposta"
           tooltip="Nesta página são registrados e acompanhados os resultados divulgados para os projetos apresentados aos editais, incluindo a situação obtida no processo seletivo, a pontuação e, quando disponíveis, os documentos de avaliação e as informações relacionadas a eventual recurso."

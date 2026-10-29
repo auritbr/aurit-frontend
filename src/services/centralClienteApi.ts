@@ -3,12 +3,7 @@ import { apiFetch } from "@/lib/api";
 export type TipoPlano = "PLANO_GRATUITO" | "PLANO_PAGO" | "PLANO_CORTESIA";
 
 export type StatusAssinatura =
-  | "ATIVO"
-  | "INATIVO"
-  | "SUSPENSO"
-  | "CANCELADO"
-  | "GRATUITO"
-  | "TRIAL";
+  "ATIVO" | "INATIVO" | "SUSPENSO" | "CANCELADO" | "GRATUITO" | "TRIAL";
 
 export type StatusMensalidade = "PENDENTE" | "PAGO" | "ATRASADO" | "CANCELADO";
 

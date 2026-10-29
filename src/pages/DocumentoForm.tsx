@@ -408,7 +408,10 @@ export default function DocumentoForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 pb-24 sm:py-8">
+      <div
+        data-mobile-data-page
+        className="container max-w-4xl py-6 pb-24 sm:py-8"
+      >
         <BackButton to="/documentos" />
 
         <PageTitle

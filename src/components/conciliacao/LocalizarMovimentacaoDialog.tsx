@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -94,7 +95,10 @@ export function LocalizarMovimentacaoDialog({
       open={open}
       onOpenChange={(next) => !salvando && onOpenChange(next)}
     >
-      <DialogContent className="rounded-[16px] border-border/70 bg-card/90 backdrop-blur-xl sm:max-w-xl">
+      <DialogContent
+        data-mobile-data-page="finance"
+        className="rounded-[16px] border-border/70 bg-card/90 backdrop-blur-xl sm:max-w-xl"
+      >
         <DialogHeader>
           <DialogTitle className="text-base">
             Localizar movimentação

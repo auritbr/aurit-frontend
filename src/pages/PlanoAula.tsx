@@ -532,7 +532,10 @@ export default function PlanosAula() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="execution"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Planos de Aula"
           tooltip="Nesta página são cadastrados e organizados os planos de aula vinculados às atividades e turmas, com informações sobre conteúdo previsto, período de realização, situação e colaborador responsável. Esses registros ajudam a planejar o que será desenvolvido nos encontros e a acompanhar a realização das aulas."

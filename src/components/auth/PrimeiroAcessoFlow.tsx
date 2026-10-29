@@ -146,8 +146,8 @@ export function PrimeiroAcessoFlow({
         return;
       }
       if (estado.primeiroAcessoPendente) {
-		throw new Error("Não foi possível concluir a confirmação do e-mail.");
-	  }
+        throw new Error("Não foi possível concluir a confirmação do e-mail.");
+      }
       toast.success("E-mail confirmado com sucesso.");
       onConcluido();
     } catch (error) {

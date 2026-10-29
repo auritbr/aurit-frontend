@@ -440,7 +440,10 @@ export default function Curriculos() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="people"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Currículos"
           tooltip="Nesta página é preenchido o currículo do colaborador com informações sobre formação acadêmica, atuação profissional, experiências socioculturais, atividades formativas e competências. Esses dados ajudam a demonstrar sua trajetória e experiência em projetos, editais e outras ações da organização."

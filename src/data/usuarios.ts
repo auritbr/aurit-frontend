@@ -51,11 +51,7 @@ interface ConfiguracaoEmpresaDTO {
   id: number;
   nomeEmpresa?: string;
   tipoPlano?:
-    | "PLANO_GRATUITO"
-    | "PLANO_PAGO"
-    | "PLANO_CORTESIA"
-    | string
-    | null;
+    "PLANO_GRATUITO" | "PLANO_PAGO" | "PLANO_CORTESIA" | string | null;
   limiteUsuarios?: number | null;
 }
 

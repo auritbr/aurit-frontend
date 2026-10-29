@@ -389,7 +389,10 @@ export default function Presencas() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="execution"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <PageTitle
           title="Presenças"
           tooltip="Nesta página são registradas e acompanhadas as presenças dos participantes nos encontros das atividades e turmas da organização, com possibilidade de relacionar o registro ao plano de aula correspondente. Esses dados ajudam a controlar a frequência, acompanhar a participação e manter o histórico dos encontros realizados."
@@ -423,13 +426,16 @@ export default function Presencas() {
                   onValueChange={handleAtividadeChange}
                   disabled={loadingBase}
                 >
-                  <SelectTrigger id="presencaAtividade">
+                  <SelectTrigger
+                    className="h-11 min-w-0 text-base md:h-10 md:text-sm"
+                    id="presencaAtividade"
+                  >
                     <SelectValue
                       placeholder={loadingBase ? "Carregando..." : "Selecione"}
                     />
                   </SelectTrigger>
 
-                  <SelectContent>
+                  <SelectContent className="[&_[role=option]]:min-h-11 md:[&_[role=option]]:min-h-0">
                     {atividades.length === 0 ? (
                       <SelectItem value="sem-atividade" disabled>
                         Nenhuma atividade cadastrada
@@ -458,7 +464,10 @@ export default function Presencas() {
                   onValueChange={handleTurmaChange}
                   disabled={loadingBase || !atividadeId}
                 >
-                  <SelectTrigger id="presencaTurma">
+                  <SelectTrigger
+                    className="h-11 min-w-0 text-base md:h-10 md:text-sm"
+                    id="presencaTurma"
+                  >
                     <SelectValue
                       placeholder={
                         !atividadeId
@@ -470,7 +479,7 @@ export default function Presencas() {
                     />
                   </SelectTrigger>
 
-                  <SelectContent>
+                  <SelectContent className="[&_[role=option]]:min-h-11 md:[&_[role=option]]:min-h-0">
                     <SelectItem value={SEM_TURMA}>
                       Sem turma específica
                     </SelectItem>
@@ -492,7 +501,7 @@ export default function Presencas() {
                   type="button"
                   variant="glassPrimary"
                   onClick={handleBuscar}
-                  className="h-9 px-4"
+                  className="h-11 w-full px-4 md:h-9 md:w-auto"
                   disabled={loadingBase}
                 >
                   Buscar
@@ -526,11 +535,14 @@ export default function Presencas() {
                     </FieldLabel>
 
                     <Select value={ano} onValueChange={setAno}>
-                      <SelectTrigger id="presencaAno">
+                      <SelectTrigger
+                        className="h-11 min-w-0 text-base md:h-10 md:text-sm"
+                        id="presencaAno"
+                      >
                         <SelectValue />
                       </SelectTrigger>
 
-                      <SelectContent>
+                      <SelectContent className="[&_[role=option]]:min-h-11 md:[&_[role=option]]:min-h-0">
                         {anosOptions.map((anoOption) => (
                           <SelectItem key={anoOption} value={String(anoOption)}>
                             {anoOption}
@@ -551,12 +563,14 @@ export default function Presencas() {
 
                     <Input
                       id="presencaData"
+                      className="h-11 min-w-0 md:h-10"
                       type="date"
                       value={dataAula}
                       onChange={(e) => handleDataAulaChange(e.target.value)}
                     />
                     <p className="mt-1 text-xs text-muted-foreground">
-                      A lista será ajustada automaticamente à data de matrícula dos participantes.
+                      A lista será ajustada automaticamente à data de matrícula
+                      dos participantes.
                     </p>
                   </div>
 
@@ -573,7 +587,10 @@ export default function Presencas() {
                       onValueChange={handlePlanoAulaChange}
                       disabled={loadingBase || !atividadeId}
                     >
-                      <SelectTrigger id="presencaPlanoAula">
+                      <SelectTrigger
+                        className="h-11 min-w-0 text-base md:h-10 md:text-sm"
+                        id="presencaPlanoAula"
+                      >
                         <SelectValue
                           placeholder={
                             planosAulaDisponiveis.length === 0
@@ -583,7 +600,7 @@ export default function Presencas() {
                         />
                       </SelectTrigger>
 
-                      <SelectContent>
+                      <SelectContent className="[&_[role=option]]:min-h-11 md:[&_[role=option]]:min-h-0">
                         <SelectItem value={SEM_PLANO_AULA}>
                           Sem plano de aula vinculado
                         </SelectItem>
@@ -614,6 +631,7 @@ export default function Presencas() {
 
                     <Textarea
                       id="presencaObservacao"
+                      className="text-base md:text-sm"
                       value={observacao}
                       onChange={(e) => setObservacao(e.target.value)}
                       rows={3}
@@ -628,11 +646,11 @@ export default function Presencas() {
                 description="Registre a situação de cada participante neste encontro, indicando se esteve presente, ausente ou se o encontro não ocorreu."
               >
                 {rows.length > 0 && (
-                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                  <div className="mb-4 grid grid-cols-1 items-center gap-2 md:flex md:flex-wrap">
                     <Button
                       type="button"
                       variant="glassSecondary"
-                      className="h-8 rounded-[10px] px-2.5 text-[12px]"
+                      className="h-11 w-full rounded-[10px] px-2.5 text-[12px] md:h-8 md:w-auto"
                       onClick={() => marcarTodos("PRESENTE")}
                     >
                       Marcar todos como Presente
@@ -641,7 +659,7 @@ export default function Presencas() {
                     <Button
                       type="button"
                       variant="glassSecondary"
-                      className="h-8 rounded-[10px] px-2.5 text-[12px]"
+                      className="h-11 w-full rounded-[10px] px-2.5 text-[12px] md:h-8 md:w-auto"
                       onClick={() => marcarTodos("AUSENTE")}
                     >
                       Marcar todos como Ausente
@@ -650,7 +668,7 @@ export default function Presencas() {
                     <Button
                       type="button"
                       variant="glassSecondary"
-                      className="h-8 rounded-[10px] px-2.5 text-[12px]"
+                      className="h-11 w-full rounded-[10px] px-2.5 text-[12px] md:h-8 md:w-auto"
                       onClick={() => marcarTodos("NAO_TEVE_AULA")}
                     >
                       Marcar todos como Não teve aula
@@ -659,7 +677,7 @@ export default function Presencas() {
                     <Button
                       type="button"
                       variant="glassSecondary"
-                      className="h-8 rounded-[10px] px-2.5 text-[12px]"
+                      className="h-11 w-full rounded-[10px] px-2.5 text-[12px] md:h-8 md:w-auto"
                       onClick={() => marcarTodos("FERIADO")}
                     >
                       Marcar todos como Feriado
@@ -777,7 +795,7 @@ export default function Presencas() {
                     type="button"
                     variant="glassPrimary"
                     onClick={handleSalvar}
-                    className="h-9 px-5"
+                    className="h-11 px-5 md:h-9"
                     disabled={saving || rows.length === 0}
                   >
                     {saving ? "Salvando..." : "Salvar"}

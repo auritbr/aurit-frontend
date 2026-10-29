@@ -8,18 +8,10 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 export type ParticipanteStatus = "ATIVO" | "INATIVO" | "PENDENTE" | "CONCLUIDO";
 
 export type StatusMatricula =
-  | "MATRICULADO"
-  | "EM_ESPERA"
-  | "CANCELADO"
-  | "DESISTENTE"
-  | "CONCLUIDO";
+  "MATRICULADO" | "EM_ESPERA" | "CANCELADO" | "DESISTENTE" | "CONCLUIDO";
 
 export type Genero =
-  | "FEMININO"
-  | "MASCULINO"
-  | "NAO_BINARIO"
-  | "OUTRO"
-  | "PREFERE_NAO_INFORMAR";
+  "FEMININO" | "MASCULINO" | "NAO_BINARIO" | "OUTRO" | "PREFERE_NAO_INFORMAR";
 
 export type RacaCor =
   | "BRANCA"
@@ -227,10 +219,7 @@ export const tipoDeficienciaParticipanteValueToLabel = (v?: string | null) =>
 
 export const tipoNeurodivergenciasValueToLabel = (
   values?:
-    | Array<TipoNeurodivergencia | string>
-    | TipoNeurodivergencia
-    | string
-    | null,
+    Array<TipoNeurodivergencia | string> | TipoNeurodivergencia | string | null,
 ) => {
   const lista = normalizeEnumList(values);
 
@@ -384,10 +373,7 @@ export interface ParticipanteApiDTO {
   possuiCadunico?: boolean | null;
   possuiBolsaFamilia?: boolean | null;
   tipoNeurodivergencias?:
-    | Array<TipoNeurodivergencia | string>
-    | TipoNeurodivergencia
-    | string
-    | null;
+    Array<TipoNeurodivergencia | string> | TipoNeurodivergencia | string | null;
   tipoDeficiencias?:
     | Array<TipoDeficienciaParticipante | string>
     | TipoDeficienciaParticipante
@@ -861,17 +847,20 @@ export async function getAtividadesOptions(): Promise<AtividadeOption[]> {
 
   const data: AtividadeApiDTO[] = await response.json();
 
-  return sortOptionsByName((Array.isArray(data) ? data : [])
-    .map((item) => ({
-      id: normalizeId(item.id),
-      nomeAtividade: nameWithYear(
-        pickText(item.nomeAtividade, item.nome) || `Atividade ${item.id}`,
-        item.ano,
-        item.dataInicio,
-      ),
-      status: item.status ?? "",
-    }))
-    .filter((item) => item.id), (item) => item.nomeAtividade);
+  return sortOptionsByName(
+    (Array.isArray(data) ? data : [])
+      .map((item) => ({
+        id: normalizeId(item.id),
+        nomeAtividade: nameWithYear(
+          pickText(item.nomeAtividade, item.nome) || `Atividade ${item.id}`,
+          item.ano,
+          item.dataInicio,
+        ),
+        status: item.status ?? "",
+      }))
+      .filter((item) => item.id),
+    (item) => item.nomeAtividade,
+  );
 }
 
 export async function getTurmasOptions(): Promise<TurmaOption[]> {
@@ -886,21 +875,24 @@ export async function getTurmasOptions(): Promise<TurmaOption[]> {
 
   const data: TurmaApiDTO[] = await response.json();
 
-  return sortOptionsByName((Array.isArray(data) ? data : [])
-    .map((item) => ({
-      id: normalizeId(item.id),
-      nomeTurma: nameWithYear(
-        pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
-        item.ano,
-        item.dataInicio,
-        item.atividade?.ano,
-        item.atividade?.dataInicio,
-      ),
-      atividadeId: normalizeId(item.atividadeId ?? item.atividade),
-      nivelTurma: item.nivelTurma ?? "",
-      status: item.status ?? "",
-    }))
-    .filter((item) => item.id), (item) => item.nomeTurma);
+  return sortOptionsByName(
+    (Array.isArray(data) ? data : [])
+      .map((item) => ({
+        id: normalizeId(item.id),
+        nomeTurma: nameWithYear(
+          pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
+          item.ano,
+          item.dataInicio,
+          item.atividade?.ano,
+          item.atividade?.dataInicio,
+        ),
+        atividadeId: normalizeId(item.atividadeId ?? item.atividade),
+        nivelTurma: item.nivelTurma ?? "",
+        status: item.status ?? "",
+      }))
+      .filter((item) => item.id),
+    (item) => item.nomeTurma,
+  );
 }
 
 export async function getOrganizacoesParticipante(): Promise<

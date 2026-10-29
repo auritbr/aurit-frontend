@@ -2,8 +2,7 @@ import { forwardRef } from "react";
 import { HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export interface HelpTooltipTriggerProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface HelpTooltipTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   /** Rótulo acessível do botão de ajuda. */
   label?: string;
   /** Renderiza apenas o visual (sem interação), para uso em legendas. */
@@ -12,7 +11,7 @@ export interface HelpTooltipTriggerProps
 
 /**
  * Gatilho circular padronizado de ajuda — acabamento "liquid glass" sutil,
- * círculo visível de 19px dentro de uma área de toque de 30px.
+ * círculo visível de 19px com área de toque de 44px no celular e 30px no computador.
  */
 export const HelpTooltipTrigger = forwardRef<
   HTMLButtonElement,
@@ -61,7 +60,7 @@ export const HelpTooltipTrigger = forwardRef<
         type="button"
         aria-label={label}
         className={cn(
-          "group -m-[5.5px] inline-flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full",
+          "group -m-[12.5px] inline-flex h-11 w-11 md:-m-[5.5px] md:h-[30px] md:w-[30px] shrink-0 items-center justify-center rounded-full",
           "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
           className,
         )}

@@ -11,7 +11,12 @@ export interface NovaImagemEvidencia {
 }
 const MAX_FILES = 10;
 const MAX_SIZE = 5 * 1024 * 1024;
-const TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+const TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+]);
 export function EvidenciaImagensUploader({
   imagensAtuais,
   onRemoverAtual,
@@ -94,7 +99,8 @@ export function EvidenciaImagensUploader({
         Selecionar arquivos
       </Button>
       <p className="text-[12px] text-muted-foreground">
-        Até 10 arquivos, com no máximo 5 MB cada, em JPEG, JPG, PNG, WEBP ou PDF.
+        Até 10 arquivos, com no máximo 5 MB cada, em JPEG, JPG, PNG, WEBP ou
+        PDF.
       </p>
       {imagensAtuais.length + novasImagens.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -109,16 +115,21 @@ export function EvidenciaImagensUploader({
               className="attachment-file-glass relative overflow-hidden rounded-[13px]"
             >
               {image.file.type === "application/pdf" ? (
-                <a href={image.previewUrl} target="_blank" rel="noopener noreferrer" className="flex aspect-[4/3] flex-col items-center justify-center gap-2 text-primary">
+                <a
+                  href={image.previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex aspect-[4/3] flex-col items-center justify-center gap-2 text-primary"
+                >
                   <FileText className="h-9 w-9" />
                   <span className="text-sm">Abrir PDF</span>
                 </a>
               ) : (
-              <img
-                src={image.previewUrl}
-                alt={image.file.name}
-                className="aspect-[4/3] w-full object-cover"
-              />
+                <img
+                  src={image.previewUrl}
+                  alt={image.file.name}
+                  className="aspect-[4/3] w-full object-cover"
+                />
               )}
               <figcaption className="truncate px-2.5 py-2 text-[11px] text-muted-foreground">
                 {image.file.name}
@@ -162,9 +173,16 @@ function Existing({
           className="attachment-file-glass relative overflow-hidden rounded-[13px]"
         >
           {image.contentType === "application/pdf" ? (
-            <a href={image.visualizacaoUrl} target="_blank" rel="noopener noreferrer" className="flex aspect-[4/3] flex-col items-center justify-center gap-2 text-primary">
+            <a
+              href={image.visualizacaoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex aspect-[4/3] flex-col items-center justify-center gap-2 text-primary"
+            >
               <FileText className="h-9 w-9" />
-              <span className="text-sm">{image.visualizacaoUrl ? "Abrir PDF" : "PDF"}</span>
+              <span className="text-sm">
+                {image.visualizacaoUrl ? "Abrir PDF" : "PDF"}
+              </span>
             </a>
           ) : image.visualizacaoUrl ? (
             <img

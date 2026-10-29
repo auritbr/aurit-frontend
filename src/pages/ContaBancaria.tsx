@@ -336,7 +336,10 @@ export default function ContasBancarias() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Contas Bancárias"
           tooltip="Nesta página são cadastradas e acompanhadas as contas bancárias da organização. Esses registros permitem utilizar as contas nas diferentes rotinas financeiras da Aurit, como contas a pagar, contas a receber, fluxo de caixa e conciliação, mantendo seus dados e sua situação sempre atualizados."

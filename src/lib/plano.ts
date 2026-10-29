@@ -3,10 +3,7 @@ import { getAuthHeaders } from "@/lib/auth";
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export type TipoPlano =
-  | "PLANO_GRATUITO"
-  | "PLANO_PAGO"
-  | "PLANO_CORTESIA"
-  | string;
+  "PLANO_GRATUITO" | "PLANO_PAGO" | "PLANO_CORTESIA" | string;
 
 export const LIMITE_USUARIOS_PLANO_GRATUITO = 3;
 

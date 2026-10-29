@@ -4,15 +4,9 @@ import { apiFetch } from "@/lib/api";
 const BASE_PATH = "/conciliacoes-bancarias";
 
 export type StatusConciliacaoBancaria =
-  | "EM_ANDAMENTO"
-  | "CONCLUIDA"
-  | "CANCELADA";
+  "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA";
 export type StatusConciliacaoMovimentacao =
-  | "PENDENTE"
-  | "SUGERIDA"
-  | "CONCILIADA"
-  | "DIVERGENTE"
-  | "IGNORADA";
+  "PENDENTE" | "SUGERIDA" | "CONCILIADA" | "DIVERGENTE" | "IGNORADA";
 export type TipoMovimentacao = "ENTRADA" | "SAIDA";
 
 export interface TotaisConciliacao {
@@ -25,6 +19,7 @@ export interface TotaisConciliacao {
 }
 
 export interface RegistroAurit {
+  tipoMovimentacao?: TipoMovimentacao;
   id: string;
   dataMovimentacao: string;
   valor: number;
@@ -108,11 +103,13 @@ interface MovimentacaoDTO {
   origemMovimentacaoBancaria?: string | null;
   valorMovimentacaoBancaria?: number | null;
   dataMovimentacaoBancaria?: string | null;
+  tipoMovimentacaoBancaria?: TipoMovimentacao | null;
   diferencaValor?: number | null;
   diferencaDias?: number | null;
 }
 
 interface SugestaoDTO {
+  tipoMovimentacao?: TipoMovimentacao | null;
   movimentacaoBancariaId: number;
   dataMovimentacao: string;
   valor: number;
@@ -181,6 +178,7 @@ function mapRegistro(dto: MovimentacaoDTO): RegistroAurit | undefined {
   return {
     id: String(dto.movimentacaoBancariaId),
     dataMovimentacao: dto.dataMovimentacaoBancaria ?? "",
+    tipoMovimentacao: dto.tipoMovimentacaoBancaria ?? undefined,
     valor: Number(dto.valorMovimentacaoBancaria ?? 0),
     historico:
       dto.historicoMovimentacaoBancaria?.trim() ||
@@ -284,6 +282,7 @@ export async function listarSugestoes(
   );
   return dtos.map((dto) => ({
     id: String(dto.movimentacaoBancariaId),
+    tipoMovimentacao: dto.tipoMovimentacao ?? undefined,
     dataMovimentacao: dto.dataMovimentacao,
     valor: Number(dto.valor),
     historico:

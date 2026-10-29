@@ -72,12 +72,7 @@ const EVENTO_CULTURAL_NEXT_STEP_KEY = "aurit:eventos-culturais:next-step-card";
 const NEXT_STEP_DURATION_MS = 60_000;
 
 type SortBy =
-  | "nome"
-  | "tipo"
-  | "periodo"
-  | "status"
-  | "projeto"
-  | "colaboradores";
+  "nome" | "tipo" | "periodo" | "status" | "projeto" | "colaboradores";
 type SortDir = "asc" | "desc";
 
 interface EventosFiltros {
@@ -462,7 +457,10 @@ export default function EventosCulturais() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="execution"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Eventos Culturais"
           tooltip="Nesta página são cadastrados e acompanhados os eventos culturais realizados pela organização, como apresentações, mostras, festivais, exposições, encontros e outras ações públicas. Os registros permitem organizar informações sobre realização, período, situação, projetos relacionados e equipe envolvida, apoiando o acompanhamento dos eventos, a produção de evidências, os relatórios e as prestações de contas."

@@ -65,8 +65,7 @@ export function RowActionsDropdown({
   const { modulo, carregando, permissoes } = useModulePermissionContext();
   const podeEditar = !modulo || (!carregando && permissoes.EDITAR);
   const podeExcluir = !modulo || (!carregando && permissoes.EXCLUIR);
-  const podeGerarPdf =
-    !modulo || (!carregando && permissoes.GERAR_PDF);
+  const podeGerarPdf = !modulo || (!carregando && permissoes.GERAR_PDF);
 
   const handleReport = async () => {
     if (!reportEndpoint || generatingReport) return;

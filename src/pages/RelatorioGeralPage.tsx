@@ -133,7 +133,10 @@ export default function RelatorioGeralPage() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div
+        data-mobile-data-page="reports"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      >
         <RelatorioHeader
           title="Relatório Geral"
           tooltip="Apresenta uma visão consolidada da organização, reunindo indicadores principais de gestão, execução, documentação, financeiro, editais, prestação de contas e patrimônio."

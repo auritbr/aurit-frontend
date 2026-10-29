@@ -1337,6 +1337,7 @@ export default function Organizacao() {
   return (
     <AppLayout>
       <div
+        data-mobile-data-page
         className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"} py-6 sm:py-8`}
       >
         {showForm && <BackButton onClick={handleCancel} />}
@@ -1548,8 +1549,9 @@ export default function Organizacao() {
 
                 {isColetivo(form.tipoAgente) && (
                   <p className="text-sm text-muted-foreground sm:col-span-2">
-                    Grupos e coletivos podem ser cadastrados sem CNPJ ou documento de identificação próprio.
-                    Informe os dados do representante na seção correspondente.
+                    Grupos e coletivos podem ser cadastrados sem CNPJ ou
+                    documento de identificação próprio. Informe os dados do
+                    representante na seção correspondente.
                   </p>
                 )}
 

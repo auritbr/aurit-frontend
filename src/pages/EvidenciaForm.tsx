@@ -369,10 +369,7 @@ export default function EvidenciaForm() {
         throw new Error("Selecione um projeto.");
       }
 
-      if (
-        form.contexto === "AULA" &&
-        !form.atividadeId
-      ) {
+      if (form.contexto === "AULA" && !form.atividadeId) {
         throw new Error("Selecione a atividade.");
       }
 
@@ -400,8 +397,14 @@ export default function EvidenciaForm() {
         tipoEvidencia: "FOTO",
         projetoId: Number(form.projetoId),
         atividadeId: form.contexto === "AULA" ? Number(form.atividadeId) : null,
-        turmaId: form.contexto === "AULA" && form.turmaId ? Number(form.turmaId) : null,
-        planoAulaId: form.contexto === "AULA" && form.planoAulaId ? Number(form.planoAulaId) : null,
+        turmaId:
+          form.contexto === "AULA" && form.turmaId
+            ? Number(form.turmaId)
+            : null,
+        planoAulaId:
+          form.contexto === "AULA" && form.planoAulaId
+            ? Number(form.planoAulaId)
+            : null,
         eventoCulturalId:
           form.contexto === "EVENTO_CULTURAL"
             ? Number(form.eventoCulturalId)
@@ -460,7 +463,10 @@ export default function EvidenciaForm() {
   if (isView) {
     return (
       <AppLayout>
-        <div className="container max-w-4xl py-6 sm:py-8">
+        <div
+          data-mobile-data-page="grants"
+          className="container max-w-4xl py-6 sm:py-8"
+        >
           <BackButton to="/evidencias" />
 
           <FormHeader />
@@ -584,7 +590,10 @@ export default function EvidenciaForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="grants"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/evidencias" />
 
         <FormHeader />
@@ -968,7 +977,11 @@ function SelectField({
         {label}
       </FieldLabel>
 
-      <Select value={value} onValueChange={(v) => onChange(v === "__none__" ? "" : v)} disabled={disabled}>
+      <Select
+        value={value}
+        onValueChange={(v) => onChange(v === "__none__" ? "" : v)}
+        disabled={disabled}
+      >
         <SelectTrigger id={id}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>

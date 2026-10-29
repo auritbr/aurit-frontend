@@ -1,7 +1,7 @@
 import { useDoadorConversion } from "@/hooks/useDoadorConversion";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, RotateCcw, Search, UserPlus } from "lucide-react";
+import { Loader2, Plus, RotateCcw, Search, UserPlus } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { ListPageHeader } from "@/components/list/ListPageHeader";
@@ -405,7 +405,10 @@ export default function Integrantes() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="people"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Integrantes"
           tooltip="Nesta página são cadastrados os integrantes vinculados à organização, como artistas, grupos, parceiros culturais, pareceristas ou pessoas envolvidas em projetos, ações e atividades. Também podem ser registrados o tipo de vínculo, a função exercida, o período de participação e a situação atual de cada integrante."

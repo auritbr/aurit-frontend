@@ -481,11 +481,14 @@ export default function ContaPagarForm() {
             })),
           );
           setAtividadeRecords(
-            sortOptionsByName(atividades.map((item) => ({
-              value: item.id,
-              label: nameWithYear(item.nomeAtividade, item.dataInicio),
-              projetoId: item.projetoId,
-            })), (item) => item.label),
+            sortOptionsByName(
+              atividades.map((item) => ({
+                value: item.id,
+                label: nameWithYear(item.nomeAtividade, item.dataInicio),
+                projetoId: item.projetoId,
+              })),
+              (item) => item.label,
+            ),
           );
           setEventoRecords(
             eventos.map((item) => ({
@@ -714,7 +717,10 @@ export default function ContaPagarForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/contas-pagar" />
         <PageTitle
           title="Contas a Pagar"

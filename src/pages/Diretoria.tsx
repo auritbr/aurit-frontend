@@ -1119,6 +1119,7 @@ export default function Diretoria() {
   return (
     <AppLayout>
       <div
+        data-mobile-data-page
         className={`container ${
           showForm ? "max-w-4xl" : "max-w-7xl"
         } py-6 sm:py-8`}

@@ -61,10 +61,7 @@ import type { ActiveFilterItem } from "@/components/ActiveFilters";
 import { getRelatorioDetalhado, type Indicador } from "@/data/relatorios";
 
 type Kind =
-  | "evidencias"
-  | "prestacoes-contas"
-  | "prestacoes-metas"
-  | "emprestimos";
+  "evidencias" | "prestacoes-contas" | "prestacoes-metas" | "emprestimos";
 type Row = Record<string, string | number> & { id: string; situacao: string };
 
 const date = (value: string) =>
@@ -201,8 +198,7 @@ async function loadRows(kind: Kind): Promise<Row[]> {
         ...keys.map((key) => item[key]),
         ...nested.flatMap((entry) => keys.map((key) => entry[key])),
       ].find((value) => typeof value === "string" && value.trim()) as
-        | string
-        | undefined;
+        string | undefined;
     };
     return emprestimos.map((item) => {
       const responsavel =
@@ -402,20 +398,25 @@ function columnsFor(kind: Kind): ReportTableColumn<Row>[] {
     ...base[kind].map(([key, label], index) => ({
       key,
       label,
-      pdfKey: kind === "evidencias" ? ({
-        titulo: "titulo_evidencia",
-        tipo: "tipo_evidencia",
-        vinculo: "tipo_vinculo_evidencia",
-        projeto: "projeto",
-        proposta: "proposta_edital",
-        planoAula: "plano_aula",
-        atividade: "atividade",
-        turma: "turma",
-        evento: "evento_cultural",
-        acaoDivulgacao: "acao_divulgacao",
-        presenca: "presenca",
-        observacao: "observacao_evidencia",
-      } as Record<string, string>)[key] : undefined,
+      pdfKey:
+        kind === "evidencias"
+          ? (
+              {
+                titulo: "titulo_evidencia",
+                tipo: "tipo_evidencia",
+                vinculo: "tipo_vinculo_evidencia",
+                projeto: "projeto",
+                proposta: "proposta_edital",
+                planoAula: "plano_aula",
+                atividade: "atividade",
+                turma: "turma",
+                evento: "evento_cultural",
+                acaoDivulgacao: "acao_divulgacao",
+                presenca: "presenca",
+                observacao: "observacao_evidencia",
+              } as Record<string, string>
+            )[key]
+          : undefined,
       alwaysVisible: index < 2,
       hiddenByDefault: key === "observacao",
       accessor: (row: Row) =>
@@ -436,11 +437,15 @@ function columnsFor(kind: Kind): ReportTableColumn<Row>[] {
           }
         : undefined,
     })),
-    ...(kind === "evidencias" ? [] : [{
-      key: "situacao",
-      label: kind === "prestacoes-metas" ? "Cumprimento" : "Situação",
-      accessor: (row: Row) => row.situacao,
-    }]),
+    ...(kind === "evidencias"
+      ? []
+      : [
+          {
+            key: "situacao",
+            label: kind === "prestacoes-metas" ? "Cumprimento" : "Situação",
+            accessor: (row: Row) => row.situacao,
+          },
+        ]),
   ];
 }
 

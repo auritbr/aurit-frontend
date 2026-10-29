@@ -38,10 +38,7 @@ async function parseError(response: Response): Promise<string> {
 export type AtividadeStatus = "Ativo" | "Inativo" | "Pendente" | "Concluído";
 
 export type StatusAtividadeValue =
-  | "ATIVO"
-  | "INATIVO"
-  | "PENDENTE"
-  | "CONCLUIDO";
+  "ATIVO" | "INATIVO" | "PENDENTE" | "CONCLUIDO";
 
 export type TipoAtividadeValue =
   | "OFICINA"
@@ -278,7 +275,9 @@ export function buildAtividadePayload(data: Atividade): AtividadeDTO {
     tipoAtividade: data.tipoAtividade,
     status: data.status,
     projetoId: Number(data.projetoId),
-    integrantesIds: (data.integrantesIds ?? []).map(Number).filter((id) => Number.isFinite(id) && id > 0),
+    integrantesIds: (data.integrantesIds ?? [])
+      .map(Number)
+      .filter((id) => Number.isFinite(id) && id > 0),
     colaboradoresIds: (data.colaboradoresIds ?? [])
       .filter(
         (id) => id !== null && id !== undefined && String(id).trim() !== "",

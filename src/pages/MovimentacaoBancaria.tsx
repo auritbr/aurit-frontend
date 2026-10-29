@@ -639,7 +639,10 @@ export default function ExtratoBancario() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Movimentações Bancárias"
           tooltip="Nesta página são apresentadas as movimentações registradas nas contas bancárias da organização, geradas a partir de pagamentos, recebimentos, transferências e outros registros financeiros. Utilize os filtros para consultar o extrato de cada conta, acompanhar entradas e saídas e conferir como cada movimentação foi registrada no sistema."

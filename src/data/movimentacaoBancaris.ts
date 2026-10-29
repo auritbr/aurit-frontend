@@ -4,11 +4,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export type TipoMovimentacaoBancaria = "ENTRADA" | "SAIDA";
 export type OrigemMovimentacaoBancaria =
-  | "CONTA_PAGAR"
-  | "CONTA_RECEBER"
-  | "TRANSFERENCIA"
-  | "ESTORNO"
-  | "AJUSTE";
+  "CONTA_PAGAR" | "CONTA_RECEBER" | "TRANSFERENCIA" | "ESTORNO" | "AJUSTE";
 
 export interface MovimentacaoBancaria {
   id: string;

@@ -54,6 +54,7 @@ import {
 import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/hooks/usePagination";
 import { RelatorioExportButtons } from "@/components/relatorios/RelatorioExportButtons";
+import { MobileReportSort } from "@/components/relatorios/MobileReportSort";
 import { ColumnSelector } from "@/components/relatorios/ColumnSelector";
 import {
   downloadGeneralReportPdf,
@@ -78,7 +79,10 @@ export function ReportShell({
 }) {
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div
+        data-mobile-data-page="reports"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      >
         <BackButton to="/relatorios" />
         <PageTitle title={title} tooltip={tooltip} />
         <PageObjective className="mb-4" description={objective} />
@@ -161,12 +165,7 @@ export function ReportFilterPanel({
 /* ───────────────────── Cards de indicadores ───────────────────── */
 
 export type StatTone =
-  | "primary"
-  | "success"
-  | "warning"
-  | "danger"
-  | "info"
-  | "neutral";
+  "primary" | "success" | "warning" | "danger" | "info" | "neutral";
 
 const statTones: Record<StatTone, string> = {
   primary: "bg-primary/10 border-primary/20 text-primary",
@@ -972,7 +971,9 @@ export function ReportTable<T>({
                         ),
                       filters: pdfExport.filters,
                       filterLabels: pdfExport.filterLabels,
-                      sortKey: columns.find((column) => column.key === sortKey)?.pdfKey ?? sortKey,
+                      sortKey:
+                        columns.find((column) => column.key === sortKey)
+                          ?.pdfKey ?? sortKey,
                       sortDirection: sortDir,
                     })
                 : undefined
@@ -1003,67 +1004,120 @@ export function ReportTable<T>({
             <p className="text-sm text-muted-foreground">{emptyMessage}</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {visibleColumns.map((c) => (
-                  <TableHead
-                    key={c.key}
-                    className={cn("whitespace-nowrap text-xs", c.className)}
+          <>
+            <div className="md:hidden">
+              <MobileReportSort
+                title={title}
+                value={sortKey}
+                direction={sortDir}
+                options={columns.filter((column) => !column.notSortable)}
+                onChange={(key) => {
+                  setSortKey(key);
+                  setSortDir("asc");
+                }}
+                onReverse={() =>
+                  setSortDir((direction) =>
+                    direction === "asc" ? "desc" : "asc",
+                  )
+                }
+              />
+              <div className="divide-y divide-border">
+                {paginated.map((row, index) => (
+                  <dl
+                    key={rowKey ? rowKey(row, index) : index}
+                    className="space-y-3 p-4"
                   >
-                    {c.notSortable ? (
-                      c.label
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => toggle(c.key)}
-                        className={cn(
-                          "inline-flex items-center gap-1 transition-colors hover:text-foreground",
-                          sortKey === c.key && "font-semibold text-foreground",
-                        )}
-                      >
-                        {c.label}
-                        <ArrowUpDown
-                          className={cn(
-                            "h-3 w-3 transition-transform",
-                            sortKey === c.key ? "opacity-90" : "opacity-40",
-                            sortKey === c.key &&
-                              sortDir === "desc" &&
-                              "rotate-180",
-                          )}
-                          aria-hidden
-                        />
-                      </button>
-                    )}
-                  </TableHead>
+                    {visibleColumns.map((column) => {
+                      const raw = column.accessor
+                        ? column.accessor(row)
+                        : (row as Record<string, unknown>)[column.key];
+                      const text =
+                        raw === null || raw === undefined || raw === ""
+                          ? "—"
+                          : String(raw);
+                      return (
+                        <div key={column.key} className="min-w-0">
+                          <dt className="text-xs text-muted-foreground">
+                            {column.label}
+                          </dt>
+                          <dd className="mt-1 text-sm text-foreground">
+                            {column.render ? column.render(row) : text}
+                          </dd>
+                        </div>
+                      );
+                    })}
+                  </dl>
                 ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginated.map((row, i) => (
-                <TableRow key={rowKey ? rowKey(row, i) : i}>
-                  {visibleColumns.map((c) => {
-                    const raw = c.accessor
-                      ? c.accessor(row)
-                      : (row as Record<string, unknown>)[c.key];
-                    const text =
-                      raw === null || raw === undefined || raw === ""
-                        ? "—"
-                        : String(raw);
-
-                    return (
-                      <TableCell
+              </div>
+            </div>
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {visibleColumns.map((c) => (
+                      <TableHead
                         key={c.key}
                         className={cn("whitespace-nowrap text-xs", c.className)}
                       >
-                        {c.render ? c.render(row) : text}
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                        {c.notSortable ? (
+                          c.label
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => toggle(c.key)}
+                            className={cn(
+                              "inline-flex items-center gap-1 transition-colors hover:text-foreground",
+                              sortKey === c.key &&
+                                "font-semibold text-foreground",
+                            )}
+                          >
+                            {c.label}
+                            <ArrowUpDown
+                              className={cn(
+                                "h-3 w-3 transition-transform",
+                                sortKey === c.key ? "opacity-90" : "opacity-40",
+                                sortKey === c.key &&
+                                  sortDir === "desc" &&
+                                  "rotate-180",
+                              )}
+                              aria-hidden
+                            />
+                          </button>
+                        )}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginated.map((row, i) => (
+                    <TableRow key={rowKey ? rowKey(row, i) : i}>
+                      {visibleColumns.map((c) => {
+                        const raw = c.accessor
+                          ? c.accessor(row)
+                          : (row as Record<string, unknown>)[c.key];
+                        const text =
+                          raw === null || raw === undefined || raw === ""
+                            ? "—"
+                            : String(raw);
+
+                        return (
+                          <TableCell
+                            key={c.key}
+                            className={cn(
+                              "whitespace-nowrap text-xs",
+                              c.className,
+                            )}
+                          >
+                            {c.render ? c.render(row) : text}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </div>
 

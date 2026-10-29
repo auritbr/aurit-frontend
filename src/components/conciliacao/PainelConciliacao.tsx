@@ -83,21 +83,23 @@ function Linha({
   rotulo: string;
   banco: string;
   aurit: string;
-  igual: boolean;
+  igual?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-2 py-1 text-[12.5px]">
       <span className="text-muted-foreground">{rotulo}</span>
       <span className="flex items-center gap-1.5 text-right">
         <span className="font-medium text-foreground">{banco}</span>
-        <span
-          className={cn(
-            "text-[11px]",
-            igual ? "text-emerald-600" : "text-amber-600",
-          )}
-        >
-          {igual ? "=" : "≠"}
-        </span>
+        {igual !== undefined && (
+          <span
+            className={cn(
+              "text-[11px]",
+              igual ? "text-emerald-600" : "text-amber-600",
+            )}
+          >
+            {igual ? "=" : "≠"}
+          </span>
+        )}
         <span className="font-medium text-foreground">{aurit}</span>
       </span>
     </div>
@@ -171,8 +173,9 @@ export function PainelConciliacao({
     !!registro && registro.dataMovimentacao === movimentacao.dataMovimentacao;
   const mesmoValor =
     !!registro && Math.abs(registro.valor - movimentacao.valor) < 0.005;
-  const mesmoTipo =
-    !!registro && registro.tipoMovimentacao === movimentacao.tipoMovimentacao;
+  const mesmoTipo = registro?.tipoMovimentacao
+    ? registro.tipoMovimentacao === movimentacao.tipoMovimentacao
+    : undefined;
   return (
     <div className="space-y-3.5 rounded-[14px] border border-border/70 bg-card/75 p-4 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-card/65">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -240,7 +243,10 @@ export function PainelConciliacao({
             <Linha
               rotulo="Tipo"
               banco={tipoMovimentacaoLabels[movimentacao.tipoMovimentacao]}
-              aurit={tipoMovimentacaoLabels[registro.tipoMovimentacao]}
+              aurit={
+                tipoMovimentacaoLabels[registro.tipoMovimentacao] ??
+                "Não informado"
+              }
               igual={mesmoTipo}
             />
           </Bloco>

@@ -618,6 +618,7 @@ export default function Editais() {
   return (
     <AppLayout>
       <div
+        data-mobile-data-page="grants"
         className={`container ${showForm ? "max-w-4xl" : "max-w-7xl"} py-6 sm:py-8`}
       >
         <div ref={formTopRef} />

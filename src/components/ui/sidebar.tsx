@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { VariantProps, cva } from "class-variance-authority";
-import { PanelLeft } from "lucide-react";
+import { PanelLeft, X } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetTitle,
@@ -207,6 +208,7 @@ const Sidebar = React.forwardRef<
       return (
         <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
           <SheetContent
+            id={props.id}
             data-sidebar="sidebar"
             data-mobile="true"
             className="w-[--sidebar-width] border-sidebar-border bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden top-[var(--app-header-height)] h-[calc(100svh-var(--app-header-height))]"
@@ -221,7 +223,20 @@ const Sidebar = React.forwardRef<
             <SheetDescription className="sr-only">
               Navegação principal do sistema Aurit.
             </SheetDescription>
-            <div className="flex h-full w-full flex-col">{children}</div>
+            <div className="flex h-full w-full flex-col">
+              <div className="absolute right-2 top-2 z-10">
+                <SheetClose asChild>
+                  <button
+                    type="button"
+                    aria-label="Fechar menu de navegação"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-[11px] text-sidebar-foreground/80 hover:bg-sidebar-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                  >
+                    <X className="h-5 w-5" aria-hidden />
+                  </button>
+                </SheetClose>
+              </div>
+              {children}
+            </div>
           </SheetContent>
         </Sheet>
       );

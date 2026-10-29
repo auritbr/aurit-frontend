@@ -380,7 +380,9 @@ export default function AtividadeForm() {
       status: formComProjeto.status,
       projetoId: formComProjeto.projeto,
       projetoNome: formComProjeto.projetoNome,
-      colaboradoresIds: formComProjeto.colaboradores.filter((id) => !id.startsWith("integrante:")),
+      colaboradoresIds: formComProjeto.colaboradores.filter(
+        (id) => !id.startsWith("integrante:"),
+      ),
       integrantesIds: formComProjeto.colaboradores
         .filter((id) => id.startsWith("integrante:"))
         .map((id) => id.slice("integrante:".length)),
@@ -416,7 +418,10 @@ export default function AtividadeForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="execution"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/atividades" />
 
         <ListPageHeader

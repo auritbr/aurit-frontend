@@ -484,7 +484,10 @@ export default function PropostaEditalForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="grants"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/propostas-edital" />
 
         <ListPageHeader
@@ -603,7 +606,10 @@ export default function PropostaEditalForm() {
                   value={projetoSelectValue}
                   onValueChange={(value) => {
                     if (visualizando) return;
-                    set("projeto", value === "sem-projeto" ? "" : normalizeId(value));
+                    set(
+                      "projeto",
+                      value === "sem-projeto" ? "" : normalizeId(value),
+                    );
                   }}
                   disabled={bloqueado}
                 >
@@ -612,7 +618,9 @@ export default function PropostaEditalForm() {
                   </SelectTrigger>
 
                   <SelectContent>
-                    <SelectItem value="sem-projeto">Sem projeto de referência</SelectItem>
+                    <SelectItem value="sem-projeto">
+                      Sem projeto de referência
+                    </SelectItem>
                     {projetosComFallback.length === 0 ? (
                       <SelectItem value="nenhum-projeto-cadastrado" disabled>
                         Nenhum projeto cadastrado
@@ -850,49 +858,92 @@ export default function PropostaEditalForm() {
           >
             {isEdit && equipe.length > 0 ? (
               <div className="overflow-hidden rounded border border-border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/40">
-                    <tr>
-                      {[
-                        "Nome",
-                        "Função",
-                        "Carga horária",
-                        "Valor previsto",
-                      ].map((heading) => (
-                        <th
-                          key={heading}
-                          className="whitespace-nowrap px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                        >
-                          {heading}
-                        </th>
+                <div className="hidden md:block">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40">
+                      <tr>
+                        {[
+                          "Nome",
+                          "Função",
+                          "Carga horária",
+                          "Valor previsto",
+                        ].map((heading) => (
+                          <th
+                            key={heading}
+                            className="whitespace-nowrap px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                          >
+                            {heading}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {equipe.map((item) => (
+                        <tr key={item.id} className="border-t border-border/70">
+                          <td className="px-3 py-2 text-foreground">
+                            {memberDisplayName(item)}
+                          </td>
+
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {item.funcaoProjeto || "—"}
+                          </td>
+
+                          <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                            {typeof item.cargaHorariaPrevista === "number"
+                              ? `${item.cargaHorariaPrevista}h`
+                              : "—"}
+                          </td>
+
+                          <td className="whitespace-nowrap px-3 py-2 tabular-nums text-foreground">
+                            {formatBRLNumber(item.valorPrevisto)}
+                          </td>
+                        </tr>
                       ))}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {equipe.map((item) => (
-                      <tr key={item.id} className="border-t border-border/70">
-                        <td className="px-3 py-2 text-foreground">
+                    </tbody>
+                  </table>
+                </div>
+                <div className="divide-y divide-border/70 md:hidden">
+                  {equipe.map((item) => (
+                    <dl
+                      key={item.id}
+                      className="grid grid-cols-2 gap-3 p-4 text-sm"
+                    >
+                      <div className="col-span-2 min-w-0">
+                        <dt className="text-xs text-muted-foreground">Nome</dt>
+                        <dd className="mt-1 font-medium text-foreground">
                           {memberDisplayName(item)}
-                        </td>
-
-                        <td className="px-3 py-2 text-muted-foreground">
+                        </dd>
+                      </div>
+                      <div className="col-span-2 min-w-0">
+                        <dt className="text-xs text-muted-foreground">
+                          Função
+                        </dt>
+                        <dd className="mt-1 text-foreground">
                           {item.funcaoProjeto || "—"}
-                        </td>
-
-                        <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">
+                          Carga horária
+                        </dt>
+                        <dd className="mt-1 text-foreground">
                           {typeof item.cargaHorariaPrevista === "number"
                             ? `${item.cargaHorariaPrevista}h`
                             : "—"}
-                        </td>
-
-                        <td className="whitespace-nowrap px-3 py-2 tabular-nums text-foreground">
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">
+                          Valor previsto
+                        </dt>
+                        <dd className="mt-1 tabular-nums text-foreground">
                           {formatBRLNumber(item.valorPrevisto)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </dd>
+                      </div>
+                    </dl>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="rounded border border-dashed border-border bg-muted/20 px-4 py-6 text-center">

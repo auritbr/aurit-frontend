@@ -419,14 +419,17 @@ export async function getAtividadesOptions(): Promise<OptionItem[]> {
 
   const data = await response.json();
 
-  return sortOptionsByName((Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => ({
-    id: String(item.id),
-    nome: nameWithYear(
-      pickText(item.nomeAtividade, item.nome) || `Atividade ${item.id}`,
-      String(item.ano ?? item.dataInicio ?? ""),
-    ),
-    projetoId: pickProjetoId(item),
-  })), (item) => item.nome);
+  return sortOptionsByName(
+    (Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => ({
+      id: String(item.id),
+      nome: nameWithYear(
+        pickText(item.nomeAtividade, item.nome) || `Atividade ${item.id}`,
+        String(item.ano ?? item.dataInicio ?? ""),
+      ),
+      projetoId: pickProjetoId(item),
+    })),
+    (item) => item.nome,
+  );
 }
 
 export async function getTurmasOptions(): Promise<OptionItem[]> {
@@ -441,26 +444,29 @@ export async function getTurmasOptions(): Promise<OptionItem[]> {
 
   const data = await response.json();
 
-  return sortOptionsByName((Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => {
-    const atividade = asRecord(item.atividade);
-    return {
-      id: String(item.id),
-      nome: nameWithYear(
-        pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
-        String(
-          item.ano ??
-            item.dataInicio ??
-            atividade.ano ??
-            atividade.dataInicio ??
-            "",
+  return sortOptionsByName(
+    (Array.isArray(data) ? data : []).map((item: ApiOptionRecord) => {
+      const atividade = asRecord(item.atividade);
+      return {
+        id: String(item.id),
+        nome: nameWithYear(
+          pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
+          String(
+            item.ano ??
+              item.dataInicio ??
+              atividade.ano ??
+              atividade.dataInicio ??
+              "",
+          ),
         ),
-      ),
-      projetoId: pickProjetoId(item),
-      atividadeId: String(
-        item.atividadeId ?? asRecord(item.atividade).id ?? "",
-      ),
-    };
-  }), (item) => item.nome);
+        projetoId: pickProjetoId(item),
+        atividadeId: String(
+          item.atividadeId ?? asRecord(item.atividade).id ?? "",
+        ),
+      };
+    }),
+    (item) => item.nome,
+  );
 }
 
 export async function getEventosCulturaisOptions(): Promise<OptionItem[]> {
@@ -815,14 +821,17 @@ export async function getAtividadesEvidenciaOptions(
   });
   if (!response.ok) throw new Error(await parseError(response));
   const data: ApiOptionRecord[] = await response.json();
-  return sortOptionsByName((Array.isArray(data) ? data : []).map((item) => ({
-    id: String(item.id),
-    nome: nameWithYear(
-      pickText(item.nomeAtividade, item.nome) || `Atividade ${item.id}`,
-      String(item.ano ?? item.dataInicio ?? ""),
-    ),
-    projetoId: String(projetoId),
-  })), (item) => item.nome);
+  return sortOptionsByName(
+    (Array.isArray(data) ? data : []).map((item) => ({
+      id: String(item.id),
+      nome: nameWithYear(
+        pickText(item.nomeAtividade, item.nome) || `Atividade ${item.id}`,
+        String(item.ano ?? item.dataInicio ?? ""),
+      ),
+      projetoId: String(projetoId),
+    })),
+    (item) => item.nome,
+  );
 }
 
 export async function getTurmasEvidenciaOptions(
@@ -833,25 +842,28 @@ export async function getTurmasEvidenciaOptions(
   });
   if (!response.ok) throw new Error(await parseError(response));
   const data: ApiOptionRecord[] = await response.json();
-  return sortOptionsByName((Array.isArray(data) ? data : []).map((item) => {
-    const atividade = asRecord(item.atividade);
-    return {
-      id: String(item.id),
-      nome: nameWithYear(
-        pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
-        String(
-          item.ano ??
-            item.dataInicio ??
-            atividade.ano ??
-            atividade.dataInicio ??
-            "",
+  return sortOptionsByName(
+    (Array.isArray(data) ? data : []).map((item) => {
+      const atividade = asRecord(item.atividade);
+      return {
+        id: String(item.id),
+        nome: nameWithYear(
+          pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
+          String(
+            item.ano ??
+              item.dataInicio ??
+              atividade.ano ??
+              atividade.dataInicio ??
+              "",
+          ),
         ),
-      ),
-      atividadeId: String(
-        item.atividadeId ?? asRecord(item.atividade).id ?? atividadeId,
-      ),
-    };
-  }), (item) => item.nome);
+        atividadeId: String(
+          item.atividadeId ?? asRecord(item.atividade).id ?? atividadeId,
+        ),
+      };
+    }),
+    (item) => item.nome,
+  );
 }
 
 export async function getPlanosAulaEvidenciaOptions(

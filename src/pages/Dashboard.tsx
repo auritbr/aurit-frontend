@@ -272,7 +272,10 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div
+        data-mobile-data-page="account"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      >
         <PageTitle
           title="Dashboard"
           tooltip="Nesta página são reunidas informações já registradas em diferentes áreas da Aurit para facilitar o acompanhamento da organização. Consulte a execução dos projetos, pendências, compromissos, público atendido, resultados, documentos e patrimônio a partir de uma visão consolidada."

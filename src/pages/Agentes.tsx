@@ -491,7 +491,7 @@ export default function Agentes() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div data-mobile-data-page className="container max-w-7xl py-6 sm:py-8">
         <ListPageHeader
           text-justify
           title="Agentes Culturais"

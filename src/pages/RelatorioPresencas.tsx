@@ -240,12 +240,17 @@ export default function RelatorioPresencas() {
   const [aplicados, setAplicados] = useState<Filtros>(FILTROS_INICIAIS);
   const [registros, setRegistros] = useState<RegistroPresenca[]>([]);
   const [atividades, setAtividades] = useState<RelatorioOption[]>([]);
-  const atividadesOptions = useMemo(() => [
-    { value: "TODOS", label: "Todas" },
-    ...[...atividades]
-      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }))
-      .map((item) => ({ value: item.id, label: item.nome })),
-  ], [atividades]);
+  const atividadesOptions = useMemo(
+    () => [
+      { value: "TODOS", label: "Todas" },
+      ...[...atividades]
+        .sort((a, b) =>
+          a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }),
+        )
+        .map((item) => ({ value: item.id, label: item.nome })),
+    ],
+    [atividades],
+  );
   const [turmasTodas, setTurmasTodas] = useState<RelatorioOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -481,7 +486,10 @@ export default function RelatorioPresencas() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div
+        data-mobile-data-page="finance"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      >
         <PageTitle
           title="Relatório de Presenças"
           tooltip="Nesta página são consultados os registros de presença dos participantes nas atividades e turmas da organização. Os filtros permitem acompanhar a frequência do público em diferentes períodos e identificar presenças, faltas e outras situações registradas, apoiando o acompanhamento das atividades, relatórios e prestações de contas."
@@ -560,8 +568,7 @@ export default function RelatorioPresencas() {
                           {nameWithYear(
                             item.nome,
                             atividades.find(
-                              (atividade) =>
-                                atividade.id === item.atividadeId,
+                              (atividade) => atividade.id === item.atividadeId,
                             )?.nome,
                           )}
                         </SelectItem>
@@ -772,8 +779,7 @@ export default function RelatorioPresencas() {
                       {nameWithYear(
                         turma.nome,
                         atividades.find(
-                          (atividade) =>
-                            atividade.id === turma.atividadeId,
+                          (atividade) => atividade.id === turma.atividadeId,
                         )?.nome,
                       )}
                     </SelectItem>
@@ -957,72 +963,98 @@ export default function RelatorioPresencas() {
                 </p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {visibleKeys.includes("participanteNome") && (
-                      <TableHead className="text-xs">Participante</TableHead>
-                    )}
-                    {visibleKeys.includes("atividadeNome") && (
-                      <TableHead className="text-xs">Atividade</TableHead>
-                    )}
-                    {visibleKeys.includes("turmaNome") && (
-                      <TableHead className="text-xs">Turma</TableHead>
-                    )}
-                    {visibleKeys.includes("data") && (
-                      <TableHead className="text-xs">Data</TableHead>
-                    )}
-                    {visibleKeys.includes("status") && (
-                      <TableHead className="text-xs">Status</TableHead>
-                    )}
-                    {visibleKeys.includes("observacao") && (
-                      <TableHead className="text-xs">Observações</TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-
-                <TableBody>
+              <>
+                <div className="divide-y divide-border md:hidden">
                   {pagina.map((registro) => (
-                    <TableRow key={registro.id}>
-                      {visibleKeys.includes("participanteNome") && (
-                        <TableCell className="text-xs font-medium text-foreground">
-                          {registro.participanteNome}
-                        </TableCell>
-                      )}
-
-                      {visibleKeys.includes("atividadeNome") && (
-                        <TableCell className="text-xs">
-                          {registro.atividadeNome}
-                        </TableCell>
-                      )}
-
-                      {visibleKeys.includes("turmaNome") && (
-                        <TableCell className="text-xs">
-                          {registro.turmaNome ?? "—"}
-                        </TableCell>
-                      )}
-
-                      {visibleKeys.includes("data") && (
-                        <TableCell className="text-xs tabular-nums">
-                          {formatDataBR(registro.data)}
-                        </TableCell>
-                      )}
-
-                      {visibleKeys.includes("status") && (
-                        <TableCell className="text-xs">
-                          <StatusBadge status={registro.status} />
-                        </TableCell>
-                      )}
-
-                      {visibleKeys.includes("observacao") && (
-                        <TableCell className="text-xs text-muted-foreground">
-                          {registro.observacao ?? "—"}
-                        </TableCell>
-                      )}
-                    </TableRow>
+                    <dl key={registro.id} className="space-y-3 p-4">
+                      {colunasExport.map((coluna) => (
+                        <div key={coluna.key} className="min-w-0">
+                          <dt className="text-xs text-muted-foreground">
+                            {coluna.label}
+                          </dt>
+                          <dd className="mt-1 text-sm text-foreground">
+                            {coluna.key === "status" ? (
+                              <StatusBadge status={registro.status} />
+                            ) : (
+                              coluna.accessor?.(registro) || "—"
+                            )}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {visibleKeys.includes("participanteNome") && (
+                          <TableHead className="text-xs">
+                            Participante
+                          </TableHead>
+                        )}
+                        {visibleKeys.includes("atividadeNome") && (
+                          <TableHead className="text-xs">Atividade</TableHead>
+                        )}
+                        {visibleKeys.includes("turmaNome") && (
+                          <TableHead className="text-xs">Turma</TableHead>
+                        )}
+                        {visibleKeys.includes("data") && (
+                          <TableHead className="text-xs">Data</TableHead>
+                        )}
+                        {visibleKeys.includes("status") && (
+                          <TableHead className="text-xs">Status</TableHead>
+                        )}
+                        {visibleKeys.includes("observacao") && (
+                          <TableHead className="text-xs">Observações</TableHead>
+                        )}
+                      </TableRow>
+                    </TableHeader>
+
+                    <TableBody>
+                      {pagina.map((registro) => (
+                        <TableRow key={registro.id}>
+                          {visibleKeys.includes("participanteNome") && (
+                            <TableCell className="text-xs font-medium text-foreground">
+                              {registro.participanteNome}
+                            </TableCell>
+                          )}
+
+                          {visibleKeys.includes("atividadeNome") && (
+                            <TableCell className="text-xs">
+                              {registro.atividadeNome}
+                            </TableCell>
+                          )}
+
+                          {visibleKeys.includes("turmaNome") && (
+                            <TableCell className="text-xs">
+                              {registro.turmaNome ?? "—"}
+                            </TableCell>
+                          )}
+
+                          {visibleKeys.includes("data") && (
+                            <TableCell className="text-xs tabular-nums">
+                              {formatDataBR(registro.data)}
+                            </TableCell>
+                          )}
+
+                          {visibleKeys.includes("status") && (
+                            <TableCell className="text-xs">
+                              <StatusBadge status={registro.status} />
+                            </TableCell>
+                          )}
+
+                          {visibleKeys.includes("observacao") && (
+                            <TableCell className="text-xs text-muted-foreground">
+                              {registro.observacao ?? "—"}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </div>
 

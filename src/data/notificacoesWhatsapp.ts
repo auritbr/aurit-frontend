@@ -151,7 +151,10 @@ export function getHistoricoNotificacoes(
 
 export function getDestinatariosWhatsapp(): Promise<DestinatarioWhatsapp[]> {
   return executar(
-    () => apiFetch<DestinatarioWhatsapp[]>(`${ENDPOINT}/destinatarios`, { cache: "no-store" }),
+    () =>
+      apiFetch<DestinatarioWhatsapp[]>(`${ENDPOINT}/destinatarios`, {
+        cache: "no-store",
+      }),
     "Não foi possível carregar os destinatários adicionais.",
   );
 }
@@ -160,10 +163,11 @@ export function adicionarDestinatarioWhatsapp(
   payload: DestinatarioWhatsappPayload,
 ): Promise<DestinatarioWhatsapp> {
   return executar(
-    () => apiFetch<DestinatarioWhatsapp>(`${ENDPOINT}/destinatarios`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
+    () =>
+      apiFetch<DestinatarioWhatsapp>(`${ENDPOINT}/destinatarios`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
     "Não foi possível adicionar o destinatário.",
   );
 }
@@ -173,17 +177,19 @@ export function atualizarDestinatarioWhatsapp(
   payload: DestinatarioWhatsappPayload,
 ): Promise<DestinatarioWhatsapp> {
   return executar(
-    () => apiFetch<DestinatarioWhatsapp>(`${ENDPOINT}/destinatarios/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    }),
+    () =>
+      apiFetch<DestinatarioWhatsapp>(`${ENDPOINT}/destinatarios/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }),
     "Não foi possível atualizar o destinatário.",
   );
 }
 
 export function removerDestinatarioWhatsapp(id: number): Promise<void> {
   return executar(
-    () => apiFetch<void>(`${ENDPOINT}/destinatarios/${id}`, { method: "DELETE" }),
+    () =>
+      apiFetch<void>(`${ENDPOINT}/destinatarios/${id}`, { method: "DELETE" }),
     "Não foi possível remover o destinatário.",
   );
 }

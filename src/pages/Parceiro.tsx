@@ -201,7 +201,10 @@ export default function ParceirosPage() {
     "h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm";
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Parceiros"
           tooltip={parceiroTooltip}

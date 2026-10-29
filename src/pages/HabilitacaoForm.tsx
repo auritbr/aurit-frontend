@@ -382,7 +382,10 @@ export default function HabilitacaoForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="grants"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/habilitacoes-propostas" />
 
         <ListPageHeader

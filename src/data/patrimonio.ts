@@ -47,16 +47,10 @@ export type TipoPatrimonioApi =
   | "OUTRO";
 
 export type EstadoConservacaoApi =
-  | "NOVO"
-  | "USADO"
-  | "DANIFICADO"
-  | "INUTILIZADO";
+  "NOVO" | "USADO" | "DANIFICADO" | "INUTILIZADO";
 
 export type StatusPatrimonioApi =
-  | "DISPONIVEL"
-  | "EMPRESTADO"
-  | "EM_MANUTENCAO"
-  | "BAIXADO";
+  "DISPONIVEL" | "EMPRESTADO" | "EM_MANUTENCAO" | "BAIXADO";
 
 export interface PatrimonioDTO {
   id?: number;

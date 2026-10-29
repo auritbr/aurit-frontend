@@ -595,7 +595,7 @@ export default function Participantes() {
             onClick: () => void gerarDeclaracaoParticipacao(id),
           },
         ]
-      : undefined;
+      : [];
 
   const exportColumns = [
     { header: "Nome do participante", key: "nomeCompleto" },
@@ -626,7 +626,10 @@ export default function Participantes() {
   if (loadingPermissoes) {
     return (
       <AppLayout>
-        <div className="container max-w-7xl py-6 sm:py-8">
+        <div
+          data-mobile-data-page="people"
+          className="container max-w-7xl py-6 sm:py-8"
+        >
           <p className="text-sm text-muted-foreground">
             Verificando permissões...
           </p>
@@ -653,7 +656,10 @@ export default function Participantes() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="people"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Participantes"
           tooltip="Nesta página são cadastrados e acompanhados os participantes da organização, com informações pessoais, sociais, de acessibilidade, endereço, documentos, responsável legal quando menor de idade e vínculo institucional. A associação com atividades e turmas é opcional e deve ser informada apenas quando o participante fizer parte de uma atividade ou turma específica."

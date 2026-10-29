@@ -3,10 +3,7 @@ import { apiFetch } from "@/lib/api";
 import { nameWithYear } from "@/lib/entityYear";
 
 export type StatusPresenca =
-  | "PRESENTE"
-  | "AUSENTE"
-  | "NAO_TEVE_AULA"
-  | "FERIADO";
+  "PRESENTE" | "AUSENTE" | "NAO_TEVE_AULA" | "FERIADO";
 
 export const statusPresencaOptions: { value: StatusPresenca; label: string }[] =
   [
@@ -243,46 +240,53 @@ function normalizarStatus(value?: string | null): StatusPresenca {
 }
 
 function mapAtividades(data: AtividadeApiDTO[]): RelatorioOption[] {
-  return sortOptionsByName(data
-    .filter((item) => item.id !== null && item.id !== undefined)
-    .map((item) => {
-      const id = toIdString(item.id);
+  return sortOptionsByName(
+    data
+      .filter((item) => item.id !== null && item.id !== undefined)
+      .map((item) => {
+        const id = toIdString(item.id);
 
-      return {
-        id,
-        nome: nameWithYear(
-          pickText(
-            item.nomeAtividade,
-            item.nome,
-            item.titulo,
-            item.descricao,
-          ) || `Atividade ${id}`,
-          item.ano,
-          item.dataInicio,
-        ),
-      };
-    }), (item) => item.nome);
+        return {
+          id,
+          nome: nameWithYear(
+            pickText(
+              item.nomeAtividade,
+              item.nome,
+              item.titulo,
+              item.descricao,
+            ) || `Atividade ${id}`,
+            item.ano,
+            item.dataInicio,
+          ),
+        };
+      }),
+    (item) => item.nome,
+  );
 }
 
 function mapTurmas(data: TurmaApiDTO[]): RelatorioOption[] {
-  return sortOptionsByName(data
-    .filter((item) => item.id !== null && item.id !== undefined)
-    .map((item) => {
-      const id = toIdString(item.id);
-      const atividadeId = toIdString(item.atividadeId ?? item.atividade?.id);
+  return sortOptionsByName(
+    data
+      .filter((item) => item.id !== null && item.id !== undefined)
+      .map((item) => {
+        const id = toIdString(item.id);
+        const atividadeId = toIdString(item.atividadeId ?? item.atividade?.id);
 
-      return {
-        id,
-        atividadeId,
-        nome: nameWithYear(
-          pickText(item.nome, item.nomeTurma, item.descricao) || `Turma ${id}`,
-          item.ano,
-          item.dataInicio,
-          item.atividade?.ano,
-          item.atividade?.dataInicio,
-        ),
-      };
-    }), (item) => item.nome);
+        return {
+          id,
+          atividadeId,
+          nome: nameWithYear(
+            pickText(item.nome, item.nomeTurma, item.descricao) ||
+              `Turma ${id}`,
+            item.ano,
+            item.dataInicio,
+            item.atividade?.ano,
+            item.atividade?.dataInicio,
+          ),
+        };
+      }),
+    (item) => item.nome,
+  );
 }
 
 function mapParticipantes(data: ParticipanteApiDTO[]): RelatorioOption[] {

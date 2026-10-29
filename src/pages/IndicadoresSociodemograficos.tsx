@@ -960,7 +960,10 @@ export default function IndicadoresSociodemograficos() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div
+        data-mobile-data-page="finance"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      >
         <PageTitle
           title="Relatório Sociodemográfico"
           tooltip="Nesta página é apresentado o perfil sociodemográfico dos participantes da organização, permitindo analisar características do público atendido e sua distribuição entre diferentes grupos. Os dados podem ser filtrados por ano, atividade, turma e situação da matrícula para apoiar o acompanhamento das ações, a elaboração de relatórios e as prestações de contas."
@@ -1333,8 +1336,7 @@ export default function IndicadoresSociodemograficos() {
                         turma.nomeTurma,
                         atividades.find(
                           (atividade) =>
-                            String(atividade.id) ===
-                            String(turma.atividadeId),
+                            String(atividade.id) === String(turma.atividadeId),
                         )?.nomeAtividade,
                       )}
                     </SelectItem>

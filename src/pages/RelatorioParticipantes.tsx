@@ -1,3 +1,4 @@
+import { MobileReportSort } from "@/components/relatorios/MobileReportSort";
 import {
   useEffect,
   useMemo,
@@ -646,7 +647,10 @@ export default function RelatorioParticipantes() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div
+        data-mobile-data-page="reports"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      >
         <PageTitle
           title="Relatório de Participação"
           tooltip="Nesta página são consultadas informações dos participantes a partir de seus vínculos com atividades e turmas, registros de presença e características sociais e de acessibilidade. Os filtros permitem analisar diferentes perfis e recortes do público atendido pela organização."
@@ -760,8 +764,7 @@ export default function RelatorioParticipantes() {
                           {nameWithYear(
                             item.nomeTurma,
                             atividades.find(
-                              (atividade) =>
-                                atividade.id === item.atividadeId,
+                              (atividade) => atividade.id === item.atividadeId,
                             )?.nomeAtividade,
                           )}
                         </SelectItem>
@@ -1048,172 +1051,226 @@ export default function RelatorioParticipantes() {
                 </p>
               </div>
             ) : (
-              <Table className="min-w-max [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
-                <TableHeader>
-                  <TableRow>
-                    <SortableHead
-                      active={sortKey === "nome"}
-                      dir={sortDir}
-                      onClick={() => toggleSort("nome")}
-                    >
-                      Participante
-                    </SortableHead>
-                    {mostrarNeurodivergencias && (
-                      <TableHead className="text-xs">
-                        Tipos de Neurodivergências
-                      </TableHead>
+              <>
+                <div className="md:hidden">
+                  <MobileReportSort
+                    title="Participantes"
+                    value={sortKey}
+                    direction={sortDir}
+                    options={todasColunas.filter((column) =>
+                      [
+                        "nome",
+                        "status",
+                        "atividade",
+                        "turma",
+                        "percentual",
+                      ].includes(column.key),
                     )}
-                    {mostrarDeficiencias && (
-                      <TableHead className="text-xs">
-                        Tipo de Deficiência
-                      </TableHead>
-                    )}
-                    {mostrarCadunico && (
-                      <TableHead className="text-xs">CadÚnico</TableHead>
-                    )}
-                    {mostrarBolsaFamilia && (
-                      <TableHead className="text-xs">Bolsa Família</TableHead>
-                    )}
-                    {mostrarStatus && (
-                      <SortableHead
-                        active={sortKey === "status"}
-                        dir={sortDir}
-                        onClick={() => toggleSort("status")}
-                      >
-                        Status
-                      </SortableHead>
-                    )}
-                    {mostrarAtividade && (
-                      <SortableHead
-                        active={sortKey === "atividade"}
-                        dir={sortDir}
-                        onClick={() => toggleSort("atividade")}
-                      >
-                        Atividade
-                      </SortableHead>
-                    )}
-                    {mostrarTurma && (
-                      <SortableHead
-                        active={sortKey === "turma"}
-                        dir={sortDir}
-                        onClick={() => toggleSort("turma")}
-                      >
-                        Turma
-                      </SortableHead>
-                    )}
-                    {mostrarPresencas && (
-                      <TableHead className="text-right text-xs">
-                        Presenças
-                      </TableHead>
-                    )}
-                    {mostrarAusencias && (
-                      <TableHead className="text-right text-xs">
-                        Ausências
-                      </TableHead>
-                    )}
-                    {mostrarFeriados && (
-                      <TableHead className="text-right text-xs">
-                        Feriados
-                      </TableHead>
-                    )}
-                    {mostrarSemAula && (
-                      <TableHead className="text-right text-xs">
-                        Não teve aula
-                      </TableHead>
-                    )}
-                    {mostrarPercentual && (
-                      <SortableHead
-                        active={sortKey === "percentual"}
-                        dir={sortDir}
-                        onClick={() => toggleSort("percentual")}
-                      >
-                        % Presença
-                      </SortableHead>
-                    )}
-                    {mostrar("ultima") && (
-                      <TableHead className="text-xs">Última presença</TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagination.paginated.map((linha) => (
-                    <TableRow key={linha.id}>
-                      <TableCell className="text-xs font-medium text-foreground">
-                        {linha.participanteNome}
-                      </TableCell>
-                      {mostrarNeurodivergencias && (
-                        <TableCell className="text-xs">
-                          {tipoNeurodivergenciasRelatorioLabel(
-                            linha.tipoNeurodivergencias,
+                    allowOriginal={false}
+                    onChange={(key) => {
+                      setSortKey((key ?? "nome") as SortKey);
+                      setSortDir("asc");
+                    }}
+                    onReverse={() =>
+                      setSortDir((direction) =>
+                        direction === "asc" ? "desc" : "asc",
+                      )
+                    }
+                  />
+                  <div className="divide-y divide-border">
+                    {pagination.paginated.map((linha) => (
+                      <dl key={linha.id} className="space-y-3 p-4">
+                        {colunasExport.map((coluna) => (
+                          <div key={coluna.key} className="min-w-0">
+                            <dt className="text-xs text-muted-foreground">
+                              {coluna.label}
+                            </dt>
+                            <dd className="mt-1 text-sm text-foreground">
+                              {coluna.key === "status" ? (
+                                <StatusBadge status={linha.status} />
+                              ) : (
+                                (coluna.accessor?.(linha) ?? "—")
+                              )}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ))}
+                  </div>
+                </div>
+                <div className="hidden md:block">
+                  <Table className="min-w-max [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
+                    <TableHeader>
+                      <TableRow>
+                        <SortableHead
+                          active={sortKey === "nome"}
+                          dir={sortDir}
+                          onClick={() => toggleSort("nome")}
+                        >
+                          Participante
+                        </SortableHead>
+                        {mostrarNeurodivergencias && (
+                          <TableHead className="text-xs">
+                            Tipos de Neurodivergências
+                          </TableHead>
+                        )}
+                        {mostrarDeficiencias && (
+                          <TableHead className="text-xs">
+                            Tipo de Deficiência
+                          </TableHead>
+                        )}
+                        {mostrarCadunico && (
+                          <TableHead className="text-xs">CadÚnico</TableHead>
+                        )}
+                        {mostrarBolsaFamilia && (
+                          <TableHead className="text-xs">
+                            Bolsa Família
+                          </TableHead>
+                        )}
+                        {mostrarStatus && (
+                          <SortableHead
+                            active={sortKey === "status"}
+                            dir={sortDir}
+                            onClick={() => toggleSort("status")}
+                          >
+                            Status
+                          </SortableHead>
+                        )}
+                        {mostrarAtividade && (
+                          <SortableHead
+                            active={sortKey === "atividade"}
+                            dir={sortDir}
+                            onClick={() => toggleSort("atividade")}
+                          >
+                            Atividade
+                          </SortableHead>
+                        )}
+                        {mostrarTurma && (
+                          <SortableHead
+                            active={sortKey === "turma"}
+                            dir={sortDir}
+                            onClick={() => toggleSort("turma")}
+                          >
+                            Turma
+                          </SortableHead>
+                        )}
+                        {mostrarPresencas && (
+                          <TableHead className="text-right text-xs">
+                            Presenças
+                          </TableHead>
+                        )}
+                        {mostrarAusencias && (
+                          <TableHead className="text-right text-xs">
+                            Ausências
+                          </TableHead>
+                        )}
+                        {mostrarFeriados && (
+                          <TableHead className="text-right text-xs">
+                            Feriados
+                          </TableHead>
+                        )}
+                        {mostrarSemAula && (
+                          <TableHead className="text-right text-xs">
+                            Não teve aula
+                          </TableHead>
+                        )}
+                        {mostrarPercentual && (
+                          <SortableHead
+                            active={sortKey === "percentual"}
+                            dir={sortDir}
+                            onClick={() => toggleSort("percentual")}
+                          >
+                            % Presença
+                          </SortableHead>
+                        )}
+                        {mostrar("ultima") && (
+                          <TableHead className="text-xs">
+                            Última presença
+                          </TableHead>
+                        )}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pagination.paginated.map((linha) => (
+                        <TableRow key={linha.id}>
+                          <TableCell className="text-xs font-medium text-foreground">
+                            {linha.participanteNome}
+                          </TableCell>
+                          {mostrarNeurodivergencias && (
+                            <TableCell className="text-xs">
+                              {tipoNeurodivergenciasRelatorioLabel(
+                                linha.tipoNeurodivergencias,
+                              )}
+                            </TableCell>
                           )}
-                        </TableCell>
-                      )}
-                      {mostrarDeficiencias && (
-                        <TableCell className="text-xs">
-                          {tipoDeficienciasRelatorioLabel(
-                            linha.tipoDeficiencias,
+                          {mostrarDeficiencias && (
+                            <TableCell className="text-xs">
+                              {tipoDeficienciasRelatorioLabel(
+                                linha.tipoDeficiencias,
+                              )}
+                            </TableCell>
                           )}
-                        </TableCell>
-                      )}
-                      {mostrarCadunico && (
-                        <TableCell className="text-xs">
-                          {linha.possuiCadunico ? "Sim" : "Não"}
-                        </TableCell>
-                      )}
-                      {mostrarBolsaFamilia && (
-                        <TableCell className="text-xs">
-                          {linha.possuiBolsaFamilia ? "Sim" : "Não"}
-                        </TableCell>
-                      )}
-                      {mostrarStatus && (
-                        <TableCell className="text-xs">
-                          <StatusBadge status={linha.status} />
-                        </TableCell>
-                      )}
-                      {mostrarAtividade && (
-                        <TableCell className="text-xs">
-                          {linha.atividadeNome}
-                        </TableCell>
-                      )}
-                      {mostrarTurma && (
-                        <TableCell className="text-xs">
-                          {linha.turmaNome ?? "—"}
-                        </TableCell>
-                      )}
-                      {mostrarPresencas && (
-                        <TableCell className="text-right text-xs tabular-nums">
-                          {linha.presencas}
-                        </TableCell>
-                      )}
-                      {mostrarAusencias && (
-                        <TableCell className="text-right text-xs tabular-nums">
-                          {linha.ausencias}
-                        </TableCell>
-                      )}
-                      {mostrarFeriados && (
-                        <TableCell className="text-right text-xs tabular-nums">
-                          {linha.feriados}
-                        </TableCell>
-                      )}
-                      {mostrarSemAula && (
-                        <TableCell className="text-right text-xs tabular-nums">
-                          {linha.semAula}
-                        </TableCell>
-                      )}
-                      {mostrarPercentual && (
-                        <TableCell className="text-xs tabular-nums">
-                          {linha.percentualPresenca.toFixed(1)}%
-                        </TableCell>
-                      )}
-                      {mostrar("ultima") && (
-                        <TableCell className="text-xs tabular-nums">
-                          {formatDataBR(linha.ultimaPresenca)}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                          {mostrarCadunico && (
+                            <TableCell className="text-xs">
+                              {linha.possuiCadunico ? "Sim" : "Não"}
+                            </TableCell>
+                          )}
+                          {mostrarBolsaFamilia && (
+                            <TableCell className="text-xs">
+                              {linha.possuiBolsaFamilia ? "Sim" : "Não"}
+                            </TableCell>
+                          )}
+                          {mostrarStatus && (
+                            <TableCell className="text-xs">
+                              <StatusBadge status={linha.status} />
+                            </TableCell>
+                          )}
+                          {mostrarAtividade && (
+                            <TableCell className="text-xs">
+                              {linha.atividadeNome}
+                            </TableCell>
+                          )}
+                          {mostrarTurma && (
+                            <TableCell className="text-xs">
+                              {linha.turmaNome ?? "—"}
+                            </TableCell>
+                          )}
+                          {mostrarPresencas && (
+                            <TableCell className="text-right text-xs tabular-nums">
+                              {linha.presencas}
+                            </TableCell>
+                          )}
+                          {mostrarAusencias && (
+                            <TableCell className="text-right text-xs tabular-nums">
+                              {linha.ausencias}
+                            </TableCell>
+                          )}
+                          {mostrarFeriados && (
+                            <TableCell className="text-right text-xs tabular-nums">
+                              {linha.feriados}
+                            </TableCell>
+                          )}
+                          {mostrarSemAula && (
+                            <TableCell className="text-right text-xs tabular-nums">
+                              {linha.semAula}
+                            </TableCell>
+                          )}
+                          {mostrarPercentual && (
+                            <TableCell className="text-xs tabular-nums">
+                              {linha.percentualPresenca.toFixed(1)}%
+                            </TableCell>
+                          )}
+                          {mostrar("ultima") && (
+                            <TableCell className="text-xs tabular-nums">
+                              {formatDataBR(linha.ultimaPresenca)}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </div>
           {!loading && !erro && totalLinhas > 0 && (

@@ -111,8 +111,16 @@ export async function getPainelFinanceiro(
     headers: getJsonHeaders(),
   });
   if (!response.ok) throw new Error(await parseError(response));
-  const data = (await response.json()) as PainelFinanceiroDTO & {
-    periodos?: Array<FluxoCaixaPeriodoDTO & { data?: string }>;
+  const data = (await response.json()) as Omit<
+    PainelFinanceiroDTO,
+    "periodos"
+  > & {
+    periodos?: Array<
+      Omit<FluxoCaixaPeriodoDTO, "periodo"> & {
+        periodo?: string;
+        data?: string;
+      }
+    >;
   };
   return {
     ...data,

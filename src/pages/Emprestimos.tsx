@@ -449,14 +449,17 @@ export default function Emprestimos() {
       );
 
       setAtividades(
-        sortOptionsByName((atividadesData ?? []).map((atividade) => ({
-          id: String(atividade.id),
-          nome: nameWithYear(
-            atividade.nomeAtividade,
-            atividade.ano,
-            atividade.dataInicio,
-          ),
-        })), (item) => item.nome),
+        sortOptionsByName(
+          (atividadesData ?? []).map((atividade) => ({
+            id: String(atividade.id),
+            nome: nameWithYear(
+              atividade.nomeAtividade,
+              atividade.ano,
+              atividade.dataInicio,
+            ),
+          })),
+          (item) => item.nome,
+        ),
       );
 
       setEventosCulturais(
@@ -822,7 +825,10 @@ export default function Emprestimos() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="account"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Empréstimos"
           tooltip="Nesta página são registrados e acompanhados os empréstimos de bens patrimoniais da organização, permitindo identificar quem recebeu o bem, em qual contexto ele será utilizado, o período do empréstimo, sua condição na saída e, quando devolvido, as informações do retorno. Esses registros ajudam a controlar a movimentação dos bens, acompanhar sua conservação e manter o histórico dos empréstimos realizados."

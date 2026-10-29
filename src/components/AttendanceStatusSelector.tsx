@@ -38,7 +38,7 @@ export function AttendanceStatusSelector<T extends string = string>({
       role="group"
       aria-label={ariaLabel}
       className={cn(
-        "inline-flex w-full flex-wrap items-center gap-1 rounded-[14px] border border-border/60 bg-background/65 p-1 shadow-[0_1px_3px_-2px_hsl(215_28%_17%_/_0.12),inset_0_1px_0_0_hsl(0_0%_100%_/_0.4)] backdrop-blur-md supports-[backdrop-filter]:bg-background/50",
+        "grid w-full grid-cols-2 items-center gap-1 md:inline-flex md:flex-wrap rounded-[14px] border border-border/60 bg-background/65 p-1 shadow-[0_1px_3px_-2px_hsl(215_28%_17%_/_0.12),inset_0_1px_0_0_hsl(0_0%_100%_/_0.4)] backdrop-blur-md supports-[backdrop-filter]:bg-background/50",
         className,
       )}
     >
@@ -51,7 +51,7 @@ export function AttendanceStatusSelector<T extends string = string>({
             aria-pressed={selected}
             onClick={() => onChange(option.value)}
             className={cn(
-              "inline-flex min-h-8 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-[10px] px-2.5 py-1.5 text-[12.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background motion-reduce:transition-none",
+              "inline-flex min-h-11 flex-1 md:min-h-8 items-center justify-center gap-1 whitespace-nowrap rounded-[10px] px-2.5 py-1.5 text-[12.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background motion-reduce:transition-none",
               selected
                 ? cn(
                     "border shadow-[inset_0_1px_0_0_hsl(0_0%_100%_/_0.5)]",

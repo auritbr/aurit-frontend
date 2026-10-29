@@ -421,14 +421,17 @@ export default function FinanceiroForm() {
       );
 
       setAtividades(
-        sortOptionsByName((atividadesData ?? []).map((item: ApiOptionRecord) => ({
-          id: String(item.id),
-          nome: nameWithYear(
-            optionName(item, `Atividade ${item.id}`),
-            item.ano,
-            item.dataInicio,
-          ),
-        })), (item) => item.nome),
+        sortOptionsByName(
+          (atividadesData ?? []).map((item: ApiOptionRecord) => ({
+            id: String(item.id),
+            nome: nameWithYear(
+              optionName(item, `Atividade ${item.id}`),
+              item.ano,
+              item.dataInicio,
+            ),
+          })),
+          (item) => item.nome,
+        ),
       );
 
       setEventos(
@@ -711,8 +714,7 @@ export default function FinanceiroForm() {
       aplicacaoFinanceiro: form.aplicacaoFinanceiro,
       statusFinanceiro: form.statusFinanceiro,
       tipoOperacaoFinanceira: form.tipoOperacaoFinanceira as
-        | "ENTRADA"
-        | "SAIDA",
+        "ENTRADA" | "SAIDA",
       valor: valorNumber,
       observacao: form.observacao.trim() || null,
 
@@ -761,7 +763,10 @@ export default function FinanceiroForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/financeiro" />
 
         <PageTitle

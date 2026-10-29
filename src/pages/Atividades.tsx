@@ -171,10 +171,12 @@ export default function Atividades() {
     async function carregarPermissoes() {
       try {
         setLoadingPermissoes(true);
-        const [atividadePermissoes, participantePermissoes] = await Promise.all([
-          getPermissoesUsuarioLogadoPorModulo("ATIVIDADES"),
-          getPermissoesUsuarioLogadoPorModulo("PARTICIPANTES"),
-        ]);
+        const [atividadePermissoes, participantePermissoes] = await Promise.all(
+          [
+            getPermissoesUsuarioLogadoPorModulo("ATIVIDADES"),
+            getPermissoesUsuarioLogadoPorModulo("PARTICIPANTES"),
+          ],
+        );
         if (active) {
           setPermissoes(atividadePermissoes);
           setPodeCadastrarParticipantes(participantePermissoes.CRIAR);
@@ -242,7 +244,9 @@ export default function Atividades() {
             projetoNome: projetosMap.get(atividade.projetoId) ?? "—",
             colaboradoresNomes: [
               ...atividade.colaboradoresIds,
-              ...(atividade.integrantesIds ?? []).map((id) => `integrante:${id}`),
+              ...(atividade.integrantesIds ?? []).map(
+                (id) => `integrante:${id}`,
+              ),
             ].map((id) => colaboradoresMap.get(id) ?? `ID ${id}`),
           })),
         );
@@ -473,7 +477,10 @@ export default function Atividades() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="execution"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Atividades"
           tooltip="Nesta página são cadastradas e acompanhadas as atividades vinculadas aos projetos da organização, com informações sobre identificação, tipo, descrição, público atendido, local, período de realização, quantidade de vagas, situação atual e equipe envolvida. Esses dados ajudam a organizar a execução das atividades e apoiam o registro de participantes, presenças, evidências, relatórios e prestações de contas."

@@ -16,8 +16,7 @@ import type {
 const GSI_SRC = "https://accounts.google.com/gsi/client";
 const GSI_SCRIPT_ID = "aurit-google-identity-services";
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_LOGIN_CLIENT_ID as
-  | string
-  | undefined;
+  string | undefined;
 const SUCCESS = "AURIT_GOOGLE_LOGIN_SUCCESS";
 const ERROR = "AURIT_GOOGLE_LOGIN_ERROR";
 const CANCELLED = "AURIT_GOOGLE_LOGIN_CANCELLED";

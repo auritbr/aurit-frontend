@@ -60,7 +60,10 @@ export default function RelatorioInstitucionalDocumentalPage() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div
+        data-mobile-data-page="reports"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      >
         <RelatorioHeader
           title="Institucional e Documental"
           tooltip="Consulte documentos institucionais, equipe, integrantes e trajetórias culturais da organização."
@@ -75,7 +78,9 @@ export default function RelatorioInstitucionalDocumentalPage() {
 
         {data && (
           <div>
-            {data.resumo?.map((g, i) => <GrupoIndicadores key={i} grupo={g} />)}
+            {data.resumo?.map((g, i) => (
+              <GrupoIndicadores key={i} grupo={g} />
+            ))}
 
             <TabelaLinhasRelatorio
               titulo="Documentos"

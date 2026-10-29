@@ -202,7 +202,10 @@ export function ImportarExtratoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-[18px] border-border/70 bg-card/90 backdrop-blur-xl sm:max-w-lg">
+      <DialogContent
+        data-mobile-data-page="finance"
+        className="rounded-[18px] border-border/70 bg-card/90 backdrop-blur-xl sm:max-w-lg"
+      >
         <DialogHeader>
           <DialogTitle>Importar extrato bancário</DialogTitle>
           <DialogDescription>

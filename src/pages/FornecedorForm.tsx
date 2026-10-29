@@ -193,7 +193,10 @@ export default function FornecedorForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton />
         <header className="mb-5 border-b border-border pb-4">
           <div className="flex items-center gap-2">

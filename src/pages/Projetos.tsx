@@ -531,7 +531,10 @@ export default function Projetos() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="execution"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Projetos"
           tooltip="Nesta página são cadastrados e acompanhados os projetos da organização, com informações sobre identificação, proposta, objetivos, público-alvo, acessibilidade, local e período de execução, situação atual, organização responsável e equipe envolvida. Esses dados apoiam o planejamento, a execução, o acompanhamento e a prestação de contas dos projetos."

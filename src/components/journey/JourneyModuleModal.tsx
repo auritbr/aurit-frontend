@@ -44,6 +44,7 @@ export function JourneyModuleModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        data-mobile-data-page="account"
         aria-modal="true"
         className="journey-glass max-h-[80vh] w-[calc(100vw-2rem)] max-w-[640px] gap-0 overflow-y-auto rounded-[22px] border-border/70 p-5 shadow-[0_24px_60px_-28px_hsl(var(--foreground)/0.35)] [&>button]:hidden"
       >

@@ -350,7 +350,10 @@ function UsuarioFormContent({
 
   return (
     <AppLayout>
-      <div className="container max-w-3xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="account"
+        className="container max-w-3xl py-6 sm:py-8"
+      >
         <BackButton to="/usuarios" />
 
         <PageTitle

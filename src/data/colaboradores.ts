@@ -259,10 +259,7 @@ export function statusValueToLabel(status?: string): StatusLabel {
 }
 
 export type TipoVinculoLabel =
-  | "Pessoa Física"
-  | "Pessoa Jurídica"
-  | "MEI"
-  | "Voluntário";
+  "Pessoa Física" | "Pessoa Jurídica" | "MEI" | "Voluntário";
 
 export function tipoVinculoValueToLabel(
   tipo?: string,

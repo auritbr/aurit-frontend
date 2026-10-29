@@ -293,10 +293,7 @@ export default function TransferenciasBancarias() {
   const activeFilters = useMemo<ActiveFilterItem[]>(() => {
     const list: ActiveFilterItem[] = [];
     type MultiKey =
-      | "contaOrigem"
-      | "contaDestino"
-      | "formaPagamento"
-      | "situacao";
+      "contaOrigem" | "contaDestino" | "formaPagamento" | "situacao";
     const removeFromList = (key: MultiKey, value: string) =>
       applyFiltros({
         ...filtros,
@@ -442,7 +439,10 @@ export default function TransferenciasBancarias() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Transferências Bancárias"
           tooltip="Nesta página são cadastradas e acompanhadas as transferências de valores entre as contas bancárias da organização. Esses registros permitem acompanhar de onde o recurso saiu, para qual conta foi enviado, o valor movimentado, a situação da transferência e o histórico dessas movimentações entre contas."

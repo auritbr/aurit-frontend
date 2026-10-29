@@ -714,10 +714,16 @@ export default function DoadorForm() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (form.tipoPessoa === "PESSOA_FISICA" && !form.pessoaFisica.nomeCompleto.trim()) {
+    if (
+      form.tipoPessoa === "PESSOA_FISICA" &&
+      !form.pessoaFisica.nomeCompleto.trim()
+    ) {
       return toast.error("Informe o nome completo.");
     }
-    if (form.tipoPessoa === "PESSOA_JURIDICA" && !form.pessoaJuridica.razaoSocial.trim()) {
+    if (
+      form.tipoPessoa === "PESSOA_JURIDICA" &&
+      !form.pessoaJuridica.razaoSocial.trim()
+    ) {
       return toast.error("Informe a razão social.");
     }
     if (!form.status) {
@@ -731,13 +737,9 @@ export default function DoadorForm() {
         {
           tipoPessoa: form.tipoPessoa,
           pessoaFisica:
-            form.tipoPessoa === "PESSOA_FISICA"
-              ? form.pessoaFisica
-              : null,
+            form.tipoPessoa === "PESSOA_FISICA" ? form.pessoaFisica : null,
           pessoaJuridica:
-            form.tipoPessoa === "PESSOA_JURIDICA"
-              ? form.pessoaJuridica
-              : null,
+            form.tipoPessoa === "PESSOA_JURIDICA" ? form.pessoaJuridica : null,
           origemDoador: form.origemDoador || null,
           status: form.status as StatusDoador,
           observacao: form.observacao.trim() || null,
@@ -760,7 +762,10 @@ export default function DoadorForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton />
 
         <header className="mb-5 border-b border-border pb-4">

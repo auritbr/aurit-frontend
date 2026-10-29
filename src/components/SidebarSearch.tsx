@@ -97,14 +97,14 @@ export function SidebarSearch({
         }}
         placeholder="Acesso rápido"
         aria-label="Acesso rápido"
-        className="h-8 w-full min-w-0 rounded-[8px] bg-transparent pl-8 pr-8 text-[13px] text-sidebar-accent-foreground placeholder:text-sidebar-foreground/50 focus:outline-none focus-visible:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="h-11 w-full min-w-0 rounded-[8px] bg-transparent pl-8 pr-12 text-base md:h-8 md:pr-8 md:text-[13px] text-sidebar-accent-foreground placeholder:text-sidebar-foreground/50 focus:outline-none focus-visible:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange("")}
           aria-label="Limpar busca"
-          className="absolute right-1.5 flex h-6 w-6 items-center justify-center rounded-[8px] text-sidebar-foreground/55 transition-colors hover:bg-sidebar-foreground/10 hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/70"
+          className="absolute right-0 flex h-11 w-11 items-center md:right-1.5 md:h-6 md:w-6 justify-center rounded-[8px] text-sidebar-foreground/55 transition-colors hover:bg-sidebar-foreground/10 hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/70"
         >
           <X className="h-3.5 w-3.5" strokeWidth={2.2} />
         </button>

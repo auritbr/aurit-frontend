@@ -58,7 +58,10 @@ export default function RelatorioParticipacaoPresencaPage() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div
+        data-mobile-data-page="finance"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      >
         <RelatorioHeader
           title="Participação e Presença"
           tooltip="Acompanhe atividades, turmas, registros de presença e indicadores de participação dos beneficiários."
@@ -73,9 +76,12 @@ export default function RelatorioParticipacaoPresencaPage() {
 
         {data && (
           <div>
-            {data.resumo?.map((g, i) => <GrupoIndicadores key={i} grupo={g} />)}
+            {data.resumo?.map((g, i) => (
+              <GrupoIndicadores key={i} grupo={g} />
+            ))}
 
             <TabelaLinhasRelatorio
+              mobileCards
               titulo="Atividades"
               items={data.atividades}
               nomeEmpresa={data.nomeEmpresa}
@@ -83,6 +89,7 @@ export default function RelatorioParticipacaoPresencaPage() {
             />
 
             <TabelaLinhasRelatorio
+              mobileCards
               titulo="Turmas"
               items={data.turmas}
               nomeEmpresa={data.nomeEmpresa}
@@ -90,6 +97,7 @@ export default function RelatorioParticipacaoPresencaPage() {
             />
 
             <TabelaLinhasRelatorio
+              mobileCards
               titulo="Presenças"
               items={data.presencas}
               nomeEmpresa={data.nomeEmpresa}

@@ -78,13 +78,7 @@ import {
 import { toast } from "sonner";
 
 type SortKey =
-  | "data"
-  | "tipo"
-  | "valor"
-  | "status"
-  | "projeto"
-  | "pessoa"
-  | "forma";
+  "data" | "tipo" | "valor" | "status" | "projeto" | "pessoa" | "forma";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -416,16 +410,20 @@ export default function FinanceiroPage() {
       );
 
       setAtividades(
-        sortOptionsByName(asRecords(atividadesData).map((a) => ({
-          id: String(a.id),
-          nome: nameWithYear(
-            pickText(a.nomeAtividade, a.nome, a.titulo) || `Atividade ${a.id}`,
-            typeof a.ano === "number" || typeof a.ano === "string"
-              ? a.ano
-              : undefined,
-            typeof a.dataInicio === "string" ? a.dataInicio : undefined,
-          ),
-        })), (item) => item.nome),
+        sortOptionsByName(
+          asRecords(atividadesData).map((a) => ({
+            id: String(a.id),
+            nome: nameWithYear(
+              pickText(a.nomeAtividade, a.nome, a.titulo) ||
+                `Atividade ${a.id}`,
+              typeof a.ano === "number" || typeof a.ano === "string"
+                ? a.ano
+                : undefined,
+              typeof a.dataInicio === "string" ? a.dataInicio : undefined,
+            ),
+          })),
+          (item) => item.nome,
+        ),
       );
 
       setEventos(
@@ -735,7 +733,10 @@ export default function FinanceiroPage() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <PageTitle
           title="Controle Financeiro"
           tooltip="Registre entradas e saídas financeiras da organização no controle financeiro. Use os vínculos apenas quando a movimentação estiver diretamente relacionada a projeto, planejamento, atividade, evento cultural ou ação de divulgação. Para despesas administrativas, como luz, internet, aluguel e taxas, deixe os vínculos de execução em branco e detalhe a finalidade na descrição ou observação."

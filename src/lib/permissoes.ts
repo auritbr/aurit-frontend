@@ -106,10 +106,7 @@ export const permissoesTotais: PermissoesModulo = {
  * a sessão da página. Assim o menu, a rota protegida e a tela usam exatamente a
  * mesma matriz, sem decisões divergentes por chamadas paralelas.
  */
-const permissoesPorModuloEmCache = new Map<
-  string,
-  Promise<PermissoesModulo>
->();
+const permissoesPorModuloEmCache = new Map<string, Promise<PermissoesModulo>>();
 
 export function limparCachePermissoes() {
   permissoesPorModuloEmCache.clear();

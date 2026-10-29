@@ -248,7 +248,10 @@ export default function Relatorios() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <div
+          data-mobile-data-page="reports"
+          className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+        >
           <PageTitle
             title="Relatórios"
             tooltip="Acesse os relatórios disponíveis para o seu plano."
@@ -277,7 +280,10 @@ export default function Relatorios() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div
+        data-mobile-data-page="reports"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
+      >
         <PageTitle
           title="Relatórios"
           tooltip="Central de relatórios da organização, organizada por área de gestão. Cada relatório possui sua própria página com tabela completa, busca, seleção de colunas, paginação e exportações em CSV, Excel e PDF."

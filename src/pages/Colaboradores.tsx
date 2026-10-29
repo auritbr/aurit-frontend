@@ -504,7 +504,10 @@ export default function Colaboradores() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="people"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Colaboradores"
           tooltip="Nesta página são cadastrados e acompanhados os colaboradores da organização, com informações pessoais, endereço, tipo de vínculo, período de atuação, situação atual e função exercida. Esses dados ajudam a manter o cadastro da equipe organizado e atualizado."

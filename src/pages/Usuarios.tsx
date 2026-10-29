@@ -593,7 +593,10 @@ export default function Usuarios() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="account"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Usuários"
           tooltip="Cadastre e gerencie os usuários que terão acesso ao sistema. Defina perfil, status e controle quem pode utilizar a plataforma."

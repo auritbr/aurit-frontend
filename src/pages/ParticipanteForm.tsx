@@ -1083,7 +1083,10 @@ export default function ParticipanteForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="people"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/participantes" />
 
         <PageTitle
@@ -1105,7 +1108,7 @@ export default function ParticipanteForm() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Tabs defaultValue="dados" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 rounded-[12px] border border-border/70 bg-card/70 p-1 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.16)] backdrop-blur-md supports-[backdrop-filter]:bg-card/55 sm:inline-flex sm:w-auto">
+            <TabsList className="grid h-auto w-full grid-cols-2 rounded-[12px] border border-border/70 bg-card/70 p-1 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.16)] backdrop-blur-md supports-[backdrop-filter]:bg-card/55 sm:inline-flex sm:w-auto md:h-10">
               <TabsTrigger
                 value="dados"
                 className="rounded-[8px] data-[state=active]:bg-background/75 data-[state=active]:backdrop-blur-sm"
@@ -1311,7 +1314,7 @@ export default function ParticipanteForm() {
                   </Field>
 
                   <Field>
-                    <div className="flex h-10 items-center justify-between rounded-md border border-input bg-background px-3">
+                    <div className="flex min-h-11 items-center justify-between rounded-md border border-input bg-background px-3 sm:h-10 sm:min-h-0">
                       <div className="flex min-w-0 items-center gap-2">
                         <label
                           htmlFor="possuiCadunico"
@@ -1336,7 +1339,7 @@ export default function ParticipanteForm() {
                   </Field>
 
                   <Field>
-                    <div className="flex h-10 items-center justify-between rounded-md border border-input bg-background px-3">
+                    <div className="flex min-h-11 items-center justify-between rounded-md border border-input bg-background px-3 sm:h-10 sm:min-h-0">
                       <div className="flex min-w-0 items-center gap-2">
                         <label
                           htmlFor="possuiBolsaFamilia"
@@ -1774,11 +1777,11 @@ export default function ParticipanteForm() {
                     />
 
                     {documentoNome || form.urlDocumento ? (
-                      <div className="attachment-file-glass flex h-10 items-center gap-2 px-3">
+                      <div className="attachment-file-glass flex min-h-11 flex-wrap items-center gap-2 px-3 py-2 md:h-10 md:min-h-0 md:flex-nowrap md:py-0">
                         <FileText className="h-4 w-4 shrink-0 text-primary" />
 
                         <span
-                          className="flex-1 truncate text-sm text-foreground"
+                          className="min-w-0 flex-1 truncate text-sm text-foreground"
                           title={documentoNome || "Documento anexado"}
                         >
                           {documentoNome || "Documento anexado"}
@@ -1789,7 +1792,7 @@ export default function ParticipanteForm() {
                             type="button"
                             onClick={handleAbrirDocumento}
                             disabled={loading || saving}
-                            className="text-muted-foreground transition-colors hover:text-primary"
+                            className="mobile-document-action text-muted-foreground transition-colors hover:text-primary"
                             aria-label="Baixar ou visualizar documento"
                           >
                             <Download className="h-4 w-4" />
@@ -1797,7 +1800,7 @@ export default function ParticipanteForm() {
                         )}
 
                         {!visualizando && (
-                          <div className="flex shrink-0 items-center gap-1">
+                          <div className="flex w-full shrink-0 items-center justify-end gap-1 md:w-auto">
                             <Button
                               type="button"
                               variant="glassSecondary"
@@ -1812,7 +1815,7 @@ export default function ParticipanteForm() {
                               type="button"
                               onClick={removeDocumento}
                               disabled={loading || saving}
-                              className="text-muted-foreground transition-colors hover:text-destructive"
+                              className="mobile-document-action text-muted-foreground transition-colors hover:text-destructive"
                               aria-label="Remover documento"
                             >
                               <X className="h-4 w-4" />
@@ -1944,7 +1947,7 @@ export default function ParticipanteForm() {
                             <button
                               type="button"
                               onClick={() => removeVinculo(originalIndex)}
-                              className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
+                              className="inline-flex min-h-11 items-center gap-1 px-2 text-xs text-muted-foreground transition-colors hover:text-destructive sm:min-h-0 sm:px-0"
                               aria-label={`Remover vínculo ${idx + 1}`}
                             >
                               <Trash2 className="h-3.5 w-3.5" />

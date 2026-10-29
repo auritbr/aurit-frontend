@@ -432,13 +432,16 @@ export default function CentralCliente() {
   );
   const boletoDisponivel = Boolean(
     pagamento?.boleto?.digitableLine ||
-      pagamento?.boleto?.barcode ||
-      pagamento?.boleto?.url,
+    pagamento?.boleto?.barcode ||
+    pagamento?.boleto?.url,
   );
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="account"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Central do Cliente"
           tooltip="Nesta página, sua organização ou iniciativa acompanha as informações da assinatura contratada junto à Aurit. Consulte o plano atual, o valor da mensalidade, a data de início da assinatura, a próxima cobrança prevista e o histórico das mensalidades já geradas. Também é possível acompanhar a situação de cada cobrança e, quando houver pagamento, consultar os respectivos dados."
@@ -492,10 +495,10 @@ export default function CentralCliente() {
                           ? "Gratuito"
                           : semCobranca
                             ? "Isenta"
-                        : assinatura.valorMensalidade === null ||
-                              assinatura.valorMensalidade <= 0
-                          ? "A definir"
-                          : `${formatCurrency(assinatura.valorMensalidade)}/mês`
+                            : assinatura.valorMensalidade === null ||
+                                assinatura.valorMensalidade <= 0
+                              ? "A definir"
+                              : `${formatCurrency(assinatura.valorMensalidade)}/mês`
                     }
                   />
                   {!semCobranca && (
@@ -807,7 +810,10 @@ export default function CentralCliente() {
           open={Boolean(pagamentoDe)}
           onOpenChange={(aberto) => !aberto && fecharPagamento()}
         >
-          <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-lg flex-col overflow-hidden border-border/60 bg-card/90 backdrop-blur-xl sm:max-h-[85vh]">
+          <DialogContent
+            data-mobile-data-page="account"
+            className="flex max-h-[calc(100dvh-2rem)] max-w-lg flex-col overflow-hidden border-border/60 bg-card/90 backdrop-blur-xl sm:max-h-[85vh]"
+          >
             <DialogHeader className="shrink-0">
               <DialogTitle>Pagar mensalidade</DialogTitle>
               <DialogDescription>
@@ -849,7 +855,7 @@ export default function CentralCliente() {
                   </p>
                 ) : pixDisponivel && boletoDisponivel ? (
                   <Tabs defaultValue="pix">
-                    <TabsList className="grid h-9 w-full grid-cols-2">
+                    <TabsList className="grid h-auto w-full grid-cols-2 md:h-9">
                       <TabsTrigger value="pix" className="h-8 gap-2">
                         <QrCode className="h-4 w-4" aria-hidden /> Pix
                       </TabsTrigger>
@@ -878,7 +884,10 @@ export default function CentralCliente() {
           open={detalhesId !== null}
           onOpenChange={(aberto) => !aberto && setDetalhesId(null)}
         >
-          <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-md flex-col overflow-hidden border-border/60 bg-card/90 backdrop-blur-xl sm:max-h-[85vh]">
+          <DialogContent
+            data-mobile-data-page="account"
+            className="flex max-h-[calc(100dvh-2rem)] max-w-md flex-col overflow-hidden border-border/60 bg-card/90 backdrop-blur-xl sm:max-h-[85vh]"
+          >
             <DialogHeader className="shrink-0">
               <DialogTitle>Detalhes do pagamento</DialogTitle>
               <DialogDescription>

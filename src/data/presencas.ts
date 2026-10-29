@@ -45,11 +45,7 @@ export const statusPresenca = [
 export type StatusPresencaValue = (typeof statusPresenca)[number]["value"];
 
 export type StatusMatricula =
-  | "MATRICULADO"
-  | "EM_ESPERA"
-  | "CANCELADO"
-  | "DESISTENTE"
-  | "CONCLUIDO";
+  "MATRICULADO" | "EM_ESPERA" | "CANCELADO" | "DESISTENTE" | "CONCLUIDO";
 
 export interface AtividadeApiDTO {
   id?: number | string;

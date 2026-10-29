@@ -293,8 +293,8 @@ export default function FluxoCaixa() {
 
   const periodoInvalido = Boolean(
     filtros.dataInicial &&
-      filtros.dataFinal &&
-      filtros.dataInicial > filtros.dataFinal,
+    filtros.dataFinal &&
+    filtros.dataInicial > filtros.dataFinal,
   );
 
   const load = useCallback(async (aplicados: Filtros) => {
@@ -663,7 +663,10 @@ export default function FluxoCaixa() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Fluxo de Caixa"
           tooltip="Nesta página são acompanhadas as entradas e saídas já realizadas e os valores previstos para os próximos períodos. O fluxo de caixa ajuda a entender como os recursos da organização estão se movimentando e como essas movimentações podem afetar o saldo ao longo do tempo."
@@ -1065,96 +1068,184 @@ export default function FluxoCaixa() {
                     Sem dados para exibir com os filtros aplicados.
                   </p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[820px]">
-                      <thead>
-                        <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
-                          {[
-                            "Período",
-                            "Movimentação",
-                            "Entradas realizadas",
-                            "Saídas realizadas",
-                            "Entradas previstas",
-                            "Saídas previstas",
-                            "Saldo acumulado",
-                            "Saldo projetado",
-                          ].map((header, index) => (
-                            <th
-                              key={header}
-                              className={cn(
-                                "whitespace-nowrap px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground",
-                                index === 0 ? "text-left" : "text-right",
-                              )}
-                            >
-                              {header}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {evolucaoRows.map((periodo, index) => (
-                          <tr
-                            key={`${periodo.periodo}-${periodo.tipo}-${index}`}
-                            className="border-b border-border/50 last:border-0 transition-colors hover:bg-muted/25"
-                          >
-                            <td className="whitespace-nowrap px-4 py-2.5 text-[13px] font-medium text-foreground">
+                  <>
+                    <div className="divide-y divide-border md:hidden">
+                      {evolucaoRows.map((periodo, index) => (
+                        <dl
+                          key={`${periodo.periodo}-${periodo.tipo}-${index}`}
+                          className="space-y-3 py-4"
+                        >
+                          <div>
+                            <dt className="text-xs text-muted-foreground">
+                              Período
+                            </dt>
+                            <dd className="mt-1 text-sm font-medium">
                               {formatPeriodoCompleto(
                                 periodo.periodo,
                                 filtros.agrupamento,
                               )}
-                            </td>
-
-                            <td className="whitespace-nowrap px-4 py-2.5 text-[13px] text-muted-foreground">
-                              {periodo.tipo}
-                            </td>
-
-                            <td className="whitespace-nowrap px-4 py-2.5 text-right text-[13px] text-emerald-700">
-                              {formatCurrency(periodo.entradasRealizadas ?? 0)}
-                            </td>
-
-                            <td className="whitespace-nowrap px-4 py-2.5 text-right text-[13px] text-rose-700 dark:text-rose-300">
-                              {formatCurrency(periodo.saidasRealizadas ?? 0)}
-                            </td>
-
-                            <td className="whitespace-nowrap px-4 py-2.5 text-right text-[13px] text-emerald-700/80 dark:text-emerald-300/80">
-                              {formatCurrency(periodo.entradasPrevistas ?? 0)}
-                            </td>
-
-                            <td className="whitespace-nowrap px-4 py-2.5 text-right text-[13px] text-rose-600/80 dark:text-rose-300/80">
-                              {formatCurrency(periodo.saidasPrevistas ?? 0)}
-                            </td>
-
-                            <td
-                              className={cn(
-                                "whitespace-nowrap px-4 py-2.5 text-right text-[13px] font-medium",
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs text-muted-foreground">
+                              Movimentação
+                            </dt>
+                            <dd className="mt-1 text-sm">{periodo.tipo}</dd>
+                          </div>
+                          {[
+                            {
+                              label: "Entradas realizadas",
+                              value: periodo.entradasRealizadas ?? 0,
+                              color: "text-emerald-700",
+                            },
+                            {
+                              label: "Saídas realizadas",
+                              value: periodo.saidasRealizadas ?? 0,
+                              color: "text-rose-700 dark:text-rose-300",
+                            },
+                            {
+                              label: "Entradas previstas",
+                              value: periodo.entradasPrevistas ?? 0,
+                              color:
+                                "text-emerald-700/80 dark:text-emerald-300/80",
+                            },
+                            {
+                              label: "Saídas previstas",
+                              value: periodo.saidasPrevistas ?? 0,
+                              color: "text-rose-600/80 dark:text-rose-300/80",
+                            },
+                            {
+                              label: "Saldo acumulado",
+                              value: periodo.saldoAcumulado,
+                              color:
                                 periodo.saldoAcumulado < 0
                                   ? "text-destructive"
                                   : "text-foreground",
-                              )}
-                            >
-                              {periodo.saldoAcumulado === undefined
-                                ? "—"
-                                : formatCurrency(periodo.saldoAcumulado)}
-                            </td>
-
-                            <td
-                              className={cn(
-                                "whitespace-nowrap px-4 py-2.5 text-right text-[13px] font-medium",
+                            },
+                            {
+                              label: "Saldo projetado",
+                              value: periodo.saldoProjetado,
+                              color:
                                 periodo.saldoProjetado < 0
                                   ? "text-destructive"
                                   : "text-foreground",
-                              )}
+                            },
+                          ].map((item) => (
+                            <div
+                              key={item.label}
+                              className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-sm"
                             >
-                              {periodo.saldoProjetado === undefined
-                                ? "—"
-                                : formatCurrency(periodo.saldoProjetado)}
-                            </td>
+                              <dt className="text-muted-foreground">
+                                {item.label}
+                              </dt>
+                              <dd
+                                className={cn(
+                                  "font-medium tabular-nums",
+                                  item.color,
+                                )}
+                              >
+                                {item.value === undefined
+                                  ? "—"
+                                  : formatCurrency(item.value)}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      ))}
+                    </div>
+                    <div className="hidden overflow-x-auto md:block">
+                      <table className="w-full min-w-[820px]">
+                        <thead>
+                          <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
+                            {[
+                              "Período",
+                              "Movimentação",
+                              "Entradas realizadas",
+                              "Saídas realizadas",
+                              "Entradas previstas",
+                              "Saídas previstas",
+                              "Saldo acumulado",
+                              "Saldo projetado",
+                            ].map((header, index) => (
+                              <th
+                                key={header}
+                                className={cn(
+                                  "whitespace-nowrap px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground",
+                                  index === 0 ? "text-left" : "text-right",
+                                )}
+                              >
+                                {header}
+                              </th>
+                            ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+
+                        <tbody>
+                          {evolucaoRows.map((periodo, index) => (
+                            <tr
+                              key={`${periodo.periodo}-${periodo.tipo}-${index}`}
+                              className="border-b border-border/50 last:border-0 transition-colors hover:bg-muted/25"
+                            >
+                              <td className="whitespace-nowrap px-4 py-2.5 text-[13px] font-medium text-foreground">
+                                {formatPeriodoCompleto(
+                                  periodo.periodo,
+                                  filtros.agrupamento,
+                                )}
+                              </td>
+
+                              <td className="whitespace-nowrap px-4 py-2.5 text-[13px] text-muted-foreground">
+                                {periodo.tipo}
+                              </td>
+
+                              <td className="whitespace-nowrap px-4 py-2.5 text-right text-[13px] text-emerald-700">
+                                {formatCurrency(
+                                  periodo.entradasRealizadas ?? 0,
+                                )}
+                              </td>
+
+                              <td className="whitespace-nowrap px-4 py-2.5 text-right text-[13px] text-rose-700 dark:text-rose-300">
+                                {formatCurrency(periodo.saidasRealizadas ?? 0)}
+                              </td>
+
+                              <td className="whitespace-nowrap px-4 py-2.5 text-right text-[13px] text-emerald-700/80 dark:text-emerald-300/80">
+                                {formatCurrency(periodo.entradasPrevistas ?? 0)}
+                              </td>
+
+                              <td className="whitespace-nowrap px-4 py-2.5 text-right text-[13px] text-rose-600/80 dark:text-rose-300/80">
+                                {formatCurrency(periodo.saidasPrevistas ?? 0)}
+                              </td>
+
+                              <td
+                                className={cn(
+                                  "whitespace-nowrap px-4 py-2.5 text-right text-[13px] font-medium",
+                                  periodo.saldoAcumulado < 0
+                                    ? "text-destructive"
+                                    : "text-foreground",
+                                )}
+                              >
+                                {periodo.saldoAcumulado === undefined
+                                  ? "—"
+                                  : formatCurrency(periodo.saldoAcumulado)}
+                              </td>
+
+                              <td
+                                className={cn(
+                                  "whitespace-nowrap px-4 py-2.5 text-right text-[13px] font-medium",
+                                  periodo.saldoProjetado < 0
+                                    ? "text-destructive"
+                                    : "text-foreground",
+                                )}
+                              >
+                                {periodo.saldoProjetado === undefined
+                                  ? "—"
+                                  : formatCurrency(periodo.saldoProjetado)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </SectionCard>
 

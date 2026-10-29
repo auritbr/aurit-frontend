@@ -173,7 +173,7 @@ export default function ModelosDocumento() {
 
   return (
     <AppLayout>
-      <div className="p-4 sm:p-6 lg:p-8">
+      <div data-mobile-data-page="account" className="p-4 sm:p-6 lg:p-8">
         <div className="mx-auto max-w-7xl">
           <ListPageHeader
             title="Layouts de Impressão"
@@ -474,7 +474,10 @@ export default function ModelosDocumento() {
         open={!!preview}
         onOpenChange={(aberto) => !aberto && setPreview(null)}
       >
-        <DialogContent className="modelo-preview-glass max-h-[88vh] max-w-3xl overflow-y-auto rounded-[18px]">
+        <DialogContent
+          data-mobile-data-page="account"
+          className="modelo-preview-glass max-h-[88vh] max-w-3xl overflow-y-auto rounded-[18px]"
+        >
           <DialogHeader>
             <DialogTitle>
               {preview?.tituloDocumento || preview?.nome}

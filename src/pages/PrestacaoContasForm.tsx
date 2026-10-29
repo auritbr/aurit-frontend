@@ -394,7 +394,10 @@ export default function PrestacaoContasForm() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="container max-w-6xl space-y-4 py-6 sm:py-8">
+        <div
+          data-mobile-data-page="grants"
+          className="container max-w-6xl space-y-4 py-6 sm:py-8"
+        >
           <div className="h-8 w-56 animate-pulse rounded-[12px] bg-muted/60" />
           {[0, 1, 2].map((item) => (
             <div
@@ -409,7 +412,10 @@ export default function PrestacaoContasForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-6xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="grants"
+        className="container max-w-6xl py-6 sm:py-8"
+      >
         <BackButton to="/prestacao-contas" />
         <ListPageHeader
           title={
@@ -754,7 +760,7 @@ export default function PrestacaoContasForm() {
                         Detalhar por atividade
                       </summary>
 
-                      <div className="mt-3 overflow-x-auto">
+                      <div className="mt-3 hidden overflow-x-auto md:block">
                         <table className="w-full">
                           <thead>
                             <tr className="border-b border-border/60">
@@ -799,6 +805,47 @@ export default function PrestacaoContasForm() {
                             ))}
                           </tbody>
                         </table>
+                      </div>
+                      <div className="mt-3 divide-y divide-border/60 md:hidden">
+                        {execucao.participacao.detalhe.map((item) => (
+                          <dl
+                            key={item.id}
+                            className="grid grid-cols-3 gap-3 py-3 text-sm"
+                          >
+                            <div className="col-span-3 min-w-0">
+                              <dt className="text-xs text-muted-foreground">
+                                Atividade
+                              </dt>
+                              <dd className="mt-1 font-medium text-foreground">
+                                {item.atividade}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-xs text-muted-foreground">
+                                Presenças
+                              </dt>
+                              <dd className="mt-1 text-foreground">
+                                {item.presencas}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-xs text-muted-foreground">
+                                Presentes
+                              </dt>
+                              <dd className="mt-1 text-foreground">
+                                {item.presentes}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-xs text-muted-foreground">
+                                Frequência
+                              </dt>
+                              <dd className="mt-1 font-medium text-foreground">
+                                {item.frequencia}
+                              </dd>
+                            </div>
+                          </dl>
+                        ))}
                       </div>
                     </details>
                   )}
@@ -996,51 +1043,91 @@ export default function PrestacaoContasForm() {
                   </div>
 
                   {!!execucao?.financeiro.registros.length && (
-                    <div className="mt-4 overflow-x-auto rounded-[14px] border border-border/70 bg-card/55 supports-[backdrop-filter]:bg-card/45">
-                      <table className="w-full min-w-[420px]">
-                        <thead>
-                          <tr className="border-b border-border/60 bg-muted/35">
-                            {[
-                              "Cadastro financeiro",
-                              "Registros",
-                              "Valor no período",
-                            ].map((titulo) => (
-                              <th
-                                key={titulo}
-                                className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                              >
-                                {titulo}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
+                    <div className="mt-4 overflow-hidden rounded-[14px] border border-border/70 bg-card/55 supports-[backdrop-filter]:bg-card/45">
+                      <div className="hidden overflow-x-auto md:block">
+                        <table className="w-full min-w-[420px]">
+                          <thead>
+                            <tr className="border-b border-border/60 bg-muted/35">
+                              {[
+                                "Cadastro financeiro",
+                                "Registros",
+                                "Valor no período",
+                              ].map((titulo) => (
+                                <th
+                                  key={titulo}
+                                  className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                                >
+                                  {titulo}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
 
-                        <tbody>
-                          {execucao.financeiro.registros.map((registro) => (
-                            <tr
-                              key={registro.tipo}
-                              className="border-b border-border/50 last:border-0"
-                            >
-                              <td className="px-4 py-2.5">
+                          <tbody>
+                            {execucao.financeiro.registros.map((registro) => (
+                              <tr
+                                key={registro.tipo}
+                                className="border-b border-border/50 last:border-0"
+                              >
+                                <td className="px-4 py-2.5">
+                                  <StatusPill
+                                    status={registro.tipo}
+                                    ariaLabelPrefix="Cadastro financeiro"
+                                  />
+                                </td>
+
+                                <td className="whitespace-nowrap px-4 py-2.5 text-[13px] tabular-nums text-foreground">
+                                  {registro.quantidade}
+                                </td>
+
+                                <td className="whitespace-nowrap px-4 py-2.5 text-[13px] tabular-nums text-foreground">
+                                  {registro.valor > 0
+                                    ? formatMoeda(registro.valor)
+                                    : "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="divide-y divide-border/60 md:hidden">
+                        {execucao.financeiro.registros.map((registro) => (
+                          <dl
+                            key={registro.tipo}
+                            className="grid grid-cols-2 gap-3 p-4 text-sm"
+                          >
+                            <div className="col-span-2 min-w-0">
+                              <dt className="mb-1 text-xs text-muted-foreground">
+                                Cadastro financeiro
+                              </dt>
+                              <dd>
                                 <StatusPill
                                   status={registro.tipo}
                                   ariaLabelPrefix="Cadastro financeiro"
                                 />
-                              </td>
-
-                              <td className="whitespace-nowrap px-4 py-2.5 text-[13px] tabular-nums text-foreground">
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-xs text-muted-foreground">
+                                Registros
+                              </dt>
+                              <dd className="mt-1 tabular-nums text-foreground">
                                 {registro.quantidade}
-                              </td>
-
-                              <td className="whitespace-nowrap px-4 py-2.5 text-[13px] tabular-nums text-foreground">
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-xs text-muted-foreground">
+                                Valor no período
+                              </dt>
+                              <dd className="mt-1 tabular-nums text-foreground">
                                 {registro.valor > 0
                                   ? formatMoeda(registro.valor)
                                   : "—"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                              </dd>
+                            </div>
+                          </dl>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </FormSectionCard>

@@ -13,9 +13,7 @@ export interface UsuarioLogado {
 }
 
 export type EtapaPrimeiroAcesso =
-  | "CONFIRMAR_EMAIL"
-  | "CONFIRMAR_CODIGO"
-  | "TROCAR_SENHA";
+  "CONFIRMAR_EMAIL" | "CONFIRMAR_CODIGO" | "TROCAR_SENHA";
 
 export interface PrimeiroAcessoState {
   etapa: EtapaPrimeiroAcesso;

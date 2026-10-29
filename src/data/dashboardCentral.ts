@@ -169,54 +169,62 @@ interface AgendaDTO extends Omit<AgendaItem, "data" | "domain" | "href"> {
   dominioStatus?: string;
   rotaFrontend?: string;
 }
-interface ProjetoDTO
-  extends Omit<ProjetoResumo, "id" | "inicio" | "fim" | "href"> {
+interface ProjetoDTO extends Omit<
+  ProjetoResumo,
+  "id" | "inicio" | "fim" | "href"
+> {
   id: number;
   inicio: string | null;
   fim: string | null;
   rotaFrontend?: string;
 }
-interface ExecucaoDTO
-  extends Omit<ExecucaoItem, "id" | "inicio" | "fim" | "href"> {
+interface ExecucaoDTO extends Omit<
+  ExecucaoItem,
+  "id" | "inicio" | "fim" | "href"
+> {
   id: number;
   inicio: string | null;
   fim: string | null;
   rotaFrontend?: string;
 }
-interface RegularidadeDTO
-  extends Omit<RegularidadeItem, "id" | "validade" | "arquivo" | "href"> {
+interface RegularidadeDTO extends Omit<
+  RegularidadeItem,
+  "id" | "validade" | "arquivo" | "href"
+> {
   id: number;
   validade: string | null;
   arquivoAnexado: boolean;
   rotaFrontend?: string;
 }
-interface PatrimonioDTO
-  extends Omit<PatrimonioItem, "id" | "devolucao" | "href"> {
+interface PatrimonioDTO extends Omit<
+  PatrimonioItem,
+  "id" | "devolucao" | "href"
+> {
   id: number;
   devolucao: string | null;
   rotaFrontend?: string;
 }
-interface PublicoDTO
-  extends Omit<
-    PublicoResumo,
-    "porGenero" | "porRaca" | "porFaixaEtaria" | "porRenda"
-  > {
+interface PublicoDTO extends Omit<
+  PublicoResumo,
+  "porGenero" | "porRaca" | "porFaixaEtaria" | "porRenda"
+> {
   porGenero: DistribuicaoDTO[];
   porRaca: DistribuicaoDTO[];
   porFaixaEtaria: DistribuicaoDTO[];
   porRenda: DistribuicaoDTO[];
 }
-interface ImpactoDTO
-  extends Omit<
-    ImpactoResumo,
-    "eventosRealizados" | "porTipoEvidencia" | "porTipoAtividade"
-  > {
+interface ImpactoDTO extends Omit<
+  ImpactoResumo,
+  "eventosRealizados" | "porTipoEvidencia" | "porTipoAtividade"
+> {
   eventosCulturais: number;
   porTipoEvidencia: DistribuicaoDTO[];
   porTipoAtividade: DistribuicaoDTO[];
 }
-interface VisaoGeralDTO
-  extends Omit<VisaoGeralResumo, "statusProjetos" | "pendenciasPorModulo"> {
+interface VisaoGeralDTO extends Omit<
+  VisaoGeralResumo,
+  "statusProjetos" | "pendenciasPorModulo"
+> {
   statusProjetos: DistribuicaoDTO[];
   pendenciasPorModulo: DistribuicaoDTO[];
 }
@@ -345,16 +353,14 @@ export async function loadDashboardCentral(): Promise<DashboardCentralSnapshot> 
     apiFetch<PatrimonioDTO[]>("/dashboard/patrimonio", { cache: "no-store" }),
   ]);
 
-  const execucao = execucaoDTO.map(
-    (item): ExecucaoItem => ({
-      ...item,
-      id: String(item.id),
-      tipo: dashboardLabel(item.tipo),
-      inicio: parseData(item.inicio),
-      fim: parseData(item.fim),
-      href: frontendRoute(item.rotaFrontend, `/atividades/${item.id}`),
-    }),
-  );
+  const execucao = execucaoDTO.map((item): ExecucaoItem => ({
+    ...item,
+    id: String(item.id),
+    tipo: dashboardLabel(item.tipo),
+    inicio: parseData(item.inicio),
+    fim: parseData(item.fim),
+    href: frontendRoute(item.rotaFrontend, `/atividades/${item.id}`),
+  }));
 
   return {
     pendencias: pendenciasDTO.map((item) => ({

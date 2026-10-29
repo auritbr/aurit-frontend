@@ -49,9 +49,7 @@ export function AuthPage({ children }: { children: ReactNode }) {
                 Termos de Uso
               </a>
             </nav>
-            <span>
-              © {new Date().getFullYear()} Aurit · Português (Brasil)
-            </span>
+            <span>© {new Date().getFullYear()} Aurit · Português (Brasil)</span>
           </div>
         </div>
       </div>

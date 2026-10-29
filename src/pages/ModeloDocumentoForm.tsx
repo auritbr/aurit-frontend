@@ -224,7 +224,10 @@ export default function ModeloDocumentoForm() {
 
   return (
     <AppLayout>
-      <div className="container max-w-4xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="account"
+        className="container max-w-4xl py-6 sm:py-8"
+      >
         <BackButton to="/modelos-documento" />
         <PageTitle
           title={isEdit ? "Layouts de Impressão" : "Layouts de Impressão"}
@@ -454,7 +457,10 @@ export default function ModeloDocumentoForm() {
       </div>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
+        <DialogContent
+          data-mobile-data-page="account"
+          className="max-h-[88vh] max-w-3xl overflow-y-auto"
+        >
           <DialogHeader>
             <DialogTitle>
               {tituloDocumento || "Prévia do documento"}

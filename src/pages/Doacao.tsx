@@ -150,7 +150,9 @@ export default function DoacoesPage() {
           setItems(data);
           setDoadores(options.doadores);
           setProjetos(options.projetos);
-          setAtividades(sortOptionsByName(options.atividades, (item) => item.nome));
+          setAtividades(
+            sortOptionsByName(options.atividades, (item) => item.nome),
+          );
           setEventos(options.eventos);
         }
       })
@@ -389,7 +391,10 @@ export default function DoacoesPage() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Doações"
           tooltip={doacaoTooltip}

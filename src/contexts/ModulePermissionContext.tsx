@@ -95,7 +95,11 @@ const ModulePermissionContext = createContext<ModulePermissionContextValue>({
   permissoes: permissoesVazias,
 });
 
-export function ModulePermissionProvider({ children }: { children: ReactNode }) {
+export function ModulePermissionProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const { pathname } = useLocation();
   const modulo = useMemo(() => moduloDaRotaAtual(pathname), [pathname]);
   const [carregando, setCarregando] = useState(Boolean(modulo));

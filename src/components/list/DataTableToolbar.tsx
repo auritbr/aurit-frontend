@@ -44,8 +44,7 @@ export function DataTableToolbar({
   const { modulo, carregando, permissoes } = useModulePermissionContext();
   const [exportingExcel, setExportingExcel] = useState(false);
   const [exportingCSV, setExportingCSV] = useState(false);
-  const podeExportarModulo =
-    !modulo || (!carregando && permissoes.BAIXAR);
+  const podeExportarModulo = !modulo || (!carregando && permissoes.BAIXAR);
   const podeExportar = canExport && podeExportarModulo;
 
   const exportExcel = () => {

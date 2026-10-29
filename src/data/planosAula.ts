@@ -108,11 +108,7 @@ export interface PlanoAulaApiDTO {
   dataFim?: string | null;
   aulaReposicao?: boolean | null;
   statusPlanoAula?:
-    | StatusPlanoAula
-    | "CONCLUIDO"
-    | "EM_ANDAMENTO"
-    | string
-    | null;
+    StatusPlanoAula | "CONCLUIDO" | "EM_ANDAMENTO" | string | null;
 
   conteudo?: string | null;
   observacao?: string | null;
@@ -560,17 +556,20 @@ export async function getAtividadesPlanoAulaOptions(): Promise<
 
   const data: AtividadeApiDTO[] = await response.json();
 
-  return sortOptionsByName((Array.isArray(data) ? data : [])
-    .map((item) => ({
-      id: normalizeId(item.id),
-      nomeAtividade: nameWithYear(
-        pickText(item.nomeAtividade, item.titulo, item.nome) ||
-          `Atividade ${item.id}`,
-        item.ano,
-        item.dataInicio,
-      ),
-    }))
-    .filter((item) => item.id), (item) => item.nomeAtividade);
+  return sortOptionsByName(
+    (Array.isArray(data) ? data : [])
+      .map((item) => ({
+        id: normalizeId(item.id),
+        nomeAtividade: nameWithYear(
+          pickText(item.nomeAtividade, item.titulo, item.nome) ||
+            `Atividade ${item.id}`,
+          item.ano,
+          item.dataInicio,
+        ),
+      }))
+      .filter((item) => item.id),
+    (item) => item.nomeAtividade,
+  );
 }
 
 export async function getTurmasPlanoAulaOptions(): Promise<TurmaOption[]> {
@@ -585,19 +584,22 @@ export async function getTurmasPlanoAulaOptions(): Promise<TurmaOption[]> {
 
   const data: TurmaApiDTO[] = await response.json();
 
-  return sortOptionsByName((Array.isArray(data) ? data : [])
-    .map((item) => ({
-      id: normalizeId(item.id),
-      nomeTurma: nameWithYear(
-        pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
-        item.ano,
-        item.dataInicio,
-        item.atividade?.ano,
-        item.atividade?.dataInicio,
-      ),
-      atividadeId: normalizeId(item.atividadeId ?? item.atividade),
-    }))
-    .filter((item) => item.id), (item) => item.nomeTurma);
+  return sortOptionsByName(
+    (Array.isArray(data) ? data : [])
+      .map((item) => ({
+        id: normalizeId(item.id),
+        nomeTurma: nameWithYear(
+          pickText(item.nomeTurma, item.nome) || `Turma ${item.id}`,
+          item.ano,
+          item.dataInicio,
+          item.atividade?.ano,
+          item.atividade?.dataInicio,
+        ),
+        atividadeId: normalizeId(item.atividadeId ?? item.atividade),
+      }))
+      .filter((item) => item.id),
+    (item) => item.nomeTurma,
+  );
 }
 
 export async function getColaboradoresPlanoAulaOptions(): Promise<

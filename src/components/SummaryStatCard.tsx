@@ -3,11 +3,7 @@ import { cn } from "@/lib/utils";
 import { FieldTooltip } from "@/components/FieldTooltip";
 
 export type SummaryStatVariant =
-  | "neutral"
-  | "info"
-  | "success"
-  | "warning"
-  | "danger";
+  "neutral" | "info" | "success" | "warning" | "danger";
 
 export interface SummaryStatCardProps {
   title: string;

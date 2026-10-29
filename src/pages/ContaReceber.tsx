@@ -257,10 +257,13 @@ export default function ContasReceber() {
         })),
       );
       setAtividadeOptions(
-        sortOptionsByName(atividades.map((item) => ({
-          value: item.id,
-          label: nameWithYear(item.nomeAtividade, item.dataInicio),
-        })), (item) => item.label),
+        sortOptionsByName(
+          atividades.map((item) => ({
+            value: item.id,
+            label: nameWithYear(item.nomeAtividade, item.dataInicio),
+          })),
+          (item) => item.label,
+        ),
       );
       setEventoOptions(
         eventos.map((item) => ({ value: item.id, label: item.nomeEvento })),
@@ -605,7 +608,10 @@ export default function ContasReceber() {
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 sm:py-8">
+      <div
+        data-mobile-data-page="finance"
+        className="container max-w-7xl py-6 sm:py-8"
+      >
         <ListPageHeader
           title="Contas a Receber"
           tooltip="Nesta página são cadastrados e acompanhados os valores que a organização tem a receber, desde a identificação da receita até o registro do recebimento. Esses dados ajudam a acompanhar prazos, valores, pagadores e a relação de cada receita com projetos ou ações da organização."
