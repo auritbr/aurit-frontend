@@ -1,3 +1,19 @@
+import { ComparativoBackend } from "@/components/relatorios/ComparativoBackend";
+import { ComparacaoPeriodos } from "@/components/relatorios/ComparacaoPeriodos";
+import {
+  useSelecaoGrafico,
+  SelecaoGraficoBanner,
+} from "@/components/relatorios/AnalyticsKit";
+import {
+  ReportChartGrid,
+  ReportChartCard,
+  ReportBarChart,
+  ReportPieChart,
+} from "@/components/relatorios/ReportKit";
+import {
+  ReportFilterMultiSelect as FilterMultiSelect,
+  ReportSelectContent as SelectContent,
+} from "@/components/relatorios/ReportSelectFields";
 import { useEffect, useMemo, useState, type ElementType } from "react";
 import {
   CalendarCheck2,
@@ -15,7 +31,7 @@ import { PageTitle } from "@/components/PageTitle";
 import { PageObjective } from "@/components/PageObjective";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FormSearchableSelect } from "@/components/FormSearchableSelect";
-import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+
 import {
   ActiveFilters,
   type ActiveFilterItem,
@@ -33,7 +49,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
-  SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -236,6 +251,7 @@ function ResumoCard({ icon: Icon, label, valor, tone }: ResumoCardProps) {
 }
 
 export default function RelatorioPresencas() {
+  const sel = useSelecaoGrafico();
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_PESQUISA_INICIAIS);
   const [aplicados, setAplicados] = useState<Filtros>(FILTROS_INICIAIS);
   const [registros, setRegistros] = useState<RegistroPresenca[]>([]);
@@ -330,6 +346,51 @@ export default function RelatorioPresencas() {
     [registros, aplicados],
   );
 
+  const linhasTabela = resultado.filter(
+    (r) =>
+      !sel.selecao ||
+      (sel.selecao.campo === "status"
+        ? statusLabel(r.status) === sel.selecao.valor
+        : r.data.slice(0, 7) === sel.selecao.valor),
+  );
+  const totalTabela = linhasTabela.length;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sel.selecao]);
+  const comparacaoRows = aplicarFiltros(registros, {
+    ...aplicados,
+    data: "",
+    mes: "TODOS",
+    ano: "TODOS",
+  });
+  const periodoPrincipal = aplicados.data
+    ? { inicio: aplicados.data, fim: aplicados.data }
+    : /^\d{4}$/.test(aplicados.ano)
+      ? {
+          inicio: `${aplicados.ano}-${aplicados.mes === "TODOS" ? "01" : aplicados.mes}-01`,
+          fim:
+            aplicados.mes === "TODOS"
+              ? `${aplicados.ano}-12-31`
+              : new Date(
+                  Date.UTC(Number(aplicados.ano), Number(aplicados.mes), 0),
+                )
+                  .toISOString()
+                  .slice(0, 10),
+        }
+      : undefined;
+  const porStatus = statusPresencaOptions.map((o) => ({
+    name: o.label,
+    value: resultado.filter((r) => r.status === o.value).length,
+  }));
+  const mesesGrafico = new Map<string, number>();
+  resultado.forEach((r) => {
+    const mes = r.data.slice(0, 7);
+    mesesGrafico.set(mes, (mesesGrafico.get(mes) ?? 0) + 1);
+  });
+  const porMes = Array.from(mesesGrafico, ([name, value]) => ({
+    name,
+    value,
+  })).sort((a, b) => a.name.localeCompare(b.name));
   const total = resultado.length;
   const presentes = resultado.filter(
     (item) => item.status === "PRESENTE",
@@ -340,9 +401,9 @@ export default function RelatorioPresencas() {
   ).length;
   const feriados = resultado.filter((item) => item.status === "FERIADO").length;
   const pctPresenca = total > 0 ? (presentes / total) * 100 : 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const totalPages = Math.max(1, Math.ceil(totalTabela / pageSize));
   const safePage = Math.min(currentPage, totalPages);
-  const pagina = resultado.slice(
+  const pagina = linhasTabela.slice(
     (safePage - 1) * pageSize,
     safePage * pageSize,
   );
@@ -396,7 +457,7 @@ export default function RelatorioPresencas() {
   );
 
   async function handleGerarPdf() {
-    if (resultado.length === 0) {
+    if (linhasTabela.length === 0) {
       toast.warning("Não há registros de presença para exportar.");
       return;
     }
@@ -409,19 +470,36 @@ export default function RelatorioPresencas() {
           : Number(aplicados.atividadeId),
       turmaId: aplicados.turmaId === "TODOS" ? null : Number(aplicados.turmaId),
       data: aplicados.data || null,
-      mes: aplicados.mes === "TODOS" ? null : Number(aplicados.mes),
-      ano: aplicados.ano === "TODOS" ? null : Number(aplicados.ano),
-      status: aplicados.status,
+      mes:
+        sel.selecao?.campo === "mes"
+          ? Number(sel.selecao.valor.slice(5, 7))
+          : aplicados.mes === "TODOS"
+            ? null
+            : Number(aplicados.mes),
+      ano:
+        sel.selecao?.campo === "mes"
+          ? Number(sel.selecao.valor.slice(0, 4))
+          : aplicados.ano === "TODOS"
+            ? null
+            : Number(aplicados.ano),
+      status:
+        sel.selecao?.campo === "status"
+          ? statusPresencaOptions
+              .filter((o) => o.label === sel.selecao?.valor)
+              .map((o) => o.value)
+          : aplicados.status,
     });
   }
 
   function limpar() {
+    sel.limpar();
     setFiltros(FILTROS_PESQUISA_INICIAIS);
     setAplicados(FILTROS_INICIAIS);
     setCurrentPage(1);
   }
 
   function filtrar() {
+    sel.limpar();
     setAplicados(normalizarFiltros(filtros));
     setCurrentPage(1);
     toast.success("Filtros aplicados.");
@@ -867,6 +945,55 @@ export default function RelatorioPresencas() {
           </div>
         </section>
 
+        {!aplicados.status.length ? (
+          <ComparativoBackend
+            slug="presencas"
+            inicial={periodoPrincipal}
+            filtros={{
+              busca: aplicados.participante,
+              atividadeId: /^\d+$/.test(aplicados.atividadeId)
+                ? aplicados.atividadeId
+                : undefined,
+              turmaId: /^\d+$/.test(aplicados.turmaId)
+                ? aplicados.turmaId
+                : undefined,
+            }}
+          />
+        ) : (
+          <ComparacaoPeriodos
+            id="rpres"
+            rows={comparacaoRows}
+            getData={(r) => r.data}
+            periodo={periodoPrincipal}
+            referencia="data do registro de frequência"
+            indicadores={[
+              { label: "Registros de frequência", calc: (rows) => rows.length },
+              {
+                label: "Presenças",
+                sentido: "maiorMelhor",
+                calc: (rows) =>
+                  rows.filter((r) => r.status === "PRESENTE").length,
+              },
+              {
+                label: "Ausências",
+                sentido: "menorMelhor",
+                calc: (rows) =>
+                  rows.filter((r) => r.status === "AUSENTE").length,
+              },
+              {
+                label: "% Presença",
+                tipo: "percentual",
+                sentido: "maiorMelhor",
+                calc: (rows) =>
+                  rows.length
+                    ? (rows.filter((r) => r.status === "PRESENTE").length /
+                        rows.length) *
+                      100
+                    : null,
+              },
+            ]}
+          />
+        )}
         <section className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <ResumoCard
             icon={CalendarCheck2}
@@ -897,6 +1024,37 @@ export default function RelatorioPresencas() {
           />
         </section>
 
+        {!loading && !erro && (
+          <ReportChartGrid>
+            <ReportChartCard
+              title="Distribuição por status"
+              description="Situações registradas no recorte atual."
+              clickable
+            >
+              <ReportPieChart
+                data={porStatus}
+                onSelect={sel.selecionar("status", "Situação")}
+                reportKey="presencas"
+              />
+            </ReportChartCard>
+            <ReportChartCard
+              title="Registros por mês"
+              description="Volume de registros de frequência por mês e ano."
+              clickable
+            >
+              <ReportBarChart
+                data={porMes}
+                onSelect={sel.selecionar("mes", "Mês")}
+                reportKey="presencas"
+              />
+            </ReportChartCard>
+          </ReportChartGrid>
+        )}
+        <SelecaoGraficoBanner
+          selecao={sel.selecao}
+          count={totalTabela}
+          onClear={sel.limpar}
+        />
         <DataTableCard>
           <div className="flex flex-col gap-3 border-b border-border/60 bg-muted/20 px-5 py-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -913,14 +1071,14 @@ export default function RelatorioPresencas() {
 
             <div className="flex flex-wrap items-center gap-1.5">
               <RelatorioExportButtons
-                rows={resultado}
+                rows={linhasTabela}
                 columns={colunasExport}
                 reportName="presencas"
                 dataGeracao={new Date().toLocaleDateString("pt-BR")}
                 disabled={loading || !colunasExport.length}
                 showPdf
                 onPdf={handleGerarPdf}
-                pdfDisabled={resultado.length === 0}
+                pdfDisabled={linhasTabela.length === 0}
                 showCopy={false}
                 compact
               />
@@ -951,7 +1109,7 @@ export default function RelatorioPresencas() {
                   Tentar novamente
                 </Button>
               </div>
-            ) : total === 0 ? (
+            ) : totalTabela === 0 ? (
               <div className="px-5 py-12 text-center">
                 <Inbox className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
 
@@ -1058,9 +1216,9 @@ export default function RelatorioPresencas() {
             )}
           </div>
 
-          {!loading && !erro && total > 0 && (
+          {!loading && !erro && totalTabela > 0 && (
             <TablePagination
-              totalItems={total}
+              totalItems={totalTabela}
               currentPage={safePage}
               pageSize={pageSize}
               onPageChange={setCurrentPage}

@@ -1,3 +1,4 @@
+import { downloadFile, XLSX_MIME } from "@/lib/downloadFile";
 import * as XLSX from "xlsx";
 
 type ExportItem = {
@@ -30,17 +31,7 @@ type ExportData = {
 };
 
 function baixarArquivo(conteudo: BlobPart, nome: string, tipo: string) {
-  const blob = new Blob([conteudo], { type: tipo });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = nome;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  URL.revokeObjectURL(url);
+  return downloadFile(new Blob([conteudo], { type: tipo }), nome);
 }
 
 export function exportToCSV(data: ExportData) {
@@ -87,7 +78,7 @@ export function exportToCSV(data: ExportData) {
     )
     .join("\n");
 
-  baixarArquivo(
+  return baixarArquivo(
     "\uFEFF" + csv,
     "indicadores-sociodemograficos.csv",
     "text/csv;charset=utf-8;",
@@ -131,5 +122,10 @@ export function exportToExcel(data: ExportData) {
 
   XLSX.utils.book_append_sheet(workbook, worksheet, "Indicadores");
 
-  XLSX.writeFile(workbook, "indicadores-sociodemograficos.xlsx");
+  return downloadFile(
+    new Blob([XLSX.write(workbook, { bookType: "xlsx", type: "array" })], {
+      type: XLSX_MIME,
+    }),
+    "indicadores-sociodemograficos.xlsx",
+  );
 }

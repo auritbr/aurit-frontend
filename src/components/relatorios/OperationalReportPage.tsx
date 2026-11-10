@@ -1,3 +1,4 @@
+import { reportFieldLabel } from "@/report/general/reportFieldLabels";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck,
@@ -7,12 +8,14 @@ import {
   Target,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  FiltroBusca,
-  FiltroSelect,
-} from "@/components/relatorios/FinanceiroFilterFields";
+import { ReportColumnFilterPanel } from "./ReportColumnFilterPanel";
+import { useReportColumnFilters } from "@/hooks/useReportColumnFilters";
+import { useEvidenceReportFilters } from "@/hooks/useEvidenceReportFilters";
+import { EvidenceSearchFields } from "@/components/EvidenceSearchFields";
+import type { ReportFilterColumn } from "@/lib/reportColumnFilters";
 import {
   ReportFilterPanel,
+  filterFieldClass,
   ReportBarChart,
   ReportChartCard,
   ReportChartGrid,
@@ -27,11 +30,8 @@ import {
 } from "@/components/relatorios/ReportKit";
 import {
   getEvidenciasExecucao,
-  getProjetosOptions,
+  getEvidenciasFotograficas,
   getPropostasEditalOptions as getPropostasEvidenciaOptions,
-  getAtividadesOptions,
-  getTurmasOptions,
-  getEventosCulturaisOptions,
   getAcoesDivulgacaoOptions,
   getPresencasOptions,
   tipoEvidenciaLabel,
@@ -57,7 +57,6 @@ import {
   tipoDestinatarioLabel,
 } from "@/data/emprestimos";
 import { apiFetch } from "@/lib/api";
-import type { ActiveFilterItem } from "@/components/ActiveFilters";
 import { getRelatorioDetalhado, type Indicador } from "@/data/relatorios";
 
 type Kind =
@@ -229,6 +228,31 @@ async function loadRows(kind: Kind): Promise<Row[]> {
       ]);
       return {
         id: item.id,
+        patrimonio_id: item.patrimonioId,
+        projeto_id: item.projetoId,
+        projeto:
+          name(projetos, item.projetoId, [
+            "nomeProjeto",
+            "tituloProjeto",
+            "nome",
+          ]) ?? "",
+        proposta_id: item.propostaEditalId,
+        proposta:
+          name(propostas, item.propostaEditalId, [
+            "tituloProjeto",
+            "nomeProposta",
+            "nome",
+          ]) ?? "",
+        atividade_id: item.atividadeId,
+        atividade:
+          name(atividades, item.atividadeId, ["nomeAtividade", "nome"]) ?? "",
+        evento_id: item.eventoCulturalId,
+        evento:
+          name(eventos, item.eventoCulturalId, [
+            "nomeEvento",
+            "tituloEvento",
+            "nome",
+          ]) ?? "",
         patrimonio: patrimonio || "Patrimônio não localizado",
         responsavel: responsavel || "Responsável não localizado",
         tipoDestinatario: tipoDestinatarioLabel(item.tipoDestinatario),
@@ -244,27 +268,15 @@ async function loadRows(kind: Kind): Promise<Row[]> {
     });
   }
   if (kind === "evidencias") {
-    const [
-      items,
-      projetos,
-      propostas,
-      atividades,
-      turmas,
-      eventos,
-      acoes,
-      presencas,
-      planosResponse,
-    ] = await Promise.all([
-      getEvidenciasExecucao(),
-      getProjetosOptions(),
-      getPropostasEvidenciaOptions(),
-      getAtividadesOptions(),
-      getTurmasOptions(),
-      getEventosCulturaisOptions(),
-      getAcoesDivulgacaoOptions(),
-      getPresencasOptions(),
-      apiFetch<Record<string, unknown>[]>("/planos-aula"),
-    ]);
+    const [items, propostas, acoes, presencas, planosResponse, fotografias] =
+      await Promise.all([
+        getEvidenciasExecucao(),
+        getPropostasEvidenciaOptions(),
+        getAcoesDivulgacaoOptions(),
+        getPresencasOptions(),
+        apiFetch<Record<string, unknown>[]>("/planos-aula"),
+        getEvidenciasFotograficas(),
+      ]);
     const nome = (
       opcoes: { id: string; nome: string }[],
       id: string,
@@ -278,22 +290,57 @@ async function loadRows(kind: Kind): Promise<Row[]> {
           ? plano.nomePlanoAula
           : "—";
     };
-    return items.map((item) => ({
-      id: item.id,
-      titulo: item.tituloEvidencia,
-      tipo: tipoEvidenciaLabel(item.tipoEvidencia),
-      vinculo: tipoVinculoLabel(item.tipoVinculoEvidencia),
-      projeto: nome(projetos, item.projeto),
-      proposta: nome(propostas, item.propostaEdital),
-      planoAula: planoNome(item.planoAula),
-      atividade: nome(atividades, item.atividade),
-      turma: nome(turmas, item.turma),
-      evento: nome(eventos, item.eventoCultural),
-      acaoDivulgacao: nome(acoes, item.acaoDivulgacao),
-      presenca: nome(presencas, item.presenca),
-      situacao: tipoVinculoLabel(item.tipoVinculoEvidencia),
-      observacao: item.observacaoEvidencia,
-    }));
+    return fotografias.map((foto) => {
+      const item = items.find((item) => String(item.id) === String(foto.id));
+      const referencia =
+        foto.contexto === "AULA"
+          ? [
+              foto.atividade?.nome,
+              foto.turma?.nome,
+              foto.planoAula
+                ? `${date(foto.planoAula.dataInicio)} — ${foto.planoAula.nome}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" ")
+          : [foto.eventoCultural?.nome, foto.eventoCultural?.local]
+              .filter(Boolean)
+              .join(" ");
+      return {
+        contexto: foto.contexto,
+        projeto_id: String(foto.projeto.id),
+        atividade_id: String(foto.atividade?.id ?? ""),
+        turma_id: String(foto.turma?.id ?? ""),
+        evento_id: String(foto.eventoCultural?.id ?? ""),
+        data: foto.dataReferencia?.slice(0, 10) ?? "",
+        imagens: foto.quantidadeImagens,
+        referencia,
+        pesquisa: [
+          foto.contexto === "AULA" ? "Aula" : "Evento Cultural",
+          foto.projeto.nome,
+          referencia,
+          foto.descricao,
+        ].join(" "),
+        id: String(foto.id),
+        titulo: foto.titulo,
+        tipo: tipoEvidenciaLabel(foto.tipoEvidencia),
+        vinculo: item
+          ? tipoVinculoLabel(item.tipoVinculoEvidencia)
+          : foto.contexto === "AULA"
+            ? "Plano de aula"
+            : "Evento cultural",
+        projeto: foto.projeto.nome,
+        proposta: nome(propostas, item?.propostaEdital ?? ""),
+        planoAula: foto.planoAula?.nome ?? planoNome(item?.planoAula ?? ""),
+        atividade: foto.atividade?.nome ?? "—",
+        turma: foto.turma?.nome ?? "—",
+        evento: foto.eventoCultural?.nome ?? "—",
+        acaoDivulgacao: nome(acoes, item?.acaoDivulgacao ?? ""),
+        presenca: nome(presencas, item?.presenca ?? ""),
+        situacao: foto.contexto === "AULA" ? "Aula" : "Evento Cultural",
+        observacao: foto.descricao ?? item?.observacaoEvidencia ?? "",
+      };
+    });
   }
   if (kind === "prestacoes-contas") {
     const [items, propostas, agentes] = await Promise.all([
@@ -324,6 +371,7 @@ async function loadRows(kind: Kind): Promise<Row[]> {
     meta:
       metas.find((meta) => meta.id === item.metaProjeto)?.tituloMeta ??
       `Meta #${item.metaProjeto}`,
+    meta_id: item.metaProjeto,
     executado: item.quantidadeExecutada || "0",
     percentual: Number(item.percentualExecutado ?? 0),
     evidencias: item.evidencias.length,
@@ -331,6 +379,44 @@ async function loadRows(kind: Kind): Promise<Row[]> {
     observacao: item.observacaoCumprimento,
   }));
 }
+
+const operationalPdfKeys: Partial<Record<Kind, Record<string, string>>> = {
+  evidencias: {
+    titulo: "titulo_evidencia",
+    tipo: "tipo_evidencia",
+    vinculo: "tipo_vinculo_evidencia",
+    projeto: "projeto",
+    proposta: "proposta_edital",
+    planoAula: "plano_aula",
+    atividade: "atividade",
+    turma: "turma",
+    evento: "evento_cultural",
+    acaoDivulgacao: "acao_divulgacao",
+    presenca: "presenca",
+    observacao: "observacao_evidencia",
+  },
+  "prestacoes-metas": {
+    meta: "titulo_meta",
+    executado: "quantidade_executada",
+    percentual: "percentual_executado",
+    evidencias: "quantidade_evidencias",
+    observacao: "observacao_cumprimento",
+    situacao: "status_cumprimento_meta",
+  },
+  emprestimos: {
+    patrimonio: "patrimonio",
+    responsavel: "responsavel_emprestimo",
+    tipoDestinatario: "tipo_destinatario_emprestimo",
+    vinculo: "vinculo_emprestimo",
+    emprestimo: "data_emprestimo",
+    devolucaoPrevista: "data_prevista_devolucao",
+    devolucao: "data_devolucao",
+    conservacao: "estado_conservacao",
+    estadoDevolucao: "estado_devolucao",
+    observacao: "observacao_emprestimo",
+    situacao: "status_emprestimo",
+  },
+};
 
 function columnsFor(kind: Kind): ReportTableColumn<Row>[] {
   const base: Record<Kind, Array<[string, string]>> = {
@@ -398,25 +484,7 @@ function columnsFor(kind: Kind): ReportTableColumn<Row>[] {
     ...base[kind].map(([key, label], index) => ({
       key,
       label,
-      pdfKey:
-        kind === "evidencias"
-          ? (
-              {
-                titulo: "titulo_evidencia",
-                tipo: "tipo_evidencia",
-                vinculo: "tipo_vinculo_evidencia",
-                projeto: "projeto",
-                proposta: "proposta_edital",
-                planoAula: "plano_aula",
-                atividade: "atividade",
-                turma: "turma",
-                evento: "evento_cultural",
-                acaoDivulgacao: "acao_divulgacao",
-                presenca: "presenca",
-                observacao: "observacao_evidencia",
-              } as Record<string, string>
-            )[key]
-          : undefined,
+      pdfKey: operationalPdfKeys[kind]?.[key],
       alwaysVisible: index < 2,
       hiddenByDefault: key === "observacao",
       accessor: (row: Row) =>
@@ -442,6 +510,7 @@ function columnsFor(kind: Kind): ReportTableColumn<Row>[] {
       : [
           {
             key: "situacao",
+            pdfKey: operationalPdfKeys[kind]?.situacao,
             label: kind === "prestacoes-metas" ? "Cumprimento" : "Situação",
             accessor: (row: Row) => row.situacao,
           },
@@ -474,13 +543,122 @@ function countByMonth(rows: Row[], key: string) {
     }));
 }
 
+const operationalFilterColumns: Record<Kind, ReportFilterColumn[]> = {
+  emprestimos: [
+    {
+      chave: "tipoDestinatario",
+      label: reportFieldLabel(
+        "emprestimos",
+        "tipoDestinatario",
+        "Tipo de destinatário",
+      ),
+      filterType: "multi",
+    },
+    {
+      chave: "patrimonio_id",
+      label: reportFieldLabel("emprestimos", "patrimonio_id", "Patrimônio"),
+      filterType: "multi",
+      optionLabelKey: "patrimonio",
+    },
+    {
+      chave: "projeto_id",
+      label: reportFieldLabel("emprestimos", "projeto_id", "Projeto"),
+      filterType: "multi",
+      optionLabelKey: "projeto",
+    },
+    {
+      chave: "proposta_id",
+      label: reportFieldLabel("emprestimos", "proposta_id", "Proposta"),
+      filterType: "multi",
+      optionLabelKey: "proposta",
+    },
+    {
+      chave: "atividade_id",
+      label: reportFieldLabel("emprestimos", "atividade_id", "Atividade"),
+      filterType: "multi",
+      optionLabelKey: "atividade",
+    },
+    {
+      chave: "evento_id",
+      label: reportFieldLabel("emprestimos", "evento_id", "Evento cultural"),
+      filterType: "multi",
+      optionLabelKey: "evento",
+    },
+    {
+      chave: "emprestimo",
+      label: reportFieldLabel(
+        "emprestimos",
+        "emprestimo",
+        "Data do empréstimo",
+      ),
+      filterType: "date",
+    },
+    {
+      chave: "devolucao",
+      label: reportFieldLabel("emprestimos", "devolucao", "Data de devolução"),
+      filterType: "date",
+    },
+    {
+      chave: "conservacao",
+      label: reportFieldLabel(
+        "emprestimos",
+        "conservacao",
+        "Estado de conservação",
+      ),
+      filterType: "multi",
+    },
+    {
+      chave: "situacao",
+      label: reportFieldLabel("emprestimos", "situacao", "Situação"),
+      filterType: "multi",
+    },
+  ],
+  "prestacoes-metas": [
+    {
+      chave: "meta_id",
+      label: reportFieldLabel("prestacoes-metas", "meta_id", "Meta do projeto"),
+      filterType: "multi",
+      optionLabelKey: "meta",
+    },
+    {
+      chave: "executado",
+      label: reportFieldLabel(
+        "prestacoes-metas",
+        "executado",
+        "Quantidade executada",
+      ),
+      filterType: "multi",
+    },
+    {
+      chave: "situacao",
+      label: reportFieldLabel("prestacoes-metas", "situacao", "Situação"),
+      filterType: "multi",
+    },
+  ],
+  evidencias: [],
+  "prestacoes-contas": [],
+};
+
 export function OperationalReportPage({ kind }: { kind: Kind }) {
   const meta = metadata[kind];
   const [rows, setRows] = useState<Row[]>([]);
   const [indicadoresBackend, setIndicadoresBackend] = useState<Indicador[]>([]);
   const [loading, setLoading] = useState(true);
-  const [draft, setDraft] = useState({ busca: "", situacao: "TODAS" });
-  const [applied, setApplied] = useState(draft);
+  const columnFilters = useReportColumnFilters(
+    kind,
+    operationalFilterColumns[kind],
+    rows,
+  );
+  const evidenceFilters = useEvidenceReportFilters(rows);
+  const filtered = (
+    kind === "evidencias"
+      ? evidenceFilters.filteredRows
+      : columnFilters.filteredRows
+  ) as Row[];
+  const activeFilters =
+    kind === "evidencias"
+      ? evidenceFilters.activeFilters
+      : columnFilters.activeFilters;
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -505,63 +683,16 @@ export function OperationalReportPage({ kind }: { kind: Kind }) {
   useEffect(() => {
     void load();
   }, [load]);
-  const situacoes = useMemo(
-    () =>
-      Array.from(new Set(rows.map((row) => row.situacao)))
-        .filter(Boolean)
-        .map((value) => ({ value, label: value })),
-    [rows],
-  );
-  const filtered = useMemo(
-    () =>
-      rows.filter((row) => {
-        const busca = applied.busca
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .toLowerCase();
-        return (
-          (!busca ||
-            Object.values(row)
-              .join(" ")
-              .normalize("NFD")
-              .replace(/[\u0300-\u036f]/g, "")
-              .toLowerCase()
-              .includes(busca)) &&
-          (applied.situacao === "TODAS" || row.situacao === applied.situacao)
-        );
-      }),
-    [rows, applied],
-  );
-  const activeFilters: ActiveFilterItem[] = [
-    ...(applied.busca
-      ? [
-          {
-            id: "busca",
-            label: "Busca",
-            value: applied.busca,
-            onRemove: () => setApplied((prev) => ({ ...prev, busca: "" })),
-          },
-        ]
-      : []),
-    ...(applied.situacao !== "TODAS"
-      ? [
-          {
-            id: "situacao",
-            label: "Situação",
-            value: applied.situacao,
-            onRemove: () =>
-              setApplied((prev) => ({ ...prev, situacao: "TODAS" })),
-          },
-        ]
-      : []),
-  ];
   const normalizarSituacao = (value: unknown) =>
     String(value ?? "")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toUpperCase();
   const indicador = (chave: string, fallback: string | number) =>
-    indicadoresBackend.find((item) => item.chave === chave)?.valor ?? fallback;
+    activeFilters.length
+      ? fallback
+      : (indicadoresBackend.find((item) => item.chave === chave)?.valor ??
+        fallback);
   const cards =
     kind === "evidencias"
       ? [
@@ -770,87 +901,42 @@ export function OperationalReportPage({ kind }: { kind: Kind }) {
             ]
           : null;
   const tableColumns = useMemo(() => columnsFor(kind), [kind]);
-  const jasperColumns =
-    kind === "evidencias"
-      ? undefined
-      : kind === "prestacoes-contas"
-        ? [
-            "proposta_edital",
-            "agente",
-            "data_entrega",
-            "metas_avaliadas",
-            "produtos_gerados",
-            "status_prestacao_contas",
-          ]
-        : kind === "prestacoes-metas"
-          ? [
-              "titulo_meta",
-              "proposta_edital",
-              "descricao_meta",
-              "quantidade_prevista",
-              "quantidade_executada",
-              "percentual_executado",
-              "forma_comprovacao",
-              "evidencias",
-              "status_cumprimento_meta",
-              "observacao_cumprimento",
-              "justificativa_nao_cumprimento_integral",
-            ]
-          : [
-              "patrimonio",
-              "numero_patrimonio",
-              "colaborador",
-              "participante",
-              "integrante",
-              "destinatario_externo",
-              "tipo_destinatario_emprestimo",
-              "projeto",
-              "proposta_edital",
-              "atividade",
-              "evento_cultural",
-              "data_emprestimo",
-              "data_prevista_devolucao",
-              "data_devolucao",
-              "estado_conservacao",
-              "estado_devolucao",
-              "status_emprestimo",
-              "observacao_emprestimo",
-              "observacao_devolucao",
-            ];
   return (
     <ReportShell
       title={meta.title}
       tooltip={meta.tooltip}
       objective={meta.objective}
     >
-      <ReportFilterPanel
-        storageKey={`relatorio-${kind}`}
-        activeFilters={activeFilters}
-        loading={loading}
-        onSubmit={() => setApplied({ ...draft })}
-        onClear={() => {
-          const empty = { busca: "", situacao: "TODAS" };
-          setDraft(empty);
-          setApplied(empty);
-        }}
-        hidden
-      >
-        <FiltroBusca
-          id={`${kind}-busca`}
-          tooltip="Busque em todos os dados do relatório."
-          value={draft.busca}
-          onChange={(busca) => setDraft((prev) => ({ ...prev, busca }))}
+      {kind === "evidencias" ? (
+        <ReportFilterPanel
+          storageKey="relatorio-evidencias"
+          activeFilters={activeFilters}
+          loading={loading}
+          onSubmit={evidenceFilters.apply}
+          onClear={evidenceFilters.clear}
+        >
+          <EvidenceSearchFields
+            draft={evidenceFilters.draft}
+            setDraftField={evidenceFilters.setDraftField}
+            contextoOptions={evidenceFilters.optionGroups.contexto}
+            projetoOptions={evidenceFilters.optionGroups.projeto}
+            atividadeOptions={evidenceFilters.optionGroups.atividade}
+            turmaOptions={evidenceFilters.optionGroups.turma}
+            eventoOptions={evidenceFilters.optionGroups.evento}
+            inputClass={filterFieldClass}
+            loading={loading}
+          />
+        </ReportFilterPanel>
+      ) : (
+        <ReportColumnFilterPanel
+          scope={kind}
+          columns={operationalFilterColumns[kind]}
+          rows={rows}
+          filters={columnFilters}
+          loading={loading}
         />
-        <FiltroSelect
-          id={`${kind}-situacao`}
-          label="Situação"
-          tooltip="Filtre pela situação do registro."
-          value={draft.situacao}
-          onChange={(situacao) => setDraft((prev) => ({ ...prev, situacao }))}
-          options={situacoes}
-          incluirTodos
-        />
-      </ReportFilterPanel>
+      )}
+
       <ReportStatGrid>
         {loading ? (
           <ReportStatSkeleton count={6} />
@@ -972,6 +1058,11 @@ export function OperationalReportPage({ kind }: { kind: Kind }) {
         </ReportChartGrid>
       )}
       <ReportTable
+        sortResetKey={
+          kind === "evidencias"
+            ? `${evidenceFilters.applied.sortBy}-${evidenceFilters.applied.sortDir}`
+            : kind
+        }
         title={meta.table}
         description={loading ? "Carregando dados atualizados..." : undefined}
         rows={filtered}
@@ -984,19 +1075,32 @@ export function OperationalReportPage({ kind }: { kind: Kind }) {
             : "Nenhum registro encontrado com os filtros selecionados."
         }
         pdfExport={
-          jasperColumns || kind === "evidencias"
+          kind !== "prestacoes-contas"
             ? {
                 slug: kind,
-                columns: jasperColumns,
                 filters: {
-                  busca: applied.busca || undefined,
-                  situacao:
-                    applied.situacao === "TODAS" ? undefined : applied.situacao,
+                  ...(kind === "evidencias"
+                    ? {
+                        rowOrder: {
+                          key: "evidencia_id",
+                          values: filtered.map((row) => String(row.id)),
+                        },
+                      }
+                    : {}),
+                  columnFilters: {
+                    [kind === "emprestimos"
+                      ? "emprestimo_id"
+                      : kind === "prestacoes-metas"
+                        ? "prestacao_meta_id"
+                        : "evidencia_id"]: {
+                      values: filtered.map((row) => String(row.id)),
+                    },
+                  },
                 },
-                filterLabels: activeFilters.map((filter) => ({
-                  label: filter.label,
-                  value: filter.value,
-                })),
+                filterLabels:
+                  kind === "evidencias"
+                    ? evidenceFilters.filterLabels
+                    : columnFilters.filterLabels,
               }
             : undefined
         }

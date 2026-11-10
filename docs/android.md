@@ -145,7 +145,7 @@ Referências: [Google Credential Manager](https://developer.android.com/identity
   organização por nome, cancelamento, credencial inválida, conta recusada, primeiro
   acesso e logout.
 - Google ID Token não persistido; somente JWT Aurit aplicado após resposta aprovada.
-- Backend: 224 testes aprovados, incluindo descoberta após autenticar, seleção
+- Backend: 227 testes aprovados, incluindo auditoria após o commit, descoberta após autenticar, seleção
   revalidada, isolamento de organizações, primeiro acesso e recuperação sem slug.
   Os testes anteriores dos clientes OAuth e dos tokens também continuam aprovados.
 - Lint: zero erros; mesmos 42 avisos anteriores.
@@ -159,3 +159,12 @@ frontend; desativar backup não o substitui por armazenamento seguro nativo.
 
 Não foi criado projeto iOS: ele requer a preparação específica com Xcode.
 Não houve commit, push ou publicação nesta etapa.
+
+## Espera na conclusão do Google Login
+
+A auditoria de sucesso no backend ocorre depois do commit da autenticação, evitando
+que o primeiro vínculo Google bloqueie o próprio registro de acesso. O app cancela
+requisições de login que ultrapassam 45 segundos e oferece uma nova tentativa. O
+limite também cobre a leitura do corpo da resposta. Nenhuma sessão é salva em uma
+requisição expirada. O fluxo com demora excessiva e a tentativa seguinte foram
+verificados com Google e API simulados, sem utilizar a conta real do cliente.

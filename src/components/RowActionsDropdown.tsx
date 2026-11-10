@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ChevronDown,
   Eye,
+  History,
   FileDown,
   Loader2,
   Pencil,
@@ -35,6 +36,7 @@ export interface RowActionsDropdownProps {
   onView?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onHistory?: () => void;
   /** Ações específicas do módulo, inseridas após "Editar". */
   extraItems?: RowActionItem[];
   reportEndpoint?: string;
@@ -43,6 +45,9 @@ export interface RowActionsDropdownProps {
   label?: string;
   className?: string;
 }
+
+const rowActionItemClass =
+  "gap-2 rounded-[9px] px-2.5 py-2 text-[13px] leading-5 focus:bg-muted/70";
 
 /**
  * Botão "Ações" com menu suspenso (Visualizar, Editar, Excluir).
@@ -54,6 +59,7 @@ export function RowActionsDropdown({
   onView,
   onEdit,
   onDelete,
+  onHistory,
   extraItems,
   reportEndpoint,
   reportFilename,
@@ -101,50 +107,45 @@ export function RowActionsDropdown({
         className="min-w-[176px] rounded-[13px] border-border/70 bg-popover/90 p-1.5 shadow-[0_10px_30px_-16px_hsl(215_28%_17%_/_0.28)] backdrop-blur-xl supports-[backdrop-filter]:bg-popover/80"
       >
         {viewTo ? (
-          <DropdownMenuItem asChild>
-            <Link
-              to={viewTo}
-              className="gap-2 rounded-[9px] px-2.5 py-2 text-[13px] focus:bg-muted/70"
-            >
+          <DropdownMenuItem asChild className={rowActionItemClass}>
+            <Link to={viewTo}>
               <Eye className="h-4 w-4 text-muted-foreground" />
               Visualizar
             </Link>
           </DropdownMenuItem>
         ) : onView ? (
-          <DropdownMenuItem
-            onClick={onView}
-            className="gap-2 rounded-[9px] px-2.5 py-2 text-[13px] focus:bg-muted/70"
-          >
+          <DropdownMenuItem onClick={onView} className={rowActionItemClass}>
             <Eye className="h-4 w-4 text-muted-foreground" /> Visualizar
           </DropdownMenuItem>
         ) : null}
         {podeEditar && editTo ? (
-          <DropdownMenuItem asChild>
-            <Link
-              to={editTo}
-              className="gap-2 rounded-[9px] px-2.5 py-2 text-[13px] focus:bg-muted/70"
-            >
+          <DropdownMenuItem asChild className={rowActionItemClass}>
+            <Link to={editTo}>
               <Pencil className="h-4 w-4 text-muted-foreground" />
               Editar
             </Link>
           </DropdownMenuItem>
         ) : podeEditar && onEdit ? (
-          <DropdownMenuItem
-            onClick={onEdit}
-            className="gap-2 rounded-[9px] px-2.5 py-2 text-[13px] focus:bg-muted/70"
-          >
+          <DropdownMenuItem onClick={onEdit} className={rowActionItemClass}>
             <Pencil className="h-4 w-4 text-muted-foreground" /> Editar
           </DropdownMenuItem>
         ) : null}
+        {onHistory && (
+          <DropdownMenuItem onSelect={onHistory} className={rowActionItemClass}>
+            <History className="h-4 w-4 text-muted-foreground" /> Ver histórico
+          </DropdownMenuItem>
+        )}
         {extraItems?.map((item) => {
           if (item.content) return <div key={item.label}>{item.content}</div>;
           const Icon = item.icon;
           return item.to ? (
-            <DropdownMenuItem key={item.label} asChild disabled={item.disabled}>
-              <Link
-                to={item.to}
-                className="gap-2 rounded-[9px] px-2.5 py-2 text-[13px] focus:bg-muted/70"
-              >
+            <DropdownMenuItem
+              key={item.label}
+              asChild
+              disabled={item.disabled}
+              className={rowActionItemClass}
+            >
+              <Link to={item.to}>
                 {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
                 {item.label}
               </Link>
@@ -154,7 +155,7 @@ export function RowActionsDropdown({
               key={item.label}
               onClick={item.onClick}
               disabled={item.disabled}
-              className="gap-2 rounded-[9px] px-2.5 py-2 text-[13px] focus:bg-muted/70"
+              className={rowActionItemClass}
             >
               {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
               {item.label}
@@ -168,7 +169,7 @@ export function RowActionsDropdown({
               void handleReport();
             }}
             disabled={generatingReport}
-            className="gap-2 rounded-[9px] px-2.5 py-2 text-[13px] focus:bg-muted/70"
+            className={rowActionItemClass}
           >
             {generatingReport ? (
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -185,7 +186,10 @@ export function RowActionsDropdown({
             )}
             <DropdownMenuItem
               onClick={onDelete}
-              className="gap-2 rounded-[9px] px-2.5 py-2 text-[13px] text-destructive focus:bg-destructive/10 focus:text-destructive"
+              className={cn(
+                rowActionItemClass,
+                "text-destructive focus:bg-destructive/10 focus:text-destructive",
+              )}
             >
               <Trash2 className="h-4 w-4" />
               Excluir

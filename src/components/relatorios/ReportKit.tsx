@@ -109,7 +109,7 @@ export function ReportFilterPanel({
   onSubmit: () => void;
   onClear: () => void;
   children: React.ReactNode;
-  /** Relatórios da Central apresentam os dados consolidados, sem painel de busca. */
+  /** Permite ocultar o painel em visualizações que não oferecem pesquisa. */
   hidden?: boolean;
 }) {
   const [open, setOpen] = useSessionBoolean(`${storageKey}:search:v2`, false);
@@ -183,14 +183,35 @@ export function ReportStatCard({
   label,
   valor,
   tone = "primary",
+  onClick,
+  selected,
+  active,
+  hint,
+  comparacao,
 }: {
   icon: LucideIcon;
   label: string;
   valor: string;
   tone?: StatTone;
+  onClick?: () => void;
+  selected?: boolean;
+  active?: boolean;
+  hint?: string;
+  comparacao?: React.ReactNode;
 }) {
+  const CardTag = onClick ? "button" : "div";
   return (
-    <div className="flex items-center gap-3 rounded-[14px] border border-border/70 bg-card/75 px-3.5 py-3 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
+    <CardTag
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      aria-pressed={onClick ? (active ?? selected) : undefined}
+      className={cn(
+        "flex w-full items-center gap-3 text-left rounded-[14px] border border-border/70 bg-card/75 px-3.5 py-3 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-card/60",
+        onClick &&
+          "transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        (active ?? selected) && "border-primary/50 ring-1 ring-primary/30",
+      )}
+    >
       <div
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border",
@@ -200,15 +221,24 @@ export function ReportStatCard({
       >
         <Icon className="h-4 w-4" strokeWidth={2.2} />
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
         <p className="break-words text-lg font-semibold tabular-nums text-foreground">
           {valor}
         </p>
+        {hint && (
+          <p
+            className="truncate text-[11px] text-muted-foreground"
+            title={hint}
+          >
+            {hint}
+          </p>
+        )}
+        {comparacao}
       </div>
-    </div>
+    </CardTag>
   );
 }
 
@@ -272,10 +302,12 @@ export function ReportChartCard({
   title,
   description,
   children,
+  clickable,
 }: {
   title: string;
   description?: string;
   children: React.ReactNode;
+  clickable?: boolean;
 }) {
   return (
     <section className="rounded-[14px] border border-border/70 bg-card/75 p-4 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
@@ -283,6 +315,11 @@ export function ReportChartCard({
       {description && (
         <p className="mt-0.5 text-[11.5px] text-muted-foreground">
           {description}
+        </p>
+      )}
+      {clickable && (
+        <p className="mt-1 text-[11px] text-primary">
+          Selecione uma categoria para filtrar a tabela.
         </p>
       )}
       <div className="mt-3 h-[220px]">{children}</div>
@@ -350,6 +387,9 @@ const formatCurrency = (value: number | string) =>
     maximumFractionDigits: 2,
   });
 
+const formatChartPercent = (value: number | string) =>
+  `${Number(value).toLocaleString("pt-BR")}%`;
+
 type ChartTooltipEntry = {
   name?: string | number;
   value?: string | number;
@@ -380,7 +420,7 @@ function ReportChartTooltipContent({
 
   const formatValue = (value: string | number | undefined) => {
     if (duration) return `${value ?? 0} dia(s)`;
-    if (percent) return `${Number(value ?? 0).toLocaleString("pt-BR")}%`;
+    if (percent) return formatChartPercent(value ?? 0);
     return currency
       ? formatCurrency(value ?? 0)
       : Number(value ?? 0).toLocaleString("pt-BR");
@@ -419,54 +459,158 @@ export function ReportBarChart({
   reportKey,
   categorical = true,
   currency = false,
+  percent = false,
+  onSelect,
+  formatValue,
+  layout = "vertical",
+  compareData,
+  labelAtual = "Período principal",
+  labelComparado = "Período comparado",
+  showZero = false,
 }: {
   data: ChartDatum[];
   reportKey?: string;
   categorical?: boolean;
   currency?: boolean;
+  percent?: boolean;
+  onSelect?: (name: string) => void;
+  formatValue?: (value: number) => string;
+  layout?: "vertical" | "horizontal";
+  compareData?: ChartDatum[] | null;
+  labelAtual?: string;
+  labelComparado?: string;
+  showZero?: boolean;
 }) {
-  if (!data.some((d) => d.value > 0)) return emptyChart;
+  const categorias = Array.from(
+    new Set([
+      ...data.map((d) => d.name),
+      ...(compareData ?? []).map((d) => d.name),
+    ]),
+  );
+  const values = new Map(data.map((d) => [d.name, d.value]));
+  const compared = new Map((compareData ?? []).map((d) => [d.name, d.value]));
+  const rows = categorias.map((name) => ({
+    name,
+    value: values.get(name) ?? 0,
+    comparado: compared.get(name) ?? 0,
+  }));
+  if (
+    !rows.length ||
+    (!showZero && !rows.some((d) => d.value !== 0 || d.comparado !== 0))
+  )
+    return emptyChart;
+  const horizontal = layout === "horizontal";
+  const fmt =
+    formatValue ??
+    (percent ? formatChartPercent : currency ? formatCurrency : undefined);
+  const select = onSelect
+    ? (datum: { name?: string }) => {
+        if (datum.name) onSelect(datum.name);
+      }
+    : undefined;
+  const tick = { fontSize: 10, fill: "hsl(var(--muted-foreground))" };
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
-        data={data}
-        margin={{ top: 6, right: 8, left: currency ? 12 : -18, bottom: 14 }}
+        data={rows}
+        layout={horizontal ? "vertical" : "horizontal"}
+        margin={{
+          top: 6,
+          right: 8,
+          left: horizontal ? 8 : currency ? 12 : -18,
+          bottom: horizontal ? 4 : 14,
+        }}
       >
-        <XAxis
-          dataKey="name"
-          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-          interval={0}
-          tickLine={false}
-          axisLine={false}
-          height={56}
-          angle={-24}
-          textAnchor="end"
-          tickFormatter={(value) => compactChartLabel(value)}
-        />
-        <YAxis
-          allowDecimals={false}
-          width={currency ? 82 : undefined}
-          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-          tickFormatter={currency ? formatCurrency : undefined}
-          tickLine={false}
-          axisLine={false}
-        />
-        <ChartTooltip
-          {...compactTooltipProps}
-          content={<ReportChartTooltipContent currency={currency} />}
-        />
-        <Bar dataKey="value" name="Total" radius={[6, 6, 0, 0]}>
-          {data.map((_, i) => (
+        {horizontal ? (
+          <>
+            <XAxis
+              type="number"
+              tick={tick}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={fmt}
+            />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={128}
+              tick={tick}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(value) => compactChartLabel(value)}
+            />
+          </>
+        ) : (
+          <>
+            <XAxis
+              dataKey="name"
+              tick={tick}
+              interval={0}
+              tickLine={false}
+              axisLine={false}
+              height={56}
+              angle={-24}
+              textAnchor="end"
+              tickFormatter={(value) => compactChartLabel(value)}
+            />
+            <YAxis
+              allowDecimals={false}
+              width={currency ? 82 : undefined}
+              tick={tick}
+              tickFormatter={fmt}
+              tickLine={false}
+              axisLine={false}
+            />
+          </>
+        )}
+        {formatValue ? (
+          <ChartTooltip
+            {...compactTooltipProps}
+            formatter={(value: number, name: string) => [
+              formatValue(value),
+              name,
+            ]}
+          />
+        ) : (
+          <ChartTooltip
+            {...compactTooltipProps}
+            content={
+              <ReportChartTooltipContent
+                currency={currency}
+                percent={percent}
+              />
+            }
+          />
+        )}
+        {compareData && <Legend wrapperStyle={{ fontSize: 11 }} />}
+        <Bar
+          dataKey="value"
+          name={compareData ? labelAtual : "Total"}
+          radius={horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0]}
+          cursor={onSelect ? "pointer" : undefined}
+          onClick={select}
+        >
+          {rows.map((row, i) => (
             <Cell
-              key={i}
+              key={row.name}
               fill={
                 categorical
-                  ? getChartColor(reportKey, i, data[i]?.name)
+                  ? getChartColor(reportKey, i, row.name)
                   : getReportChartTheme(reportKey).primary
               }
             />
           ))}
         </Bar>
+        {compareData && (
+          <Bar
+            dataKey="comparado"
+            name={labelComparado}
+            fill="hsl(var(--muted-foreground))"
+            radius={horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0]}
+            cursor={onSelect ? "pointer" : undefined}
+            onClick={select}
+          />
+        )}
       </BarChart>
     </ResponsiveContainer>
   );
@@ -523,11 +667,24 @@ export function ReportHorizontalBarChart({
 export function ReportLineChart({
   data,
   reportKey,
+  percent = false,
+  showZero = false,
+  name = "Total",
+  type = "monotone",
 }: {
-  data: ChartDatum[];
+  data: { name: string; value: number | null }[];
   reportKey?: string;
+  percent?: boolean;
+  showZero?: boolean;
+  name?: string;
+  type?: "linear" | "monotone";
 }) {
-  if (!data.some((d) => d.value > 0)) return emptyChart;
+  if (
+    !data.some(
+      ({ value }) => value !== null && (percent || showZero || value > 0),
+    )
+  )
+    return emptyChart;
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart
@@ -548,18 +705,20 @@ export function ReportLineChart({
         />
         <YAxis
           allowDecimals={false}
+          domain={percent ? [0, 100] : undefined}
+          tickFormatter={percent ? formatChartPercent : undefined}
           tick={{ fontSize: 10 }}
           axisLine={false}
           tickLine={false}
         />
         <ChartTooltip
           {...compactTooltipProps}
-          content={<ReportChartTooltipContent />}
+          content={<ReportChartTooltipContent percent={percent} />}
         />
         <Line
-          type="monotone"
+          type={type}
           dataKey="value"
-          name="Total"
+          name={name}
           stroke={getReportChartTheme(reportKey).primary}
           strokeWidth={2.5}
           dot={{ r: 3, fill: getReportChartTheme(reportKey).primary }}
@@ -716,12 +875,18 @@ export function ReportComparisonBarChart({
   series,
   reportKey,
   currency = false,
+  stacked = false,
+  allowDecimals = true,
   hideXAxis = false,
+  onSelect,
 }: {
   data: ComparisonChartDatum[];
   series: { key: string; label: string }[];
   reportKey?: string;
   currency?: boolean;
+  stacked?: boolean;
+  allowDecimals?: boolean;
+  onSelect?: (name: string) => void;
   /** Oculta apenas os rótulos visíveis das categorias; dados e tooltip permanecem. */
   hideXAxis?: boolean;
 }) {
@@ -749,6 +914,7 @@ export function ReportComparisonBarChart({
           tickFormatter={(value) => compactChartLabel(value)}
         />
         <YAxis
+          allowDecimals={allowDecimals}
           tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
           tickFormatter={currency ? formatCurrency : undefined}
           tickLine={false}
@@ -773,8 +939,17 @@ export function ReportComparisonBarChart({
             key={item.key}
             dataKey={item.key}
             name={item.label}
+            stackId={stacked ? "series" : undefined}
             fill={getChartColor(reportKey, index, item.label)}
-            radius={[5, 5, 0, 0]}
+            radius={!stacked || index === series.length - 1 ? [5, 5, 0, 0] : 0}
+            cursor={onSelect ? "pointer" : undefined}
+            onClick={
+              onSelect
+                ? (datum: { name?: string }) => {
+                    if (datum.name) onSelect(datum.name);
+                  }
+                : undefined
+            }
           />
         ))}
       </BarChart>
@@ -784,10 +959,12 @@ export function ReportComparisonBarChart({
 
 export function ReportPieChart({
   data,
+  onSelect,
   reportKey,
   currency = false,
 }: {
   data: ChartDatum[];
+  onSelect?: (name: string) => void;
   reportKey?: string;
   currency?: boolean;
 }) {
@@ -797,6 +974,14 @@ export function ReportPieChart({
     <ResponsiveContainer width="100%" height="100%">
       <PieChart>
         <Pie
+          cursor={onSelect ? "pointer" : undefined}
+          onClick={
+            onSelect
+              ? (datum: { name?: string }) => {
+                  if (datum.name) onSelect(datum.name);
+                }
+              : undefined
+          }
           data={filtered}
           dataKey="value"
           nameKey="name"
@@ -838,7 +1023,7 @@ export function ReportChartGrid({ children }: { children: React.ReactNode }) {
 
 export interface ReportTableColumn<T> extends RelatorioColumn<T> {
   /** Chave do contrato Jasper quando a coluna da tela usa uma chave de apresentação. */
-  pdfKey?: string;
+  pdfKey?: string | false;
   /** Valor usado na ordenação (default: accessor). */
   sortValue?: (row: T) => string | number;
   /** Desabilita ordenação nesta coluna. */
@@ -859,6 +1044,9 @@ export function ReportTable<T>({
   nowrap = false,
   showPdf = true,
   pdfExport,
+  sortResetKey,
+  remote,
+  onExport,
 }: {
   title: string;
   description?: string;
@@ -870,8 +1058,25 @@ export function ReportTable<T>({
   emptyMessage?: string;
   rowKey?: (row: T, index: number) => string;
   nowrap?: boolean;
+  /** Reaplica a ordem externa sem perder as colunas escolhidas na tabela. */
+  sortResetKey?: string;
   /** Oculta somente a ação PDF, preservando as exportações Excel e CSV. */
   showPdf?: boolean;
+  remote?: {
+    total: number;
+    currentPage: number;
+    pageSize: number;
+    sortKey: string | null;
+    direction: "asc" | "desc";
+    loading: boolean;
+    onPageChange: (page: number) => void;
+    onPageSizeChange: (size: number) => void;
+    onSort: (key: string | null, direction: "asc" | "desc") => void;
+  };
+  onExport?: (
+    formato: "PDF" | "CSV" | "XLSX",
+    columns: string[],
+  ) => Promise<void>;
   pdfExport?: {
     slug: string;
     /** Chaves específicas do contrato Jasper, quando diferem da tabela exibida. */
@@ -880,8 +1085,21 @@ export function ReportTable<T>({
     filterLabels?: GeneralReportPdfFilter[];
   };
 }) {
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [localKey, setSortKey] = useState<string | null>(null);
+  const [localDirection, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortKey = remote ? remote.sortKey : localKey;
+  const sortDir = remote ? remote.direction : localDirection;
+  const ordenar = (key: string | null, direction: "asc" | "desc") => {
+    if (remote) remote.onSort(key, direction);
+    else {
+      setSortKey(key);
+      setSortDir(direction);
+    }
+  };
+  useEffect(() => {
+    setSortKey(null);
+    setSortDir("asc");
+  }, [sortResetKey]);
   const [visibleKeys, setVisibleKeys] = useState<string[]>(() =>
     columns
       .filter((column) => !column.hiddenByDefault)
@@ -908,7 +1126,7 @@ export function ReportTable<T>({
   );
 
   const sorted = useMemo(() => {
-    if (!sortKey) return rows;
+    if (remote || !sortKey) return rows;
     const col = columns.find((c) => c.key === sortKey);
     if (!col) return rows;
     const value = (row: T) => {
@@ -926,18 +1144,29 @@ export function ReportTable<T>({
       if (av > bv) return sortDir === "asc" ? 1 : -1;
       return 0;
     });
-  }, [rows, columns, sortKey, sortDir]);
+  }, [rows, columns, sortKey, sortDir, remote]);
 
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(sorted, 25, `${sortKey}-${sortDir}-${rows.length}`);
+  const localPage = usePagination(
+    sorted,
+    25,
+    `${sortKey}-${sortDir}-${rows.length}`,
+  );
+  const paginated = remote ? rows : localPage.paginated;
 
-  const toggle = (key: string) => {
-    if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  };
+  const pdfColumns =
+    pdfExport?.columns ??
+    visibleColumns
+      .filter((column) => column.pdfKey !== false)
+      .map((column) => column.pdfKey || column.key);
+  const sortedPdfColumn = visibleColumns.find(
+    (column) => column.key === sortKey,
+  );
+  const pdfSortKey =
+    sortedPdfColumn?.pdfKey === false
+      ? undefined
+      : sortedPdfColumn?.pdfKey || sortedPdfColumn?.key;
+  const toggle = (key: string) =>
+    ordenar(key, sortKey === key && sortDir === "asc" ? "desc" : "asc");
 
   return (
     <section className="overflow-hidden rounded-[16px] border border-border/70 bg-card/75 shadow-[0_2px_12px_-8px_hsl(215_28%_17%_/_0.18)] backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
@@ -956,27 +1185,32 @@ export function ReportTable<T>({
             organizacaoNome={organizacaoNome}
             dataGeracao={new Date().toLocaleDateString("pt-BR")}
             indicadoresPdf={indicadoresPdf}
-            disabled={sorted.length === 0 || visibleColumns.length === 0}
+            disabled={
+              !!remote?.loading ||
+              sorted.length === 0 ||
+              visibleColumns.length === 0
+            }
             showCopy={false}
-            showPdf={showPdf}
+            showPdf={showPdf && (!pdfExport || pdfColumns.length > 0)}
+            onCsv={onExport ? () => onExport("CSV", pdfColumns) : undefined}
+            onXlsx={onExport ? () => onExport("XLSX", pdfColumns) : undefined}
             onPdf={
-              pdfExport
-                ? () =>
-                    downloadGeneralReportPdf({
-                      slug: pdfExport.slug,
-                      columns:
-                        pdfExport.columns ??
-                        visibleColumns.map(
-                          (column) => column.pdfKey ?? column.key,
-                        ),
-                      filters: pdfExport.filters,
-                      filterLabels: pdfExport.filterLabels,
-                      sortKey:
-                        columns.find((column) => column.key === sortKey)
-                          ?.pdfKey ?? sortKey,
-                      sortDirection: sortDir,
-                    })
-                : undefined
+              onExport
+                ? () => onExport("PDF", pdfColumns)
+                : pdfExport
+                  ? () =>
+                      downloadGeneralReportPdf({
+                        slug: pdfExport.slug,
+                        columns: pdfColumns,
+                        filters: pdfExport.filters,
+                        filterLabels: pdfExport.filterLabels,
+                        sortKey:
+                          pdfSortKey && pdfColumns.includes(pdfSortKey)
+                            ? pdfSortKey
+                            : undefined,
+                        sortDirection: sortDir,
+                      })
+                  : undefined
             }
           />
           <ColumnSelector
@@ -1011,14 +1245,9 @@ export function ReportTable<T>({
                 value={sortKey}
                 direction={sortDir}
                 options={columns.filter((column) => !column.notSortable)}
-                onChange={(key) => {
-                  setSortKey(key);
-                  setSortDir("asc");
-                }}
+                onChange={(key) => ordenar(key, "asc")}
                 onReverse={() =>
-                  setSortDir((direction) =>
-                    direction === "asc" ? "desc" : "asc",
-                  )
+                  ordenar(sortKey, sortDir === "asc" ? "desc" : "asc")
                 }
               />
               <div className="divide-y divide-border">
@@ -1122,11 +1351,11 @@ export function ReportTable<T>({
       </div>
 
       <TablePagination
-        totalItems={sorted.length}
-        currentPage={currentPage}
-        pageSize={pageSize}
-        onPageChange={setCurrentPage}
-        onPageSizeChange={setPageSize}
+        totalItems={remote?.total ?? sorted.length}
+        currentPage={remote?.currentPage ?? localPage.currentPage}
+        pageSize={remote?.pageSize ?? localPage.pageSize}
+        onPageChange={remote?.onPageChange ?? localPage.setCurrentPage}
+        onPageSizeChange={remote?.onPageSizeChange ?? localPage.setPageSize}
         showCopy={false}
       />
     </section>
@@ -1137,3 +1366,195 @@ export function ReportTable<T>({
 
 export const filterFieldClass =
   "h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm";
+
+export const SERIE_COLORS = {
+  entradas: "hsl(160 60% 40%)",
+  saidas: "hsl(350 70% 52%)",
+  saldo: "hsl(var(--primary))",
+} as const;
+
+export interface SerieDatum {
+  name: string;
+  entradas: number;
+  saidas: number;
+  saldo?: number;
+}
+
+const serieTooltip = {
+  contentStyle: {
+    borderRadius: 12,
+    border: "1px solid hsl(var(--border))",
+    background: "hsl(var(--card))",
+    fontSize: 12,
+  },
+} as const;
+
+const eixoX = {
+  tick: { fontSize: 10, fill: "hsl(var(--muted-foreground))" },
+  tickLine: false,
+  axisLine: false,
+} as const;
+
+const temDados = (data: SerieDatum[]) =>
+  data.some((d) => d.entradas !== 0 || d.saidas !== 0 || (d.saldo ?? 0) !== 0);
+
+/** Evolução temporal: entradas, saídas e saldo acumulado. */
+export function ReportSerieLineChart({
+  data,
+  formatValue,
+  showSaldo = true,
+}: {
+  data: SerieDatum[];
+  formatValue?: (value: number) => string;
+  showSaldo?: boolean;
+}) {
+  if (!temDados(data)) return emptyChart;
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart
+        data={data}
+        margin={{ top: 6, right: 10, left: -6, bottom: 4 }}
+      >
+        <XAxis dataKey="name" {...eixoX} />
+        <YAxis
+          {...eixoX}
+          width={70}
+          tickFormatter={(v) =>
+            formatValue ? formatValue(Number(v)) : String(v)
+          }
+        />
+        <ChartTooltip
+          {...serieTooltip}
+          formatter={(value: number | string) =>
+            formatValue ? formatValue(Number(value)) : String(value)
+          }
+        />
+        <Legend wrapperStyle={{ fontSize: 11 }} />
+        <Line
+          type="monotone"
+          dataKey="entradas"
+          name="Entradas"
+          stroke={SERIE_COLORS.entradas}
+          strokeWidth={2}
+          dot={{ r: 2.5 }}
+        />
+        <Line
+          type="monotone"
+          dataKey="saidas"
+          name="Saídas"
+          stroke={SERIE_COLORS.saidas}
+          strokeWidth={2}
+          strokeDasharray="5 3"
+          dot={{ r: 2.5 }}
+        />
+        {showSaldo && (
+          <Line
+            type="monotone"
+            dataKey="saldo"
+            name="Saldo acumulado"
+            stroke={SERIE_COLORS.saldo}
+            strokeWidth={2.4}
+            dot={{ r: 2.5 }}
+          />
+        )}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+/** Barras agrupadas de entradas e saídas por período. */
+export function ReportSerieBarChart({
+  data,
+  formatValue,
+}: {
+  data: SerieDatum[];
+  formatValue?: (value: number) => string;
+}) {
+  if (!temDados(data)) return emptyChart;
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={data} margin={{ top: 6, right: 10, left: -6, bottom: 4 }}>
+        <XAxis dataKey="name" {...eixoX} />
+        <YAxis
+          {...eixoX}
+          width={70}
+          tickFormatter={(v) =>
+            formatValue ? formatValue(Number(v)) : String(v)
+          }
+        />
+        <ChartTooltip
+          {...serieTooltip}
+          formatter={(value: number | string) =>
+            formatValue ? formatValue(Number(value)) : String(value)
+          }
+        />
+        <Legend wrapperStyle={{ fontSize: 11 }} />
+        <Bar
+          dataKey="entradas"
+          name="Entradas"
+          fill={SERIE_COLORS.entradas}
+          radius={[5, 5, 0, 0]}
+        />
+        <Bar
+          dataKey="saidas"
+          name="Saídas"
+          fill={SERIE_COLORS.saidas}
+          radius={[5, 5, 0, 0]}
+        />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+/** Barras simples com formatação monetária (uma série por categoria). */
+export function ReportValueBarChart({
+  data,
+  formatValue,
+  onSelect,
+}: {
+  data: ChartDatum[];
+  formatValue?: (value: number) => string;
+  /** Ao informar, cada barra fica clicável e filtra a tabela pela categoria. */
+  onSelect?: (name: string) => void;
+}) {
+  if (!data.some((d) => d.value > 0)) return emptyChart;
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart
+        data={data}
+        layout="vertical"
+        margin={{ top: 6, right: 16, left: 4, bottom: 4 }}
+      >
+        <XAxis
+          type="number"
+          {...eixoX}
+          tickFormatter={(v) =>
+            formatValue ? formatValue(Number(v)) : String(v)
+          }
+        />
+        <YAxis type="category" dataKey="name" {...eixoX} width={128} />
+        <ChartTooltip
+          {...serieTooltip}
+          formatter={(value: number | string) =>
+            formatValue ? formatValue(Number(value)) : String(value)
+          }
+        />
+        <Bar
+          dataKey="value"
+          name="Total"
+          radius={[0, 5, 5, 0]}
+          cursor={onSelect ? "pointer" : undefined}
+          onClick={
+            onSelect
+              ? (d: { name?: string }) => d?.name && onSelect(d.name)
+              : undefined
+          }
+        >
+          {data.map((_, i) => (
+            <Cell key={i} fill={getChartColor(undefined, i, data[i]?.name)} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}

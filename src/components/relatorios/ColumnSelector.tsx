@@ -13,12 +13,14 @@ interface ColumnSelectorProps<T> {
   columns: Array<RelatorioColumn<T> & { group?: string }>;
   visibleKeys: string[];
   onChange: (keys: string[]) => void;
+  minVisibleColumns?: number;
 }
 
 export function ColumnSelector<T>({
   columns,
   visibleKeys,
   onChange,
+  minVisibleColumns = 0,
 }: ColumnSelectorProps<T>) {
   const toggle = (key: string, checked: boolean) => {
     if (checked) {
@@ -32,6 +34,7 @@ export function ColumnSelector<T>({
     <Popover>
       <PopoverTrigger asChild>
         <Button
+          type="button"
           variant="glassSecondary"
           size="sm"
           className="h-8 gap-1.5 rounded-[10px] px-2.5 text-xs font-semibold"
@@ -42,6 +45,8 @@ export function ColumnSelector<T>({
       </PopoverTrigger>
       <PopoverContent
         align="end"
+        collisionPadding={12}
+        style={{ maxHeight: "calc(100dvh - 2rem)" }}
         className="w-64 rounded-[14px] border-border/70 bg-popover/90 p-2 shadow-[0_14px_32px_-18px_hsl(var(--foreground)/0.35)] backdrop-blur-xl"
       >
         <p className="px-2 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -50,7 +55,9 @@ export function ColumnSelector<T>({
         <div className="max-h-72 overflow-y-auto">
           {columns.map((col, index) => {
             const checked = visibleKeys.includes(col.key);
-            const disabled = col.alwaysVisible;
+            const disabled =
+              col.alwaysVisible ||
+              (checked && visibleKeys.length <= minVisibleColumns);
             const previousGroup =
               index > 0 ? columns[index - 1]?.group : undefined;
             const showGroup = col.group && col.group !== previousGroup;

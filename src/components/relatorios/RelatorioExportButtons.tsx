@@ -29,6 +29,8 @@ interface RelatorioExportButtonsProps<T> {
   showPdf?: boolean;
   /** Geração oficial do PDF pelo backend/Jasper. */
   onPdf?: () => Promise<void>;
+  onCsv?: () => Promise<void>;
+  onXlsx?: () => Promise<void>;
   /** Desabilita apenas a ação PDF, preservando Excel e CSV. */
   pdfDisabled?: boolean;
   /** Mantém compatibilidade com barras compactas de relatórios. */
@@ -46,10 +48,12 @@ export function RelatorioExportButtons<T>({
   showCopy = false,
   showPdf = true,
   onPdf,
+  onCsv,
+  onXlsx,
   pdfDisabled = false,
   compact = false,
 }: RelatorioExportButtonsProps<T>) {
-  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exporting, setExporting] = useState<string | null>(null);
   const guard = () => {
     if (!rows.length) {
       toast.warning("Não há registros para exportar.");
@@ -72,43 +76,23 @@ export function RelatorioExportButtons<T>({
     }
   };
 
-  const handleCsv = () => {
-    if (!guard()) return;
+  const exportar = async (
+    formato: string,
+    action?: () => void | Promise<void>,
+  ) => {
+    if (!guard() || !action) return;
     try {
-      exportCsv(rows, columns, reportName);
-      toast.success("CSV gerado com sucesso.");
-    } catch {
-      toast.error("Falha ao gerar CSV.");
-    }
-  };
-
-  const handleXlsx = () => {
-    if (!guard()) return;
-    try {
-      exportXlsx(rows, columns, reportName);
-      toast.success("Excel gerado com sucesso.");
-    } catch {
-      toast.error("Falha ao gerar Excel.");
-    }
-  };
-
-  const handlePdf = async () => {
-    if (!onPdf) {
-      toast.error("A exportação em PDF está indisponível para este relatório.");
-      return;
-    }
-    try {
-      setExportingPdf(true);
-      await onPdf();
-      toast.success("PDF gerado com sucesso.");
+      setExporting(formato);
+      await action();
+      toast.success(`${formato} gerado com sucesso.`);
     } catch (error) {
       toast.error(
         error instanceof Error && error.message
           ? error.message
-          : "Não foi possível gerar o relatório em PDF.",
+          : `Não foi possível gerar ${formato}.`,
       );
     } finally {
-      setExportingPdf(false);
+      setExporting(null);
     }
   };
 
@@ -135,8 +119,13 @@ export function RelatorioExportButtons<T>({
         type="button"
         variant="glassSecondary"
         className={actionClass}
-        onClick={handleXlsx}
-        disabled={disabled}
+        onClick={() =>
+          void exportar(
+            "Excel",
+            onXlsx ?? (() => exportXlsx(rows, columns, reportName)),
+          )
+        }
+        disabled={disabled || !!exporting}
         aria-label="Exportar relatório para Excel"
       >
         <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
@@ -146,8 +135,13 @@ export function RelatorioExportButtons<T>({
         type="button"
         variant="glassSecondary"
         className={actionClass}
-        onClick={handleCsv}
-        disabled={disabled}
+        onClick={() =>
+          void exportar(
+            "CSV",
+            onCsv ?? (() => exportCsv(rows, columns, reportName)),
+          )
+        }
+        disabled={disabled || !!exporting}
         aria-label="Exportar relatório para CSV"
       >
         <FileDown className="h-3.5 w-3.5" aria-hidden />
@@ -158,17 +152,23 @@ export function RelatorioExportButtons<T>({
           type="button"
           variant="glassSecondary"
           className={actionClass}
-          onClick={() => void handlePdf()}
-          disabled={disabled || pdfDisabled || exportingPdf}
-          aria-busy={exportingPdf}
+          onClick={() =>
+            onPdf
+              ? void exportar("PDF", onPdf)
+              : toast.error(
+                  "A exportação em PDF está indisponível para este relatório.",
+                )
+          }
+          disabled={disabled || pdfDisabled || !!exporting}
+          aria-busy={exporting === "PDF"}
           aria-label="Exportar relatório para PDF"
         >
-          {exportingPdf ? (
+          {exporting === "PDF" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
           ) : (
             <FileText className="h-3.5 w-3.5" aria-hidden />
           )}
-          {exportingPdf ? "Gerando PDF..." : "PDF"}
+          {exporting === "PDF" ? "Gerando PDF..." : "PDF"}
         </Button>
       )}
     </div>

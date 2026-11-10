@@ -1,3 +1,4 @@
+import { downloadFile, XLSX_MIME } from "@/lib/downloadFile";
 import * as XLSX from "xlsx";
 import type { ReactNode } from "react";
 
@@ -63,7 +64,7 @@ export function exportCsv<T>(
   const blob = new Blob([`\uFEFF${header}\n${body}`], {
     type: "text/csv;charset=utf-8;",
   });
-  triggerDownload(blob, buildFileName(reportName, "csv"));
+  return downloadFile(blob, buildFileName(reportName, "csv"));
 }
 
 export function exportXlsx<T>(
@@ -88,16 +89,10 @@ export function exportXlsx<T>(
   });
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Relatório");
-  XLSX.writeFile(workbook, buildFileName(reportName, "xlsx"));
-}
-
-function triggerDownload(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  return downloadFile(
+    new Blob([XLSX.write(workbook, { bookType: "xlsx", type: "array" })], {
+      type: XLSX_MIME,
+    }),
+    buildFileName(reportName, "xlsx"),
+  );
 }

@@ -322,8 +322,14 @@ export function buildEmprestimoPayload(form: Emprestimo): EmprestimoDTO {
   };
 }
 
-export async function getEmprestimos(): Promise<Emprestimo[]> {
-  const response = await fetch(`${API_URL}/emprestimos`, {
+export async function getEmprestimos(
+  patrimonioId?: number,
+): Promise<Emprestimo[]> {
+  const path =
+    patrimonioId === undefined
+      ? "/emprestimos"
+      : `/emprestimos/patrimonio/${patrimonioId}`;
+  const response = await fetch(`${API_URL}${path}`, {
     method: "GET",
     headers: getJsonHeaders(),
   });

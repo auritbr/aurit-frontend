@@ -1,3 +1,16 @@
+import { useConsultaOperacional } from "@/hooks/useConsultaOperacional";
+import {
+  QuickFilterCards,
+  useQuickFilter,
+} from "@/components/list/QuickFilterCards";
+import {
+  ListChecks as QuickTotalIcon,
+  CheckCircle2 as QuickActiveIcon,
+  Clock as QuickPendingIcon,
+  Archive as QuickDoneIcon,
+} from "lucide-react";
+import { HistoricoSheet, useHistorico } from "@/components/HistoricoSheet";
+import { carregarHistoricoAtividade } from "@/lib/historico/carregar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -8,6 +21,10 @@ import {
   RotateCcw,
   Search,
   UserPlus,
+  ListChecks,
+  CircleCheck,
+  Clock,
+  Flag,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -54,6 +71,7 @@ import {
   deleteAtividade,
   formatDateBr,
   getAtividades,
+  mapAtividade,
   getEquipeOptions,
   getProjetosOptions,
   statusAtividade,
@@ -140,13 +158,25 @@ interface AtividadeNextStepCardData {
 
 export default function Atividades() {
   const navigate = useNavigate();
+  const quick = useQuickFilter();
+  const historico = useHistorico();
+  const abrirHistorico = (item: Atividade) =>
+    historico.abrir({
+      nome: String(item.nomeAtividade),
+      tipo: "Atividade",
+      recurso: "atividades",
+      id: item.id,
+      carregar: () => carregarHistoricoAtividade(item),
+      observacao:
+        "A atividade não possui data de cadastro. Datas de início e término são as informadas no registro.",
+    });
   const [items, setItems] = useState<Atividade[]>([]);
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
   const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
   const [nextStepCard, setNextStepCard] =
     useState<AtividadeNextStepCardData | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingLocal, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
@@ -161,6 +191,59 @@ export default function Atividades() {
   const [searching, setSearching] = useState(false);
 
   const podeVisualizar = permissoes.VISUALIZAR;
+  const usarPaginacaoApi =
+    !filtros.nome &&
+    ["nomeAtividade", "status", "dataInicio"].includes(filtros.sortBy);
+  const chavesCards: Record<string, string[]> = {
+    ativas: ["ATIVO"],
+    pendentes: ["PENDENTE"],
+    concluidas: ["CONCLUIDO", "INATIVO"],
+  };
+  const statusCard = chavesCards[quick.ativo ?? ""] ?? [];
+  const filtroCard = statusCard.length
+    ? { situacoesCard: statusCard }
+    : undefined;
+  const remoto = useConsultaOperacional(
+    "atividades",
+    usarPaginacaoApi
+      ? {
+          projetosIds: filtros.projetos,
+          situacoes: filtros.status,
+          ordenacao:
+            filtros.sortBy === "dataInicio"
+              ? "data"
+              : filtros.sortBy === "status"
+                ? "situacao"
+                : "nome",
+          direcao: filtros.sortDir,
+        }
+      : null,
+    filtroCard,
+    !loadingPermissoes && podeVisualizar,
+    (row: Parameters<typeof mapAtividade>[0]) => {
+      const atividade = mapAtividade(row);
+      return {
+        ...atividade,
+        projetoNome:
+          projetos.find((p) => p.id === atividade.projetoId)?.nome ??
+          atividade.projetoNome,
+        colaboradoresNomes: [
+          ...atividade.colaboradoresIds,
+          ...(atividade.integrantesIds ?? []).map((id) => `integrante:${id}`),
+        ].map(
+          (id) => colaboradores.find((c) => c.id === id)?.nome ?? `ID ${id}`,
+        ),
+      };
+    },
+  );
+  const loading = loadingLocal || (remoto.habilitado && remoto.loading);
+  const totalBase = remoto.cards.TOTAL?.valor ?? 0;
+  const quantidadeCard = (key: string) =>
+    (chavesCards[key] ?? []).reduce(
+      (total, status) => total + (remoto.cards[status]?.valor ?? 0),
+      0,
+    );
+
   const podeCriar = permissoes.CRIAR;
   const podeEditar = permissoes.EDITAR;
   const podeExcluir = permissoes.EXCLUIR;
@@ -226,7 +309,7 @@ export default function Atividades() {
         setLoading(true);
         const [atividadesData, projetosData, colaboradoresData] =
           await Promise.all([
-            getAtividades(),
+            usarPaginacaoApi ? Promise.resolve([]) : getAtividades(),
             getProjetosOptions(),
             getEquipeOptions(),
           ]);
@@ -265,7 +348,7 @@ export default function Atividades() {
     return () => {
       active = false;
     };
-  }, [loadingPermissoes, podeVisualizar]);
+  }, [loadingPermissoes, podeVisualizar, usarPaginacaoApi]);
 
   const projetoOptions = useMemo(
     () =>
@@ -288,9 +371,12 @@ export default function Atividades() {
     if (!searching) applyFiltros(draft);
   };
 
-  const handleClearFiltros = () => applyFiltros(emptyFiltros);
+  const handleClearFiltros = () => {
+    quick.limpar();
+    applyFiltros(emptyFiltros);
+  };
 
-  const filtered = useMemo(() => {
+  const advancedFiltered = useMemo(() => {
     const nome = normalize(filtros.nome);
     const result = items.filter((atividade) => {
       if (
@@ -338,6 +424,48 @@ export default function Atividades() {
       return filtros.sortDir === "asc" ? compare : -compare;
     });
   }, [filtros, items]);
+  const quickOptions = [
+    {
+      key: "ativas",
+      label: "Atividades ativas",
+      icon: QuickActiveIcon,
+      test: (item: (typeof items)[number]) => item.status === "ATIVO",
+    },
+    {
+      key: "pendentes",
+      label: "Pendentes",
+      icon: QuickPendingIcon,
+      test: (item: (typeof items)[number]) => item.status === "PENDENTE",
+    },
+    {
+      key: "concluidas",
+      label: "Concluídas / inativas",
+      icon: QuickDoneIcon,
+      test: (item: (typeof items)[number]) =>
+        ["CONCLUIDO", "INATIVO"].includes(item.status),
+    },
+  ];
+  const quickOption = quickOptions.find((option) => option.key === quick.ativo);
+  const filtered = quickOption
+    ? advancedFiltered.filter(quickOption.test)
+    : advancedFiltered;
+  const quickCards = [
+    {
+      key: "total",
+      label: "Total",
+      count: remoto.habilitado ? totalBase : advancedFiltered.length,
+      icon: QuickTotalIcon,
+      filtravel: false,
+    },
+    ...quickOptions.map((option) => ({
+      key: option.key,
+      label: option.label,
+      icon: option.icon,
+      count: remoto.habilitado
+        ? quantidadeCard(option.key)
+        : advancedFiltered.filter(option.test).length,
+    })),
+  ];
 
   const activeFilters = useMemo<ActiveFilterItem[]>(() => {
     const list: ActiveFilterItem[] = [];
@@ -392,8 +520,15 @@ export default function Atividades() {
     return list;
   }, [applyFiltros, filtros, projetoOptions]);
 
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, JSON.stringify(filtros));
+  const paginaLocal = usePagination(
+    filtered,
+    25,
+    JSON.stringify([filtros, quick.ativo]),
+  );
+  const { currentPage, pageSize, setCurrentPage, setPageSize } =
+    remoto.habilitado ? remoto : paginaLocal;
+  const paginated = remoto.habilitado ? remoto.rows : paginaLocal.paginated;
+  const totalFiltrado = remoto.habilitado ? remoto.total : filtered.length;
 
   const toggleSort = (sortBy: SortBy) =>
     applyFiltros({
@@ -412,6 +547,7 @@ export default function Atividades() {
     }
     try {
       await deleteAtividade(Number(confirmDelete));
+      remoto.atualizar();
       setItems((prev) =>
         prev.filter((atividade) => atividade.id !== confirmDelete),
       );
@@ -459,18 +595,20 @@ export default function Atividades() {
     { header: "Colaboradores", key: "colaboradoresTxt" },
   ];
 
-  const getExportData = () =>
-    filtered.map((atividade) => ({
-      ...atividade,
-      tipoLabel: tipoLabel(atividade.tipoAtividade),
-      statusLabel: statusValueToLabel(atividade.status),
-      colaboradoresTxt: atividade.colaboradoresNomes.join(", "),
-    }));
+  const getExportData = async () =>
+    (remoto.habilitado ? await remoto.carregarExportacao() : filtered).map(
+      (atividade) => ({
+        ...atividade,
+        tipoLabel: tipoLabel(atividade.tipoAtividade),
+        statusLabel: statusValueToLabel(atividade.status),
+        colaboradoresTxt: atividade.colaboradoresNomes.join(", "),
+      }),
+    );
 
   if (!podeVisualizar) {
     return (
       <AppLayout>
-        <AccessNotPermitted />
+        <AccessNotPermitted loading={loadingPermissoes} />
       </AppLayout>
     );
   }
@@ -499,6 +637,14 @@ export default function Atividades() {
               </Button>
             ) : undefined
           }
+        />
+
+        <QuickFilterCards
+          cards={quickCards}
+          ativo={quick.ativo}
+          onToggle={quick.alternar}
+          onClear={quick.limpar}
+          totalFiltrado={totalFiltrado}
         />
 
         <div className="space-y-4">
@@ -625,9 +771,21 @@ export default function Atividades() {
             onClearAll={handleClearFiltros}
           />
 
+          {remoto.habilitado && remoto.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {remoto.error.message}{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={remoto.atualizar}
+              >
+                Tentar novamente
+              </button>
+            </p>
+          )}
           <DataTableCard>
             <DataTableToolbar
-              total={filtered.length}
+              total={totalFiltrado}
               reportTo="/relatorios/atividades"
               additionalActions={
                 podeCadastrarParticipantes ? (
@@ -648,7 +806,7 @@ export default function Atividades() {
               canExport={podeGerarPdf}
             />
 
-            {filtered.length === 0 ? (
+            {totalFiltrado === 0 ? (
               <DataTableEmptyState
                 emptyTitle="Nenhuma atividade cadastrada."
                 createLabel={podeCriar ? "Cadastrar atividade" : undefined}
@@ -768,6 +926,7 @@ export default function Atividades() {
                                       ]
                                     : undefined
                                 }
+                                onHistory={() => abrirHistorico(atividade)}
                               />
                             </td>
                             <td className="whitespace-nowrap px-6 py-2.5">
@@ -858,6 +1017,7 @@ export default function Atividades() {
                                 ]
                               : undefined
                           }
+                          onHistory={() => abrirHistorico(atividade)}
                         />
                       </div>
                       <p className="font-medium text-foreground">
@@ -891,7 +1051,7 @@ export default function Atividades() {
                 </div>
 
                 <DataTablePagination
-                  totalItems={filtered.length}
+                  totalItems={totalFiltrado}
                   currentPage={currentPage}
                   pageSize={pageSize}
                   onPageChange={setCurrentPage}
@@ -929,6 +1089,7 @@ export default function Atividades() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <HistoricoSheet alvo={historico.alvo} onClose={historico.fechar} />
       <WikiFloatingButton
         pageTitle="Atividades"
         href="https://www.aurit.com.br/wiki/execucao/atividades"

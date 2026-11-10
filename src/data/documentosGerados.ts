@@ -1,3 +1,4 @@
+import { downloadFile } from "@/lib/downloadFile";
 import { apiFetch, apiFetchResponse } from "@/lib/api";
 
 export type TipoDestinatarioDocumento =
@@ -62,13 +63,5 @@ export async function baixarDocumentoGerado(documento: DocumentoGerado) {
   const blob = await response.blob();
   if (!blob.size) throw new Error("O PDF gerado está vazio.");
 
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = nomeSeguro(documento.titulo);
-  link.style.display = "none";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  await downloadFile(blob, nomeSeguro(documento.titulo));
 }

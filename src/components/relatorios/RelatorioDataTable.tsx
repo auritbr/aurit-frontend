@@ -27,6 +27,8 @@ interface RelatorioDataTableProps<T> {
   indicadoresPdf?: { label: string; valor: string }[];
   enablePdfExport?: boolean;
   mobileCards?: boolean;
+  appliedFilters?: Record<string, unknown>;
+  filterLabels?: { label: string; value: string }[];
 }
 
 function getCellRawValue<T>(row: T, column: RelatorioColumn<T>): unknown {
@@ -82,6 +84,8 @@ export function RelatorioDataTable<T>({
   indicadoresPdf,
   enablePdfExport = false,
   mobileCards = true,
+  appliedFilters,
+  filterLabels,
 }: RelatorioDataTableProps<T>) {
   const [search, setSearch] = useState("");
 
@@ -114,7 +118,11 @@ export function RelatorioDataTable<T>({
   );
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, search);
+    usePagination(
+      filtered,
+      25,
+      `${search}:${JSON.stringify(appliedFilters ?? {})}`,
+    );
 
   return (
     <section className="overflow-hidden rounded-[16px] border border-border/70 bg-card/75 shadow-[0_2px_12px_-8px_hsl(215_28%_17%_/_0.18)] backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
@@ -147,6 +155,8 @@ export function RelatorioDataTable<T>({
                       slug: reportName,
                       columns: visibleColumns.map((column) => column.key),
                       search,
+                      filters: appliedFilters,
+                      filterLabels,
                     })
                 : undefined
             }

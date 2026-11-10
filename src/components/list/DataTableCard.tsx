@@ -1,13 +1,11 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-/**
- * Container da tabela em liquid glass leve — padrão de "Dados Institucionais".
- */
 export function DataTableCard({
   children,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
   return (

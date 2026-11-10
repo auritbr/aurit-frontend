@@ -1,14 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BadgeCheck, FileCheck2, Send, Target } from "lucide-react";
 import { toast } from "sonner";
-import { type ActiveFilterItem } from "@/components/ActiveFilters";
-import { FieldLabel } from "@/components/FieldLabel";
-import { FilterMultiSelect } from "@/components/FilterMultiSelect";
 import { StatusPill } from "@/components/StatusPill";
 import {
   ReportChartCard,
   ReportChartGrid,
-  ReportFilterPanel,
   ReportLineChart,
   ReportPieChart,
   ReportShell,
@@ -16,15 +12,12 @@ import {
   ReportStatGrid,
   ReportStatSkeleton,
   ReportTable,
-  filterFieldClass,
   type ReportTableColumn,
 } from "@/components/relatorios/ReportKit";
-import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api";
 import {
   produtoGeradoLabel,
   statusPrestacaoContasLabel,
-  statusPrestacaoContasOptions,
 } from "@/data/prestacaoContas";
 
 interface PrestacaoApi {
@@ -104,29 +97,6 @@ interface Row {
   dataInicio: string;
   dataFim: string;
 }
-type Filters = {
-  busca: string;
-  projetos: string[];
-  responsaveis: string[];
-  propostas: string[];
-  situacoes: string[];
-  periodoDe: string;
-  periodoAte: string;
-};
-const emptyFilters: Filters = {
-  busca: "",
-  projetos: [],
-  responsaveis: [],
-  propostas: [],
-  situacoes: [],
-  periodoDe: "",
-  periodoAte: "",
-};
-const normalize = (value: unknown) =>
-  String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR");
 const date = (value?: string | null) =>
   value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "—";
 const period = (start?: string | null, end?: string | null) =>
@@ -241,18 +211,6 @@ function toRows(
       consideracoesFinaisPreenchidas: filled(item.consideracoesFinais),
     };
   });
-}
-
-function options(rows: Row[], key: keyof Row) {
-  return Array.from(
-    new Set(
-      rows
-        .map((row) => String(row[key] ?? ""))
-        .filter((value) => value && value !== "—"),
-    ),
-  )
-    .sort((a, b) => a.localeCompare(b, "pt-BR"))
-    .map((value) => ({ value, label: value }));
 }
 
 function countBySituation(rows: Row[]) {
@@ -457,8 +415,6 @@ const columns: Array<ReportTableColumn<Row> & { group: string }> = [
 export default function RelatorioPrestacaoContas() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
-  const [draft, setDraft] = useState<Filters>(emptyFilters);
-  const [applied, setApplied] = useState<Filters>(emptyFilters);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -506,216 +462,13 @@ export default function RelatorioPrestacaoContas() {
   useEffect(() => {
     void load();
   }, [load]);
-  const projects = useMemo(() => options(rows, "projeto"), [rows]);
-  const responsibles = useMemo(() => options(rows, "responsavel"), [rows]);
-  const proposals = useMemo(() => options(rows, "proposta"), [rows]);
-  const filtered = useMemo(
-    () =>
-      rows.filter(
-        (row) =>
-          (!applied.busca ||
-            normalize(
-              [row.projeto, row.proposta, row.responsavel, row.situacao].join(
-                " ",
-              ),
-            ).includes(normalize(applied.busca))) &&
-          (!applied.projetos.length ||
-            applied.projetos.includes(row.projeto)) &&
-          (!applied.responsaveis.length ||
-            applied.responsaveis.includes(row.responsavel)) &&
-          (!applied.propostas.length ||
-            applied.propostas.includes(row.proposta)) &&
-          (!applied.situacoes.length ||
-            applied.situacoes.includes(row.situacaoCodigo)) &&
-          (!applied.periodoDe ||
-            (!!row.dataFim && row.dataFim >= applied.periodoDe)) &&
-          (!applied.periodoAte ||
-            (!!row.dataInicio && row.dataInicio <= applied.periodoAte)),
-      ),
-    [rows, applied],
-  );
-  const activeFilters = useMemo<ActiveFilterItem[]>(() => {
-    const result: ActiveFilterItem[] = [];
-    const remove = <K extends keyof Filters>(key: K, value: Filters[K]) =>
-      setApplied((current) => ({ ...current, [key]: value }));
-    if (applied.busca)
-      result.push({
-        id: "busca",
-        label: "Busca",
-        value: applied.busca,
-        onRemove: () => remove("busca", ""),
-      });
-    (["projetos", "responsaveis", "propostas", "situacoes"] as const).forEach(
-      (key) =>
-        applied[key].forEach((value) =>
-          result.push({
-            id: `${key}-${value}`,
-            label:
-              key === "projetos"
-                ? "Projeto"
-                : key === "responsaveis"
-                  ? "Responsável"
-                  : key === "propostas"
-                    ? "Proposta"
-                    : "Situação",
-            value:
-              key === "situacoes" ? statusPrestacaoContasLabel(value) : value,
-            onRemove: () =>
-              remove(
-                key,
-                applied[key].filter((item) => item !== value),
-              ),
-          }),
-        ),
-    );
-    if (applied.periodoDe || applied.periodoAte)
-      result.push({
-        id: "periodo",
-        label: "Período da prestação",
-        value: `${date(applied.periodoDe)} – ${date(applied.periodoAte)}`,
-        onRemove: () =>
-          setApplied((current) => ({
-            ...current,
-            periodoDe: "",
-            periodoAte: "",
-          })),
-      });
-    return result;
-  }, [applied]);
+  const filtered = rows;
   return (
     <ReportShell
       title="Prestação de Contas"
       tooltip="Analise a organização e a situação das prestações de contas dos projetos."
-      objective="Analise as prestações de contas dos projetos em uma visão consolidada, acompanhando período, responsáveis, organização da prestação, avaliação das metas, situação e demais informações da execução conforme os filtros aplicados."
+      objective="Analise as prestações de contas dos projetos em uma visão consolidada, acompanhando período, responsáveis, organização da prestação, avaliação das metas, situação e demais informações da execução."
     >
-      <ReportFilterPanel
-        storageKey="relatorio-prestacoes-contas"
-        activeFilters={activeFilters}
-        loading={loading}
-        onSubmit={() => setApplied({ ...draft })}
-        onClear={() => {
-          setDraft(emptyFilters);
-          setApplied(emptyFilters);
-        }}
-      >
-        <div>
-          <FieldLabel
-            htmlFor="prestacao-busca"
-            tooltip="Busque por projeto, proposta, responsável ou situação."
-          >
-            Busca
-          </FieldLabel>
-          <Input
-            id="prestacao-busca"
-            value={draft.busca}
-            onChange={(e) => setDraft((s) => ({ ...s, busca: e.target.value }))}
-            className={filterFieldClass}
-            placeholder="Buscar prestação..."
-          />
-        </div>
-        <div>
-          <FieldLabel
-            htmlFor="prestacao-projeto"
-            tooltip="Filtre pelo projeto vinculado à prestação."
-          >
-            Projeto
-          </FieldLabel>
-          <FilterMultiSelect
-            id="prestacao-projeto"
-            options={projects}
-            value={draft.projetos}
-            onChange={(projetos) => setDraft((s) => ({ ...s, projetos }))}
-            placeholder="Todos os projetos"
-            searchable
-          />
-        </div>
-        <div>
-          <FieldLabel
-            htmlFor="prestacao-responsavel"
-            tooltip="Filtre pelo responsável da prestação."
-          >
-            Responsável pela prestação
-          </FieldLabel>
-          <FilterMultiSelect
-            id="prestacao-responsavel"
-            options={responsibles}
-            value={draft.responsaveis}
-            onChange={(responsaveis) =>
-              setDraft((s) => ({ ...s, responsaveis }))
-            }
-            placeholder="Todos os responsáveis"
-            searchable
-          />
-        </div>
-        <div>
-          <FieldLabel
-            htmlFor="prestacao-proposta"
-            tooltip="Filtre pela proposta vinculada, quando houver."
-          >
-            Proposta
-          </FieldLabel>
-          <FilterMultiSelect
-            id="prestacao-proposta"
-            options={proposals}
-            value={draft.propostas}
-            onChange={(propostas) => setDraft((s) => ({ ...s, propostas }))}
-            placeholder="Todas as propostas"
-            searchable
-          />
-        </div>
-        <div>
-          <FieldLabel
-            htmlFor="prestacao-situacao"
-            tooltip="Filtre pela situação atual da prestação."
-          >
-            Situação da prestação
-          </FieldLabel>
-          <FilterMultiSelect
-            id="prestacao-situacao"
-            options={statusPrestacaoContasOptions.map((item) => ({
-              value: item.value,
-              label: item.label,
-            }))}
-            value={draft.situacoes}
-            onChange={(situacoes) => setDraft((s) => ({ ...s, situacoes }))}
-            placeholder="Todas as situações"
-          />
-        </div>
-        <div>
-          <FieldLabel
-            htmlFor="prestacao-periodo-de"
-            tooltip="Informe o início do período considerado."
-          >
-            Período da prestação — de
-          </FieldLabel>
-          <Input
-            id="prestacao-periodo-de"
-            type="date"
-            value={draft.periodoDe}
-            onChange={(e) =>
-              setDraft((s) => ({ ...s, periodoDe: e.target.value }))
-            }
-            className={filterFieldClass}
-          />
-        </div>
-        <div>
-          <FieldLabel
-            htmlFor="prestacao-periodo-ate"
-            tooltip="Informe o fim do período considerado."
-          >
-            Período da prestação — até
-          </FieldLabel>
-          <Input
-            id="prestacao-periodo-ate"
-            type="date"
-            value={draft.periodoAte}
-            onChange={(e) =>
-              setDraft((s) => ({ ...s, periodoAte: e.target.value }))
-            }
-            className={filterFieldClass}
-          />
-        </div>
-      </ReportFilterPanel>
       <ReportStatGrid>
         {loading ? (
           <ReportStatSkeleton count={5} />

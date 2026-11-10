@@ -1283,7 +1283,11 @@ export default function Organizacao() {
     }
     try {
       setExportingExcel(true);
-      exportToExcel(getExportData(), exportColumns, "dados-institucionais");
+      await exportToExcel(
+        getExportData(),
+        exportColumns,
+        "dados-institucionais",
+      );
       toast.success("Excel gerado com sucesso.");
     } catch (error) {
       toast.error("Não foi possível gerar o arquivo Excel. Tente novamente.");
@@ -1299,7 +1303,7 @@ export default function Organizacao() {
     }
     try {
       setExportingCSV(true);
-      exportToCSV(getExportData(), exportColumns, "dados-institucionais");
+      await exportToCSV(getExportData(), exportColumns, "dados-institucionais");
       toast.success("CSV gerado com sucesso.");
     } catch (error) {
       toast.error("Não foi possível gerar o arquivo CSV. Tente novamente.");

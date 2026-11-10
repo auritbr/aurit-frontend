@@ -34,6 +34,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   colaboradores: "Colaboradores",
   integrantes: "Integrantes",
   participantes: "Participantes",
+  "linha-do-tempo": "Linha do Tempo",
   "participantes-geral": "Participantes",
   curriculos: "Currículos",
   "trajetorias-culturais": "Trajetórias Culturais",

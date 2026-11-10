@@ -1,3 +1,4 @@
+import { downloadFile, XLSX_MIME } from "@/lib/downloadFile";
 import * as XLSX from "xlsx";
 
 export interface ExportColumn {
@@ -17,7 +18,12 @@ export function exportToExcel(
   const sheet = XLSX.utils.json_to_sheet(rows);
   const book = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(book, sheet, "Dados");
-  XLSX.writeFile(book, `${fileName}.xlsx`);
+  return downloadFile(
+    new Blob([XLSX.write(book, { bookType: "xlsx", type: "array" })], {
+      type: XLSX_MIME,
+    }),
+    `${fileName}.xlsx`,
+  );
 }
 export function exportToCSV(
   data: Record<string, unknown>[],
@@ -32,12 +38,8 @@ export function exportToCSV(
   const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(rows), {
     FS: ";",
   });
-  const url = URL.createObjectURL(
+  return downloadFile(
     new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }),
+    `${fileName}.csv`,
   );
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${fileName}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
 }

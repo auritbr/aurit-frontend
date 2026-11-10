@@ -1,3 +1,5 @@
+import { useReportColumnFilters } from "@/hooks/useReportColumnFilters";
+import { ReportColumnFilterPanel } from "@/components/relatorios/ReportColumnFilterPanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -32,6 +34,7 @@ import {
 import type { RelatorioColumn } from "@/lib/relatorioExports";
 import {
   configureGenericReportColumns,
+  getEssentialGenericReportFilters,
   isDefaultGenericReportColumn,
 } from "@/report/general/reportColumnConfig";
 
@@ -136,27 +139,43 @@ export default function RelatorioDetalhePage() {
     void fetchData();
   }, [fetchData]);
 
-  const columns = useMemo<RelatorioColumn<Row>[]>(() => {
-    return configureGenericReportColumns(
-      slug,
-      data?.colunas ?? [],
-      data?.registros ?? [],
-    ).map((coluna) =>
-      buildColumnFromMeta(
-        coluna,
-        !isDefaultGenericReportColumn(
-          slug,
-          coluna.chave,
-          coluna.visivelPorPadrao !== false,
+  const columnMetadata = useMemo(
+    () =>
+      configureGenericReportColumns(
+        slug,
+        data?.colunas ?? [],
+        data?.registros ?? [],
+      ),
+    [slug, data?.colunas, data?.registros],
+  );
+  const columns = useMemo<RelatorioColumn<Row>[]>(
+    () =>
+      columnMetadata.map((coluna) =>
+        buildColumnFromMeta(
+          coluna,
+          !isDefaultGenericReportColumn(
+            slug,
+            coluna.chave,
+            coluna.visivelPorPadrao !== false,
+          ),
         ),
       ),
-    );
-  }, [data?.colunas, data?.registros, slug]);
+    [columnMetadata, slug],
+  );
+  const filterColumns = useMemo(
+    () => getEssentialGenericReportFilters(slug, columnMetadata),
+    [slug, columnMetadata],
+  );
+  const advancedFilters = useReportColumnFilters(
+    slug,
+    filterColumns,
+    data?.registros ?? [],
+  );
 
   if (!podeVisualizar) {
     return (
       <AppLayout>
-        <AccessNotPermitted />
+        <AccessNotPermitted loading={loadingPermissoes} />
       </AppLayout>
     );
   }
@@ -204,7 +223,7 @@ export default function RelatorioDetalhePage() {
   // dados, metadados de colunas e identificação técnica do relatório.
   const description = item.description;
 
-  const rows = data?.registros ?? [];
+  const rows = advancedFilters.filteredRows;
 
   const enablePdfExport = podeGerarPdf && rows.length > 0 && columns.length > 0;
 
@@ -242,11 +261,27 @@ export default function RelatorioDetalhePage() {
 
         {!loading && !unavailable && data && (
           <>
-            {data.resumo
-              ?.filter((grupo) => !isResumoTotal(grupo))
-              .map((grupo, index) => (
-                <GrupoIndicadores key={index} grupo={grupo} />
-              ))}
+            {filterColumns.length > 0 && (
+              <ReportColumnFilterPanel
+                scope={slug}
+                columns={filterColumns}
+                rows={data.registros}
+                filters={advancedFilters}
+                loading={loading}
+              />
+            )}
+            <p className="mb-4 text-xs text-muted-foreground" role="status">
+              {rows.length}{" "}
+              {rows.length === 1
+                ? "registro encontrado"
+                : "registros encontrados"}
+            </p>
+            {advancedFilters.activeFilters.length === 0 &&
+              data.resumo
+                ?.filter((grupo) => !isResumoTotal(grupo))
+                .map((grupo, index) => (
+                  <GrupoIndicadores key={index} grupo={grupo} />
+                ))}
 
             <RelatorioDetalheCharts slug={slug} rows={rows} />
 
@@ -258,6 +293,8 @@ export default function RelatorioDetalhePage() {
               }
               rows={rows}
               columns={columns}
+              appliedFilters={{ columnFilters: advancedFilters.applied }}
+              filterLabels={advancedFilters.filterLabels}
               emptyMessage="Nenhum registro encontrado para este relatório. Quando houver dados cadastrados no sistema, eles aparecerão aqui."
               indicadoresPdf={data.resumo?.[0]?.indicadores
                 ?.slice(0, 8)

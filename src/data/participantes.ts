@@ -313,6 +313,7 @@ export interface OrganizacaoOption {
 
 export interface ParticipanteAtividadeApiDTO {
   id?: number;
+  participanteId?: number | string | null;
   dataMatricula?: string | null;
   nivelTurma?: string | null;
   atividadeId?: number | string | null;

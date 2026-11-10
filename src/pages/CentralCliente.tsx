@@ -402,7 +402,7 @@ export default function CentralCliente() {
         <Button
           type="button"
           variant="glassPrimary"
-          className="h-8 gap-2 px-3"
+          className="h-8 gap-2 px-3 text-[13px] leading-5"
           onClick={() => abrirPagamento(mensalidade)}
           disabled={pagamentoMutation.isPending}
         >
@@ -419,7 +419,7 @@ export default function CentralCliente() {
       <Button
         type="button"
         variant="glassSecondary"
-        className="h-8 gap-2 px-3"
+        className="h-8 gap-2 px-3 text-[13px] leading-5"
         onClick={() => setDetalhesId(mensalidade.id)}
       >
         <Receipt className="h-3.5 w-3.5" aria-hidden /> Ver detalhes

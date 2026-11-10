@@ -79,6 +79,7 @@ import EventoCulturalForm from "./pages/EventoCulturalForm.tsx";
 
 import Participantes from "./pages/Participantes.tsx";
 import ParticipanteForm from "./pages/ParticipanteForm.tsx";
+import ParticipanteLinhaTempo from "./pages/ParticipanteLinhaTempo.tsx";
 
 import Turmas from "./pages/Turmas.tsx";
 import TurmaForm from "./pages/TurmaForm.tsx";
@@ -725,6 +726,13 @@ function AppRoutes() {
           path="/participantes/:id"
           element={protectedPage(
             <ParticipanteForm />,
+            permission("PARTICIPANTES"),
+          )}
+        />
+        <Route
+          path="/participantes/:id/linha-do-tempo"
+          element={protectedPage(
+            <ParticipanteLinhaTempo />,
             permission("PARTICIPANTES"),
           )}
         />

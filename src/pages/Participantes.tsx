@@ -1,7 +1,32 @@
+import { useConsultaOperacional } from "@/hooks/useConsultaOperacional";
+import {
+  QuickFilterCards,
+  useQuickFilter,
+} from "@/components/list/QuickFilterCards";
+import {
+  Users as QuickTotalIcon,
+  UserCheck as QuickActiveIcon,
+  UserX as QuickPendingIcon,
+  Layers as QuickDoneIcon,
+  History,
+} from "lucide-react";
+import { HistoricoSheet, useHistorico } from "@/components/HistoricoSheet";
+import { carregarHistoricoParticipante } from "@/lib/historico/carregar";
 import { useDoadorConversion } from "@/hooks/useDoadorConversion";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Plus, RotateCcw, Search, FileText, Copy } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  RotateCcw,
+  Search,
+  FileText,
+  Copy,
+  UsersRound,
+  UserCheck,
+  GraduationCap,
+  BadgeCheck,
+} from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { GerarDocumentoButton } from "@/components/GerarDocumentoButton";
@@ -37,7 +62,6 @@ import {
 import { TableCellText } from "@/components/TableCellText";
 import { StatusPill } from "@/components/StatusPill";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
-import { usePagination } from "@/hooks/usePagination";
 import { nameWithYear } from "@/lib/entityYear";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { downloadDeclaracaoParticipacao } from "@/lib/individualReportDownload";
@@ -51,10 +75,11 @@ import {
   deleteParticipante,
   getAtividadesOptions,
   getOrganizacoesParticipante,
-  getParticipantes,
+  mapParticipante,
   getTurmasOptions,
   statusValueToLabel,
   statusMatriculaValueToLabel,
+  statusMatriculaOptions,
   nivelTurmaValueToLabel,
   generoOptions,
   racaCorOptions,
@@ -86,6 +111,7 @@ interface ParticipantesFiltros {
   responsavel: string;
   telefone: string;
   status: string[];
+  statusMatricula: string[];
   atividade: string[];
   turma: string[];
   genero: string[];
@@ -101,6 +127,7 @@ const emptyFiltros: ParticipantesFiltros = {
   responsavel: "",
   telefone: "",
   status: [],
+  statusMatricula: [],
   atividade: [],
   turma: [],
   genero: [],
@@ -124,13 +151,6 @@ const sortByOptions: { value: SortBy; label: string }[] = [
   { value: "responsavel", label: "Responsável" },
 ];
 
-const normalize = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-
 const labelOf = (
   options: readonly { value: string; label: string }[],
   value: string,
@@ -148,15 +168,26 @@ interface ParticipanteNextStepCardData {
 
 export default function Participantes() {
   const navigate = useNavigate();
+  const quick = useQuickFilter();
+  const historico = useHistorico();
+  const abrirHistorico = (item: Participante) =>
+    historico.abrir({
+      nome: String(item.nomeCompleto),
+      tipo: "Participante",
+      recurso: "participantes",
+      id: item.id,
+      carregar: (pagina, signal) =>
+        carregarHistoricoParticipante(item.id, pagina, signal),
+      paginado: true,
+    });
   const { doadorAction, doadorDialog } = useDoadorConversion("Participante");
-  const [items, setItems] = useState<Participante[]>([]);
   const [atividades, setAtividades] = useState<AtividadeOption[]>([]);
   const [turmas, setTurmas] = useState<TurmaOption[]>([]);
   const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [nextStepCard, setNextStepCard] =
     useState<ParticipanteNextStepCardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingLocal, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
     null,
@@ -172,6 +203,49 @@ export default function Participantes() {
   const [searching, setSearching] = useState(false);
 
   const podeVisualizar = permissoes.VISUALIZAR;
+  const chavesCards: Record<string, string[]> = {
+    ativos: ["ATIVO"],
+    inativos: ["INATIVO", "PENDENTE"],
+    concluidos: ["CONCLUIDO"],
+    comTurma: ["COM_TURMA"],
+  };
+  const statusCard = chavesCards[quick.ativo ?? ""] ?? [];
+  const filtroCard = statusCard.includes("COM_TURMA")
+    ? { card: "COM_TURMA" }
+    : statusCard.length
+      ? { situacoesCard: statusCard }
+      : undefined;
+  const remoto = useConsultaOperacional(
+    "participantes",
+    {
+      busca: filtros.nome,
+      situacoes: filtros.status,
+      statusMatricula: filtros.statusMatricula,
+      atividadesIds: filtros.atividade,
+      turmasIds: filtros.turma,
+      generos: filtros.genero,
+      racasCores: filtros.raca,
+      faixasRenda: filtros.renda,
+      cadUnico: filtros.programaSocial === "cadunico" ? true : undefined,
+      bolsaFamilia: filtros.programaSocial === "bolsa" ? true : undefined,
+      semProgramaSocial: filtros.programaSocial === "nenhum" ? true : undefined,
+      responsavel: filtros.responsavel,
+      telefone: filtros.telefone,
+      ordenacao: filtros.sortBy === "status" ? "situacao" : filtros.sortBy,
+      direcao: filtros.sortDir,
+    },
+    filtroCard,
+    !loadingPermissoes && podeVisualizar,
+    mapParticipante,
+  );
+  const loading = loadingLocal || (remoto.habilitado && remoto.loading);
+  const totalBase = remoto.cards.TOTAL?.valor ?? 0;
+  const quantidadeCard = (key: string) =>
+    (chavesCards[key] ?? []).reduce(
+      (total, status) => total + (remoto.cards[status]?.valor ?? 0),
+      0,
+    );
+
   const podeCriar = permissoes.CRIAR;
   const podeEditar = permissoes.EDITAR;
   const podeExcluir = permissoes.EXCLUIR;
@@ -246,15 +320,12 @@ export default function Participantes() {
       setLoading(true);
       setAccessDeniedMessage(null);
 
-      const [participantesData, atividadesData, turmasData, organizacoesData] =
-        await Promise.all([
-          getParticipantes(),
-          getAtividadesOptions(),
-          getTurmasOptions(),
-          getOrganizacoesParticipante(),
-        ]);
+      const [atividadesData, turmasData, organizacoesData] = await Promise.all([
+        getAtividadesOptions(),
+        getTurmasOptions(),
+        getOrganizacoesParticipante(),
+      ]);
 
-      setItems(participantesData);
       setAtividades(atividadesData);
       setTurmas(turmasData);
       setOrganizacoes(organizacoesData);
@@ -353,100 +424,46 @@ export default function Participantes() {
     if (!searching) applyFiltros(draft);
   };
 
-  const handleClearFiltros = () => applyFiltros(emptyFiltros);
+  const handleClearFiltros = () => {
+    quick.limpar();
+    applyFiltros(emptyFiltros);
+  };
 
-  const filtered = useMemo(() => {
-    const nome = normalize(filtros.nome);
-    const responsavel = normalize(filtros.responsavel);
-    const telefone = normalize(filtros.telefone);
-
-    const result = items.filter((participante) => {
-      if (nome && !normalize(participante.nomeCompleto).includes(nome))
-        return false;
-      if (
-        responsavel &&
-        !normalize(participante.nomeResponsavel ?? "").includes(responsavel)
-      )
-        return false;
-      if (
-        telefone &&
-        !normalize(
-          `${participante.telefone ?? ""} ${participante.telefoneResponsavel ?? ""}`,
-        ).includes(telefone)
-      )
-        return false;
-      if (
-        filtros.status.length &&
-        !filtros.status.includes(participante.status)
-      )
-        return false;
-      if (
-        filtros.atividade.length &&
-        !participante.vinculos.some((vinculo) =>
-          filtros.atividade.includes(vinculo.atividadeId),
-        )
-      )
-        return false;
-      if (
-        filtros.turma.length &&
-        !participante.vinculos.some(
-          (vinculo) =>
-            !!vinculo.turmaId && filtros.turma.includes(vinculo.turmaId),
-        )
-      )
-        return false;
-      if (
-        filtros.genero.length &&
-        !filtros.genero.includes(participante.genero ?? "")
-      )
-        return false;
-      if (
-        filtros.raca.length &&
-        !filtros.raca.includes(participante.racaCor ?? "")
-      )
-        return false;
-      if (
-        filtros.renda.length &&
-        !filtros.renda.includes(participante.faixaRenda ?? "")
-      )
-        return false;
-      if (filtros.programaSocial === "cadunico" && !participante.possuiCadunico)
-        return false;
-      if (
-        filtros.programaSocial === "bolsa" &&
-        !participante.possuiBolsaFamilia
-      )
-        return false;
-      if (
-        filtros.programaSocial === "nenhum" &&
-        (participante.possuiCadunico || participante.possuiBolsaFamilia)
-      )
-        return false;
-      return true;
-    });
-
-    const sortValue = (participante: Participante) => {
-      if (filtros.sortBy === "status")
-        return statusValueToLabel(participante.status);
-      if (filtros.sortBy === "responsavel")
-        return participante.nomeResponsavel ?? "";
-      return participante.nomeCompleto;
-    };
-
-    return [...result].sort((a, b) => {
-      const compared = sortValue(a).localeCompare(sortValue(b), "pt-BR", {
-        sensitivity: "base",
-      });
-      return filtros.sortDir === "asc" ? compared : -compared;
-    });
-  }, [filtros, items]);
+  const quickOptions = [
+    { key: "ativos", label: "Participantes ativos", icon: QuickActiveIcon },
+    { key: "inativos", label: "Inativos / pendentes", icon: QuickPendingIcon },
+    { key: "concluidos", label: "Concluídos", icon: GraduationCap },
+    { key: "comTurma", label: "Com turma vinculada", icon: QuickDoneIcon },
+  ];
+  const quickCards = [
+    {
+      key: "total",
+      label: "Total",
+      count: totalBase,
+      icon: QuickTotalIcon,
+      filtravel: false,
+    },
+    ...quickOptions.map((option) => ({
+      key: option.key,
+      label: option.label,
+      icon: option.icon,
+      count: quantidadeCard(option.key),
+    })),
+  ];
 
   const activeFilters: ActiveFilterItem[] = (() => {
     const result: ActiveFilterItem[] = [];
     const removeText = (key: "nome" | "responsavel" | "telefone") =>
       applyFiltros({ ...filtros, [key]: "" });
     const removeList = (
-      key: "status" | "atividade" | "turma" | "genero" | "raca" | "renda",
+      key:
+        | "status"
+        | "statusMatricula"
+        | "atividade"
+        | "turma"
+        | "genero"
+        | "raca"
+        | "renda",
       value: string,
     ) =>
       applyFiltros({
@@ -477,7 +494,14 @@ export default function Participantes() {
       });
 
     const addList = (
-      key: "status" | "atividade" | "turma" | "genero" | "raca" | "renda",
+      key:
+        | "status"
+        | "statusMatricula"
+        | "atividade"
+        | "turma"
+        | "genero"
+        | "raca"
+        | "renda",
       label: string,
       options: readonly { value: string; label: string }[],
     ) =>
@@ -491,6 +515,7 @@ export default function Participantes() {
       );
 
     addList("status", "Status", statusOptions);
+    addList("statusMatricula", "Status da matrícula", statusMatriculaOptions);
     addList("atividade", "Atividade", atividadeOptions);
     addList("turma", "Turma", turmaOptions);
     addList("genero", "Gênero", generoOptions);
@@ -530,8 +555,14 @@ export default function Participantes() {
     return result;
   })();
 
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, JSON.stringify(filtros));
+  const {
+    currentPage,
+    pageSize,
+    setCurrentPage,
+    setPageSize,
+    total: totalFiltrado,
+    rows: paginated,
+  } = remoto;
 
   const toggleSort = (sortBy: SortBy) =>
     applyFiltros({
@@ -553,7 +584,7 @@ export default function Participantes() {
     try {
       await deleteParticipante(Number(confirmDelete));
 
-      setItems((prev) => prev.filter((p) => p.id !== confirmDelete));
+      remoto.atualizar();
       toast.success("Participante excluído com sucesso.");
       setConfirmDelete(null);
     } catch (error) {
@@ -608,8 +639,8 @@ export default function Participantes() {
     { header: "Faixa de renda", key: "faixaRendaLabel" },
   ];
 
-  const getExportData = () =>
-    filtered.map((participante) => ({
+  const getExportData = async () =>
+    (await remoto.carregarExportacao()).map((participante) => ({
       nomeCompleto: participante.nomeCompleto,
       statusLabel: statusValueToLabel(participante.status),
       telefone: participante.telefone ? maskPhone(participante.telefone) : "—",
@@ -680,6 +711,14 @@ export default function Participantes() {
           }
         />
 
+        <QuickFilterCards
+          cards={quickCards}
+          ativo={quick.ativo}
+          onToggle={quick.alternar}
+          onClear={quick.limpar}
+          totalFiltrado={totalFiltrado}
+        />
+
         <div className="space-y-4">
           <AdvancedSearchPanel
             open={panelOpen}
@@ -737,6 +776,24 @@ export default function Participantes() {
                     onChange={(value) => setDraftField("status", value)}
                     placeholder="Todos os status"
                     summaryNoun="status selecionados"
+                  />
+                </div>
+                <div>
+                  <FieldLabel
+                    htmlFor="filtroStatusMatricula"
+                    tooltip="Filtre pelo status da matrícula. Ao combinar com atividade ou turma, os critérios são aplicados à mesma matrícula."
+                  >
+                    Status da matrícula
+                  </FieldLabel>
+                  <FilterMultiSelect
+                    id="filtroStatusMatricula"
+                    options={statusMatriculaOptions}
+                    value={draft.statusMatricula}
+                    onChange={(value) =>
+                      setDraftField("statusMatricula", value)
+                    }
+                    placeholder="Todos os status de matrícula"
+                    summaryNoun="status de matrícula selecionados"
                   />
                 </div>
                 <div>
@@ -904,9 +961,21 @@ export default function Participantes() {
             onClearAll={handleClearFiltros}
           />
 
+          {remoto.habilitado && remoto.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {remoto.error.message}{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={remoto.atualizar}
+              >
+                Tentar novamente
+              </button>
+            </p>
+          )}
           <DataTableCard>
             <DataTableToolbar
-              total={filtered.length}
+              total={totalFiltrado}
               reportTo="/relatorios/participantes-geral"
               documentLayoutsTo="/modelos-documento"
               exportColumns={exportColumns}
@@ -914,7 +983,14 @@ export default function Participantes() {
               exportFilename="participantes"
               canExport={podeGerarPdf}
             />
-            {filtered.length === 0 ? (
+            {loading ? (
+              <p
+                role="status"
+                className="p-10 text-center text-sm text-muted-foreground"
+              >
+                Carregando participantes...
+              </p>
+            ) : totalFiltrado === 0 ? (
               <DataTableEmptyState
                 emptyTitle="Nenhum participante cadastrado."
                 emptyDescription="Cadastre o primeiro participante para vinculá-lo às atividades e turmas do projeto."
@@ -1021,8 +1097,14 @@ export default function Participantes() {
                                         },
                                       ]
                                     : []),
+                                  {
+                                    label: "Linha do Tempo",
+                                    icon: History,
+                                    to: `/participantes/${p.id}/linha-do-tempo`,
+                                  },
                                   ...acoesDeclaracao(p.id),
                                 ]}
+                                onHistory={() => abrirHistorico(p)}
                               />
                             </td>
 
@@ -1119,8 +1201,14 @@ export default function Participantes() {
                                   },
                                 ]
                               : []),
+                            {
+                              label: "Linha do Tempo",
+                              icon: History,
+                              to: `/participantes/${p.id}/linha-do-tempo`,
+                            },
                             ...acoesDeclaracao(p.id),
                           ]}
+                          onHistory={() => abrirHistorico(p)}
                         />
 
                         {podeGerarPdf && (
@@ -1161,7 +1249,7 @@ export default function Participantes() {
                 </div>
 
                 <DataTablePagination
-                  totalItems={filtered.length}
+                  totalItems={totalFiltrado}
                   currentPage={currentPage}
                   pageSize={pageSize}
                   onPageChange={setCurrentPage}
@@ -1206,6 +1294,7 @@ export default function Participantes() {
       </AlertDialog>
 
       {doadorDialog}
+      <HistoricoSheet alvo={historico.alvo} onClose={historico.fechar} />
       <WikiFloatingButton
         pageTitle="Participantes"
         href="https://www.aurit.com.br/wiki/pessoas/participantes"

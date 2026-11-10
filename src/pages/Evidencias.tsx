@@ -1,3 +1,11 @@
+import { EvidenceSearchFields } from "@/components/EvidenceSearchFields";
+import {
+  contextos,
+  sortByOptions,
+  emptyEvidenceSearch as emptyFiltros,
+  type SortBy,
+  type EvidenceSearchFilters as Filtros,
+} from "@/lib/evidenceSearch";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,15 +29,7 @@ import { DataTableCard } from "@/components/list/DataTableCard";
 import { DataTableToolbar } from "@/components/list/DataTableToolbar";
 import { SortableTh } from "@/components/list/SortableTh";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { FieldLabel } from "@/components/FieldLabel";
+
 import {
   AdvancedSearchPanel,
   SearchFilterGrid,
@@ -39,7 +39,6 @@ import {
   ActiveFilters,
   type ActiveFilterItem,
 } from "@/components/ActiveFilters";
-import { FilterMultiSelect } from "@/components/FilterMultiSelect";
 import { RowActionsDropdown } from "@/components/RowActionsDropdown";
 import { SummaryStatCard } from "@/components/SummaryStatCard";
 import { DataTablePagination } from "@/components/DataTablePagination";
@@ -81,43 +80,6 @@ const tooltip =
   "Nesta página são registradas fotografias e links que comprovam a execução das aulas e dos eventos culturais da organização.";
 const objetivo =
   "Registre e organize evidências de aulas e eventos culturais, mantendo cada material conectado ao projeto e ao cadastro correspondente.";
-const contextos = [
-  { value: "AULA", label: "Aula" },
-  { value: "EVENTO_CULTURAL", label: "Evento Cultural" },
-] as const;
-const sortByOptions = [
-  { value: "data", label: "Data" },
-  { value: "contexto", label: "Contexto" },
-  { value: "projeto", label: "Projeto" },
-  { value: "referencia", label: "Referência" },
-  { value: "imagens", label: "Quantidade de arquivos" },
-] as const;
-type SortBy = (typeof sortByOptions)[number]["value"];
-type SortDir = "asc" | "desc";
-interface Filtros {
-  busca: string;
-  contexto: string[];
-  projeto: string[];
-  atividade: string[];
-  turma: string[];
-  evento: string[];
-  dataInicio: string;
-  dataFim: string;
-  sortBy: SortBy;
-  sortDir: SortDir;
-}
-const emptyFiltros: Filtros = {
-  busca: "",
-  contexto: [],
-  projeto: [],
-  atividade: [],
-  turma: [],
-  evento: [],
-  dataInicio: "",
-  dataFim: "",
-  sortBy: "data",
-  sortDir: "desc",
-};
 const normalize = (v: string) =>
   v
     .normalize("NFD")
@@ -517,124 +479,22 @@ export default function EvidenciasPage() {
               }}
             >
               <SearchFilterGrid>
-                <Field id="filtroBusca" label="Pesquisa">
-                  <Input
-                    id="filtroBusca"
-                    value={draft.busca}
-                    onChange={(e) => setDraftField("busca", e.target.value)}
-                    placeholder="Projeto, atividade, turma, evento ou descrição"
-                    className={inputClass}
-                  />
-                </Field>
-                <Multi
-                  id="filtroContexto"
-                  label="Contexto"
-                  options={contextoOptions}
-                  value={draft.contexto}
-                  onChange={(v) => setDraftField("contexto", v)}
-                  placeholder="Todos os contextos"
-                />
-                <Multi
-                  id="filtroProjeto"
-                  label="Projeto"
-                  options={projetoOptions}
-                  value={draft.projeto}
-                  onChange={(v) => setDraftField("projeto", v)}
-                  placeholder={
-                    projetosQ.isLoading
-                      ? "Carregando projetos..."
-                      : "Todos os projetos"
-                  }
-                />
-                <Multi
-                  id="filtroAtividade"
-                  label="Atividade"
-                  options={atividadeOptions}
-                  value={draft.atividade}
-                  onChange={(v) => setDraftField("atividade", v)}
-                  placeholder={
-                    atividadesQ.isLoading
-                      ? "Carregando atividades..."
-                      : "Todas as atividades"
-                  }
-                />
-                <Multi
-                  id="filtroTurma"
-                  label="Turma"
-                  options={turmaOptions}
-                  value={draft.turma}
-                  onChange={(v) => setDraftField("turma", v)}
-                  placeholder={
-                    turmasQ.isLoading
-                      ? "Carregando turmas..."
-                      : "Todas as turmas"
-                  }
-                />
-                <Multi
-                  id="filtroEvento"
-                  label="Evento cultural"
-                  options={eventoOptions}
-                  value={draft.evento}
-                  onChange={(v) => setDraftField("evento", v)}
-                  placeholder={
+                <EvidenceSearchFields
+                  draft={draft}
+                  setDraftField={setDraftField}
+                  contextoOptions={contextoOptions}
+                  projetoOptions={projetoOptions}
+                  atividadeOptions={atividadeOptions}
+                  turmaOptions={turmaOptions}
+                  eventoOptions={eventoOptions}
+                  inputClass={inputClass}
+                  loading={
+                    projetosQ.isLoading ||
+                    atividadesQ.isLoading ||
+                    turmasQ.isLoading ||
                     eventosQ.isLoading
-                      ? "Carregando eventos..."
-                      : "Todos os eventos"
                   }
                 />
-                <Field id="filtroDataInicio" label="Período — de">
-                  <Input
-                    id="filtroDataInicio"
-                    type="date"
-                    value={draft.dataInicio}
-                    onChange={(e) =>
-                      setDraftField("dataInicio", e.target.value)
-                    }
-                    className={inputClass}
-                  />
-                </Field>
-                <Field id="filtroDataFim" label="Período — até">
-                  <Input
-                    id="filtroDataFim"
-                    type="date"
-                    value={draft.dataFim}
-                    onChange={(e) => setDraftField("dataFim", e.target.value)}
-                    className={inputClass}
-                  />
-                </Field>
-                <Field id="filtroSortBy" label="Ordenar por">
-                  <Select
-                    value={draft.sortBy}
-                    onValueChange={(v) => setDraftField("sortBy", v as SortBy)}
-                  >
-                    <SelectTrigger id="filtroSortBy" className={inputClass}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sortByOptions.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field id="filtroSortDir" label="Ordem">
-                  <Select
-                    value={draft.sortDir}
-                    onValueChange={(v) =>
-                      setDraftField("sortDir", v as SortDir)
-                    }
-                  >
-                    <SelectTrigger id="filtroSortDir" className={inputClass}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="asc">Crescente</SelectItem>
-                      <SelectItem value="desc">Decrescente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
               </SearchFilterGrid>
               <div className="mt-4 flex flex-col-reverse gap-2 border-t border-border/60 pt-3.5 sm:flex-row sm:justify-end">
                 <Button
@@ -722,17 +582,16 @@ export default function EvidenciasPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {paginated.map((i) => (
-                        <DesktopRow
-                          key={i.id}
-                          item={i}
-                          navigate={navigate}
-                          edit={permissoes.EDITAR}
-                          remove={
-                            permissoes.EXCLUIR ? setConfirmDelete : undefined
-                          }
-                        />
-                      ))}
+                      {paginated.map((i) =>
+                        renderDesktopRow({
+                          item: i,
+                          navigate,
+                          edit: permissoes.EDITAR,
+                          remove: permissoes.EXCLUIR
+                            ? setConfirmDelete
+                            : undefined,
+                        }),
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -794,51 +653,6 @@ export default function EvidenciasPage() {
   );
 }
 
-function Field({
-  id,
-  label,
-  children,
-}: {
-  id: string;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      {children}
-    </div>
-  );
-}
-function Multi({
-  id,
-  label,
-  options,
-  value,
-  onChange,
-  placeholder,
-}: {
-  id: string;
-  label: string;
-  options: { value: string; label: string }[];
-  value: string[];
-  onChange: (v: string[]) => void;
-  placeholder: string;
-}) {
-  return (
-    <Field id={id} label={label}>
-      <FilterMultiSelect
-        id={id}
-        options={options}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        summaryNoun="itens selecionados"
-        searchable
-      />
-    </Field>
-  );
-}
 function Badge({ value }: { value: ContextoEvidencia }) {
   const Icon = value === "AULA" ? CalendarDays : MapPin;
   return (
@@ -848,7 +662,7 @@ function Badge({ value }: { value: ContextoEvidencia }) {
     </span>
   );
 }
-function DesktopRow({
+function renderDesktopRow({
   item,
   navigate,
   edit,
@@ -861,7 +675,10 @@ function DesktopRow({
 }) {
   const lines = refs(item);
   return (
-    <tr className="border-b border-border/50 last:border-0 hover:bg-muted/25">
+    <tr
+      key={item.id}
+      className="border-b border-border/50 last:border-0 hover:bg-muted/25"
+    >
       <td className="px-5 py-2.5">
         <RowActionsDropdown
           reportEndpoint={`/evidencias-execucao/${item.id}/relatorio`}
@@ -899,7 +716,7 @@ function DesktopRow({
     </tr>
   );
 }
-function MobileRow(props: Parameters<typeof DesktopRow>[0]) {
+function MobileRow(props: Parameters<typeof renderDesktopRow>[0]) {
   const { item, navigate, edit, remove } = props;
   const lines = refs(item);
   return (

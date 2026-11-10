@@ -499,7 +499,7 @@ export default function Usuarios() {
     };
   };
 
-  const UsuarioRow = ({
+  const renderUsuarioRow = ({
     usuario,
     mobile,
   }: {
@@ -510,7 +510,7 @@ export default function Usuarios() {
     const empresa = empresaNome(usuario.configuracaoEmpresaId);
     if (mobile)
       return (
-        <div className="p-4">
+        <div key={usuario.id} className="p-4">
           <div className="mb-3">
             <RowActionsDropdown {...actions} />
           </div>
@@ -531,7 +531,10 @@ export default function Usuarios() {
         </div>
       );
     return (
-      <tr className="border-b border-border/50 last:border-0 transition-colors hover:bg-muted/25">
+      <tr
+        key={usuario.id}
+        className="border-b border-border/50 last:border-0 transition-colors hover:bg-muted/25"
+      >
         <td className="whitespace-nowrap px-6 py-2.5">
           <RowActionsDropdown {...actions} />
         </td>
@@ -781,20 +784,16 @@ export default function Usuarios() {
                       </tr>
                     </thead>
                     <tbody>
-                      {paginated.map((usuario) => (
-                        <UsuarioRow
-                          key={usuario.id}
-                          usuario={usuario}
-                          mobile={false}
-                        />
-                      ))}
+                      {paginated.map((usuario) =>
+                        renderUsuarioRow({ usuario, mobile: false }),
+                      )}
                     </tbody>
                   </table>
                 </div>
                 <div className="divide-y divide-border md:hidden">
-                  {paginated.map((usuario) => (
-                    <UsuarioRow key={usuario.id} usuario={usuario} mobile />
-                  ))}
+                  {paginated.map((usuario) =>
+                    renderUsuarioRow({ usuario, mobile: true }),
+                  )}
                 </div>
                 <DataTablePagination
                   totalItems={filtered.length}

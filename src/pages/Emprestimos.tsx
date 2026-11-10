@@ -1,3 +1,18 @@
+import { useConsultaOperacional } from "@/hooks/useConsultaOperacional";
+import {
+  QuickFilterCards,
+  useQuickFilter,
+} from "@/components/list/QuickFilterCards";
+import {
+  ArrowLeftRight as QuickTotalIcon,
+  Clock as QuickActiveIcon,
+  AlertTriangle as QuickPendingIcon,
+  CheckCircle2 as QuickDoneIcon,
+} from "lucide-react";
+import { HistoricoSheet, useHistorico } from "@/components/HistoricoSheet";
+import { carregarHistoricoEmprestimo } from "@/lib/historico/carregar";
+import { dataHistoricoISO } from "@/lib/historico/emprestimo";
+import { hojeISO } from "@/lib/historico/atividade";
 import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +22,9 @@ import {
   ArrowLeftRight,
   RotateCcw,
   FileText,
+  Clock,
+  CircleCheck,
+  AlertTriangle,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -59,6 +77,7 @@ import {
   statusEmprestimoLabel,
   estadoDevolucaoLabel,
   getEmprestimos,
+  mapEmprestimo,
   deleteEmprestimo,
   tipoDestinatarioLabel,
   type Emprestimo,
@@ -241,6 +260,18 @@ function pickText(...values: Array<unknown>) {
 
 export default function Emprestimos() {
   const navigate = useNavigate();
+  const quick = useQuickFilter();
+  const historico = useHistorico();
+  const abrirHistorico = (item: Emprestimo) =>
+    historico.abrir({
+      nome: patrimonioLabel(item.patrimonioId),
+      tipo: "Empréstimo",
+      recurso: "emprestimos",
+      id: item.id,
+      carregar: () => carregarHistoricoEmprestimo(item),
+      observacao:
+        "A previsão de devolução não comprova uma devolução realizada. O histórico usa somente as datas registradas.",
+    });
   const [items, setItems] = useState<Emprestimo[]>([]);
   const [panelOpen, setPanelOpen] = useSessionBoolean(
     "emprestimos:pesquisa-avancada",
@@ -261,7 +292,7 @@ export default function Emprestimos() {
   const [eventosCulturais, setEventosCulturais] = useState<LookupItem[]>([]);
 
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingLocal, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
     null,
@@ -270,6 +301,51 @@ export default function Emprestimos() {
     useState<PermissoesModulo>(permissoesVazias);
 
   const podeVisualizar = permissoes.VISUALIZAR;
+  const usarPaginacaoApi =
+    !filtros.item &&
+    !filtros.responsavel &&
+    !filtros.dataDevolucao &&
+    !filtros.atraso.length &&
+    ["patrimonio", "status", "emprestimo"].includes(filtros.sortBy);
+  const chavesCards: Record<string, string[]> = {
+    andamento: ["EM_ANDAMENTO"],
+    atrasados: ["VENCIDOS"],
+    devolvidos: ["DEVOLVIDO"],
+  };
+  const statusCard = chavesCards[quick.ativo ?? ""] ?? [];
+  const filtroCard = statusCard.includes("VENCIDOS")
+    ? { card: "VENCIDOS" }
+    : statusCard.length
+      ? { situacoesCard: statusCard }
+      : undefined;
+  const remoto = useConsultaOperacional(
+    "emprestimos",
+    usarPaginacaoApi
+      ? {
+          situacoes: filtros.situacao,
+          inicio: filtros.dataEmprestimo,
+          fim: filtros.dataEmprestimo,
+          ordenacao:
+            filtros.sortBy === "emprestimo"
+              ? "data"
+              : filtros.sortBy === "status"
+                ? "situacao"
+                : "nome",
+          direcao: filtros.sortDir,
+        }
+      : null,
+    filtroCard,
+    !loadingPermissoes && podeVisualizar,
+    mapEmprestimo,
+  );
+  const loading = loadingLocal || (remoto.habilitado && remoto.loading);
+  const totalBase = remoto.cards.TOTAL?.valor ?? 0;
+  const quantidadeCard = (key: string) =>
+    (chavesCards[key] ?? []).reduce(
+      (total, status) => total + (remoto.cards[status]?.valor ?? 0),
+      0,
+    );
+
   const podeCriar = permissoes.CRIAR;
   const podeEditar = permissoes.EDITAR;
   const podeExcluir = permissoes.EXCLUIR;
@@ -316,7 +392,7 @@ export default function Emprestimos() {
     }
 
     void carregar();
-  }, [loadingPermissoes, podeVisualizar]);
+  }, [loadingPermissoes, podeVisualizar, usarPaginacaoApi]);
 
   async function carregar() {
     try {
@@ -334,7 +410,7 @@ export default function Emprestimos() {
         atividadesRes,
         eventosCulturaisRes,
       ] = await Promise.all([
-        getEmprestimos(),
+        usarPaginacaoApi ? Promise.resolve([]) : getEmprestimos(),
         fetch(`${API_URL}/patrimonios`, { headers: getAuthHeaders() }),
         fetch(`${API_URL}/colaboradores`, { headers: getAuthHeaders() }),
         fetch(`${API_URL}/participantes`, { headers: getAuthHeaders() }),
@@ -554,7 +630,7 @@ export default function Emprestimos() {
     return partes.length > 0 ? partes.join(" • ") : "—";
   };
 
-  const filtered = (() => {
+  const advancedFiltered = (() => {
     const termoItem = normalize(filtros.item);
     const termoResponsavel = normalize(filtros.responsavel);
 
@@ -615,10 +691,60 @@ export default function Emprestimos() {
       return filtros.sortDir === "asc" ? comparison : -comparison;
     });
   })();
+  const quickOptions = [
+    {
+      key: "andamento",
+      label: "Em andamento",
+      icon: QuickActiveIcon,
+      test: (item: (typeof items)[number]) =>
+        item.statusEmprestimo === "EM_ANDAMENTO",
+    },
+    {
+      key: "atrasados",
+      label: "Empréstimos vencidos",
+      icon: QuickPendingIcon,
+      test: (item: (typeof items)[number]) =>
+        item.statusEmprestimo === "ATRASADO" ||
+        (item.statusEmprestimo === "EM_ANDAMENTO" &&
+          !!dataHistoricoISO(item.dataPrevistaDevolucao) &&
+          dataHistoricoISO(item.dataPrevistaDevolucao)! < hojeISO()),
+    },
+    {
+      key: "devolvidos",
+      label: "Devolvidos",
+      icon: QuickDoneIcon,
+      test: (item: (typeof items)[number]) =>
+        item.statusEmprestimo === "DEVOLVIDO",
+    },
+  ];
+  const quickOption = quickOptions.find((option) => option.key === quick.ativo);
+  const filtered = quickOption
+    ? advancedFiltered.filter(quickOption.test)
+    : advancedFiltered;
+  const quickCards = [
+    {
+      key: "total",
+      label: "Total",
+      count: remoto.habilitado ? totalBase : advancedFiltered.length,
+      icon: QuickTotalIcon,
+      filtravel: false,
+    },
+    ...quickOptions.map((option) => ({
+      key: option.key,
+      label: option.label,
+      icon: option.icon,
+      count: remoto.habilitado
+        ? quantidadeCard(option.key)
+        : advancedFiltered.filter(option.test).length,
+    })),
+  ];
 
-  const filtrosKey = JSON.stringify(filtros);
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, filtrosKey);
+  const filtrosKey = JSON.stringify([filtros, quick.ativo]);
+  const paginaLocal = usePagination(filtered, 25, filtrosKey);
+  const { currentPage, pageSize, setCurrentPage, setPageSize } =
+    remoto.habilitado ? remoto : paginaLocal;
+  const paginated = remoto.habilitado ? remoto.rows : paginaLocal.paginated;
+  const totalFiltrado = remoto.habilitado ? remoto.total : filtered.length;
 
   const applyFiltros = (next: EmprestimosFiltros) => {
     setDraft(next);
@@ -709,19 +835,21 @@ export default function Emprestimos() {
     { header: "Estado na devolução", key: "estadoDevolucaoLabel" },
   ];
 
-  const getExportData = () =>
-    filtered.map((item) => ({
-      ...item,
-      patrimonioLabel: patrimonioLabel(item.patrimonioId),
-      destinatarioLabel: destinatarioLabel(item),
-      conservacaoLabel: estadoConservacaoEmprestimoLabel(
-        item.estadoConservacao,
-      ),
-      situacaoLabel: statusEmprestimoLabel(item.statusEmprestimo),
-      estadoDevolucaoLabel: item.estadoDevolucao
-        ? estadoDevolucaoLabel(item.estadoDevolucao)
-        : "Não devolvido",
-    }));
+  const getExportData = async () =>
+    (remoto.habilitado ? await remoto.carregarExportacao() : filtered).map(
+      (item) => ({
+        ...item,
+        patrimonioLabel: patrimonioLabel(item.patrimonioId),
+        destinatarioLabel: destinatarioLabel(item),
+        conservacaoLabel: estadoConservacaoEmprestimoLabel(
+          item.estadoConservacao,
+        ),
+        situacaoLabel: statusEmprestimoLabel(item.statusEmprestimo),
+        estadoDevolucaoLabel: item.estadoDevolucao
+          ? estadoDevolucaoLabel(item.estadoDevolucao)
+          : "Não devolvido",
+      }),
+    );
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
@@ -735,6 +863,7 @@ export default function Emprestimos() {
     try {
       await deleteEmprestimo(Number(confirmDelete));
 
+      remoto.atualizar();
       setItems((prev) => prev.filter((item) => item.id !== confirmDelete));
       toast.success("Empréstimo excluído com sucesso.");
       setConfirmDelete(null);
@@ -810,7 +939,7 @@ export default function Emprestimos() {
   if (!podeVisualizar) {
     return (
       <AppLayout>
-        <AccessNotPermitted />
+        <AccessNotPermitted loading={loadingPermissoes} />
       </AppLayout>
     );
   }
@@ -846,6 +975,14 @@ export default function Emprestimos() {
               </Button>
             ) : undefined
           }
+        />
+
+        <QuickFilterCards
+          cards={quickCards}
+          ativo={quick.ativo}
+          onToggle={quick.alternar}
+          onClear={quick.limpar}
+          totalFiltrado={totalFiltrado}
         />
 
         <div className="space-y-4">
@@ -1007,7 +1144,10 @@ export default function Emprestimos() {
                   type="button"
                   variant="glassSecondary"
                   className="h-9 gap-2 px-4"
-                  onClick={() => applyFiltros(emptyFiltros)}
+                  onClick={() => {
+                    quick.limpar();
+                    applyFiltros(emptyFiltros);
+                  }}
                 >
                   <RotateCcw className="h-4 w-4" /> Limpar filtros
                 </Button>
@@ -1026,12 +1166,27 @@ export default function Emprestimos() {
 
           <ActiveFilters
             items={activeFilters}
-            onClearAll={() => applyFiltros(emptyFiltros)}
+            onClearAll={() => {
+              quick.limpar();
+              applyFiltros(emptyFiltros);
+            }}
           />
 
+          {remoto.habilitado && remoto.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {remoto.error.message}{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={remoto.atualizar}
+              >
+                Tentar novamente
+              </button>
+            </p>
+          )}
           <DataTableCard>
             <DataTableToolbar
-              total={filtered.length}
+              total={totalFiltrado}
               reportTo="/relatorios/emprestimos"
               documentLayoutsTo="/modelos-documento"
               exportColumns={exportColumns}
@@ -1043,7 +1198,7 @@ export default function Emprestimos() {
               <div className="p-10 text-center text-sm text-muted-foreground">
                 Carregando empréstimos...
               </div>
-            ) : filtered.length === 0 ? (
+            ) : totalFiltrado === 0 ? (
               <DataTableEmptyState
                 emptyTitle="Nenhum empréstimo cadastrado."
                 createLabel="Cadastrar empréstimo"
@@ -1052,7 +1207,10 @@ export default function Emprestimos() {
                 }
                 activeCount={activeFilters.length}
                 onReviewSearch={() => setPanelOpen(true)}
-                onClearFilters={() => applyFiltros(emptyFiltros)}
+                onClearFilters={() => {
+                  quick.limpar();
+                  applyFiltros(emptyFiltros);
+                }}
               />
             ) : (
               <>
@@ -1142,6 +1300,7 @@ export default function Emprestimos() {
                                   : undefined
                               }
                               extraItems={acoesEmprestimo(item)}
+                              onHistory={() => abrirHistorico(item)}
                             />
                           </td>
                           <td className="px-6 py-2.5">
@@ -1232,6 +1391,7 @@ export default function Emprestimos() {
                               : undefined
                           }
                           extraItems={acoesEmprestimo(item)}
+                          onHistory={() => abrirHistorico(item)}
                         />
                         {podeGerarPdf && (
                           <GerarTermoEmprestimoButton emprestimoId={item.id} />
@@ -1264,7 +1424,7 @@ export default function Emprestimos() {
                 </div>
 
                 <DataTablePagination
-                  totalItems={filtered.length}
+                  totalItems={totalFiltrado}
                   currentPage={currentPage}
                   pageSize={pageSize}
                   onPageChange={setCurrentPage}
@@ -1299,6 +1459,7 @@ export default function Emprestimos() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <HistoricoSheet alvo={historico.alvo} onClose={historico.fechar} />
       <WikiFloatingButton
         pageTitle="Empréstimos"
         href="https://www.aurit.com.br/wiki/patrimonio/emprestimos"

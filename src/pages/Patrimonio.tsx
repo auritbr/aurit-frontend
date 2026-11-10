@@ -1,3 +1,16 @@
+import { useConsultaOperacional } from "@/hooks/useConsultaOperacional";
+import {
+  QuickFilterCards,
+  useQuickFilter,
+} from "@/components/list/QuickFilterCards";
+import {
+  Package as QuickTotalIcon,
+  PackageCheck as QuickActiveIcon,
+  ArrowLeftRight as QuickPendingIcon,
+  Wrench as QuickDoneIcon,
+} from "lucide-react";
+import { HistoricoSheet, useHistorico } from "@/components/HistoricoSheet";
+import { carregarHistoricoPatrimonio } from "@/lib/historico/carregar";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -7,6 +20,10 @@ import {
   Plus,
   RotateCcw,
   Search,
+  Package,
+  CircleCheck,
+  ArrowLeftRight,
+  BadgeDollarSign,
 } from "lucide-react";
 
 import { AccessDenied } from "@/components/AccessDenied";
@@ -59,6 +76,7 @@ import {
   getOrganizacoesPatrimonio,
   getPatrimonioNotaFiscalDownloadUrl,
   getPatrimonios,
+  mapPatrimonio,
   getProjetosPatrimonio,
   statusPatrimonioLabel,
   statusPatrimonioOptions,
@@ -146,13 +164,27 @@ const formatCurrency = (value?: number) =>
 
 export default function Patrimonio() {
   const navigate = useNavigate();
+  const quick = useQuickFilter();
+  const historico = useHistorico();
+  const abrirHistorico = (item: PatrimonioItem) =>
+    historico.abrir({
+      nome: [item.numeroPatrimonio, item.nomePatrimonio]
+        .filter(Boolean)
+        .join(" — "),
+      tipo: "Patrimônio",
+      recurso: "patrimonios",
+      id: item.id,
+      carregar: () => carregarHistoricoPatrimonio(item),
+      observacao:
+        "Baseado na data de aquisição e nos empréstimos registrados. Mudanças de situação sem data registrada não aparecem como acontecimentos.",
+    });
   const [items, setItems] = useState<PatrimonioItem[]>([]);
   const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
   const [permissoes, setPermissoes] =
     useState<PermissoesModulo>(permissoesVazias);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [loadingLocal, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [nextStep, setNextStep] = useState<NextStepData | null>(null);
@@ -165,6 +197,53 @@ export default function Patrimonio() {
   const [searching, setSearching] = useState(false);
 
   const podeVisualizar = permissoes.VISUALIZAR;
+  const ordensPatrimonio = {
+    nomePatrimonio: "nome",
+    statusPatrimonio: "situacao",
+    dataAquisicao: "data",
+    numeroPatrimonio: "numero",
+    valorPatrimonio: "valor",
+  } as const;
+  const usarPaginacaoApi = filtros.sortBy !== "tipoPatrimonio";
+  const chavesCards: Record<string, string[]> = {
+    disponiveis: ["DISPONIVEL"],
+    emprestados: ["EMPRESTADO"],
+    manutencao: ["EM_MANUTENCAO", "BAIXADO"],
+  };
+  const statusCard = chavesCards[quick.ativo ?? ""] ?? [];
+  const filtroCard = statusCard.length
+    ? { situacoesCard: statusCard }
+    : undefined;
+  const remoto = useConsultaOperacional(
+    "patrimonios",
+    usarPaginacaoApi
+      ? {
+          busca: filtros.bem,
+          numeroPatrimonio: filtros.numero,
+          categoriasRegistro: filtros.categoria,
+          situacoes: filtros.situacao,
+          ordenacao:
+            filtros.sortBy === "tipoPatrimonio"
+              ? "categoria"
+              : ordensPatrimonio[filtros.sortBy],
+          direcao: filtros.sortDir,
+        }
+      : null,
+    filtroCard,
+    !loadingPermissoes && podeVisualizar,
+    (row: Parameters<typeof mapPatrimonio>[0]) => {
+      const item = mapPatrimonio(row);
+      return { ...item, dataAquisicao: maskDate(item.dataAquisicao) };
+    },
+  );
+  const loading = loadingLocal || (remoto.habilitado && remoto.loading);
+  const totalBase = remoto.cards.TOTAL?.valor ?? 0;
+  const quantidadeCard = (key: string) =>
+    (chavesCards[key] ?? []).reduce(
+      (total, status) => total + (remoto.cards[status]?.valor ?? 0),
+      0,
+    );
+
   const podeCriar = permissoes.CRIAR;
   const podeEditar = permissoes.EDITAR;
   const podeExcluir = permissoes.EXCLUIR;
@@ -208,7 +287,7 @@ export default function Patrimonio() {
     setLoading(true);
 
     Promise.all([
-      getPatrimonios(),
+      usarPaginacaoApi ? Promise.resolve([]) : getPatrimonios(),
       getOrganizacoesPatrimonio(),
       getProjetosPatrimonio(),
     ])
@@ -242,9 +321,9 @@ export default function Patrimonio() {
     return () => {
       active = false;
     };
-  }, [loadingPermissoes, podeVisualizar]);
+  }, [loadingPermissoes, podeVisualizar, usarPaginacaoApi]);
 
-  const filtered = useMemo(() => {
+  const advancedFiltered = useMemo(() => {
     const bem = normalize(filtros.bem);
     const numero = normalize(filtros.numero);
 
@@ -299,10 +378,76 @@ export default function Patrimonio() {
       return filtros.sortDir === "asc" ? comparison : -comparison;
     });
   }, [items, filtros]);
+  const quickOptions = [
+    {
+      key: "disponiveis",
+      label: "Disponíveis",
+      icon: QuickActiveIcon,
+      test: (item: (typeof items)[number]) =>
+        item.statusPatrimonio === "DISPONIVEL",
+    },
+    {
+      key: "emprestados",
+      label: "Emprestados",
+      icon: QuickPendingIcon,
+      test: (item: (typeof items)[number]) =>
+        item.statusPatrimonio === "EMPRESTADO",
+    },
+    {
+      key: "manutencao",
+      label: "Manutenção / baixados",
+      icon: QuickDoneIcon,
+      test: (item: (typeof items)[number]) =>
+        ["EM_MANUTENCAO", "BAIXADO"].includes(item.statusPatrimonio),
+    },
+  ];
+  const quickOption = quickOptions.find((option) => option.key === quick.ativo);
+  const filtered = quickOption
+    ? advancedFiltered.filter(quickOption.test)
+    : advancedFiltered;
+  const quickCards = [
+    {
+      key: "total",
+      label: "Total",
+      count: remoto.habilitado ? totalBase : advancedFiltered.length,
+      icon: QuickTotalIcon,
+      filtravel: false,
+    },
+    ...quickOptions.map((option) => ({
+      key: option.key,
+      label: option.label,
+      icon: option.icon,
+      count: remoto.habilitado
+        ? quantidadeCard(option.key)
+        : advancedFiltered.filter(option.test).length,
+    })),
+    {
+      key: "valor",
+      label: "Valor total dos bens",
+      count: remoto.habilitado ? totalBase : advancedFiltered.length,
+      icon: BadgeDollarSign,
+      filtravel: false,
+      valor: formatCurrency(
+        remoto.habilitado
+          ? (remoto.cards.VALOR_TOTAL?.valor ?? 0)
+          : advancedFiltered.reduce(
+              (s, p) =>
+                s +
+                (Number.isFinite(p.valorPatrimonio)
+                  ? Math.round((p.valorPatrimonio ?? 0) * 100)
+                  : 0),
+              0,
+            ) / 100,
+      ),
+    },
+  ];
 
-  const filtrosKey = JSON.stringify(filtros);
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, filtrosKey);
+  const filtrosKey = JSON.stringify([filtros, quick.ativo]);
+  const paginaLocal = usePagination(filtered, 25, filtrosKey);
+  const { currentPage, pageSize, setCurrentPage, setPageSize } =
+    remoto.habilitado ? remoto : paginaLocal;
+  const paginated = remoto.habilitado ? remoto.rows : paginaLocal.paginated;
+  const totalFiltrado = remoto.habilitado ? remoto.total : filtered.length;
 
   const applyFiltros = (next: PatrimonioFiltros) => {
     setDraft(next);
@@ -399,14 +544,16 @@ export default function Patrimonio() {
     { header: "Valor", key: "valorLabel" },
   ];
 
-  const getExportData = () =>
-    filtered.map((item) => ({
-      ...item,
-      categoriaLabel: tipoPatrimonioLabel(item.tipoPatrimonio),
-      conservacaoLabel: estadoConservacaoLabel(item.estadoConservacao),
-      situacaoLabel: statusPatrimonioLabel(item.statusPatrimonio),
-      valorLabel: formatCurrency(item.valorPatrimonio),
-    }));
+  const getExportData = async () =>
+    (remoto.habilitado ? await remoto.carregarExportacao() : filtered).map(
+      (item) => ({
+        ...item,
+        categoriaLabel: tipoPatrimonioLabel(item.tipoPatrimonio),
+        conservacaoLabel: estadoConservacaoLabel(item.estadoConservacao),
+        situacaoLabel: statusPatrimonioLabel(item.statusPatrimonio),
+        valorLabel: formatCurrency(item.valorPatrimonio),
+      }),
+    );
 
   async function abrirNotaFiscal(item: PatrimonioItem) {
     try {
@@ -449,6 +596,7 @@ export default function Patrimonio() {
 
     try {
       await deletePatrimonio(confirmDelete);
+      remoto.atualizar();
       setItems((previous) =>
         previous.filter((item) => item.id !== confirmDelete),
       );
@@ -491,6 +639,7 @@ export default function Patrimonio() {
             ]
           : []),
       ]}
+      onHistory={() => abrirHistorico(item)}
     />
   );
 
@@ -548,6 +697,14 @@ export default function Patrimonio() {
               </Button>
             ) : undefined
           }
+        />
+
+        <QuickFilterCards
+          cards={quickCards}
+          ativo={quick.ativo}
+          onToggle={quick.alternar}
+          onClear={quick.limpar}
+          totalFiltrado={totalFiltrado}
         />
 
         <div className="space-y-4">
@@ -667,7 +824,10 @@ export default function Patrimonio() {
                   type="button"
                   variant="glassSecondary"
                   className="h-9 gap-2 px-4"
-                  onClick={() => applyFiltros(emptyFiltros)}
+                  onClick={() => {
+                    quick.limpar();
+                    applyFiltros(emptyFiltros);
+                  }}
                 >
                   <RotateCcw className="h-4 w-4" aria-hidden />
                   Limpar filtros
@@ -688,12 +848,27 @@ export default function Patrimonio() {
 
           <ActiveFilters
             items={activeFilters}
-            onClearAll={() => applyFiltros(emptyFiltros)}
+            onClearAll={() => {
+              quick.limpar();
+              applyFiltros(emptyFiltros);
+            }}
           />
 
+          {remoto.habilitado && remoto.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {remoto.error.message}{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={remoto.atualizar}
+              >
+                Tentar novamente
+              </button>
+            </p>
+          )}
           <DataTableCard>
             <DataTableToolbar
-              total={filtered.length}
+              total={totalFiltrado}
               reportTo="/relatorios/patrimonios"
               documentLayoutsTo="/modelos-documento"
               exportColumns={exportColumns}
@@ -706,7 +881,7 @@ export default function Patrimonio() {
               <div className="p-10 text-center text-sm text-muted-foreground">
                 Carregando patrimônios...
               </div>
-            ) : filtered.length === 0 ? (
+            ) : totalFiltrado === 0 ? (
               <DataTableEmptyState
                 emptyTitle="Nenhum bem cadastrado."
                 createLabel="Cadastrar bem"
@@ -715,7 +890,10 @@ export default function Patrimonio() {
                 }
                 activeCount={activeFilters.length}
                 onReviewSearch={() => setPanelOpen(true)}
-                onClearFilters={() => applyFiltros(emptyFiltros)}
+                onClearFilters={() => {
+                  quick.limpar();
+                  applyFiltros(emptyFiltros);
+                }}
               />
             ) : (
               <>
@@ -876,7 +1054,7 @@ export default function Patrimonio() {
                 </div>
 
                 <DataTablePagination
-                  totalItems={filtered.length}
+                  totalItems={totalFiltrado}
                   currentPage={currentPage}
                   pageSize={pageSize}
                   onPageChange={setCurrentPage}
@@ -911,6 +1089,7 @@ export default function Patrimonio() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <HistoricoSheet alvo={historico.alvo} onClose={historico.fechar} />
       <WikiFloatingButton
         pageTitle="Patrimônio"
         href="https://www.aurit.com.br/wiki/patrimonio/patrimonio"

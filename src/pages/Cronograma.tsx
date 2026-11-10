@@ -1559,7 +1559,8 @@ export default function Cronograma() {
                             </tr>
                           ))}
 
-                          {paginated.length === 0 && <EmptyRow colSpan={7} />}
+                          {paginated.length === 0 &&
+                            renderEmptyRow({ colSpan: 7 })}
                         </tbody>
                       </table>
                     </div>
@@ -1721,7 +1722,7 @@ function Field({
   );
 }
 
-function EmptyRow({ colSpan }: { colSpan: number }) {
+function renderEmptyRow({ colSpan }: { colSpan: number }) {
   return (
     <tr>
       <td colSpan={colSpan} className="px-5 py-16 text-center">

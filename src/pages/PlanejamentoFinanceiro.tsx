@@ -826,7 +826,7 @@ export default function PlanejamentoFinanceiro() {
   if (!podeVisualizar) {
     return (
       <AppLayout>
-        <AccessNotPermitted />
+        <AccessNotPermitted loading={loadingPermissoes} />
       </AppLayout>
     );
   }
@@ -1626,7 +1626,7 @@ export default function PlanejamentoFinanceiro() {
                       );
                     })}
 
-                    {paginated.length === 0 && <EmptyRow colSpan={9} />}
+                    {paginated.length === 0 && renderEmptyRow({ colSpan: 9 })}
                   </tbody>
                 </table>
               </div>
@@ -1802,7 +1802,7 @@ function Field({
   );
 }
 
-function EmptyRow({ colSpan }: { colSpan: number }) {
+function renderEmptyRow({ colSpan }: { colSpan: number }) {
   return (
     <tr>
       <td colSpan={colSpan}>

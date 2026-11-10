@@ -7,6 +7,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AuritGoogleAuthPlugin.class);
+        registerPlugin(AuritFileDownloadPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

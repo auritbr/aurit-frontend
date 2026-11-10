@@ -1,3 +1,14 @@
+import { ComparativoBackend } from "@/components/relatorios/ComparativoBackend";
+import { ComparacaoPeriodos } from "@/components/relatorios/ComparacaoPeriodos";
+import {
+  useSelecaoGrafico,
+  SelecaoGraficoBanner,
+} from "@/components/relatorios/AnalyticsKit";
+import { ReportBarChart } from "@/components/relatorios/ReportKit";
+import {
+  ReportFilterMultiSelect as FilterMultiSelect,
+  ReportSelectContent as SelectContent,
+} from "@/components/relatorios/ReportSelectFields";
 import { MobileReportSort } from "@/components/relatorios/MobileReportSort";
 import {
   useEffect,
@@ -22,7 +33,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { PageTitle } from "@/components/PageTitle";
 import { PageObjective } from "@/components/PageObjective";
 import { FieldLabel } from "@/components/FieldLabel";
-import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+
 import {
   ActiveFilters,
   type ActiveFilterItem,
@@ -48,7 +59,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
-  SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -176,6 +186,7 @@ function SortableHead({
 }
 
 export default function RelatorioParticipantes() {
+  const sel = useSelecaoGrafico();
   const [filtros, setFiltros] =
     useState<FiltrosRelatorioParticipantes>(filtrosIniciais);
   const [aplicados, setAplicados] =
@@ -259,9 +270,53 @@ export default function RelatorioParticipantes() {
     () => aplicarFiltros(linhas, { ...aplicados, busca }),
     [linhas, aplicados, busca],
   );
+
+  const atividadesGrafico = Array.from(
+    new Map(filtradas.map((r) => [r.atividadeId, r.atividadeNome])),
+    ([id, nome]) => ({ id, nome }),
+  );
+  const atividadeGraficoLabel = (id: string) => {
+    const a = atividadesGrafico.find((a) => a.id === id);
+    return a
+      ? `${a.nome}${atividadesGrafico.filter((b) => b.nome === a.nome).length > 1 ? ` (#${id})` : ""}`
+      : id;
+  };
+  const atividadeSelecionadaId =
+    sel.selecao?.campo === "atividade"
+      ? atividadesGrafico.find(
+          (a) => atividadeGraficoLabel(a.id) === sel.selecao?.valor,
+        )?.id
+      : undefined;
+  const linhasTabela = filtradas.filter(
+    (r) =>
+      !sel.selecao ||
+      (sel.selecao.campo === "status"
+        ? statusParticipanteLabel(r.status) === sel.selecao.valor
+        : r.atividadeId === atividadeSelecionadaId),
+  );
+  const porAtividade = atividadesGrafico.map((a) => ({
+    name: atividadeGraficoLabel(a.id),
+    value: new Set(
+      filtradas
+        .filter((r) => r.atividadeId === a.id)
+        .map((r) => r.participanteId),
+    ).size,
+  }));
+  const comparacaoRegistros = Array.from(
+    new Map(
+      filtradas
+        .flatMap((l) => l.registros)
+        .filter(
+          (r) =>
+            !aplicados.presencas.length ||
+            aplicados.presencas.includes(r.status),
+        )
+        .map((r) => [r.id, r]),
+    ).values(),
+  );
   const ordenadas = useMemo(
     () =>
-      [...filtradas].sort((a, b) => {
+      [...linhasTabela].sort((a, b) => {
         const values: Record<SortKey, [string | number, string | number]> = {
           nome: [
             a.participanteNome.toLocaleLowerCase("pt-BR"),
@@ -285,25 +340,31 @@ export default function RelatorioParticipantes() {
         const result = left < right ? -1 : left > right ? 1 : 0;
         return sortDir === "asc" ? result : -result;
       }),
-    [filtradas, sortKey, sortDir],
+    [linhasTabela, sortKey, sortDir],
   );
 
   const pagination = usePagination(
     ordenadas,
     25,
-    JSON.stringify({ aplicados, busca, sortKey, sortDir }),
+    JSON.stringify({
+      aplicados,
+      busca,
+      sortKey,
+      sortDir,
+      selecao: sel.selecao,
+    }),
   );
-  const totalLinhas = ordenadas.length;
-  const totalPresencas = ordenadas.reduce(
+  const totalLinhas = filtradas.length;
+  const totalPresencas = filtradas.reduce(
     (sum, linha) => sum + linha.presencas,
     0,
   );
-  const totalAusencias = ordenadas.reduce(
+  const totalAusencias = filtradas.reduce(
     (sum, linha) => sum + linha.ausencias,
     0,
   );
   const pctMedio = totalLinhas
-    ? ordenadas.reduce((sum, linha) => sum + linha.percentualPresenca, 0) /
+    ? filtradas.reduce((sum, linha) => sum + linha.percentualPresenca, 0) /
       totalLinhas
     : 0;
   const frequenciaPorParticipante = useMemo<ComparisonChartDatum[]>(() => {
@@ -312,7 +373,7 @@ export default function RelatorioParticipantes() {
       { nome: string; presencas: number; ausencias: number }
     >();
 
-    ordenadas.forEach((linha) => {
+    filtradas.forEach((linha) => {
       const atual = agrupado.get(linha.participanteId) ?? {
         nome: linha.participanteNome,
         presencas: 0,
@@ -331,10 +392,10 @@ export default function RelatorioParticipantes() {
         presencas: item.presencas,
         ausencias: item.ausencias,
       }));
-  }, [ordenadas]);
+  }, [filtradas]);
   const participantesPorSituacao = useMemo<ChartDatum[]>(() => {
     const participantes = new Map<string, string>();
-    ordenadas.forEach((linha) =>
+    filtradas.forEach((linha) =>
       participantes.set(linha.participanteId, linha.status),
     );
 
@@ -347,7 +408,7 @@ export default function RelatorioParticipantes() {
     return [...totais.entries()]
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [ordenadas]);
+  }, [filtradas]);
 
   const toggleSort = (key: SortKey) => {
     if (key === sortKey)
@@ -358,12 +419,14 @@ export default function RelatorioParticipantes() {
     }
   };
   const limpar = () => {
+    sel.limpar();
     setFiltros(filtrosIniciais);
     setAplicados(filtrosIniciais);
     setBusca("");
     setBuscaInput("");
   };
   const filtrar = (event?: React.FormEvent) => {
+    sel.limpar();
     event?.preventDefault();
     setAplicados(filtros);
     setBusca(buscaInput);
@@ -914,6 +977,58 @@ export default function RelatorioParticipantes() {
           <ActiveFilters items={activeFilters} onClearAll={limpar} />
         </div>
 
+        {!aplicados.presencas.length &&
+        !aplicados.status.length &&
+        !aplicados.possuiCadunico.length &&
+        !aplicados.possuiBolsaFamilia.length ? (
+          <ComparativoBackend
+            slug="participantes-geral"
+            filtros={{
+              busca: aplicados.busca,
+              atividadeId: /^\d+$/.test(aplicados.atividadeId)
+                ? aplicados.atividadeId
+                : undefined,
+              turmaId: /^\d+$/.test(aplicados.turmaId)
+                ? aplicados.turmaId
+                : undefined,
+              neurodivergencias: aplicados.tipoNeurodivergencias,
+              deficiencias: aplicados.tipoDeficiencias,
+            }}
+          />
+        ) : (
+          <ComparacaoPeriodos
+            id="rp"
+            rows={comparacaoRegistros}
+            getData={(r) => r.data}
+            referencia="data do registro de frequência"
+            indicadores={[
+              { label: "Registros de frequência", calc: (rows) => rows.length },
+              {
+                label: "Presenças",
+                sentido: "maiorMelhor",
+                calc: (rows) =>
+                  rows.filter((r) => r.status === "PRESENTE").length,
+              },
+              {
+                label: "Ausências",
+                sentido: "menorMelhor",
+                calc: (rows) =>
+                  rows.filter((r) => r.status === "AUSENTE").length,
+              },
+              {
+                label: "% Presença",
+                tipo: "percentual",
+                sentido: "maiorMelhor",
+                calc: (rows) =>
+                  rows.length
+                    ? (rows.filter((r) => r.status === "PRESENTE").length /
+                        rows.length) *
+                      100
+                    : null,
+              },
+            ]}
+          />
+        )}
         <section className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <ResumoCard
             icon={Users}
@@ -957,17 +1072,35 @@ export default function RelatorioParticipantes() {
               />
             </ReportChartCard>
             <ReportChartCard
+              clickable
               title="Participantes por situação"
               description="Distribuição dos participantes únicos conforme a situação da matrícula."
             >
               <ReportPieChart
+                onSelect={sel.selecionar("status", "Status")}
                 data={participantesPorSituacao}
                 reportKey="participantes-situacao"
+              />
+            </ReportChartCard>
+            <ReportChartCard
+              title="Participantes por atividade"
+              description="Participantes únicos em cada atividade do recorte atual."
+              clickable
+            >
+              <ReportBarChart
+                data={porAtividade}
+                onSelect={sel.selecionar("atividade", "Atividade")}
+                reportKey="participantes"
               />
             </ReportChartCard>
           </ReportChartGrid>
         )}
 
+        <SelecaoGraficoBanner
+          selecao={sel.selecao}
+          count={ordenadas.length}
+          onClear={sel.limpar}
+        />
         <section className="overflow-hidden rounded-[14px] border border-border/70 bg-card/75 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-card/65">
           <div className="flex flex-col gap-3 border-b border-border/60 p-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -985,29 +1118,43 @@ export default function RelatorioParticipantes() {
                 reportName="participantes"
                 dataGeracao={new Date().toLocaleDateString("pt-BR")}
                 indicadoresPdf={indicadoresPdf}
-                disabled={!totalLinhas || loading || !colunasExport.length}
+                disabled={!ordenadas.length || loading || !colunasExport.length}
                 showPdf
                 showCopy={false}
                 compact
                 onPdf={() =>
                   downloadGeneralReportPdf({
                     slug: "participacao",
+                    filterLabels: sel.selecao
+                      ? [
+                          {
+                            label: sel.selecao.rotulo,
+                            value: sel.selecao.valor,
+                          },
+                        ]
+                      : [],
                     columns: colunasExport.map(
                       (column) => pdfColumnByTableColumn[column.key],
                     ),
                     filters: {
                       busca: busca.trim() || undefined,
                       atividadeId:
-                        aplicados.atividadeId === "TODOS" ||
+                        atividadeSelecionadaId ??
+                        (aplicados.atividadeId === "TODOS" ||
                         aplicados.atividadeId === "SELECIONE"
                           ? undefined
-                          : aplicados.atividadeId,
+                          : aplicados.atividadeId),
                       turmaId:
                         aplicados.turmaId === "TODOS" ||
                         aplicados.turmaId === "SELECIONE"
                           ? undefined
                           : aplicados.turmaId,
-                      status: aplicados.status,
+                      status:
+                        sel.selecao?.campo === "status"
+                          ? statusParticipanteOptions
+                              .filter((o) => o.label === sel.selecao?.valor)
+                              .map((o) => o.value)
+                          : aplicados.status,
                       presencas: aplicados.presencas,
                       tipoNeurodivergencias: aplicados.tipoNeurodivergencias,
                       tipoDeficiencias: aplicados.tipoDeficiencias,
@@ -1043,7 +1190,7 @@ export default function RelatorioParticipantes() {
                   Tentar novamente
                 </Button>
               </div>
-            ) : !totalLinhas ? (
+            ) : !ordenadas.length ? (
               <div className="px-5 py-12 text-center">
                 <Inbox className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
@@ -1273,9 +1420,9 @@ export default function RelatorioParticipantes() {
               </>
             )}
           </div>
-          {!loading && !erro && totalLinhas > 0 && (
+          {!loading && !erro && ordenadas.length > 0 && (
             <TablePagination
-              totalItems={totalLinhas}
+              totalItems={ordenadas.length}
               currentPage={pagination.currentPage}
               pageSize={pagination.pageSize}
               onPageChange={pagination.setCurrentPage}

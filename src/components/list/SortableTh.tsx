@@ -10,6 +10,7 @@ export interface SortableThProps<K extends string = string> {
   onSort: (key: K) => void;
   children: React.ReactNode;
   className?: string;
+  hidden?: boolean;
 }
 
 /**
@@ -23,16 +24,20 @@ export function SortableTh<K extends string = string>({
   onSort,
   children,
   className,
+  hidden,
 }: SortableThProps<K>) {
   const active = activeKey === sortKey;
   const Icon = active ? (dir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
 
   return (
     <th
+      hidden={hidden}
+      style={hidden ? { display: "none" } : undefined}
       className={cn(
         "whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground",
         active && "bg-muted/40 text-foreground",
         className,
+        hidden,
       )}
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
     >

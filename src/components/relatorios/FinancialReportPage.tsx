@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -15,6 +15,7 @@ import {
   ReportFilterPanel,
   ReportPieChart,
   ReportShell,
+  ReportSerieLineChart,
   ReportStatCard,
   ReportStatGrid,
   ReportStatSkeleton,
@@ -33,13 +34,28 @@ import {
   type RelatorioFinanceiroResponse,
 } from "@/lib/relatoriosFinanceirosApi";
 import type { ActiveFilterItem } from "@/components/ActiveFilters";
+import {
+  nomeBancoOptions,
+  statusContaBancariaOptions,
+} from "@/data/contasBancarias";
+import { classificacaoOptions } from "@/data/contasPagar";
+import { recortarPagamentosPorFornecedor } from "@/data/relatorioFornecedoresPagamentos";
 import { maskCpfCnpj } from "@/lib/masks";
+
+import { ComparativoBackend } from "./ComparativoBackend";
+import { SelecaoGraficoBanner, useSelecaoGrafico } from "./AnalyticsKit";
+import {
+  financialChartSelections,
+  financialExtraCharts,
+  financialReportIndicators,
+} from "./financialReportPresentation";
 
 type Field = {
   key: string;
   label: string;
   kind?: "money" | "date" | "percent" | "number" | "document";
   hidden?: boolean;
+  pdfKey?: false;
 };
 type Config = {
   title: string;
@@ -191,12 +207,20 @@ const CONFIG: Record<string, Config> = {
     fields: [
       { key: "descricao", label: "Conta" },
       { key: "credor", label: "Credor" },
+      { key: "documento", label: "CPF/CNPJ", kind: "document", pdfKey: false },
       { key: "categoria", label: "Classificação" },
       { key: "competencia", label: "Competência", kind: "date" },
       { key: "vencimento", label: "Vencimento", kind: "date" },
+      {
+        key: "dataEfetivacao",
+        label: "Pagamento",
+        kind: "date",
+        pdfKey: false,
+      },
       { key: "valor", label: "Valor", kind: "money" },
       { key: "valorPago", label: "Pago", kind: "money" },
       { key: "valorPendente", label: "Pendente", kind: "money" },
+      { key: "projeto", label: "Projeto", pdfKey: false },
       { key: "situacao", label: "Situação" },
     ],
   },
@@ -212,12 +236,20 @@ const CONFIG: Record<string, Config> = {
     fields: [
       { key: "descricao", label: "Conta" },
       { key: "pagador", label: "Pagador" },
+      { key: "documento", label: "CPF/CNPJ", kind: "document", pdfKey: false },
       { key: "categoria", label: "Classificação" },
       { key: "competencia", label: "Competência", kind: "date" },
       { key: "vencimento", label: "Vencimento", kind: "date" },
+      {
+        key: "dataEfetivacao",
+        label: "Recebimento",
+        kind: "date",
+        pdfKey: false,
+      },
       { key: "valor", label: "Valor", kind: "money" },
       { key: "valorPago", label: "Recebido", kind: "money" },
       { key: "valorPendente", label: "Pendente", kind: "money" },
+      { key: "projeto", label: "Projeto", pdfKey: false },
       { key: "situacao", label: "Situação" },
     ],
   },
@@ -235,9 +267,17 @@ const CONFIG: Record<string, Config> = {
       { key: "conta", label: "Conta" },
       { key: "periodoInicial", label: "Início", kind: "date" },
       { key: "periodoFinal", label: "Fim", kind: "date" },
+      { key: "total", label: "Lançamentos", kind: "number", pdfKey: false },
       { key: "conciliadas", label: "Conciliadas", kind: "number" },
       { key: "pendentes", label: "Pendentes", kind: "number" },
       { key: "divergencias", label: "Divergências", kind: "number" },
+      { key: "ignoradas", label: "Ignorados", kind: "number", pdfKey: false },
+      {
+        key: "saldoFinal",
+        label: "Saldo final do extrato",
+        kind: "money",
+        pdfKey: false,
+      },
       { key: "situacao", label: "Situação" },
     ],
   },
@@ -272,6 +312,7 @@ const CONFIG: Record<string, Config> = {
       { key: "data", label: "Data", kind: "date" },
       { key: "descricao", label: "Doação" },
       { key: "doador", label: "Doador" },
+      { key: "tipoDoador", label: "Tipo de doador", pdfKey: false },
       { key: "tipo", label: "Tipo" },
       { key: "valor", label: "Valor", kind: "money" },
       { key: "destinacao", label: "Destinação" },
@@ -286,7 +327,7 @@ const CONFIG: Record<string, Config> = {
     objective:
       "Acompanhe os fornecedores da organização ou iniciativa e consulte os valores financeiros efetivamente vinculados a cada um, incluindo pagamentos, valores ainda a pagar, recebimentos e valores a receber.",
     table: "Fornecedores e pagamentos",
-    filters: ["fornecedor"],
+    filters: ["fornecedor", "categoria", "status", "projeto"],
     fields: [
       { key: "fornecedor", label: "Fornecedor" },
       { key: "documento", label: "Documento", kind: "document" },
@@ -294,10 +335,6 @@ const CONFIG: Record<string, Config> = {
       { key: "valorPago", label: "Total pago", kind: "money" },
       { key: "valorPendente", label: "A pagar", kind: "money" },
       { key: "ultimoPagamento", label: "Último pagamento", kind: "date" },
-      { key: "quantidadeRecebimentos", label: "Recebimentos", kind: "number" },
-      { key: "valorRecebido", label: "Total recebido", kind: "money" },
-      { key: "valorAReceber", label: "A receber", kind: "money" },
-      { key: "ultimoRecebimento", label: "Último recebimento", kind: "date" },
     ],
   },
 
@@ -375,6 +412,34 @@ const CONFIG: Record<string, Config> = {
   },
 };
 
+const financeStatusOptions = [
+  { value: "PENDENTE", label: "Pendente" },
+  { value: "LIQUIDADO", label: "Liquidado" },
+  { value: "VENCIDO", label: "Vencido" },
+];
+
+const reportStatusOptions: Record<
+  string,
+  readonly { value: string; label: string }[]
+> = {
+  "saldos-contas-bancarias": statusContaBancariaOptions,
+  "transferencias-bancarias": [
+    { value: "AGENDADO", label: "Agendada" },
+    { value: "REALIZADO", label: "Efetivada" },
+    { value: "CANCELADO", label: "Cancelada" },
+  ],
+  "conciliacao-bancaria": [
+    { value: "EM_ANDAMENTO", label: "Em andamento" },
+    { value: "CONCLUIDO", label: "Concluída" },
+    { value: "CANCELADO", label: "Cancelada" },
+  ],
+  "doacoes-recebidas": [
+    { value: "PENDENTE", label: "Pendente" },
+    { value: "RECEBIDA", label: "Recebida" },
+    { value: "CANCELADA", label: "Cancelada" },
+  ],
+};
+
 const initial: FiltrosFinanceiros = {
   busca: "",
   dataInicial: "",
@@ -410,32 +475,64 @@ export function FinancialReportPage({ slug }: { slug: string }) {
     },
   });
   const [loading, setLoading] = useState(true);
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await buscarRelatorioFinanceiro(slug, applied);
-      setData(
-        slug === "fluxo-caixa"
-          ? { ...response, linhas: separarTransferencias(response.linhas) }
-          : response,
-      );
-    } catch (e) {
-      toast.error(
-        e instanceof Error
-          ? e.message
-          : "Não foi possível carregar o relatório.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [slug, applied]);
+  const effectiveFilters = applied;
+  const selection = useSelecaoGrafico();
+  const selected = selection.selecao;
+  const selectedChart = selected
+    ? financialChartSelections[slug]?.[selected.campo]
+    : undefined;
+  const tableRows =
+    selected && selectedChart
+      ? data.linhas.filter(
+          (row) => String(selectedChart.value(row) ?? "") === selected.valor,
+        )
+      : data.linhas;
+  const charts = [...data.graficos, ...financialExtraCharts(slug, data.linhas)];
+  const indicators = financialReportIndicators(
+    slug,
+    data.linhas,
+    data.indicadores,
+  );
+
+  const [loadedFilters, setLoadedFilters] = useState<FiltrosFinanceiros>();
   useEffect(() => {
-    void load();
-  }, [load]);
+    let current = true;
+    setLoading(true);
+    buscarRelatorioFinanceiro(slug, effectiveFilters)
+      .then(async (response) =>
+        slug === "fornecedores-pagamentos"
+          ? recortarPagamentosPorFornecedor(response, effectiveFilters)
+          : response,
+      )
+      .then((response) => {
+        if (!current) return;
+        setData(
+          slug === "fluxo-caixa"
+            ? { ...response, linhas: separarTransferencias(response.linhas) }
+            : response,
+        );
+        setLoadedFilters(effectiveFilters);
+      })
+      .catch((e: unknown) => {
+        if (current)
+          toast.error(
+            e instanceof Error
+              ? e.message
+              : "Não foi possível carregar o relatório.",
+          );
+      })
+      .finally(() => {
+        if (current) setLoading(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [slug, effectiveFilters]);
   const columns = useMemo<ReportTableColumn<LinhaFinanceira>[]>(
     () =>
       config.fields.map((field, index) => ({
         key: field.key,
+        pdfKey: field.pdfKey,
         label: field.label,
         alwaysVisible: index < 2,
         hiddenByDefault: field.hidden,
@@ -461,7 +558,9 @@ export function FinancialReportPage({ slug }: { slug: string }) {
       })),
     [config],
   );
-  const activeFilters: ActiveFilterItem[] = Object.entries(applied)
+  const activeFilters: ActiveFilterItem[] = Object.entries(
+    loadedFilters ?? effectiveFilters,
+  )
     .filter(
       ([, v]) => v && !["TODOS", "TODAS", "VENCIMENTO"].includes(String(v)),
     )
@@ -484,19 +583,21 @@ export function FinancialReportPage({ slug }: { slug: string }) {
       },
     }));
   const option = (key: string) =>
-    key === "conta" || key.endsWith("Conta")
-      ? data.opcoes.contas
-      : key === "projeto"
-        ? data.opcoes.projetos
-        : key === "categoria"
-          ? data.opcoes.categorias
-          : key === "origem"
-            ? data.opcoes.origens
-            : key === "doador"
-              ? data.opcoes.doadores
-              : key === "fornecedor"
-                ? data.opcoes.fornecedores
-                : [];
+    slug === "fornecedores-pagamentos" && key === "categoria"
+      ? classificacaoOptions
+      : key === "conta" || key.endsWith("Conta")
+        ? data.opcoes.contas
+        : key === "projeto"
+          ? data.opcoes.projetos
+          : key === "categoria"
+            ? data.opcoes.categorias
+            : key === "origem"
+              ? data.opcoes.origens
+              : key === "doador"
+                ? data.opcoes.doadores
+                : key === "fornecedor"
+                  ? data.opcoes.fornecedores
+                  : [];
   const filterValue = (key: string): keyof FiltrosFinanceiros =>
     key === "conta"
       ? "contaId"
@@ -513,43 +614,42 @@ export function FinancialReportPage({ slug }: { slug: string }) {
                 : key === "basePagamento" || key === "baseRecebimento"
                   ? "baseData"
                   : (key as keyof FiltrosFinanceiros);
-  const fixedOptions = (key: string) =>
-    key === "status"
-      ? [
-          { value: "PENDENTE", label: "Pendente" },
-          { value: "LIQUIDADO", label: "Liquidado" },
-          { value: "VENCIDO", label: "Vencido" },
-          { value: "AGENDADO", label: "Agendado" },
-          { value: "REALIZADO", label: "Realizado" },
-          { value: "RECEBIDA", label: "Recebida" },
-          { value: "EM_ANDAMENTO", label: "Em andamento" },
-          { value: "CONCLUIDA", label: "Concluída" },
-          { value: "CANCELADO", label: "Cancelado" },
-          { value: "CANCELADA", label: "Cancelada" },
-          { value: "ATIVA", label: "Ativa" },
-          { value: "INATIVA", label: "Inativa" },
-        ]
-      : key === "tipo"
-        ? [
-            { value: "ENTRADA", label: "Entrada" },
-            { value: "SAIDA", label: "Saída" },
-            { value: "FINANCEIRA", label: "Financeira" },
-            { value: "MATERIAL", label: "Material" },
-            { value: "SERVICO", label: "Serviço" },
-            { value: "EQUIPAMENTO", label: "Equipamento" },
-            { value: "ALIMENTO", label: "Alimento" },
-            { value: "OUTRO", label: "Outro" },
-          ]
-        : key.startsWith("base")
-          ? [
-              { value: "VENCIMENTO", label: "Vencimento" },
-              { value: "COMPETENCIA", label: "Competência" },
-              {
-                value: key === "basePagamento" ? "PAGAMENTO" : "RECEBIMENTO",
-                label: key === "basePagamento" ? "Pagamento" : "Recebimento",
-              },
-            ]
-          : [];
+  const fixedOptions = (key: string) => {
+    if (key === "status")
+      return reportStatusOptions[slug] ?? financeStatusOptions;
+    if (key === "tipo") {
+      if (slug === "saldos-contas-bancarias") return nomeBancoOptions;
+      if (slug === "doacoes-recebidas")
+        return [
+          { value: "FINANCEIRA", label: "Financeira" },
+          { value: "MATERIAL", label: "Material" },
+          { value: "SERVICO", label: "Serviço" },
+          { value: "EQUIPAMENTO", label: "Equipamento" },
+          { value: "ALIMENTO", label: "Alimento" },
+          { value: "OUTRO", label: "Outro" },
+        ];
+      return [
+        {
+          value: "ENTRADA",
+          label: slug === "receitas-despesas-categoria" ? "Receita" : "Entrada",
+        },
+        {
+          value: "SAIDA",
+          label: slug === "receitas-despesas-categoria" ? "Despesa" : "Saída",
+        },
+      ];
+    }
+    if (key.startsWith("base"))
+      return [
+        { value: "VENCIMENTO", label: "Vencimento" },
+        { value: "COMPETENCIA", label: "Competência" },
+        {
+          value: key === "basePagamento" ? "PAGAMENTO" : "RECEBIMENTO",
+          label: key === "basePagamento" ? "Pagamento" : "Recebimento",
+        },
+      ];
+    return [];
+  };
 
   return (
     <ReportShell
@@ -568,7 +668,6 @@ export function FinancialReportPage({ slug }: { slug: string }) {
           setDraft(initial);
           setApplied(initial);
         }}
-        hidden
       >
         <FiltroBusca
           id={`${slug}-busca`}
@@ -603,9 +702,11 @@ export function FinancialReportPage({ slug }: { slug: string }) {
                     ? "Conta de origem"
                     : key === "destinoConta"
                       ? "Conta de destino"
-                      : key === "basePagamento" || key === "baseRecebimento"
-                        ? "Data considerada"
-                        : key.charAt(0).toUpperCase() + key.slice(1)
+                      : slug === "saldos-contas-bancarias" && key === "tipo"
+                        ? "Banco"
+                        : key === "basePagamento" || key === "baseRecebimento"
+                          ? "Data considerada"
+                          : key.charAt(0).toUpperCase() + key.slice(1)
               }
               tooltip={`Filtre por ${key}.`}
               value={String(
@@ -613,45 +714,82 @@ export function FinancialReportPage({ slug }: { slug: string }) {
                   (key.startsWith("base") ? "VENCIMENTO" : "TODOS"),
               )}
               onChange={(v) => setDraft((f) => ({ ...f, [field]: v }))}
-              options={option(key).length ? option(key) : fixedOptions(key)}
+              options={
+                option(key).length ? option(key) : [...fixedOptions(key)]
+              }
               incluirTodos={!key.startsWith("base")}
             />
           );
         })}
       </ReportFilterPanel>
+      {loadedFilters && (
+        <ComparativoBackend
+          slug={slug}
+          financeiro
+          inicial={
+            loadedFilters.dataInicial && loadedFilters.dataFinal
+              ? {
+                  inicio: loadedFilters.dataInicial,
+                  fim: loadedFilters.dataFinal,
+                }
+              : undefined
+          }
+          filtros={Object.fromEntries(
+            Object.entries(loadedFilters).filter(
+              ([key, value]) =>
+                !["dataInicial", "dataFinal"].includes(key) &&
+                !!value &&
+                !["TODOS", "TODAS"].includes(value),
+            ),
+          )}
+        />
+      )}
       <ReportStatGrid>
         {loading ? (
-          <ReportStatSkeleton count={6} />
+          <ReportStatSkeleton count={slug === "fluxo-caixa" ? 5 : 4} />
         ) : (
-          data.indicadores.map((i, index) => (
-            <ReportStatCard
-              key={i.chave}
-              icon={
-                [
-                  CircleDollarSign,
-                  ArrowUpCircle,
-                  ArrowDownCircle,
-                  Scale,
-                  BarChart3,
-                ][index % 5] ?? BarChart3
-              }
-              tone={
-                (["primary", "success", "danger", "info", "warning"] as const)[
-                  index % 5
-                ]
-              }
-              label={i.label}
-              valor={
-                i.texto ??
-                (i.quantidade !== null ? String(i.quantidade) : money(i.valor))
-              }
-            />
-          ))
+          indicators.map((i, index) => {
+            const style = i.style;
+            return (
+              <ReportStatCard
+                key={i.chave}
+                icon={
+                  style?.[0] ??
+                  [
+                    CircleDollarSign,
+                    ArrowUpCircle,
+                    ArrowDownCircle,
+                    Scale,
+                    BarChart3,
+                  ][index % 5] ??
+                  BarChart3
+                }
+                tone={
+                  style?.[1] ??
+                  (
+                    ["primary", "success", "danger", "info", "warning"] as const
+                  )[index % 5]
+                }
+                label={i.label}
+                hint={i.hint}
+                valor={
+                  i.texto ??
+                  (i.quantidade !== null
+                    ? String(i.quantidade)
+                    : money(i.valor))
+                }
+              />
+            );
+          })
         )}
       </ReportStatGrid>
-      {data.graficos.length > 0 && (
+      {charts.length > 0 && (
         <ReportChartGrid>
-          {data.graficos.map((g) => {
+          {charts.map((g) => {
+            const chartSelection = financialChartSelections[slug]?.[g.chave];
+            const onSelect = chartSelection
+              ? selection.selecionar(g.chave, chartSelection.label)
+              : undefined;
             if (
               slug === "conciliacao-bancaria" &&
               g.chave === "situacao-conciliacoes"
@@ -659,10 +797,12 @@ export function FinancialReportPage({ slug }: { slug: string }) {
               return (
                 <ReportChartCard
                   key={g.chave}
+                  clickable={Boolean(onSelect)}
                   title="Situação das conciliações"
                   description="Veja como as conciliações bancárias estão distribuídas conforme sua situação atual."
                 >
                   <ReportPieChart
+                    onSelect={onSelect}
                     reportKey={slug}
                     data={g.dados.map((p) => ({
                       name: p.label,
@@ -679,10 +819,12 @@ export function FinancialReportPage({ slug }: { slug: string }) {
               return (
                 <ReportChartCard
                   key={g.chave}
+                  clickable={Boolean(onSelect)}
                   title="Conferência das movimentações"
                   description="Compare as movimentações já conciliadas com as que ainda estão pendentes ou apresentam divergências em cada conciliação."
                 >
                   <ReportComparisonBarChart
+                    onSelect={onSelect}
                     reportKey={slug}
                     data={g.dados.map((p) => ({
                       name: p.label,
@@ -704,8 +846,22 @@ export function FinancialReportPage({ slug }: { slug: string }) {
                 p.entradas !== null || p.saidas !== null || p.saldo !== null,
             );
             return (
-              <ReportChartCard key={g.chave} title={g.titulo}>
-                {multi ? (
+              <ReportChartCard
+                key={g.chave}
+                title={g.titulo}
+                clickable={Boolean(onSelect)}
+              >
+                {g.chave === "fluxo" ? (
+                  <ReportSerieLineChart
+                    data={g.dados.map((p) => ({
+                      name: p.label,
+                      entradas: number(p.entradas),
+                      saidas: number(p.saidas),
+                      saldo: number(p.saldo),
+                    }))}
+                    formatValue={money}
+                  />
+                ) : multi ? (
                   <ReportComparisonBarChart
                     reportKey={slug}
                     currency
@@ -724,7 +880,14 @@ export function FinancialReportPage({ slug }: { slug: string }) {
                 ) : (
                   <ReportBarChart
                     reportKey={slug}
-                    currency
+                    onSelect={onSelect}
+                    currency={g.chave !== "progresso"}
+                    formatValue={
+                      g.chave === "progresso"
+                        ? (value) =>
+                            `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
+                        : undefined
+                    }
                     data={g.dados.map((p) => ({
                       name: p.label,
                       value: Number(p.valor ?? 0),
@@ -736,13 +899,26 @@ export function FinancialReportPage({ slug }: { slug: string }) {
           })}
         </ReportChartGrid>
       )}
+      <SelecaoGraficoBanner
+        selecao={selected}
+        count={tableRows.length}
+        onClear={selection.limpar}
+      />
       <ReportTable
         title={config.table}
-        description={loading ? "Carregando dados atualizados..." : undefined}
-        rows={data.linhas}
+        description={
+          loading
+            ? "Carregando dados atualizados..."
+            : slug === "fornecedores-pagamentos"
+              ? "Excel e CSV seguem o recorte da tabela. O PDF usa os filtros de fornecedor e busca."
+              : selected
+                ? "Excel e CSV seguem o recorte do gráfico. O PDF segue os filtros do painel."
+                : undefined
+        }
+        rows={tableRows}
         columns={columns}
         reportName={config.title}
-        indicadoresPdf={data.indicadores.map((i) => ({
+        indicadoresPdf={indicators.map((i) => ({
           label: i.label,
           valor:
             i.texto ??
@@ -751,8 +927,11 @@ export function FinancialReportPage({ slug }: { slug: string }) {
         pdfExport={{
           slug,
           filters: Object.fromEntries(
-            Object.entries(applied).filter(
-              ([, value]) =>
+            Object.entries(loadedFilters ?? effectiveFilters).filter(
+              ([key, value]) =>
+                (slug !== "fornecedores-pagamentos" ||
+                  key === "busca" ||
+                  key === "fornecedorId") &&
                 value !== "" &&
                 value !== null &&
                 value !== undefined &&
@@ -760,10 +939,14 @@ export function FinancialReportPage({ slug }: { slug: string }) {
                 value !== "TODAS",
             ),
           ),
-          filterLabels: activeFilters.map(({ label, value }) => ({
-            label,
-            value,
-          })),
+          filterLabels: activeFilters
+            .filter(
+              ({ id }) =>
+                slug !== "fornecedores-pagamentos" ||
+                id === "busca" ||
+                id === "fornecedorId",
+            )
+            .map(({ label, value }) => ({ label, value })),
         }}
         rowKey={(r, index) => String(r.id ?? r.chave ?? index)}
         nowrap={slug === "fornecedores-pagamentos"}

@@ -19,6 +19,8 @@ export type CredenciaisMobile =
   | { tipo: "senha"; identificador: string; senha: string }
   | { tipo: "google"; idToken: string };
 
+export const MOBILE_LOGIN_TIMEOUT_MS = 45_000;
+
 /** Descoberta não envia o tenant de uma sessão anterior nem credenciais em URL/storage. */
 export async function autenticarMobile(
   credenciais: CredenciaisMobile,
@@ -38,6 +40,12 @@ export async function autenticarMobile(
         }
       : { idToken: credenciais.idToken, organizacaoSlug };
   let response: Response;
+  let data: MobileLoginResponse | null;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(
+    () => controller.abort(),
+    MOBILE_LOGIN_TIMEOUT_MS,
+  );
   try {
     response = await fetch(
       `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}${path}`,
@@ -48,12 +56,21 @@ export async function autenticarMobile(
           Accept: "application/json",
         },
         body: JSON.stringify(body),
+        signal: controller.signal,
       },
     );
+    data = await response.json().catch((error: unknown) => {
+      if (controller.signal.aborted) throw error;
+      return null;
+    });
   } catch {
+    if (controller.signal.aborted) {
+      throw new Error("O servidor demorou para responder. Tente novamente.");
+    }
     throw new Error("Não foi possível conectar ao servidor. Tente novamente.");
+  } finally {
+    window.clearTimeout(timeout);
   }
-  const data = await response.json().catch(() => null);
   if (!response.ok || !data) {
     throw new Error(
       "Não foi possível acessar com essas credenciais. Confira os dados e tente novamente.",

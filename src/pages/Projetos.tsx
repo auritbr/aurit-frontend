@@ -1,3 +1,16 @@
+import { useConsultaOperacional } from "@/hooks/useConsultaOperacional";
+import {
+  QuickFilterCards,
+  useQuickFilter,
+} from "@/components/list/QuickFilterCards";
+import {
+  ListChecks as QuickTotalIcon,
+  CheckCircle2 as QuickActiveIcon,
+  Clock as QuickPendingIcon,
+  Archive as QuickDoneIcon,
+} from "lucide-react";
+import { HistoricoSheet, useHistorico } from "@/components/HistoricoSheet";
+import { carregarHistoricoProjeto } from "@/lib/historico/carregar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -58,6 +71,7 @@ import {
   deleteProjeto,
   getOrganizacoes,
   getProjetos,
+  mapProjeto,
   origemProjetoLabel,
   origemProjetoOptions,
   statusProjetoLabel,
@@ -159,10 +173,22 @@ function sortDirLabel(sortBy: SortBy, dir: SortDir) {
 
 export default function Projetos() {
   const navigate = useNavigate();
+  const quick = useQuickFilter();
+  const historico = useHistorico();
+  const abrirHistorico = (item: Projeto) =>
+    historico.abrir({
+      nome: String(item.nomeProjeto),
+      tipo: "Projeto",
+      recurso: "projetos",
+      id: item.id,
+      carregar: () => carregarHistoricoProjeto(item),
+      observacao:
+        "Atividades, eventos e evidências são relacionados pelos IDs do projeto. Datas futuras e términos não confirmados aparecem como previstos.",
+    });
   const [items, setItems] = useState<Projeto[]>([]);
   const [organizacoes, setOrganizacoes] = useState<OrganizacaoOption[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingLocal, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
@@ -181,6 +207,51 @@ export default function Projetos() {
   const [searching, setSearching] = useState(false);
 
   const podeVisualizar = permissoes.VISUALIZAR;
+  const usarPaginacaoApi =
+    !filtros.organizacao &&
+    !filtros.areas.length &&
+    ["nome", "status", "dataInicio", "dataFim"].includes(filtros.sortBy);
+  const chavesCards: Record<string, string[]> = {
+    ativos: ["ATIVO"],
+    pendentes: ["PENDENTE"],
+    concluidos: ["CONCLUIDO", "INATIVO"],
+  };
+  const statusCard = chavesCards[quick.ativo ?? ""] ?? [];
+  const filtroCard = statusCard.length
+    ? { situacoesCard: statusCard }
+    : undefined;
+  const remoto = useConsultaOperacional(
+    "projetos",
+    usarPaginacaoApi
+      ? {
+          busca: filtros.nome,
+          situacoes: filtros.status,
+          inicio: filtros.dataInicio,
+          dataFimProjeto: filtros.dataFim,
+          categoriasRegistro: filtros.origens,
+          ordenacao:
+            filtros.sortBy === "dataInicio"
+              ? "data"
+              : filtros.sortBy === "dataFim"
+                ? "fim"
+                : filtros.sortBy === "status"
+                  ? "situacao"
+                  : "nome",
+          direcao: filtros.sortDir,
+        }
+      : null,
+    filtroCard,
+    !loadingPermissoes && podeVisualizar,
+    mapProjeto,
+  );
+  const loading = loadingLocal || (remoto.habilitado && remoto.loading);
+  const totalBase = remoto.cards.TOTAL?.valor ?? 0;
+  const quantidadeCard = (key: string) =>
+    (chavesCards[key] ?? []).reduce(
+      (total, status) => total + (remoto.cards[status]?.valor ?? 0),
+      0,
+    );
+
   const podeCriar = permissoes.CRIAR;
   const podeEditar = permissoes.EDITAR;
   const podeExcluir = permissoes.EXCLUIR;
@@ -229,7 +300,7 @@ export default function Projetos() {
       return;
     }
     void carregarDados();
-  }, [loadingPermissoes, podeVisualizar]);
+  }, [loadingPermissoes, podeVisualizar, usarPaginacaoApi]);
 
   async function carregarDados() {
     try {
@@ -237,7 +308,7 @@ export default function Projetos() {
       setAccessDeniedMessage(null);
       const [projetosData, organizacoesData, colaboradoresData] =
         await Promise.all([
-          getProjetos(),
+          usarPaginacaoApi ? Promise.resolve([]) : getProjetos(),
           getOrganizacoes(),
           getColaboradores(),
         ]);
@@ -293,9 +364,12 @@ export default function Projetos() {
     if (!searching) applyFiltros(draft);
   };
 
-  const handleClearFiltros = () => applyFiltros(emptyFiltros);
+  const handleClearFiltros = () => {
+    quick.limpar();
+    applyFiltros(emptyFiltros);
+  };
 
-  const filtered = useMemo(() => {
+  const advancedFiltered = useMemo(() => {
     const nome = normalize(filtros.nome);
     const organizacao = normalize(filtros.organizacao);
     const inicio = comparableDate(filtros.dataInicio);
@@ -351,6 +425,48 @@ export default function Projetos() {
       return filtros.sortDir === "asc" ? compare : -compare;
     });
   }, [filtros, items, nomeOrganizacao]);
+  const quickOptions = [
+    {
+      key: "ativos",
+      label: "Em execução",
+      icon: QuickActiveIcon,
+      test: (item: (typeof items)[number]) => item.status === "ATIVO",
+    },
+    {
+      key: "pendentes",
+      label: "Pendentes",
+      icon: QuickPendingIcon,
+      test: (item: (typeof items)[number]) => item.status === "PENDENTE",
+    },
+    {
+      key: "concluidos",
+      label: "Concluídos / inativos",
+      icon: QuickDoneIcon,
+      test: (item: (typeof items)[number]) =>
+        ["CONCLUIDO", "INATIVO"].includes(item.status),
+    },
+  ];
+  const quickOption = quickOptions.find((option) => option.key === quick.ativo);
+  const filtered = quickOption
+    ? advancedFiltered.filter(quickOption.test)
+    : advancedFiltered;
+  const quickCards = [
+    {
+      key: "total",
+      label: "Total",
+      count: remoto.habilitado ? totalBase : advancedFiltered.length,
+      icon: QuickTotalIcon,
+      filtravel: false,
+    },
+    ...quickOptions.map((option) => ({
+      key: option.key,
+      label: option.label,
+      icon: option.icon,
+      count: remoto.habilitado
+        ? quantidadeCard(option.key)
+        : advancedFiltered.filter(option.test).length,
+    })),
+  ];
 
   const activeFilters = useMemo<ActiveFilterItem[]>(() => {
     const list: ActiveFilterItem[] = [];
@@ -436,8 +552,15 @@ export default function Projetos() {
     return list;
   }, [applyFiltros, filtros]);
 
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, JSON.stringify(filtros));
+  const paginaLocal = usePagination(
+    filtered,
+    25,
+    JSON.stringify([filtros, quick.ativo]),
+  );
+  const { currentPage, pageSize, setCurrentPage, setPageSize } =
+    remoto.habilitado ? remoto : paginaLocal;
+  const paginated = remoto.habilitado ? remoto.rows : paginaLocal.paginated;
+  const totalFiltrado = remoto.habilitado ? remoto.total : filtered.length;
 
   const toggleSort = (sortBy: SortBy) =>
     applyFiltros({
@@ -456,6 +579,7 @@ export default function Projetos() {
     }
     try {
       await deleteProjeto(confirmDelete);
+      remoto.atualizar();
       setItems((prev) => prev.filter((item) => item.id !== confirmDelete));
       toast.success("Projeto excluído com sucesso.");
     } catch (error) {
@@ -508,18 +632,20 @@ export default function Projetos() {
     { header: "Situação", key: "statusLabel" },
   ];
 
-  const getExportData = () =>
-    filtered.map((item) => ({
-      ...item,
-      areaLabel: areasAtuacaoLabel(item.areasAtuacao),
-      origemLabel: origemProjetoLabel(item.origemProjeto),
-      statusLabel: statusProjetoLabel(item.status),
-    }));
+  const getExportData = async () =>
+    (remoto.habilitado ? await remoto.carregarExportacao() : filtered).map(
+      (item) => ({
+        ...item,
+        areaLabel: areasAtuacaoLabel(item.areasAtuacao),
+        origemLabel: origemProjetoLabel(item.origemProjeto),
+        statusLabel: statusProjetoLabel(item.status),
+      }),
+    );
 
   if (!podeVisualizar)
     return (
       <AppLayout>
-        <AccessNotPermitted />
+        <AccessNotPermitted loading={loadingPermissoes} />
       </AppLayout>
     );
   if (accessDeniedMessage)
@@ -553,6 +679,13 @@ export default function Projetos() {
               </Button>
             ) : undefined
           }
+        />
+        <QuickFilterCards
+          cards={quickCards}
+          ativo={quick.ativo}
+          onToggle={quick.alternar}
+          onClear={quick.limpar}
+          totalFiltrado={totalFiltrado}
         />
 
         <div className="space-y-4">
@@ -699,16 +832,28 @@ export default function Projetos() {
             onClearAll={handleClearFiltros}
           />
 
+          {remoto.habilitado && remoto.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {remoto.error.message}{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={remoto.atualizar}
+              >
+                Tentar novamente
+              </button>
+            </p>
+          )}
           <DataTableCard>
             <DataTableToolbar
-              total={filtered.length}
+              total={totalFiltrado}
               reportTo="/relatorios/projetos"
               exportColumns={exportColumns}
               getExportData={getExportData}
               exportFilename="projetos"
               canExport={podeGerarPdf}
             />
-            {filtered.length === 0 ? (
+            {totalFiltrado === 0 ? (
               <DataTableEmptyState
                 emptyTitle="Nenhum projeto cadastrado."
                 createLabel={podeCriar ? "Cadastrar projeto" : undefined}
@@ -810,6 +955,7 @@ export default function Projetos() {
                                   ? () => setConfirmDelete(item.id)
                                   : undefined
                               }
+                              onHistory={() => abrirHistorico(item)}
                             />
                           </td>
                           <td className="whitespace-nowrap px-6 py-2.5">
@@ -890,6 +1036,7 @@ export default function Projetos() {
                               ? () => setConfirmDelete(item.id)
                               : undefined
                           }
+                          onHistory={() => abrirHistorico(item)}
                         />
                       </div>
                       <p className="font-medium text-foreground">
@@ -913,7 +1060,7 @@ export default function Projetos() {
                 </div>
 
                 <DataTablePagination
-                  totalItems={filtered.length}
+                  totalItems={totalFiltrado}
                   currentPage={currentPage}
                   pageSize={pageSize}
                   onPageChange={setCurrentPage}
@@ -951,6 +1098,7 @@ export default function Projetos() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <HistoricoSheet alvo={historico.alvo} onClose={historico.fechar} />
       <WikiFloatingButton
         pageTitle="Projetos"
         href="https://www.aurit.com.br/wiki/projetos/projetos"

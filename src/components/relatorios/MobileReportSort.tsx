@@ -1,9 +1,9 @@
+import { ReportSelectContent as SelectContent } from "@/components/relatorios/ReportSelectFields";
 import { useId } from "react";
 import { ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
-  SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,

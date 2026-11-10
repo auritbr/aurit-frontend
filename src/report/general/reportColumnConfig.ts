@@ -1,3 +1,4 @@
+import { reportFieldLabel } from "./reportFieldLabels";
 export type GenericReportColumnConfig = {
   defaultColumns: string[];
   removedColumns?: string[];
@@ -402,6 +403,308 @@ const SLUG_ALIASES: Record<string, string> = {
   "prestacao-contas": "prestacoes-contas",
   patrimonio: "patrimonios",
 };
+
+/** Campos de pesquisa essenciais; a tabela continua oferecendo todas as colunas. */
+export const GENERIC_REPORT_ESSENTIAL_FILTERS: Record<
+  string,
+  readonly string[]
+> = {
+  organizacao: [],
+  diretoria: [
+    "nome_completo",
+    "genero",
+    "raca_cor",
+    "tipo_deficiencia",
+    "bairro",
+    "logradouro",
+    "cidade",
+    "estado",
+    "cargo_diretoria",
+    "status_diretoria",
+    "data_inicio_mandato",
+    "data_fim_mandato",
+  ],
+  documentos: [
+    "tipo_documento",
+    "orgao_emissor",
+    "status_documento",
+    "data_validade",
+  ],
+  agentes: [],
+  colaboradores: [
+    "nome_completo",
+    "genero",
+    "raca_cor",
+    "tipo_deficiencia",
+    "bairro",
+    "logradouro",
+    "cidade",
+    "estado",
+    "funcao_colaborador",
+    "tipo_vinculo",
+    "status",
+    "data_inicio_vinculo",
+    "data_fim_vinculo",
+  ],
+  integrantes: [
+    "tipo_pessoa_integrante",
+    "nome_completo",
+    "genero",
+    "raca_cor",
+    "tipo_deficiencia",
+    "bairro",
+    "logradouro",
+    "cidade",
+    "estado",
+    "funcao_integrante",
+    "tipo_vinculo_integrante",
+    "status",
+    "data_entrada",
+    "data_saida",
+  ],
+  "participantes-geral": [
+    "nome_completo",
+    "genero",
+    "raca_cor",
+    "faixa_renda",
+    "possui_deficiencia",
+    "possui_cadunico",
+    "possui_bolsa_familia",
+    "tipo_neurodivergencias",
+    "tipo_deficiencias",
+    "bairro",
+    "logradouro",
+    "cidade",
+    "estado",
+    "status",
+    "status_matricula",
+    "atividades",
+    "turmas",
+  ],
+  curriculos: ["colaborador", "tipo_secao_curriculo"],
+  projetos: [
+    "nome_projeto",
+    "area_atuacao",
+    "origem_projeto",
+    "data_inicio",
+    "data_fim",
+    "status",
+    "colaboradores",
+  ],
+  "metas-projeto": ["projeto", "proposta_edital", "titulo_meta"],
+  cronogramas: [
+    "status_cronograma",
+    "data_inicio_etapa",
+    "data_fim_etapa",
+    "etapa_cronograma",
+    "nome_etapa",
+    "projeto",
+    "tipo_vinculo",
+    "atividade",
+    "evento_cultural",
+    "acao_divulgacao",
+  ],
+  atividades: [
+    "projeto",
+    "nome_atividade",
+    "data_inicio",
+    "data_fim",
+    "tipo_atividade",
+    "status",
+    "colaboradores",
+  ],
+  "planos-aula": [
+    "atividade",
+    "turmas",
+    "nome_plano_aula",
+    "data_inicio",
+    "data_fim",
+    "aula_reposicao",
+    "status_plano_aula",
+  ],
+  presencas: [
+    "participante",
+    "atividade",
+    "turma",
+    "status_presenca",
+    "data_presenca",
+  ],
+  "eventos-culturais": [
+    "projeto",
+    "nome_evento",
+    "tipo_evento",
+    "data_evento",
+    "data_fim",
+    "status",
+    "colaboradores",
+  ],
+  evidencias: [
+    "titulo_evidencia",
+    "tipo_vinculo_evidencia",
+    "projeto",
+    "proposta_edital",
+    "situacao",
+  ],
+  editais: [
+    "nome_edital",
+    "orgao_responsavel",
+    "status_edital",
+    "data_encerramento",
+  ],
+  "propostas-editais": ["titulo_projeto", "edital", "status_proposta_edital"],
+  "equipe-edital": [
+    "proposta_edital",
+    "colaborador",
+    "integrante",
+    "funcao_projeto",
+  ],
+  "planos-comunicacao": [
+    "nome_plano",
+    "proposta_edital",
+    "status_plano_comunicacao",
+    "data_inicio",
+  ],
+  "acoes-divulgacao": ["nome_acao", "proposta_edital", "projeto", "status"],
+  "aplicacao-de-recursos": [
+    "nome_planejamento",
+    "proposta_edital",
+    "classificacao_planejamento_financeiro",
+    "data_inicio",
+  ],
+  "habilitacoes-propostas": ["proposta_edital", "agente", "status_habilitacao"],
+  "resultados-propostas": [
+    "proposta_edital",
+    "edital",
+    "status_resultado_proposta",
+  ],
+  financeiro: [
+    "descricao",
+    "tipo_operacao_financeira",
+    "projeto",
+    "status_financeiro",
+    "data_pagamento",
+  ],
+  "contas-bancarias": [
+    "nome_conta",
+    "nome_banco",
+    "tipo_conta_bancaria",
+    "status_conta_bancaria",
+  ],
+  "contas-pagar": [
+    "nome_conta_pagar",
+    "nome_credor",
+    "status_financeiro",
+    "data_vencimento",
+  ],
+  "contas-receber": [
+    "nome_conta_receber",
+    "nome_pagador",
+    "status_financeiro",
+    "data_vencimento",
+  ],
+  "transferencias-bancarias": [
+    "nome_transferencia",
+    "conta_origem",
+    "conta_destino",
+    "status_transferencia_bancaria",
+    "data_transferencia",
+  ],
+  "prestacoes-metas": ["titulo_meta", "status_cumprimento_meta"],
+  "prestacoes-contas": [
+    "proposta_edital",
+    "agente",
+    "status_prestacao_contas",
+    "data_entrega",
+  ],
+  patrimonios: [
+    "projeto_origem",
+    "numero_patrimonio",
+    "nome_patrimonio",
+    "tipo_patrimonio",
+    "marca",
+    "modelo",
+    "data_aquisicao",
+    "estado_conservacao",
+    "status_patrimonio",
+  ],
+  emprestimos: [
+    "patrimonio",
+    "status_emprestimo",
+    "data_emprestimo",
+    "data_prevista_devolucao",
+  ],
+  "trajetorias-culturais": ["colaborador"],
+  turmas: [
+    "atividade",
+    "nivel_turma",
+    "nome_turma",
+    "dias",
+    "horario_inicio",
+    "horario_fim",
+    "status",
+  ],
+};
+
+const CUSTOM_REPORT_FILTERS = new Set([
+  "organizacao",
+  "agentes",
+  "diretoria",
+  "colaboradores",
+  "integrantes",
+  "participantes-geral",
+  "projetos",
+  "metas-projeto",
+  "cronogramas",
+  "atividades",
+  "planos-aula",
+  "eventos-culturais",
+  "turmas",
+  "patrimonios",
+]);
+const REPORT_COLLECTION_FILTERS: Record<string, readonly string[]> = {
+  "eventos-culturais": ["projeto", "colaboradores"],
+  "planos-aula": ["turmas"],
+  turmas: ["dias"],
+  atividades: ["colaboradores"],
+  projetos: ["area_atuacao", "colaboradores"],
+  "participantes-geral": ["tipo_neurodivergencias", "tipo_deficiencias"],
+};
+export function getEssentialGenericReportFilters<T extends BackendColumnMeta>(
+  slug: string,
+  columns: T[],
+): T[] {
+  const normalizedSlug = SLUG_ALIASES[slug] ?? slug;
+  const keys =
+    GENERIC_REPORT_ESSENTIAL_FILTERS[normalizedSlug] ??
+    GENERIC_REPORT_COLUMNS[normalizedSlug]?.defaultColumns.slice(0, 4) ??
+    columns.slice(0, 4).map((column) => column.chave);
+  const byKey = new Map(columns.map((column) => [column.chave, column]));
+  return keys.flatMap((key) => {
+    const column = byKey.get(key);
+    if (!column) return [];
+    const label = reportFieldLabel(
+      normalizedSlug,
+      key,
+      (column as T & { label?: string }).label ?? key,
+    );
+    if (!CUSTOM_REPORT_FILTERS.has(normalizedSlug))
+      return [{ ...column, label }];
+    return [
+      {
+        ...column,
+        label,
+        filterType: key.startsWith("data_")
+          ? ("date" as const)
+          : key.startsWith("horario_")
+            ? ("time" as const)
+            : ("multi" as const),
+        valueSeparator: REPORT_COLLECTION_FILTERS[normalizedSlug]?.includes(key)
+          ? ", "
+          : undefined,
+      },
+    ];
+  });
+}
 
 function isTechnicalColumn(column: BackendColumnMeta): boolean {
   const key = column.chave.toLowerCase();

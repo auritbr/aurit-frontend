@@ -1,3 +1,9 @@
+import { ReportSelectContent as SelectContent } from "@/components/relatorios/ReportSelectFields";
+import {
+  faixaEtaria,
+  faixasEtarias,
+  ordenarFaixasEtarias,
+} from "@/lib/faixaEtaria";
 import { useEffect, useMemo, useState } from "react";
 import {
   Users,
@@ -26,7 +32,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
-  SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -143,12 +148,9 @@ const categoriaLabels: Record<string, string> = {
   DE_2_A_3_SALARIOS: "De 2 a 3 salários mínimos",
   ACIMA_DE_3_SALARIOS: "Acima de 3 salários mínimos",
 
-  ATE_5_ANOS: "Até 5 anos",
-  DE_6_A_12_ANOS: "6 a 12 anos",
-  DE_13_A_17_ANOS: "13 a 17 anos",
-  DE_18_A_29_ANOS: "18 a 29 anos",
-  DE_30_A_59_ANOS: "30 a 59 anos",
-  "60_ANOS_OU_MAIS": "60 anos ou mais",
+  ...Object.fromEntries(
+    faixasEtarias.map(({ categoria, label }) => [categoria, label]),
+  ),
 
   TEA: "TEA",
   ASPERGER: "Asperger",
@@ -391,58 +393,6 @@ function montarIndicadoresSimples(
   return mapCountsToIndicadores(counts, participantes.length);
 }
 
-function faixaEtaria(dataNascimento?: string) {
-  if (!dataNascimento) {
-    return "NAO_INFORMADO";
-  }
-
-  const partes = dataNascimento.includes("/")
-    ? dataNascimento.split("/").reverse()
-    : dataNascimento.slice(0, 10).split("-");
-
-  const [ano, mes, dia] = partes.map(Number);
-
-  const nascimento = new Date(ano, mes - 1, dia);
-
-  if (Number.isNaN(nascimento.getTime())) {
-    return "NAO_INFORMADO";
-  }
-
-  const hoje = new Date();
-
-  let idade = hoje.getFullYear() - nascimento.getFullYear();
-
-  if (
-    hoje.getMonth() < nascimento.getMonth() ||
-    (hoje.getMonth() === nascimento.getMonth() &&
-      hoje.getDate() < nascimento.getDate())
-  ) {
-    idade--;
-  }
-
-  if (idade <= 5) {
-    return "ATE_5_ANOS";
-  }
-
-  if (idade <= 12) {
-    return "DE_6_A_12_ANOS";
-  }
-
-  if (idade <= 17) {
-    return "DE_13_A_17_ANOS";
-  }
-
-  if (idade <= 29) {
-    return "DE_18_A_29_ANOS";
-  }
-
-  if (idade <= 59) {
-    return "DE_30_A_59_ANOS";
-  }
-
-  return "60_ANOS_OU_MAIS";
-}
-
 async function getIndicadoresLocais(
   filtros: Filtros,
 ): Promise<IndicadoresSociodemograficos> {
@@ -462,8 +412,10 @@ async function getIndicadoresLocais(
       (item) => item.faixaRenda,
     ),
 
-    porFaixaEtaria: montarIndicadoresSimples(participantes, (item) =>
-      faixaEtaria(item.dataNascimento),
+    porFaixaEtaria: ordenarFaixasEtarias(
+      montarIndicadoresSimples(participantes, (item) =>
+        faixaEtaria(item.dataNascimento),
+      ),
     ),
 
     porTipoDeficiencia: montarIndicadoresLista(
@@ -509,12 +461,12 @@ function IndicadorCard({ title, itens }: IndicadorCardProps) {
 
             return (
               <li key={it.categoria}>
-                <div className="mb-1 flex items-center justify-between text-xs">
+                <div className="mb-1 flex items-start justify-between gap-3 text-xs">
                   <span className="font-medium text-foreground">
                     {labelCategoria(it.categoria)}
                   </span>
 
-                  <span className="tabular-nums text-muted-foreground">
+                  <span className="shrink-0 whitespace-nowrap tabular-nums text-muted-foreground">
                     {it.total} • {pct.toFixed(2)}%
                   </span>
                 </div>
@@ -758,7 +710,7 @@ export default function IndicadoresSociodemograficos() {
     return items;
   }, [aplicados, atividades, turmas]);
 
-  const handleExport = (type: "csv" | "excel" | "pdf") => {
+  const handleExport = async (type: "csv" | "excel" | "pdf") => {
     if (total === 0 || !dados) {
       return;
     }
@@ -917,44 +869,56 @@ export default function IndicadoresSociodemograficos() {
       { label: "Bolsa Família", value: data.filtros.bolsaFamilia },
     ];
 
-    if (type === "csv") {
-      exportToCSV(data);
-    } else if (type === "excel") {
-      exportToExcel(data);
-    } else {
-      void downloadGeneralReportPdf({
-        slug: "indicadores-sociodemograficos",
-        columns: ["grupo", "categoria", "quantidade", "percentual"],
-        filters: {
-          ano: aplicados.ano === TODOS ? undefined : aplicados.ano,
-          atividadeId:
-            aplicados.atividadeId === TODOS ? undefined : aplicados.atividadeId,
-          turmaId: aplicados.turmaId === TODOS ? undefined : aplicados.turmaId,
-          statusMatricula:
-            aplicados.statusMatricula === TODOS
-              ? undefined
-              : aplicados.statusMatricula,
-          genero: aplicados.genero === TODOS ? undefined : aplicados.genero,
-          racaCor: aplicados.racaCor === TODOS ? undefined : aplicados.racaCor,
-          faixaRenda:
-            aplicados.faixaRenda === TODOS ? undefined : aplicados.faixaRenda,
-          cadunico:
-            aplicados.cadunico === TODOS ? undefined : aplicados.cadunico,
-          tipoDeficiencia:
-            aplicados.tipoDeficiencia === TODOS
-              ? undefined
-              : aplicados.tipoDeficiencia,
-          tipoNeurodivergencia:
-            aplicados.tipoNeurodivergencia === TODOS
-              ? undefined
-              : aplicados.tipoNeurodivergencia,
-          bolsaFamilia:
-            aplicados.bolsaFamilia === TODOS
-              ? undefined
-              : aplicados.bolsaFamilia,
-        },
-        filterLabels,
-      });
+    try {
+      if (type === "csv") {
+        await exportToCSV(data);
+      } else if (type === "excel") {
+        await exportToExcel(data);
+      } else {
+        await downloadGeneralReportPdf({
+          slug: "indicadores-sociodemograficos",
+          columns: ["grupo", "categoria", "quantidade", "percentual"],
+          filters: {
+            ano: aplicados.ano === TODOS ? undefined : aplicados.ano,
+            atividadeId:
+              aplicados.atividadeId === TODOS
+                ? undefined
+                : aplicados.atividadeId,
+            turmaId:
+              aplicados.turmaId === TODOS ? undefined : aplicados.turmaId,
+            statusMatricula:
+              aplicados.statusMatricula === TODOS
+                ? undefined
+                : aplicados.statusMatricula,
+            genero: aplicados.genero === TODOS ? undefined : aplicados.genero,
+            racaCor:
+              aplicados.racaCor === TODOS ? undefined : aplicados.racaCor,
+            faixaRenda:
+              aplicados.faixaRenda === TODOS ? undefined : aplicados.faixaRenda,
+            cadunico:
+              aplicados.cadunico === TODOS ? undefined : aplicados.cadunico,
+            tipoDeficiencia:
+              aplicados.tipoDeficiencia === TODOS
+                ? undefined
+                : aplicados.tipoDeficiencia,
+            tipoNeurodivergencia:
+              aplicados.tipoNeurodivergencia === TODOS
+                ? undefined
+                : aplicados.tipoNeurodivergencia,
+            bolsaFamilia:
+              aplicados.bolsaFamilia === TODOS
+                ? undefined
+                : aplicados.bolsaFamilia,
+          },
+          filterLabels,
+        });
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível exportar o relatório.",
+      );
     }
   };
 
@@ -1592,6 +1556,11 @@ export default function IndicadoresSociodemograficos() {
           </div>
         )}
       </div>
+      <p className="my-4 rounded-[12px] border border-border/60 bg-muted/20 p-3 text-[12px] text-muted-foreground">
+        <strong>Comparar períodos:</strong> indisponível sem histórico datado do
+        perfil sociodemográfico. Para comparar frequência, utilize os relatórios
+        de Presenças ou Participantes.
+      </p>
     </AppLayout>
   );
 }

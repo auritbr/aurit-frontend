@@ -21,7 +21,8 @@ interface DataTableToolbarProps {
   reportTo?: string;
   documentLayoutsTo?: string;
   exportColumns: ExportColumn[];
-  getExportData: () => Record<string, unknown>[];
+  getExportData: () =>
+    Record<string, unknown>[] | Promise<Record<string, unknown>[]>;
   exportFilename: string;
   canExport?: boolean;
   showExports?: boolean;
@@ -47,21 +48,33 @@ export function DataTableToolbar({
   const podeExportarModulo = !modulo || (!carregando && permissoes.BAIXAR);
   const podeExportar = canExport && podeExportarModulo;
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     try {
       setExportingExcel(true);
-      exportToExcel(getExportData(), exportColumns, exportFilename);
+      await exportToExcel(await getExportData(), exportColumns, exportFilename);
       toast.success("Arquivo Excel gerado com sucesso.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível exportar os registros.",
+      );
     } finally {
       setExportingExcel(false);
     }
   };
 
-  const exportCSV = () => {
+  const exportCSV = async () => {
     try {
       setExportingCSV(true);
-      exportToCSV(getExportData(), exportColumns, exportFilename);
+      await exportToCSV(await getExportData(), exportColumns, exportFilename);
       toast.success("Arquivo CSV gerado com sucesso.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível exportar os registros.",
+      );
     } finally {
       setExportingCSV(false);
     }

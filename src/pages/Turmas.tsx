@@ -1,6 +1,29 @@
+import { useConsultaOperacional } from "@/hooks/useConsultaOperacional";
+import {
+  QuickFilterCards,
+  useQuickFilter,
+} from "@/components/list/QuickFilterCards";
+import {
+  ListChecks as QuickTotalIcon,
+  CheckCircle2 as QuickActiveIcon,
+  Clock as QuickPendingIcon,
+  Archive as QuickDoneIcon,
+} from "lucide-react";
+import { HistoricoSheet, useHistorico } from "@/components/HistoricoSheet";
+import { carregarHistoricoTurma } from "@/lib/historico/carregar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Copy, Loader2, Plus, RotateCcw, Search } from "lucide-react";
+import {
+  Copy,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Search,
+  UsersRound,
+  CircleCheck,
+  Clock,
+  Flag,
+} from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
 import { AccessDenied } from "@/components/AccessDenied";
@@ -49,6 +72,7 @@ import {
   getAtividadesOptions,
   getEquipeOptions,
   getTurmas,
+  mapTurma,
   nivelTurmaLabel,
   statusTurma,
   statusTurmaLabel,
@@ -188,10 +212,22 @@ const horariosTurmaTexto = (turma: Turma) =>
 
 export default function Turmas() {
   const navigate = useNavigate();
+  const quick = useQuickFilter();
+  const historico = useHistorico();
+  const abrirHistorico = (item: Turma) =>
+    historico.abrir({
+      nome: String(item.nomeTurma),
+      tipo: "Turma",
+      recurso: "turmas",
+      id: item.id,
+      carregar: () => carregarHistoricoTurma(item),
+      observacao:
+        "As matrículas exibem a situação atual. Encontros e frequências aparecem nas datas registradas.",
+    });
   const location = useLocation();
   const [items, setItems] = useState<Turma[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingLocal, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [nextStepCard, setNextStepCard] =
     useState<TurmaNextStepCardData | null>(null);
@@ -209,6 +245,51 @@ export default function Turmas() {
   const [searching, setSearching] = useState(false);
 
   const podeVisualizar = permissoes.VISUALIZAR;
+  const usarPaginacaoApi =
+    !filtros.atividade &&
+    !filtros.responsavel &&
+    !filtros.periodo.length &&
+    ["nome", "status"].includes(filtros.sortBy);
+  const chavesCards: Record<string, string[]> = {
+    ativas: ["ATIVO"],
+    pendentes: ["PENDENTE"],
+    concluidas: ["CONCLUIDO", "INATIVO"],
+  };
+  const statusCard = chavesCards[quick.ativo ?? ""] ?? [];
+  const filtroCard = statusCard.length
+    ? { situacoesCard: statusCard }
+    : undefined;
+  const remoto = useConsultaOperacional(
+    "turmas",
+    usarPaginacaoApi
+      ? {
+          busca: filtros.nome,
+          situacoes: filtros.situacao,
+          ordenacao: filtros.sortBy === "status" ? "situacao" : "nome",
+          direcao: filtros.sortDir,
+        }
+      : null,
+    filtroCard,
+    !loadingPermissoes && podeVisualizar,
+    (row: Parameters<typeof mapTurma>[0]) => {
+      const turma = mapTurma(row);
+      return {
+        ...turma,
+        colaboradoresNomes: [
+          ...turma.colaboradoresNomes,
+          ...turma.integrantesNomes,
+        ],
+      };
+    },
+  );
+  const loading = loadingLocal || (remoto.habilitado && remoto.loading);
+  const totalBase = remoto.cards.TOTAL?.valor ?? 0;
+  const quantidadeCard = (key: string) =>
+    (chavesCards[key] ?? []).reduce(
+      (total, status) => total + (remoto.cards[status]?.valor ?? 0),
+      0,
+    );
+
   const podeCriar = permissoes.CRIAR;
   const podeEditar = permissoes.EDITAR;
   const podeExcluir = permissoes.EXCLUIR;
@@ -258,14 +339,14 @@ export default function Turmas() {
       return;
     }
     void carregar();
-  }, [loadingPermissoes, podeVisualizar]);
+  }, [loadingPermissoes, podeVisualizar, usarPaginacaoApi]);
 
   async function carregar() {
     try {
       setLoading(true);
       setAccessDeniedMessage(null);
       const [turmasData, atividadesData, equipeData] = await Promise.all([
-        getTurmas(),
+        usarPaginacaoApi ? Promise.resolve([]) : getTurmas(),
         getAtividadesOptions(),
         getEquipeOptions(),
       ]);
@@ -330,9 +411,12 @@ export default function Turmas() {
     event?.preventDefault();
     if (!searching) applyFiltros(draft);
   };
-  const handleClearFiltros = () => applyFiltros(emptyFiltros);
+  const handleClearFiltros = () => {
+    quick.limpar();
+    applyFiltros(emptyFiltros);
+  };
 
-  const filtered = useMemo(() => {
+  const advancedFiltered = useMemo(() => {
     const nome = normalize(filtros.nome);
     const atividade = normalize(filtros.atividade);
     const responsavel = normalize(filtros.responsavel);
@@ -397,6 +481,48 @@ export default function Turmas() {
       return filtros.sortDir === "asc" ? comparison : -comparison;
     });
   }, [filtros, items]);
+  const quickOptions = [
+    {
+      key: "ativas",
+      label: "Turmas ativas",
+      icon: QuickActiveIcon,
+      test: (item: (typeof items)[number]) => item.status === "ATIVO",
+    },
+    {
+      key: "pendentes",
+      label: "Pendentes",
+      icon: QuickPendingIcon,
+      test: (item: (typeof items)[number]) => item.status === "PENDENTE",
+    },
+    {
+      key: "concluidas",
+      label: "Concluídas / inativas",
+      icon: QuickDoneIcon,
+      test: (item: (typeof items)[number]) =>
+        ["CONCLUIDO", "INATIVO"].includes(item.status),
+    },
+  ];
+  const quickOption = quickOptions.find((option) => option.key === quick.ativo);
+  const filtered = quickOption
+    ? advancedFiltered.filter(quickOption.test)
+    : advancedFiltered;
+  const quickCards = [
+    {
+      key: "total",
+      label: "Total",
+      count: remoto.habilitado ? totalBase : advancedFiltered.length,
+      icon: QuickTotalIcon,
+      filtravel: false,
+    },
+    ...quickOptions.map((option) => ({
+      key: option.key,
+      label: option.label,
+      icon: option.icon,
+      count: remoto.habilitado
+        ? quantidadeCard(option.key)
+        : advancedFiltered.filter(option.test).length,
+    })),
+  ];
 
   const activeFilters = useMemo<ActiveFilterItem[]>(() => {
     const list: ActiveFilterItem[] = [];
@@ -454,8 +580,15 @@ export default function Turmas() {
     return list;
   }, [applyFiltros, filtros]);
 
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, JSON.stringify(filtros));
+  const paginaLocal = usePagination(
+    filtered,
+    25,
+    JSON.stringify([filtros, quick.ativo]),
+  );
+  const { currentPage, pageSize, setCurrentPage, setPageSize } =
+    remoto.habilitado ? remoto : paginaLocal;
+  const paginated = remoto.habilitado ? remoto.rows : paginaLocal.paginated;
+  const totalFiltrado = remoto.habilitado ? remoto.total : filtered.length;
 
   const toggleSort = (sortBy: SortBy) =>
     applyFiltros({
@@ -474,6 +607,7 @@ export default function Turmas() {
     }
     try {
       await deleteTurma(Number(confirmDelete));
+      remoto.atualizar();
       setItems((prev) => prev.filter((item) => item.id !== confirmDelete));
       toast.success("Turma excluída com sucesso.");
     } catch (error) {
@@ -503,21 +637,23 @@ export default function Turmas() {
     { header: "Colaboradores", key: "colaboradoresLabel" },
   ];
 
-  const getExportData = () =>
-    filtered.map((turma) => ({
-      ...turma,
-      diaLabel: diasTurmaTexto(turma),
-      horarioInicio: iniciosTurmaTexto(turma),
-      horarioFim: finsTurmaTexto(turma),
-      nivelLabel: nivelTurmaLabel(turma.nivelTurma),
-      statusLabel: statusTurmaLabel(turma.status),
-      colaboradoresLabel: turma.colaboradoresNomes.join(", "),
-    }));
+  const getExportData = async () =>
+    (remoto.habilitado ? await remoto.carregarExportacao() : filtered).map(
+      (turma) => ({
+        ...turma,
+        diaLabel: diasTurmaTexto(turma),
+        horarioInicio: iniciosTurmaTexto(turma),
+        horarioFim: finsTurmaTexto(turma),
+        nivelLabel: nivelTurmaLabel(turma.nivelTurma),
+        statusLabel: statusTurmaLabel(turma.status),
+        colaboradoresLabel: turma.colaboradoresNomes.join(", "),
+      }),
+    );
 
   if (!podeVisualizar) {
     return (
       <AppLayout>
-        <AccessNotPermitted />
+        <AccessNotPermitted loading={loadingPermissoes} />
       </AppLayout>
     );
   }
@@ -557,6 +693,14 @@ export default function Turmas() {
               </Button>
             ) : undefined
           }
+        />
+
+        <QuickFilterCards
+          cards={quickCards}
+          ativo={quick.ativo}
+          onToggle={quick.alternar}
+          onClear={quick.limpar}
+          totalFiltrado={totalFiltrado}
         />
 
         <div className="space-y-4">
@@ -683,9 +827,21 @@ export default function Turmas() {
             onClearAll={handleClearFiltros}
           />
 
+          {remoto.habilitado && remoto.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {remoto.error.message}{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={remoto.atualizar}
+              >
+                Tentar novamente
+              </button>
+            </p>
+          )}
           <DataTableCard>
             <DataTableToolbar
-              total={filtered.length}
+              total={totalFiltrado}
               reportTo="/relatorios/turmas"
               exportColumns={exportColumns}
               getExportData={getExportData}
@@ -696,7 +852,7 @@ export default function Turmas() {
               <div className="px-6 py-14 text-center text-sm text-muted-foreground">
                 Carregando...
               </div>
-            ) : filtered.length === 0 ? (
+            ) : totalFiltrado === 0 ? (
               <DataTableEmptyState
                 emptyTitle="Nenhuma turma cadastrada."
                 createLabel={podeCriar ? "Cadastrar turma" : undefined}
@@ -824,6 +980,7 @@ export default function Turmas() {
                                       ]
                                     : undefined
                                 }
+                                onHistory={() => abrirHistorico(turma)}
                               />
                             </td>
                             <td className="whitespace-nowrap px-6 py-2.5">
@@ -910,6 +1067,7 @@ export default function Turmas() {
                                 ]
                               : undefined
                           }
+                          onHistory={() => abrirHistorico(turma)}
                         />
                       </div>
                       <p className="font-medium text-foreground">
@@ -934,7 +1092,7 @@ export default function Turmas() {
                 </div>
 
                 <DataTablePagination
-                  totalItems={filtered.length}
+                  totalItems={totalFiltrado}
                   currentPage={currentPage}
                   pageSize={pageSize}
                   onPageChange={setCurrentPage}
@@ -973,6 +1131,7 @@ export default function Turmas() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <HistoricoSheet alvo={historico.alvo} onClose={historico.fechar} />
       <WikiFloatingButton
         pageTitle="Turmas"
         href="https://www.aurit.com.br/wiki/execucao/turmas"

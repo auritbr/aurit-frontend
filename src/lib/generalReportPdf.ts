@@ -1,3 +1,4 @@
+import { downloadFile } from "@/lib/downloadFile";
 import { apiFetchResponse } from "@/lib/api";
 
 export interface GeneralReportPdfFilter {
@@ -50,15 +51,8 @@ export async function downloadGeneralReportPdf(
     response.headers.get("Content-Disposition"),
     `relatorio-${request.slug}.pdf`,
   );
-  const url = URL.createObjectURL(blob);
-  try {
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-  } finally {
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
-  }
+  await downloadFile(
+    blob,
+    filename.toLowerCase().endsWith(".pdf") ? filename : `${filename}.pdf`,
+  );
 }

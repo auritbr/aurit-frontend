@@ -1,3 +1,7 @@
+import {
+  ReportFilterMultiSelect as FilterMultiSelect,
+  ReportSelectContent as SelectContent,
+} from "@/components/relatorios/ReportSelectFields";
 import { useCallback, useMemo, type ReactNode } from "react";
 import { Search, type LucideIcon } from "lucide-react";
 
@@ -9,7 +13,7 @@ import {
 import { AppLayout } from "@/components/AppLayout";
 import { DomainStatusPill } from "@/components/DomainStatusPill";
 import { FieldLabel } from "@/components/FieldLabel";
-import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+
 import {
   ReportBarChart,
   ReportComparisonBarChart,
@@ -29,7 +33,6 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   Select,
-  SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -43,13 +46,17 @@ import { useBackendReport } from "@/hooks/useBackendReport";
 import type { StatusContext } from "@/components/StatusPill";
 import { formatValorRelatorio } from "@/data/relatorios";
 
+import { ComparativoBackend } from "./ComparativoBackend";
+import { BackendReportComparison } from "./BackendReportComparison";
+import { SelecaoGraficoBanner, useSelecaoGrafico } from "./AnalyticsKit";
+
 type DataRecord = Record<string, unknown>;
 
 export interface BackendFilter {
   key: string;
   label: string;
   tooltip: string;
-  type: "search" | "select" | "multi";
+  type: "search" | "select" | "multi" | "date";
   placeholder?: string;
   options: (data: DataRecord | null) => { value: string; label: string }[];
 }
@@ -72,12 +79,14 @@ export interface BackendChart {
   valueKey?: string;
   series?: { key: string; label: string }[];
   currency?: boolean;
+  selection?: { label: string; values: (row: DataRecord) => unknown };
 }
 
 export interface BackendColumn {
   key: string;
   label: string;
   path?: string;
+  pdfKey?: string | false;
   format?: "date" | "percent" | "enum" | "boolean" | "array" | "timeRange";
   statusContext?: StatusContext;
   notSortable?: boolean;
@@ -102,6 +111,13 @@ export interface BackendReportConfig {
   loader?: (filters: ReportFilters) => Promise<DataRecord>;
   /** Slug usado na exportação PDF quando difere do endpoint de consulta. */
   pdfSlug?: string;
+}
+
+const EMPTY_ROWS: DataRecord[] = [];
+
+function chartLabel(chart: BackendChart, value: unknown) {
+  const name = String(value ?? "—");
+  return chart.label ? chart.label(name) : reportEnumLabel(name);
 }
 
 function getPath(source: unknown, path: string): unknown {
@@ -190,7 +206,51 @@ export function BackendReportPage({ config }: { config: BackendReportConfig }) {
     useBackendReport(initialFilters, loader);
 
   const rows =
-    (getPath(data, config.rowsPath) as DataRecord[] | undefined) ?? [];
+    (getPath(data, config.rowsPath) as DataRecord[] | undefined) ?? EMPTY_ROWS;
+  const selection = useSelecaoGrafico();
+  const selected = selection.selecao;
+  const chartForSelection = config.charts.find(
+    (chart) => chart.title === selected?.campo,
+  );
+  const chartSelection = chartForSelection?.selection;
+  const tableRows =
+    selected && chartSelection
+      ? rows.filter((row) => {
+          const values = chartSelection.values(row);
+          return (Array.isArray(values) ? values : [values]).some(
+            (value) => chartLabel(chartForSelection, value) === selected.valor,
+          );
+        })
+      : rows;
+
+  const filtrosComparacao = Object.entries(applied).filter(
+    ([key, value]) =>
+      !["de", "ate", "dataInicio", "dataFim"].includes(key) &&
+      value != null &&
+      value !== "" &&
+      value !== "TODOS" &&
+      value !== "TODAS" &&
+      (!Array.isArray(value) || value.length > 0),
+  );
+  const filtrosComparaveis = filtrosComparacao.every(
+    ([key, value]) =>
+      ["projetoId", "atividadeId", "turmaId"].includes(key) &&
+      !Array.isArray(value),
+  );
+  const periodoInicial =
+    typeof applied.de === "string" &&
+    applied.de &&
+    typeof applied.ate === "string" &&
+    applied.ate
+      ? { inicio: applied.de, fim: applied.ate }
+      : undefined;
+  const loadComparisonRows = useCallback(async () => {
+    const response = await loader({ ...applied, de: "", ate: "" });
+    return (
+      (getPath(response, config.rowsPath) as DataRecord[] | undefined) ??
+      EMPTY_ROWS
+    );
+  }, [applied, config.rowsPath, loader]);
 
   const activeFilters = useMemo<ActiveFilterItem[]>(() => {
     const result: ActiveFilterItem[] = [];
@@ -230,6 +290,7 @@ export function BackendReportPage({ config }: { config: BackendReportConfig }) {
     () =>
       config.columns.map((column) => ({
         key: column.key,
+        pdfKey: column.pdfKey,
         label: column.label,
         hiddenByDefault: column.hiddenByDefault,
         accessor: (row) => formatCell(column, row),
@@ -260,32 +321,47 @@ export function BackendReportPage({ config }: { config: BackendReportConfig }) {
       tooltip={config.tooltip}
       objective={config.objective}
     >
-      <ReportFilterPanel
-        storageKey={`relatorio-${config.endpoint}`}
-        activeFilters={activeFilters}
-        onSubmit={() => apply(filters, true)}
-        onClear={() => apply(initialFilters)}
-        hidden
-      >
-        {config.filters.map((filter) => {
-          const options = filter.options(data);
-          const value = filters[filter.key];
-          return (
-            <div key={filter.key}>
-              <FieldLabel
-                htmlFor={`filter-${filter.key}`}
-                tooltip={filter.tooltip}
-              >
-                {filter.label}
-              </FieldLabel>
-              {filter.type === "search" ? (
-                <div className="relative">
-                  <Search
-                    className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden
-                  />
+      {config.filters.length > 0 && (
+        <ReportFilterPanel
+          storageKey={`relatorio-${config.endpoint}`}
+          activeFilters={activeFilters}
+          onSubmit={() => apply(filters, true)}
+          onClear={() => apply(initialFilters)}
+        >
+          {config.filters.map((filter) => {
+            const options = filter.options(data);
+            const value = filters[filter.key];
+            return (
+              <div key={filter.key}>
+                <FieldLabel
+                  htmlFor={`filter-${filter.key}`}
+                  tooltip={filter.tooltip}
+                >
+                  {filter.label}
+                </FieldLabel>
+                {filter.type === "search" ? (
+                  <div className="relative">
+                    <Search
+                      className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <Input
+                      id={`filter-${filter.key}`}
+                      value={String(value ?? "")}
+                      onChange={(event) =>
+                        setFilters((current) => ({
+                          ...current,
+                          [filter.key]: event.target.value,
+                        }))
+                      }
+                      placeholder={filter.placeholder}
+                      className={`${filterFieldClass} pl-8`}
+                    />
+                  </div>
+                ) : filter.type === "date" ? (
                   <Input
                     id={`filter-${filter.key}`}
+                    type="date"
                     value={String(value ?? "")}
                     onChange={(event) =>
                       setFilters((current) => ({
@@ -293,58 +369,75 @@ export function BackendReportPage({ config }: { config: BackendReportConfig }) {
                         [filter.key]: event.target.value,
                       }))
                     }
-                    placeholder={filter.placeholder}
-                    className={`${filterFieldClass} pl-8`}
-                  />
-                </div>
-              ) : filter.type === "multi" ? (
-                <FilterMultiSelect
-                  id={`filter-${filter.key}`}
-                  options={options}
-                  value={(value as string[]) ?? []}
-                  onChange={(next) =>
-                    setFilters((current) => ({
-                      ...current,
-                      [filter.key]: next,
-                    }))
-                  }
-                  placeholder={
-                    filter.placeholder ??
-                    `Todos os ${filter.label.toLowerCase()}`
-                  }
-                  summaryNoun="opções selecionadas"
-                  searchable
-                />
-              ) : (
-                <Select
-                  value={String(value ?? "TODOS")}
-                  onValueChange={(next) =>
-                    setFilters((current) => ({
-                      ...current,
-                      [filter.key]: next,
-                    }))
-                  }
-                >
-                  <SelectTrigger
-                    id={`filter-${filter.key}`}
                     className={filterFieldClass}
+                  />
+                ) : filter.type === "multi" ? (
+                  <FilterMultiSelect
+                    id={`filter-${filter.key}`}
+                    options={options}
+                    value={(value as string[]) ?? []}
+                    onChange={(next) =>
+                      setFilters((current) => ({
+                        ...current,
+                        [filter.key]: next,
+                      }))
+                    }
+                    placeholder={
+                      filter.placeholder ??
+                      `Todos os ${filter.label.toLowerCase()}`
+                    }
+                    summaryNoun="opções selecionadas"
+                    searchable
+                  />
+                ) : (
+                  <Select
+                    value={String(value ?? "TODOS")}
+                    onValueChange={(next) =>
+                      setFilters((current) => ({
+                        ...current,
+                        [filter.key]: next,
+                      }))
+                    }
                   >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="TODOS">Todos</SelectItem>
-                    {options.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          );
-        })}
-      </ReportFilterPanel>
+                    <SelectTrigger
+                      id={`filter-${filter.key}`}
+                      className={filterFieldClass}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="TODOS">Todos</SelectItem>
+                      {options.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            );
+          })}
+        </ReportFilterPanel>
+      )}
+
+      {data &&
+        (filtrosComparaveis ? (
+          <ComparativoBackend
+            slug={config.endpoint}
+            inicial={periodoInicial}
+            filtros={Object.fromEntries(filtrosComparacao)}
+          />
+        ) : (
+          <BackendReportComparison
+            endpoint={config.endpoint}
+            rows={rows}
+            periodo={periodoInicial}
+            loadRows={
+              applied.de || applied.ate ? loadComparisonRows : undefined
+            }
+          />
+        ))}
 
       <ReportStatGrid>
         {loading && !data ? (
@@ -372,29 +465,30 @@ export function BackendReportPage({ config }: { config: BackendReportConfig }) {
         {config.charts.map((chart) => {
           const raw =
             (getPath(data, chart.path) as DataRecord[] | undefined) ?? [];
-          const chartData = raw.map((item) => {
-            const name = String(item[chart.nameKey ?? "status"] ?? "—");
-            return {
-              name: chart.label ? chart.label(name) : reportEnumLabel(name),
-              value: numberValue(item[chart.valueKey ?? "total"]),
-            };
-          });
+          const chartData = raw.map((item) => ({
+            name: chartLabel(chart, item[chart.nameKey ?? "status"]),
+            value: numberValue(item[chart.valueKey ?? "total"]),
+          }));
+          const onSelect = chart.selection
+            ? selection.selecionar(chart.title, chart.selection.label)
+            : undefined;
           return (
             <ReportChartCard
-              key={chart.path}
+              key={chart.title}
+              clickable={Boolean(onSelect)}
               title={chart.title}
               description={chart.description}
             >
               {chart.type === "comparison" ? (
                 <ReportComparisonBarChart
                   data={raw.slice(0, 12).map((item) => ({
-                    name: String(
+                    name: chartLabel(
+                      chart,
                       item[chart.nameKey ?? "nome"] ??
                         item.atividade ??
                         item.turma ??
                         item.projeto ??
-                        item.meta ??
-                        "—",
+                        item.meta,
                     ),
                     ...(chart.series ?? []).reduce<Record<string, number>>(
                       (values, series) => {
@@ -407,18 +501,21 @@ export function BackendReportPage({ config }: { config: BackendReportConfig }) {
                   series={chart.series ?? []}
                   reportKey={config.endpoint}
                   currency={chart.currency}
+                  onSelect={onSelect}
                 />
               ) : chart.type === "pie" ? (
                 <ReportPieChart
                   data={chartData}
                   reportKey={config.endpoint}
                   currency={chart.currency}
+                  onSelect={onSelect}
                 />
               ) : (
                 <ReportBarChart
                   data={chartData}
                   reportKey={config.endpoint}
                   currency={chart.currency}
+                  onSelect={onSelect}
                 />
               )}
             </ReportChartCard>
@@ -426,10 +523,19 @@ export function BackendReportPage({ config }: { config: BackendReportConfig }) {
         })}
       </ReportChartGrid>
 
+      <SelecaoGraficoBanner
+        selecao={selected}
+        count={tableRows.length}
+        onClear={selection.limpar}
+      />
       <ReportTable
         title={config.tableTitle}
-        description={config.tableDescription?.(data)}
-        rows={rows}
+        description={
+          selected
+            ? "Excel e CSV seguem o recorte do gráfico. O PDF segue os filtros do painel."
+            : config.tableDescription?.(data)
+        }
+        rows={tableRows}
         columns={columns}
         reportName={config.endpoint}
         nowrap

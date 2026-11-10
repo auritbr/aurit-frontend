@@ -164,7 +164,7 @@ export interface RelatorioImpactoSocialItem {
   id: string;
   participanteId: number;
   participante: string;
-  atividadeId: number;
+  atividadeId: number | null;
   atividade: string;
   turmaId: number | null;
   turma: string | null;
@@ -175,6 +175,7 @@ export interface RelatorioImpactoSocialItem {
   bolsaFamilia: boolean;
   status: string;
   presencas: number;
+  ausencias?: number;
   registros: number;
   percentualPresenca: number;
 }

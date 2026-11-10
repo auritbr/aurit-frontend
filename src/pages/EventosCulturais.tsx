@@ -1,6 +1,27 @@
+import { useConsultaOperacional } from "@/hooks/useConsultaOperacional";
+import {
+  QuickFilterCards,
+  useQuickFilter,
+} from "@/components/list/QuickFilterCards";
+import {
+  ListChecks as QuickTotalIcon,
+  CheckCircle2 as QuickActiveIcon,
+  Clock as QuickPendingIcon,
+  Archive as QuickDoneIcon,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, Loader2, Plus, RotateCcw, Search } from "lucide-react";
+import {
+  Copy,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Search,
+  CalendarDays,
+  CircleCheck,
+  Clock,
+  Flag,
+} from "lucide-react";
 
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
@@ -48,6 +69,7 @@ import {
   formatPeriodo,
   getColaboradoresOptions,
   getEventosCulturais,
+  mapEventoCultural,
   getProjetosOptions,
   statusEvento,
   statusValueToLabel,
@@ -128,10 +150,14 @@ const sortDirLabels: Record<SortDir, string> = {
 
 export default function EventosCulturais() {
   const navigate = useNavigate();
+  const quick = useQuickFilter();
   const [items, setItems] = useState<EventoCulturalView[]>([]);
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
+  const [equipeEvento, setEquipeEvento] = useState<
+    Awaited<ReturnType<typeof getColaboradoresOptions>>
+  >([]);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingLocal, setLoading] = useState(true);
   const [loadingPermissoes, setLoadingPermissoes] = useState(true);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
     null,
@@ -150,6 +176,48 @@ export default function EventosCulturais() {
   const [searching, setSearching] = useState(false);
 
   const podeVisualizar = permissoes.VISUALIZAR;
+  const usarPaginacaoApi = ["nome", "status", "periodo"].includes(
+    filtros.sortBy,
+  );
+  const chavesCards: Record<string, string[]> = {
+    concluidos: ["CONCLUIDO"],
+    previstos: ["ATIVO", "PENDENTE"],
+    inativos: ["INATIVO"],
+  };
+  const statusCard = chavesCards[quick.ativo ?? ""] ?? [];
+  const filtroCard = statusCard.length
+    ? { situacoesCard: statusCard }
+    : undefined;
+  const remoto = useConsultaOperacional(
+    "eventos-culturais",
+    usarPaginacaoApi
+      ? {
+          busca: filtros.nome,
+          categoriasRegistro: filtros.tipos,
+          projetosIds: filtros.projetos,
+          situacoes: filtros.status,
+          ordenacao:
+            filtros.sortBy === "periodo"
+              ? "data"
+              : filtros.sortBy === "status"
+                ? "situacao"
+                : "nome",
+          direcao: filtros.sortDir,
+        }
+      : null,
+    filtroCard,
+    !loadingPermissoes && podeVisualizar,
+    (row: Parameters<typeof mapEventoCultural>[0]) =>
+      enrichEventoCultural(mapEventoCultural(row), projetos, equipeEvento),
+  );
+  const loading = loadingLocal || (remoto.habilitado && remoto.loading);
+  const totalBase = remoto.cards.TOTAL?.valor ?? 0;
+  const quantidadeCard = (key: string) =>
+    (chavesCards[key] ?? []).reduce(
+      (total, status) => total + (remoto.cards[status]?.valor ?? 0),
+      0,
+    );
+
   const podeCriar = permissoes.CRIAR;
   const podeEditar = permissoes.EDITAR;
   const podeExcluir = permissoes.EXCLUIR;
@@ -211,13 +279,14 @@ export default function EventosCulturais() {
         setAccessDeniedMessage(null);
         const [eventosData, projetosData, colaboradoresData] =
           await Promise.all([
-            getEventosCulturais(),
+            usarPaginacaoApi ? Promise.resolve([]) : getEventosCulturais(),
             getProjetosOptions(),
             getColaboradoresOptions(),
           ]);
 
         if (!active) return;
         setProjetos(projetosData);
+        setEquipeEvento(colaboradoresData);
         setItems(
           eventosData.map((evento) =>
             enrichEventoCultural(evento, projetosData, colaboradoresData),
@@ -243,7 +312,7 @@ export default function EventosCulturais() {
     return () => {
       active = false;
     };
-  }, [loadingPermissoes, podeVisualizar]);
+  }, [loadingPermissoes, podeVisualizar, usarPaginacaoApi]);
 
   const setDraftField = <K extends keyof EventosFiltros>(
     key: K,
@@ -258,7 +327,7 @@ export default function EventosCulturais() {
     window.setTimeout(() => setSearching(false), 180);
   };
 
-  const filtered = useMemo(() => {
+  const advancedFiltered = useMemo(() => {
     const nome = normalize(filtros.nome);
     const result = items.filter((evento) => {
       if (
@@ -306,6 +375,48 @@ export default function EventosCulturais() {
       return filtros.sortDir === "asc" ? compare : -compare;
     });
   }, [items, filtros]);
+  const quickOptions = [
+    {
+      key: "concluidos",
+      label: "Concluídos",
+      icon: QuickActiveIcon,
+      test: (item: (typeof items)[number]) => item.status === "CONCLUIDO",
+    },
+    {
+      key: "previstos",
+      label: "Ativos / pendentes",
+      icon: QuickPendingIcon,
+      test: (item: (typeof items)[number]) =>
+        item.status === "ATIVO" || item.status === "PENDENTE",
+    },
+    {
+      key: "inativos",
+      label: "Inativos",
+      icon: QuickDoneIcon,
+      test: (item: (typeof items)[number]) => item.status === "INATIVO",
+    },
+  ];
+  const quickOption = quickOptions.find((option) => option.key === quick.ativo);
+  const filtered = quickOption
+    ? advancedFiltered.filter(quickOption.test)
+    : advancedFiltered;
+  const quickCards = [
+    {
+      key: "total",
+      label: "Total",
+      count: remoto.habilitado ? totalBase : advancedFiltered.length,
+      icon: QuickTotalIcon,
+      filtravel: false,
+    },
+    ...quickOptions.map((option) => ({
+      key: option.key,
+      label: option.label,
+      icon: option.icon,
+      count: remoto.habilitado
+        ? quantidadeCard(option.key)
+        : advancedFiltered.filter(option.test).length,
+    })),
+  ];
 
   const activeFilters: ActiveFilterItem[] = (() => {
     const list: ActiveFilterItem[] = [];
@@ -374,16 +485,22 @@ export default function EventosCulturais() {
     return list;
   })();
 
-  const filtrosKey = JSON.stringify(filtros);
-  const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
-    usePagination(filtered, 25, filtrosKey);
+  const filtrosKey = JSON.stringify([filtros, quick.ativo]);
+  const paginaLocal = usePagination(filtered, 25, filtrosKey);
+  const { currentPage, pageSize, setCurrentPage, setPageSize } =
+    remoto.habilitado ? remoto : paginaLocal;
+  const paginated = remoto.habilitado ? remoto.rows : paginaLocal.paginated;
+  const totalFiltrado = remoto.habilitado ? remoto.total : filtered.length;
 
   const handleSearch = (event?: React.FormEvent) => {
     event?.preventDefault();
     if (!searching) applyFiltros(draft);
   };
 
-  const handleClearFiltros = () => applyFiltros(emptyFiltros);
+  const handleClearFiltros = () => {
+    quick.limpar();
+    applyFiltros(emptyFiltros);
+  };
 
   const toggleSort = (key: SortBy) =>
     applyFiltros({
@@ -403,6 +520,7 @@ export default function EventosCulturais() {
 
     try {
       await deleteEventoCultural(Number(confirmDelete));
+      remoto.atualizar();
       setItems((prev) => prev.filter((evento) => evento.id !== confirmDelete));
       toast.success("Evento cultural excluído com sucesso.");
     } catch (error) {
@@ -432,19 +550,21 @@ export default function EventosCulturais() {
     { header: "Período", key: "periodo" },
     { header: "Colaboradores", key: "colaboradoresLabel" },
   ];
-  const getExportData = () =>
-    filtered.map((evento) => ({
-      ...evento,
-      tipoLabel: tipoEventoLabel(evento.tipoEvento),
-      statusLabel: statusValueToLabel(evento.status),
-      periodo: formatPeriodo(evento.dataEvento, evento.dataFim),
-      colaboradoresLabel: evento.colaboradoresNomes.join(", "),
-    }));
+  const getExportData = async () =>
+    (remoto.habilitado ? await remoto.carregarExportacao() : filtered).map(
+      (evento) => ({
+        ...evento,
+        tipoLabel: tipoEventoLabel(evento.tipoEvento),
+        statusLabel: statusValueToLabel(evento.status),
+        periodo: formatPeriodo(evento.dataEvento, evento.dataFim),
+        colaboradoresLabel: evento.colaboradoresNomes.join(", "),
+      }),
+    );
 
   if (!podeVisualizar)
     return (
       <AppLayout>
-        <AccessNotPermitted />
+        <AccessNotPermitted loading={loadingPermissoes} />
       </AppLayout>
     );
 
@@ -479,6 +599,14 @@ export default function EventosCulturais() {
               </Button>
             ) : undefined
           }
+        />
+
+        <QuickFilterCards
+          cards={quickCards}
+          ativo={quick.ativo}
+          onToggle={quick.alternar}
+          onClear={quick.limpar}
+          totalFiltrado={totalFiltrado}
         />
 
         <div className="space-y-4">
@@ -617,9 +745,21 @@ export default function EventosCulturais() {
             onClearAll={handleClearFiltros}
           />
 
+          {remoto.habilitado && remoto.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {remoto.error.message}{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={remoto.atualizar}
+              >
+                Tentar novamente
+              </button>
+            </p>
+          )}
           <DataTableCard>
             <DataTableToolbar
-              total={filtered.length}
+              total={totalFiltrado}
               reportTo="/relatorios/eventos-culturais"
               exportColumns={exportColumns}
               getExportData={getExportData}
@@ -632,7 +772,7 @@ export default function EventosCulturais() {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Carregando eventos...
               </div>
-            ) : filtered.length === 0 ? (
+            ) : totalFiltrado === 0 ? (
               <DataTableEmptyState
                 emptyTitle="Nenhum evento cultural cadastrado."
                 createLabel="Cadastrar evento"
@@ -862,7 +1002,7 @@ export default function EventosCulturais() {
                 </div>
 
                 <DataTablePagination
-                  totalItems={filtered.length}
+                  totalItems={totalFiltrado}
                   currentPage={currentPage}
                   pageSize={pageSize}
                   onPageChange={setCurrentPage}

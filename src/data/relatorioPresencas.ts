@@ -421,6 +421,21 @@ export async function getRegistrosPresenca(): Promise<RegistroPresenca[]> {
   return data.registros;
 }
 
+export async function getRegistrosPresencaPorVinculo(
+  vinculo: "atividade" | "turma",
+  id: string | number,
+): Promise<RegistroPresenca[]> {
+  const presencas = await getApi<unknown>(
+    `/presencas/${vinculo}/${encodeURIComponent(id)}`,
+  );
+  return montarRegistrosPresenca({
+    presencas: unwrapList<PresencaApiDTO>(presencas),
+    atividades: [],
+    turmas: [],
+    participantes: [],
+  });
+}
+
 export function anosDisponiveisPresenca(
   registros: RegistroPresenca[],
 ): string[] {

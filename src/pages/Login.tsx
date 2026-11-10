@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Building2, Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
+import { Globe2, Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 import {
   AuthField,
@@ -181,10 +182,14 @@ export default function Login() {
       if (!data.token)
         throw new Error("Não foi possível concluir o acesso. Entre novamente.");
       receberLoginMobile(data, credenciais);
-    } catch {
+    } catch (error) {
       setEscolha(null);
       setSenha("");
-      setErro("Não foi possível acessar essa organização. Entre novamente.");
+      setErro(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível acessar essa organização. Entre novamente.",
+      );
     } finally {
       setCarregando(false);
     }
@@ -268,18 +273,19 @@ export default function Login() {
             </p>
             <div className="mt-5 space-y-3">
               {escolha.organizacoes.map((organizacao) => (
-                <button
+                <Button
+                  variant="glassSecondary"
                   key={organizacao.slug}
                   type="button"
                   onClick={() => void escolherOrganizacao(organizacao.slug)}
                   disabled={carregando}
-                  className="login-submit-glass flex min-h-12 w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm disabled:opacity-60"
+                  className="h-auto min-h-12 w-full justify-start gap-3 whitespace-normal px-4 py-3 text-left text-sm [&_svg]:size-5"
                 >
-                  <Building2 className="h-5 w-5 shrink-0" aria-hidden />
+                  <Globe2 strokeWidth={2} aria-hidden />
                   <span className="min-w-0 break-words">
                     {organizacao.nome}
                   </span>
-                </button>
+                </Button>
               ))}
             </div>
             {carregando && (

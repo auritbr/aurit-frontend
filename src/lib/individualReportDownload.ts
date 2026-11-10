@@ -1,3 +1,4 @@
+import { downloadFile } from "@/lib/downloadFile";
 import { apiFetchResponse } from "@/lib/api";
 
 function sanitizeFilename(value: string) {
@@ -50,21 +51,10 @@ async function downloadPdf(
     ) ||
     sanitizeFilename(fallbackFilename) ||
     "relatorio.pdf";
-  const url = URL.createObjectURL(blob);
-
-  try {
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = filename.toLowerCase().endsWith(".pdf")
-      ? filename
-      : `${filename}.pdf`;
-    anchor.style.display = "none";
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-  } finally {
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
-  }
+  await downloadFile(
+    blob,
+    filename.toLowerCase().endsWith(".pdf") ? filename : `${filename}.pdf`,
+  );
 }
 
 export async function downloadIndividualReport(

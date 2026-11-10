@@ -3,7 +3,6 @@ import {
   BadgeCheck,
   CalendarClock,
   CircleDollarSign,
-  CalendarDays,
   CalendarRange,
   CheckCircle2,
   FileCheck2,
@@ -15,7 +14,6 @@ import {
   PlayCircle,
   ScrollText,
   ShieldCheck,
-  Sparkles,
   Target,
   Users,
   Users2,
@@ -52,6 +50,19 @@ const entityOptions =
         label: item.nome,
       }),
     );
+
+const reportFilter = (
+  key: string,
+  label: string,
+  type: "multi" | "select",
+  options: BackendReportConfig["filters"][number]["options"],
+) => ({
+  key,
+  label,
+  type,
+  options,
+  tooltip: `Filtre os registros por ${label.toLowerCase()}.`,
+});
 
 const carregarFinanceiroGenerico =
   (slug: string) => async (filters: Record<string, unknown>) =>
@@ -300,30 +311,19 @@ export const execucaoAtividadesConfig: BackendReportConfig = {
   rowsPath: "atividades",
   filters: [
     search("Buscar atividade..."),
-    {
-      key: "status",
-      label: "Status",
-      tooltip:
-        "Selecione um ou mais status para visualizar somente as atividades que se encontram nessas situações.",
-      type: "multi",
-      options: enumOptions("statusDisponiveis"),
-    },
-    {
-      key: "tipos",
-      label: "Tipo de atividade",
-      tooltip:
-        "Selecione um ou mais tipos para visualizar somente as atividades correspondentes.",
-      type: "multi",
-      options: enumOptions("tiposDisponiveis"),
-    },
-    {
-      key: "projetoId",
-      label: "Projeto",
-      tooltip:
-        "Selecione um projeto para visualizar somente as atividades vinculadas a ele.",
-      type: "select",
-      options: entityOptions("projetosDisponiveis"),
-    },
+    reportFilter("status", "Status", "multi", enumOptions("statusDisponiveis")),
+    reportFilter(
+      "tipos",
+      "Tipo de atividade",
+      "multi",
+      enumOptions("tiposDisponiveis"),
+    ),
+    reportFilter(
+      "projetoId",
+      "Projeto",
+      "select",
+      entityOptions("projetosDisponiveis"),
+    ),
   ],
   stats: [
     {
@@ -354,6 +354,7 @@ export const execucaoAtividadesConfig: BackendReportConfig = {
   charts: [
     {
       title: "Vagas preenchidas x frequência por atividade",
+      selection: { label: "Atividade", values: (row) => row.atividade },
       description:
         "Compare o percentual de vagas preenchidas por participantes vinculados com o percentual de presença efetivamente registrado em cada atividade.",
       path: "atividades",
@@ -375,7 +376,15 @@ export const execucaoAtividadesConfig: BackendReportConfig = {
       description:
         "Veja quantas atividades foram registradas em cada tipo e como elas estão distribuídas entre os diferentes formatos de realização.",
       path: "atividadesPorTipo",
+      selection: { label: "Tipo", values: (row) => row.tipo },
       type: "bar",
+    },
+    {
+      title: "Atividades por status",
+      description: "Distribuição dos registros filtrados.",
+      path: "atividadesPorStatus",
+      type: "pie",
+      selection: { label: "Status", values: (row) => row.status },
     },
   ],
   columns: [
@@ -419,30 +428,19 @@ export const geralProjetosConfig: BackendReportConfig = {
   rowsPath: "projetos",
   filters: [
     search("Buscar projeto..."),
-    {
-      key: "status",
-      label: "Status",
-      tooltip:
-        "Selecione um ou mais status para visualizar somente os projetos que se encontram nessas situações.",
-      type: "multi",
-      options: enumOptions("statusDisponiveis"),
-    },
-    {
-      key: "areas",
-      label: "Área de atuação",
-      tooltip:
-        "Selecione uma ou mais áreas para visualizar somente os projetos relacionados a elas.",
-      type: "multi",
-      options: enumOptions("areasDisponiveis"),
-    },
-    {
-      key: "agenteId",
-      label: "Agente",
-      tooltip:
-        "Selecione um agente para visualizar somente os projetos vinculados a ele.",
-      type: "select",
-      options: entityOptions("agentesDisponiveis"),
-    },
+    reportFilter("status", "Status", "multi", enumOptions("statusDisponiveis")),
+    reportFilter(
+      "areas",
+      "Área de atuação",
+      "multi",
+      enumOptions("areasDisponiveis"),
+    ),
+    reportFilter(
+      "agenteId",
+      "Agente responsável",
+      "select",
+      entityOptions("agentesDisponiveis"),
+    ),
   ],
   stats: [
     {
@@ -454,16 +452,16 @@ export const geralProjetosConfig: BackendReportConfig = {
       label: "Em execução",
       path: "projetosEmExecucao",
       icon: PlayCircle,
-      tone: "info",
+      tone: "success",
     },
     {
       label: "Concluídos",
       path: "projetosConcluidos",
       icon: CheckCircle2,
-      tone: "success",
+      tone: "info",
     },
     {
-      label: "Metas",
+      label: "Metas vinculadas",
       path: "totalMetas",
       icon: Target,
       tone: "warning",
@@ -472,6 +470,7 @@ export const geralProjetosConfig: BackendReportConfig = {
   charts: [
     {
       title: "Estrutura de execução por projeto",
+      selection: { label: "Projeto", values: (row) => row.projeto },
       description:
         "Compare a quantidade de atividades, eventos e metas vinculados a cada projeto para visualizar como sua execução está estruturada.",
       path: "projetos",
@@ -488,7 +487,15 @@ export const geralProjetosConfig: BackendReportConfig = {
       description:
         "Veja como os projetos estão distribuídos entre as diferentes áreas de atuação registradas pela organização.",
       path: "projetosPorArea",
+      selection: { label: "Área", values: (row) => row.areas },
       type: "bar",
+    },
+    {
+      title: "Projetos por status",
+      description: "Distribuição dos registros filtrados.",
+      path: "projetosPorStatus",
+      type: "pie",
+      selection: { label: "Status", values: (row) => row.status },
     },
   ],
   columns: [
@@ -523,30 +530,19 @@ export const turmasAtendimentoConfig: BackendReportConfig = {
   rowsPath: "turmas",
   filters: [
     search("Buscar turma..."),
-    {
-      key: "atividadeId",
-      label: "Atividade",
-      tooltip:
-        "Selecione uma atividade para visualizar somente as turmas vinculadas a ela.",
-      type: "select",
-      options: entityOptions("atividadesDisponiveis"),
-    },
-    {
-      key: "status",
-      label: "Status",
-      tooltip:
-        "Selecione um ou mais status para visualizar somente as turmas que se encontram nessas situações.",
-      type: "multi",
-      options: enumOptions("statusDisponiveis"),
-    },
-    {
-      key: "dias",
-      label: "Dia da atividade",
-      tooltip:
-        "Selecione um ou mais dias da semana para visualizar somente as turmas realizadas nesses dias.",
-      type: "multi",
-      options: enumOptions("diasDisponiveis"),
-    },
+    reportFilter(
+      "atividadeId",
+      "Atividade",
+      "select",
+      entityOptions("atividadesDisponiveis"),
+    ),
+    reportFilter("status", "Status", "multi", enumOptions("statusDisponiveis")),
+    reportFilter(
+      "dias",
+      "Dia da atividade",
+      "multi",
+      enumOptions("diasDisponiveis"),
+    ),
   ],
   stats: [
     {
@@ -561,7 +557,7 @@ export const turmasAtendimentoConfig: BackendReportConfig = {
       tone: "success",
     },
     {
-      label: "Média de vagas preenchidas",
+      label: "Ocupação média",
       path: "ocupacaoMedia",
       icon: CalendarClock,
       tone: "info",
@@ -577,7 +573,16 @@ export const turmasAtendimentoConfig: BackendReportConfig = {
   ],
   charts: [
     {
+      title: "Participantes por turma",
+      description: "Volume de atendimento em cada turma.",
+      path: "participantesPorTurma",
+      type: "bar",
+      label: (value) => value,
+      selection: { label: "Turma", values: (row) => row.turma },
+    },
+    {
       title: "Vagas preenchidas x frequência por turma",
+      selection: { label: "Turma", values: (row) => row.turma },
       description:
         "Compare o percentual de vagas preenchidas por participantes vinculados com o percentual de presença efetivamente registrado em cada turma.",
       path: "turmas",
@@ -596,6 +601,7 @@ export const turmasAtendimentoConfig: BackendReportConfig = {
     },
     {
       title: "Participantes x vagas por turma",
+      selection: { label: "Turma", values: (row) => row.turma },
       description:
         "Compare a quantidade de participantes vinculados com o número de vagas disponíveis para identificar turmas que ainda possuem vagas ou que ultrapassaram a quantidade prevista.",
       path: "turmas",
@@ -611,6 +617,13 @@ export const turmasAtendimentoConfig: BackendReportConfig = {
           label: "Vagas",
         },
       ],
+    },
+    {
+      title: "Turmas por status",
+      description: "Distribuição dos registros filtrados.",
+      path: "turmasPorStatus",
+      type: "pie",
+      selection: { label: "Status", values: (row) => row.status },
     },
   ],
   columns: [
@@ -659,30 +672,19 @@ export const regularidadeDocumentalConfig: BackendReportConfig = {
   rowsPath: "documentos",
   filters: [
     search("Buscar documento..."),
-    {
-      key: "tipos",
-      label: "Tipo de documento",
-      tooltip:
-        "Selecione um ou mais tipos para visualizar somente os documentos correspondentes.",
-      type: "multi",
-      options: enumOptions("tiposDisponiveis"),
-    },
-    {
-      key: "status",
-      label: "Status",
-      tooltip:
-        "Selecione um ou mais status para visualizar somente os documentos que possuem essas situações no cadastro.",
-      type: "multi",
-      options: enumOptions("statusDisponiveis"),
-    },
-    {
-      key: "situacao",
-      label: "Situação",
-      tooltip:
-        "Selecione a situação de validade para visualizar documentos vigentes, vencidos ou sem data de validade aplicável.",
-      type: "select",
-      options: enumOptions("situacoesDisponiveis"),
-    },
+    reportFilter(
+      "tipos",
+      "Tipo de documento",
+      "multi",
+      enumOptions("tiposDisponiveis"),
+    ),
+    reportFilter("status", "Status", "multi", enumOptions("statusDisponiveis")),
+    reportFilter(
+      "situacao",
+      "Situação",
+      "select",
+      enumOptions("situacoesDisponiveis"),
+    ),
   ],
   stats: [
     {
@@ -716,6 +718,7 @@ export const regularidadeDocumentalConfig: BackendReportConfig = {
       description:
         "Veja quantos documentos estão registrados em cada status para identificar a situação dos cadastros institucionais.",
       path: "documentosPorStatus",
+      selection: { label: "Status", values: (row) => row.status },
       type: "bar",
     },
     {
@@ -723,6 +726,7 @@ export const regularidadeDocumentalConfig: BackendReportConfig = {
       description:
         "Veja quantos documentos estão vigentes, vencidos ou não possuem validade aplicável.",
       path: "documentosPorSituacao",
+      selection: { label: "Vigência", values: (row) => row.situacao },
       type: "pie",
     },
   ],
@@ -776,30 +780,24 @@ export const metasResultadosConfig: BackendReportConfig = {
   rowsPath: "metas",
   filters: [
     search("Buscar meta..."),
-    {
-      key: "projetoId",
-      label: "Projeto",
-      tooltip:
-        "Selecione um projeto para visualizar somente as metas vinculadas a ele.",
-      type: "select",
-      options: entityOptions("projetosDisponiveis"),
-    },
-    {
-      key: "situacoes",
-      label: "Situação",
-      tooltip:
-        "Selecione uma ou mais situações para visualizar as metas conforme o resultado calculado a partir de sua execução.",
-      type: "multi",
-      options: enumOptions("situacoesDisponiveis"),
-    },
-    {
-      key: "cumprimentos",
-      label: "Cumprimento",
-      tooltip:
-        "Selecione uma ou mais situações de cumprimento para visualizar somente as metas correspondentes.",
-      type: "multi",
-      options: enumOptions("cumprimentosDisponiveis"),
-    },
+    reportFilter(
+      "projetoId",
+      "Projeto",
+      "select",
+      entityOptions("projetosDisponiveis"),
+    ),
+    reportFilter(
+      "situacoes",
+      "Situação",
+      "multi",
+      enumOptions("situacoesDisponiveis"),
+    ),
+    reportFilter(
+      "cumprimentos",
+      "Cumprimento",
+      "multi",
+      enumOptions("cumprimentosDisponiveis"),
+    ),
   ],
   stats: [
     {
@@ -808,10 +806,10 @@ export const metasResultadosConfig: BackendReportConfig = {
       icon: Target,
     },
     {
-      label: "Previsto",
-      path: "totalPrevisto",
+      label: "Executado",
+      path: "totalExecutado",
       icon: CheckCircle2,
-      tone: "info",
+      tone: "success",
     },
     {
       label: "Não cumpridas",
@@ -823,13 +821,14 @@ export const metasResultadosConfig: BackendReportConfig = {
       label: "% Execução",
       path: "percentualExecucao",
       icon: Percent,
-      tone: "warning",
+      tone: "info",
       format: "percent",
     },
   ],
   charts: [
     {
       title: "Previsto x executado por meta",
+      selection: { label: "Meta", values: (row) => row.meta },
       description:
         "Compare a quantidade prevista para cada meta com a quantidade efetivamente realizada para visualizar o avanço dos resultados.",
       path: "metas",
@@ -845,10 +844,18 @@ export const metasResultadosConfig: BackendReportConfig = {
       description:
         "Veja o percentual alcançado em cada meta para identificar resultados abaixo, dentro ou acima da quantidade prevista.",
       path: "percentualExecucaoPorMeta",
+      selection: { label: "Meta", values: (row) => row.meta },
       type: "bar",
       nameKey: "nome",
       valueKey: "valor",
       label: (value) => value,
+    },
+    {
+      title: "Metas por nível de cumprimento",
+      description: "Distribuição dos registros filtrados.",
+      path: "metasPorCumprimento",
+      type: "pie",
+      selection: { label: "Cumprimento", values: (row) => row.cumprimento },
     },
   ],
   columns: [
@@ -894,30 +901,14 @@ export const institucionalOrganizacaoConfig: BackendReportConfig = {
   rowsPath: "membros",
   filters: [
     search("Buscar membro..."),
-    {
-      key: "organizacaoId",
-      label: "Organização",
-      tooltip:
-        "Selecione uma organização para visualizar somente os membros da diretoria vinculados a ela.",
-      type: "select",
-      options: entityOptions("organizacoesDisponiveis"),
-    },
-    {
-      key: "cargos",
-      label: "Cargo",
-      tooltip:
-        "Selecione um ou mais cargos para visualizar somente os membros que exercem ou exerceram essas funções na diretoria.",
-      type: "multi",
-      options: enumOptions("cargosDisponiveis"),
-    },
-    {
-      key: "status",
-      label: "Status",
-      tooltip:
-        "Selecione um ou mais status para visualizar os membros conforme a situação de seus mandatos.",
-      type: "multi",
-      options: enumOptions("statusDisponiveis"),
-    },
+    reportFilter(
+      "organizacaoId",
+      "Organização",
+      "select",
+      entityOptions("organizacoesDisponiveis"),
+    ),
+    reportFilter("cargos", "Cargo", "multi", enumOptions("cargosDisponiveis")),
+    reportFilter("status", "Status", "multi", enumOptions("statusDisponiveis")),
   ],
   stats: [
     {
@@ -926,7 +917,7 @@ export const institucionalOrganizacaoConfig: BackendReportConfig = {
       icon: Landmark,
     },
     {
-      label: "Membros",
+      label: "Diretoria",
       path: "totalMembrosDiretoria",
       icon: Users2,
       tone: "info",
@@ -941,7 +932,7 @@ export const institucionalOrganizacaoConfig: BackendReportConfig = {
       label: "Documentos vencidos",
       path: "documentosVencidos",
       icon: ScrollText,
-      tone: "warning",
+      tone: "danger",
     },
   ],
   charts: [
@@ -950,6 +941,7 @@ export const institucionalOrganizacaoConfig: BackendReportConfig = {
       description:
         "Veja como os membros da diretoria estão distribuídos entre os diferentes cargos registrados.",
       path: "membrosPorCargo",
+      selection: { label: "Cargo", values: (row) => row.cargo },
       type: "bar",
     },
     {
@@ -957,6 +949,7 @@ export const institucionalOrganizacaoConfig: BackendReportConfig = {
       description:
         "Veja como os membros da diretoria estão distribuídos conforme a situação de seus mandatos.",
       path: "membrosPorStatus",
+      selection: { label: "Status", values: (row) => row.status },
       type: "pie",
     },
   ],
@@ -984,163 +977,4 @@ export const institucionalOrganizacaoConfig: BackendReportConfig = {
     { key: "organizacao", label: "Organização" },
   ],
   emptyMessage: "Nenhum membro encontrado com os filtros selecionados.",
-};
-
-export const impactoSocialConfig: BackendReportConfig = {
-  endpoint: "impacto-social-cultural",
-  title: "Impacto Social e Cultural",
-  tooltip:
-    "Nesta página são relacionadas informações do público atendido com sua participação nas atividades e turmas. Consulte características sociais, vínculos e registros de presença para compreender quem está sendo alcançado pelas ações da organização.",
-  objective:
-    "Analise o público atendido pela organização e sua participação nas ações culturais, considerando características sociais, atividades e turmas vinculadas e a frequência registrada.",
-  tableTitle: "Participantes e impacto",
-  rowsPath: "participantes",
-  filters: [
-    search("Buscar participante..."),
-    {
-      key: "atividadeId",
-      label: "Atividade",
-      tooltip:
-        "Selecione uma atividade para visualizar somente os participantes vinculados a ela.",
-      type: "select",
-      options: entityOptions("atividadesDisponiveis"),
-    },
-    {
-      key: "turmaId",
-      label: "Turma",
-      tooltip:
-        "Selecione uma turma para visualizar somente os participantes vinculados a ela.",
-      type: "select",
-      options: entityOptions("turmasDisponiveis"),
-    },
-    {
-      key: "status",
-      label: "Status",
-      tooltip:
-        "Selecione um ou mais status para visualizar os participantes conforme a situação de seu vínculo.",
-      type: "multi",
-      options: enumOptions("statusDisponiveis"),
-    },
-    {
-      key: "generos",
-      label: "Gênero",
-      tooltip:
-        "Selecione uma ou mais opções de gênero para analisar esse recorte do público atendido.",
-      type: "multi",
-      options: enumOptions("generosDisponiveis"),
-    },
-    {
-      key: "racasCores",
-      label: "Raça/cor",
-      tooltip:
-        "Selecione uma ou mais opções de raça/cor para analisar esse recorte do público atendido.",
-      type: "multi",
-      options: enumOptions("racasCoresDisponiveis"),
-    },
-    {
-      key: "faixasRenda",
-      label: "Faixa de renda",
-      tooltip:
-        "Selecione uma ou mais faixas de renda para analisar esse recorte do público atendido.",
-      type: "multi",
-      options: enumOptions("faixasRendaDisponiveis"),
-    },
-  ],
-  stats: [
-    {
-      label: "Participantes",
-      path: "totalParticipantes",
-      icon: Users,
-    },
-    {
-      label: "Atividades",
-      path: "totalAtividades",
-      icon: CalendarDays,
-      tone: "info",
-    },
-    {
-      label: "Eventos culturais",
-      path: "totalEventosCulturais",
-      icon: Sparkles,
-      tone: "success",
-    },
-    {
-      label: "% Presença média",
-      path: "percentualPresencaMedio",
-      icon: Percent,
-      tone: "warning",
-      format: "percent",
-    },
-  ],
-  charts: [
-    {
-      title: "Presenças x registros por participante",
-      description:
-        "Compare quantas presenças foram registradas para cada participante com a quantidade total de registros de frequência existentes para ele.",
-      path: "participantes",
-      type: "comparison",
-      nameKey: "participante",
-      series: [
-        {
-          key: "presencas",
-          label: "Presenças",
-        },
-        {
-          key: "registros",
-          label: "Registros",
-        },
-      ],
-    },
-    {
-      title: "Participantes por raça/cor",
-      description:
-        "Veja como o público atendido está distribuído entre as opções de raça/cor registradas pelos participantes.",
-      path: "participantesPorRacaCor",
-      type: "bar",
-    },
-  ],
-  columns: [
-    { key: "participante", label: "Participante" },
-    { key: "atividade", label: "Atividade" },
-    { key: "turma", label: "Turma" },
-    {
-      key: "genero",
-      label: "Gênero",
-      format: "enum",
-    },
-    {
-      key: "racaCor",
-      label: "Raça/cor",
-      format: "enum",
-    },
-    {
-      key: "faixaRenda",
-      label: "Faixa de renda",
-      format: "enum",
-    },
-    {
-      key: "cadUnico",
-      label: "CadÚnico",
-      format: "boolean",
-    },
-    {
-      key: "bolsaFamilia",
-      label: "Bolsa Família",
-      format: "boolean",
-    },
-    {
-      key: "status",
-      label: "Status",
-      format: "enum",
-      statusContext: "participante",
-    },
-    { key: "presencas", label: "Presenças" },
-    { key: "registros", label: "Registros" },
-    {
-      key: "percentualPresenca",
-      label: "% Presença",
-      format: "percent",
-    },
-  ],
-  emptyMessage: "Nenhum participante encontrado com os filtros selecionados.",
 };

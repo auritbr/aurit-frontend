@@ -1,3 +1,7 @@
+import {
+  ReportFilterMultiSelect as FilterMultiSelect,
+  ReportSelectContent as SelectContent,
+} from "@/components/relatorios/ReportSelectFields";
 // =============================================================================
 // Campos de filtro dos Relatórios Financeiros.
 // Composições finas sobre os componentes já existentes (FieldLabel, Input,
@@ -7,11 +11,10 @@
 
 import { Search } from "lucide-react";
 import { FieldLabel } from "@/components/FieldLabel";
-import { FilterMultiSelect } from "@/components/FilterMultiSelect";
+
 import { Input } from "@/components/ui/input";
 import {
   Select,
-  SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,

@@ -6,6 +6,7 @@ interface AccessNotPermittedProps {
   title?: string;
   message?: string;
   showBackButton?: boolean;
+  loading?: boolean;
 }
 
 /**
@@ -16,8 +17,20 @@ export function AccessNotPermitted({
   title = "Funcionalidade indisponível para o seu acesso atual.",
   message = "Esta funcionalidade pode não estar incluída no plano da organização ou pode exigir permissões específicas de acesso. Caso precise utilizar este recurso, entre em contato com o administrador.",
   showBackButton = true,
+  loading = false,
 }: AccessNotPermittedProps) {
   const navigate = useNavigate();
+
+  if (loading) {
+    return (
+      <p
+        role="status"
+        className="container max-w-7xl py-6 text-sm text-muted-foreground sm:py-8"
+      >
+        Verificando permissões...
+      </p>
+    );
+  }
 
   return (
     <section
