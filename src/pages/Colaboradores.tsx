@@ -10,7 +10,6 @@ import {
   Eye,
   Pencil,
   Trash2,
-  Users,
 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
@@ -702,8 +701,11 @@ export default function Colaboradores() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table ref={tableRef} className="w-full min-w-[980px]">
+                <div className="overflow-x-auto">
+                  <table
+                    ref={tableRef}
+                    className="w-full min-w-[980px] whitespace-nowrap"
+                  >
                     <thead>
                       <tr className="border-b border-border bg-muted/40">
                         <th
@@ -844,98 +846,6 @@ export default function Colaboradores() {
                       })}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.length === 0 ? (
-                    <div className="p-10 text-center">
-                      <Users className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                      <p className="mt-3 text-sm text-muted-foreground">
-                        Nenhum colaborador encontrado.
-                      </p>
-                    </div>
-                  ) : (
-                    paginated.map((c) => {
-                      const tipoVinculo = tipoVinculoValueToLabel(
-                        c.tipoVinculo,
-                      );
-                      const status = statusValueToLabel(c.status);
-
-                      return (
-                        <div key={c.id} className="p-4">
-                          <div className="mb-3 flex items-center justify-between gap-2">
-                            <RowActionsDropdown
-                              reportEndpoint={
-                                podeGerarPdf
-                                  ? `/colaboradores/${c.id}/relatorio`
-                                  : undefined
-                              }
-                              reportFilename={`colaborador-${c.id}.pdf`}
-                              viewTo={`/colaboradores/${c.id}`}
-                              editTo={
-                                podeEditar
-                                  ? `/colaboradores/${c.id}/editar`
-                                  : undefined
-                              }
-                              onDelete={
-                                podeExcluir
-                                  ? () => setConfirmDelete(c.id)
-                                  : undefined
-                              }
-                              extraItems={
-                                podeCriar
-                                  ? [
-                                      doadorAction(c),
-                                      {
-                                        label: "Converter em Diretoria",
-                                        icon: Landmark,
-                                        onClick: () => setConvertItem(c),
-                                      },
-                                    ]
-                                  : undefined
-                              }
-                            />
-
-                            {podeGerarPdf && (
-                              <GerarDocumentoButton
-                                label={
-                                  tipoVinculo === "Voluntário"
-                                    ? "Termo"
-                                    : "Contrato"
-                                }
-                                compacto
-                                tipoDestinatario="COLABORADOR"
-                                destinatarioId={Number(c.id)}
-                              />
-                            )}
-                          </div>
-
-                          <p className="font-medium text-foreground">
-                            {c.nomeCompleto || "—"}
-                          </p>
-
-                          <p className="mt-2 text-sm text-foreground">
-                            {c.funcaoColaborador || "—"}
-                          </p>
-
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <StatusPill status={status} />
-
-                            <span className="text-xs text-muted-foreground">
-                              • {tipoVinculo}
-                            </span>
-                          </div>
-
-                          {c.email && (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {c.email}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
                 </div>
 
                 <DataTablePagination

@@ -293,8 +293,8 @@ export default function ModelosDocumento() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         {[
@@ -394,64 +394,6 @@ export default function ModelosDocumento() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginados.map((m) => (
-                    <div key={String(m.id)} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          onView={() => setPreview(m)}
-                          onEdit={
-                            m.editavel
-                              ? () =>
-                                  navigate(`/modelos-documento/${m.id}/editar`)
-                              : undefined
-                          }
-                          onDelete={
-                            m.editavel
-                              ? () => setConfirmarExclusao(m)
-                              : undefined
-                          }
-                          extraItems={
-                            m.origem === "AURIT"
-                              ? [
-                                  {
-                                    label: "Usar este modelo",
-                                    icon: Copy,
-                                    onClick: () =>
-                                      navigate(
-                                        `/modelos-documento/novo?modeloBase=${m.id}`,
-                                      ),
-                                  },
-                                ]
-                              : [
-                                  {
-                                    label:
-                                      m.situacao === "ATIVO"
-                                        ? "Inativar"
-                                        : "Ativar",
-                                    icon: Power,
-                                    onClick: () => situacaoMutation.mutate(m),
-                                  },
-                                ]
-                          }
-                        />
-                        <StatusPill
-                          status={m.situacao === "ATIVO" ? "Ativo" : "Inativo"}
-                          ariaLabelPrefix="Situação do modelo"
-                        />
-                      </div>
-                      <p className="font-medium text-foreground">{m.nome}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {nomeDoTipo(m.tipoDocumento)} · {origemVisivel(m)} ·
-                        Versão {m.versaoAtual ?? "—"}
-                      </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Última atualização: {formatarData(m.atualizadoEm)}
-                      </p>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

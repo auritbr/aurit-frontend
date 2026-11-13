@@ -555,8 +555,8 @@ export default function ContasBancarias() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -672,47 +672,6 @@ export default function ContasBancarias() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((i) => (
-                    <div key={i.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={`/contas-bancarias/${i.id}/relatorio`}
-                          reportFilename={`conta-bancaria-${i.id}.pdf`}
-                          viewTo={`/contas-bancarias/${i.id}`}
-                          editTo={`/contas-bancarias/${i.id}/editar`}
-                          onDelete={() => setConfirmDelete(i)}
-                        />
-                        <StatusPill
-                          status={statusContaBancariaLabel(
-                            i.statusContaBancaria,
-                          )}
-                          ariaLabelPrefix="Situação da conta"
-                        />
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {i.nomeConta}
-                      </p>
-                      <div className="mt-1">
-                        <StatusPill
-                          status={i.nomeBanco}
-                          ariaLabelPrefix="Banco"
-                        />
-                      </div>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Agência {i.agencia || "—"} · Conta{" "}
-                        {i.numeroConta || "—"}
-                      </p>
-                      <div className="mt-1">
-                        <StatusPill
-                          status={i.tipoContaBancaria}
-                          ariaLabelPrefix="Tipo de conta"
-                        />
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

@@ -819,8 +819,8 @@ export default function Atividades() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[1280px]">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1280px] whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -979,75 +979,6 @@ export default function Atividades() {
                       })}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((atividade) => (
-                    <div key={atividade.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={
-                            podeGerarPdf
-                              ? `/atividades/${atividade.id}/relatorio`
-                              : undefined
-                          }
-                          reportFilename={`atividade-${atividade.id}.pdf`}
-                          viewTo={`/atividades/${atividade.id}`}
-                          editTo={
-                            podeEditar
-                              ? `/atividades/${atividade.id}/editar`
-                              : undefined
-                          }
-                          onDelete={
-                            podeExcluir
-                              ? () => setConfirmDelete(atividade.id)
-                              : undefined
-                          }
-                          extraItems={
-                            podeCriar
-                              ? [
-                                  {
-                                    label: "Duplicar",
-                                    icon: Copy,
-                                    onClick: () =>
-                                      navigate(
-                                        `/atividades/novo?duplicar=${atividade.id}`,
-                                      ),
-                                  },
-                                ]
-                              : undefined
-                          }
-                          onHistory={() => abrirHistorico(atividade)}
-                        />
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {atividade.nomeAtividade}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        <StatusPill
-                          status={atividade.tipoAtividade}
-                          ariaLabelPrefix="Tipo de atividade"
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {formatDateBr(atividade.dataInicio)} –{" "}
-                          {formatDateBr(atividade.dataFim)}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm text-foreground">
-                        {atividade.projetoNome ?? "—"}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <StatusPill
-                          status={statusValueToLabel(atividade.status)}
-                        />
-                        <span className="line-clamp-1 text-xs text-muted-foreground">
-                          •{" "}
-                          {atividade.colaboradoresNomes.join(", ") ||
-                            "Sem colaboradores"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

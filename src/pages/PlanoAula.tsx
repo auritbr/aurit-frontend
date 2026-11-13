@@ -773,8 +773,8 @@ export default function PlanosAula() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[1280px]">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1280px] whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -908,48 +908,6 @@ export default function PlanosAula() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((plano) => (
-                    <div key={plano.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={`/planos-aula/${plano.id}/relatorio`}
-                          reportFilename={`plano-aula-${plano.id}.pdf`}
-                          viewTo={`/planos-aula/${plano.id}`}
-                          editTo={`/planos-aula/${plano.id}/editar`}
-                          onDelete={() => setConfirmDelete(plano.id)}
-                          extraItems={[
-                            {
-                              label: "Duplicar",
-                              icon: Copy,
-                              onClick: () =>
-                                navigate(
-                                  `/planos-aula/novo?duplicar=${plano.id}`,
-                                ),
-                            },
-                          ]}
-                        />
-                        <StatusPill
-                          status={statusPlanoAulaValueToLabel(
-                            plano.statusPlanoAula,
-                          )}
-                          context="plano-aula"
-                        />
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {plano.nomePlanoAula || "—"}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {atividadeNome(plano.atividadeId)} ·{" "}
-                        {planoTurmasNome(plano)}
-                      </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Início: {formatDateBR(plano.dataInicio)}
-                      </p>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

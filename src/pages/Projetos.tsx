@@ -866,8 +866,8 @@ export default function Projetos() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[1180px]">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1180px] whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1005,58 +1005,6 @@ export default function Projetos() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((item) => (
-                    <div key={item.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={
-                            podeGerarPdf
-                              ? `/projetos/${item.id}/relatorio`
-                              : undefined
-                          }
-                          reportFilename={`projeto-${item.id}.pdf`}
-                          viewTo={`/projetos/${item.id}`}
-                          editTo={
-                            podeEditar
-                              ? `/projetos/${item.id}/editar`
-                              : undefined
-                          }
-                          extraItems={[
-                            {
-                              label: "Plano de Trabalho",
-                              to: `/projetos/${item.id}/plano-trabalho`,
-                              icon: ClipboardList,
-                            },
-                          ]}
-                          onDelete={
-                            podeExcluir
-                              ? () => setConfirmDelete(item.id)
-                              : undefined
-                          }
-                          onHistory={() => abrirHistorico(item)}
-                        />
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {item.nomeProjeto}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {areasAtuacaoLabel(item.areasAtuacao)}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <StatusPill status={statusProjetoLabel(item.status)} />
-                        <StatusPill
-                          status={item.origemProjeto}
-                          ariaLabelPrefix="Origem do projeto"
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {item.dataInicio || "—"} — {item.dataFim || "—"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

@@ -672,8 +672,8 @@ export default function DocumentosPage() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[100px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -808,80 +808,6 @@ export default function DocumentosPage() {
                       })}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((d) => {
-                    const vencido =
-                      d.statusDocumento !== "NAO_SE_APLICA" &&
-                      isDocumentoVencido(d);
-                    return (
-                      <div
-                        key={d.id}
-                        className={`p-4 ${vencido ? "border-l-[3px] border-l-destructive/45 bg-destructive/[0.035]" : ""}`}
-                      >
-                        <div className="mb-3 flex items-start justify-between gap-3">
-                          <RowActionsDropdown
-                            viewTo={`/documentos/${d.id}`}
-                            editTo={
-                              podeEditar
-                                ? `/documentos/${d.id}/editar`
-                                : undefined
-                            }
-                            onDelete={
-                              podeExcluir
-                                ? () => setConfirmDelete(d.id)
-                                : undefined
-                            }
-                          />
-                          <StatusBadge doc={d} />
-                        </div>
-                        <p className="break-words font-medium text-foreground">
-                          {getNomeDocumento(d)}
-                        </p>
-                        <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
-                          <div className="min-w-0">
-                            <dt className="text-muted-foreground">
-                              Órgão emissor
-                            </dt>
-                            <dd className="break-words text-foreground">
-                              {d.orgaoEmissor || "—"}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt className="text-muted-foreground">Emissão</dt>
-                            <dd className="text-foreground">
-                              {formatDateBR(d.dataEmissao)}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt className="text-muted-foreground">Validade</dt>
-                            <dd className="text-foreground">
-                              {formatDateBR(d.dataValidade)}
-                            </dd>
-                          </div>
-                        </dl>
-                        {d.dataValidade && (
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            {"Validade: "}{" "}
-                            <span className="font-medium text-foreground">
-                              {formatDateBR(d.dataValidade)}
-                            </span>
-                          </p>
-                        )}
-                        {podeBaixar && d.urlDocumento && (
-                          <div className="mt-3">
-                            <DocumentActionButton
-                              label="Ver arquivo"
-                              icon={Download}
-                              onClick={() => void handleAbrirArquivo(d)}
-                              title="Ver arquivo"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
                 </div>
 
                 <DataTablePagination

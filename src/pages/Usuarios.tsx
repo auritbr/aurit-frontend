@@ -734,8 +734,8 @@ export default function Usuarios() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="min-w-full w-max">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full w-max whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -789,11 +789,6 @@ export default function Usuarios() {
                       )}
                     </tbody>
                   </table>
-                </div>
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((usuario) =>
-                    renderUsuarioRow({ usuario, mobile: true }),
-                  )}
                 </div>
                 <DataTablePagination
                   totalItems={filtered.length}

@@ -81,7 +81,6 @@ export default function RelatorioParticipacaoPresencaPage() {
             ))}
 
             <TabelaLinhasRelatorio
-              mobileCards
               titulo="Atividades"
               items={data.atividades}
               nomeEmpresa={data.nomeEmpresa}
@@ -89,7 +88,6 @@ export default function RelatorioParticipacaoPresencaPage() {
             />
 
             <TabelaLinhasRelatorio
-              mobileCards
               titulo="Turmas"
               items={data.turmas}
               nomeEmpresa={data.nomeEmpresa}
@@ -97,7 +95,6 @@ export default function RelatorioParticipacaoPresencaPage() {
             />
 
             <TabelaLinhasRelatorio
-              mobileCards
               titulo="Presenças"
               items={data.presencas}
               nomeEmpresa={data.nomeEmpresa}

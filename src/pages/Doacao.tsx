@@ -596,8 +596,8 @@ export default function DoacoesPage() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -707,61 +707,6 @@ export default function DoacoesPage() {
                       })}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((d) => (
-                    <div key={d.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={`/doacoes/${d.id}/relatorio`}
-                          reportFilename={`doacao-${d.id}.pdf`}
-                          viewTo={`/doacoes/${d.id}`}
-                          editTo={`/doacoes/${d.id}/editar`}
-                          onDelete={() => setConfirmDelete(d.id)}
-                        />
-                        <div className="flex items-center gap-2">
-                          <GerarReciboButton
-                            endpoint={`/doacoes/${d.id}/recibo`}
-                            filename={`recibo-doacao-${d.id}.pdf`}
-                            label="Recibo"
-                            successMessage="Recibo de doação gerado com sucesso."
-                            errorMessage="Não foi possível gerar o recibo de doação."
-                          />
-                          <StatusPill status={d.statusDoacao} />
-                        </div>
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {d.nomeDoacao?.trim() || "(Sem nome)"}
-                      </p>
-                      <div className="mt-1">
-                        <StatusPill
-                          status={d.tipoDoacao}
-                          ariaLabelPrefix="Tipo de doação"
-                        />
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-[12px]">
-                        <div>
-                          <p className="text-muted-foreground">Doador</p>
-                          <p className="text-foreground">{doadorNome(d)}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Data</p>
-                          <p className="text-foreground">
-                            {formatarData(d.dataDoacao)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">
-                            Valor / quantidade
-                          </p>
-                          <p className="text-foreground">
-                            {valorOuQuantidadeTexto(d)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

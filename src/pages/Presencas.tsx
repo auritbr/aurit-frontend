@@ -703,9 +703,9 @@ export default function Presencas() {
                   </div>
                 ) : (
                   <>
-                    <div className="hidden overflow-hidden rounded-[12px] border border-border/60 md:block">
+                    <div className="overflow-hidden rounded-[12px] border border-border/60">
                       <div className="overflow-x-auto">
-                        <table className="w-full min-w-[760px]">
+                        <table className="w-full min-w-[760px] whitespace-nowrap">
                           <thead>
                             <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                               <th className="whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -747,9 +747,9 @@ export default function Presencas() {
                                     options={statusPresenca}
                                     ariaLabel={`Status de presença de ${row.nome}`}
                                     className={
-                                      !podeCriar
-                                        ? "pointer-events-none opacity-70"
-                                        : undefined
+                                      podeCriar
+                                        ? "inline-flex w-max flex-nowrap md:flex-nowrap"
+                                        : "pointer-events-none inline-flex w-max flex-nowrap opacity-70 md:flex-nowrap"
                                     }
                                   />
                                 </td>
@@ -758,32 +758,6 @@ export default function Presencas() {
                           </tbody>
                         </table>
                       </div>
-                    </div>
-
-                    <div className="divide-y divide-border/60 overflow-hidden rounded-[12px] border border-border/60 md:hidden">
-                      {rows.map((row) => (
-                        <div key={row.id} className="p-4">
-                          <p className="mb-2 text-sm font-medium text-foreground">
-                            {row.nome}
-                          </p>
-
-                          <AttendanceStatusSelector
-                            value={row.status}
-                            onChange={(value) => {
-                              if (podeCriar) {
-                                updateStatus(row.id, value);
-                              }
-                            }}
-                            options={statusPresenca}
-                            ariaLabel={`Status de presença de ${row.nome}`}
-                            className={
-                              !podeCriar
-                                ? "pointer-events-none opacity-70"
-                                : undefined
-                            }
-                          />
-                        </div>
-                      ))}
                     </div>
                   </>
                 )}

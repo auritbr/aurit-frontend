@@ -1297,8 +1297,8 @@ export default function Editais() {
                   />
                 ) : (
                   <>
-                    <div className="hidden overflow-x-auto md:block">
-                      <table className="w-full min-w-[1340px] table-fixed">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[1340px] table-fixed whitespace-nowrap">
                         <thead>
                           <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                             <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1376,15 +1376,19 @@ export default function Editais() {
                                 />
                               </td>
                               <td className="w-[350px] overflow-hidden px-6 py-2.5">
-                                <TableCellText text={item.nomeEdital} bold>
-                                  {item.nomeEdital}
-                                </TableCellText>
-                                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                                  {item.numeroEdital
-                                    ? `Edital nº ${item.numeroEdital}`
-                                    : "Sem número informado"}
-                                  {item.anoEdital ? ` · ${item.anoEdital}` : ""}
-                                </p>
+                                <div className="flex items-baseline gap-2">
+                                  <TableCellText text={item.nomeEdital} bold>
+                                    {item.nomeEdital}
+                                  </TableCellText>
+                                  <span className="truncate text-[11px] text-muted-foreground">
+                                    {item.numeroEdital
+                                      ? `Edital nº ${item.numeroEdital}`
+                                      : "Sem número informado"}
+                                    {item.anoEdital
+                                      ? ` · ${item.anoEdital}`
+                                      : ""}
+                                  </span>
+                                </div>
                               </td>
                               <td className="w-[270px] overflow-hidden px-6 py-2.5">
                                 <TableCellText
@@ -1421,62 +1425,6 @@ export default function Editais() {
                           ))}
                         </tbody>
                       </table>
-                    </div>
-
-                    <div className="divide-y divide-border md:hidden">
-                      {paginated.map((item) => (
-                        <div key={item.id} className="p-4">
-                          <div className="mb-3 flex items-center justify-between gap-2">
-                            <RowActionsDropdown
-                              reportEndpoint={`/editais/${item.id}/relatorio`}
-                              reportFilename={`edital-${item.id}.pdf`}
-                              onView={() => openRecord(item, "view")}
-                              onEdit={() => openRecord(item, "edit")}
-                              onDelete={() => setConfirmDelete(item)}
-                            />
-                            <StatusPill
-                              status={item.statusEdital}
-                              context="edital"
-                              ariaLabelPrefix="Situação do edital"
-                            />
-                          </div>
-                          <p className="font-medium text-foreground">
-                            {item.nomeEdital}
-                          </p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {item.orgaoResponsavel}
-                          </p>
-                          <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
-                            <div>
-                              <p className="text-muted-foreground">Esfera</p>
-                              <p className="text-foreground">
-                                {item.esferaEdital
-                                  ? esferaEditalLabel(item.esferaEdital)
-                                  : "—"}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">
-                                Valor total
-                              </p>
-                              <p className="font-medium tabular-nums text-foreground">
-                                {formatValorEdital(item.valorTotalDisponivel)}
-                              </p>
-                            </div>
-                            <div className="col-span-2">
-                              <p className="text-muted-foreground">
-                                Período de inscrições
-                              </p>
-                              <p className="text-foreground">
-                                {periodoInscricoesEdital(
-                                  item.dataAbertura,
-                                  item.dataEncerramento,
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
                     </div>
 
                     <DataTablePagination

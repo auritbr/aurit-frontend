@@ -378,7 +378,7 @@ export default function FornecedoresPage() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
+                <div className="overflow-x-auto">
                   <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45">

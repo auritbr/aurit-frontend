@@ -6,15 +6,7 @@ import {
   type FormEvent,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  FileDown,
-  Loader2,
-  Package,
-  Plus,
-  RotateCcw,
-  Search,
-  Target,
-} from "lucide-react";
+import { FileDown, Loader2, Plus, RotateCcw, Search } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
@@ -744,8 +736,8 @@ export default function PrestacaoContasPage() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -854,58 +846,6 @@ export default function PrestacaoContasPage() {
                       })}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((item) => (
-                    <div key={item.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={
-                            podeExportar
-                              ? `/prestacoes-contas/${item.id}/relatorio`
-                              : undefined
-                          }
-                          reportFilename={`prestacao-contas-${item.id}.pdf`}
-                          viewTo={`/prestacao-contas/${item.id}`}
-                          editTo={
-                            podeEditar
-                              ? `/prestacao-contas/${item.id}/editar`
-                              : undefined
-                          }
-                          onDelete={
-                            podeExcluir
-                              ? () => setConfirmDelete(item)
-                              : undefined
-                          }
-                        />
-                        <StatusPill
-                          status={item.statusPrestacaoContas}
-                          context="prestacao-contas"
-                          ariaLabelPrefix="Situação da prestação"
-                        />
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {propostaEditalNome(item.propostaEdital)}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {responsavelNome(item.agente)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Entrega: {formatDateBr(item.dataEntrega)}
-                      </p>
-                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1.5">
-                          <Target className="h-3.5 w-3.5" aria-hidden />
-                          {metasAvaliadasResumo(item)}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Package className="h-3.5 w-3.5" aria-hidden />
-                          {produtosGeradosResumo(item.produtosGerados)}
-                        </span>
-                      </p>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

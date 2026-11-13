@@ -640,8 +640,8 @@ export default function EstudosSocioeconomicos() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th
@@ -704,32 +704,6 @@ export default function EstudosSocioeconomicos() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((estudo) => (
-                    <div key={estudo.id} className="p-4">
-                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        {acoes(estudo)}
-                        <StatusPill status={situacaoLabel(estudo)} />
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {estudo.nomeParticipante}
-                      </p>
-                      <div className="mt-1 space-y-1 text-xs text-muted-foreground">
-                        <p>
-                          Data do estudo:{" "}
-                          {dataBR(estudo.dataEstudo) || "Não informada"}
-                        </p>
-                        <p>
-                          Pessoas na família: {estudo.quantidadePessoasFamilia}
-                        </p>
-                        <p>Renda familiar: {renda(estudo.rendaFamiliar)}</p>
-                        <p>
-                          Renda per capita: {perCapita(estudo.rendaPerCapita)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
                 </div>
                 <DataTablePagination
                   totalItems={rows.length}

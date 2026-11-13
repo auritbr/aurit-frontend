@@ -748,8 +748,8 @@ export default function PropostasEdital() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -877,78 +877,6 @@ export default function PropostasEdital() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((item) => (
-                    <div key={item.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={
-                            podeExportar
-                              ? `/propostas-editais/${item.id}/relatorio`
-                              : undefined
-                          }
-                          reportFilename={`proposta-edital-${item.id}.pdf`}
-                          viewTo={`/propostas-edital/${item.id}`}
-                          editTo={
-                            podeEditar
-                              ? `/propostas-edital/${item.id}/editar`
-                              : undefined
-                          }
-                          onDelete={
-                            podeExcluir
-                              ? () => setConfirmDelete(item)
-                              : undefined
-                          }
-                          extraItems={rowActions(item)}
-                        />
-                        <StatusPill
-                          status={item.statusPropostaEdital}
-                          context="proposta-edital"
-                          ariaLabelPrefix="Situação da proposta"
-                        />
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {item.tituloProjeto}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {editalNomeById(item.edital)}
-                      </p>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
-                        <div>
-                          <p className="text-muted-foreground">
-                            Organização proponente
-                          </p>
-                          <p className="text-foreground">
-                            {organizacaoNome(item.organizacao)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Projeto base</p>
-                          <p className="text-foreground">
-                            {projetoNomeById(item.projeto)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">
-                            Valor solicitado
-                          </p>
-                          <p className="font-medium tabular-nums text-foreground">
-                            {formatBRLNumber(item.valorSolicitado)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">
-                            Data de submissão
-                          </p>
-                          <p className="text-foreground">
-                            {formatDateBr(item.dataSubmissao)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

@@ -1428,8 +1428,8 @@ export default function Cronograma() {
                   />
                 ) : (
                   <>
-                    <div className="hidden overflow-x-auto md:block">
-                      <table className="w-full min-w-[1180px]">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[1180px] whitespace-nowrap">
                         <thead>
                           <tr className="border-b border-border bg-muted/40">
                             <th
@@ -1567,78 +1567,6 @@ export default function Cronograma() {
                             renderEmptyRow({ colSpan: 7 })}
                         </tbody>
                       </table>
-                    </div>
-
-                    <div className="divide-y divide-border md:hidden">
-                      {paginated.map((item) => (
-                        <div key={item.id} className="p-4">
-                          <div className="mb-3 flex items-center justify-between gap-2">
-                            <RowActionsDropdown
-                              reportEndpoint={
-                                podeGerarPdf
-                                  ? `/cronogramas/${item.id}/relatorio`
-                                  : undefined
-                              }
-                              reportFilename={`cronograma-${item.id}.pdf`}
-                              onView={() => openRecord(item, "view")}
-                              onEdit={
-                                podeEditar
-                                  ? () => openRecord(item, "edit")
-                                  : undefined
-                              }
-                              onDelete={
-                                podeExcluir
-                                  ? () => setConfirmDeleteId(item.id)
-                                  : undefined
-                              }
-                            />
-                          </div>
-
-                          <p className="font-medium text-foreground">
-                            {item.nomeEtapa}
-                          </p>
-
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                            <StatusPill
-                              status={item.etapaCronograma}
-                              ariaLabelPrefix="Etapa do cronograma"
-                            />
-                            <span className="text-xs text-muted-foreground">
-                              {formatDateRange(
-                                item.dataInicioEtapa,
-                                item.dataFimEtapa,
-                              )}
-                            </span>
-                          </div>
-
-                          <p className="mt-2 text-sm text-foreground">
-                            {projetoNome(item.projetoId)}
-                          </p>
-
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {vinculoTexto(item)}
-                          </p>
-
-                          <div className="mt-2">
-                            <StatusPill
-                              status={statusCronogramaLabel(
-                                item.statusCronograma,
-                              )}
-                              context="cronograma"
-                            />
-                          </div>
-                        </div>
-                      ))}
-
-                      {paginated.length === 0 && (
-                        <div className="p-10 text-center">
-                          <FolderKanban className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                          <p className="mt-3 text-sm text-muted-foreground">
-                            Nenhuma etapa encontrada.
-                          </p>
-                        </div>
-                      )}
                     </div>
 
                     <DataTablePagination

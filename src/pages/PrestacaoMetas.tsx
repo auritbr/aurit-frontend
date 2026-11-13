@@ -622,8 +622,8 @@ export default function PrestacaoMetasPage() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -691,14 +691,16 @@ export default function PrestacaoMetasPage() {
                               />
                             </td>
                             <td className="px-6 py-2.5">
-                              <TableCellText text={titulo} bold>
-                                {titulo}
-                              </TableCellText>
-                              {descricao && (
-                                <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                                  {descricao}
-                                </p>
-                              )}
+                              <div className="flex items-baseline gap-2">
+                                <TableCellText text={titulo} bold>
+                                  {titulo}
+                                </TableCellText>
+                                {descricao && (
+                                  <span className="truncate text-xs text-muted-foreground">
+                                    {descricao}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="whitespace-nowrap px-6 py-2.5 text-[13px] text-foreground">
                               {formatQuantidadeExecutada(
@@ -722,42 +724,6 @@ export default function PrestacaoMetasPage() {
                       })}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((item) => (
-                    <div key={item.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          viewTo={`/prestacao-metas/${item.id}`}
-                          reportEndpoint={`/prestacao-metas/${item.id}/relatorio`}
-                          editTo={
-                            podeEditar
-                              ? `/prestacao-metas/${item.id}/editar`
-                              : undefined
-                          }
-                          onDelete={
-                            podeExcluir
-                              ? () => setConfirmDelete(item)
-                              : undefined
-                          }
-                        />
-                        <StatusPill
-                          status={item.statusCumprimentoMeta}
-                          context="cumprimento-meta"
-                          ariaLabelPrefix="Situação do cumprimento"
-                        />
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {metaProjetoNome(item.metaProjeto)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Executado:{" "}
-                        {formatQuantidadeExecutada(item.quantidadeExecutada)} ·{" "}
-                        {formatPercentualExecutado(item.percentualExecutado)}
-                      </p>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

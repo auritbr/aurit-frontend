@@ -586,8 +586,8 @@ export default function Integrantes() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[1260px]">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1260px] whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -728,66 +728,6 @@ export default function Integrantes() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((item) => (
-                    <div key={item.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={
-                            podeGerarPdf
-                              ? `/integrantes/${item.id}/relatorio`
-                              : undefined
-                          }
-                          reportFilename={`integrante-${item.id}.pdf`}
-                          viewTo={`/integrantes/${item.id}`}
-                          editTo={
-                            podeEditar
-                              ? `/integrantes/${item.id}/editar`
-                              : undefined
-                          }
-                          onDelete={
-                            podeExcluir
-                              ? () => setConfirmDelete(item.id)
-                              : undefined
-                          }
-                          extraItems={
-                            podeCriar
-                              ? [
-                                  doadorAction(item),
-                                  {
-                                    label: "Converter em colaborador",
-                                    icon: UserPlus,
-                                    onClick: () => setConvertItem(item),
-                                  },
-                                ]
-                              : undefined
-                          }
-                        />
-                        {podeGerarPdf &&
-                          item.tipoVinculoIntegrante === "PARECERISTA" && (
-                            <GerarDocumentoButton
-                              label="Contrato"
-                              compacto
-                              tipoDestinatario="INTEGRANTE"
-                              destinatarioId={item.id}
-                            />
-                          )}
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {nome(item)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {documento(item)}
-                      </p>
-                      {item.funcaoIntegrante && (
-                        <p className="mt-2 text-sm">{item.funcaoIntegrante}</p>
-                      )}
-                      <div className="mt-2">
-                        <StatusPill status={statusValueToLabel(item.status)} />
-                      </div>
-                    </div>
-                  ))}
                 </div>
                 <DataTablePagination
                   totalItems={filtered.length}

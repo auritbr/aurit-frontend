@@ -671,8 +671,8 @@ export default function Agentes() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -767,48 +767,6 @@ export default function Agentes() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((agente) => (
-                    <div key={agente.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={
-                            podeGerarPdf
-                              ? `/agentes/${agente.id}/relatorio`
-                              : undefined
-                          }
-                          reportFilename={`agente-${agente.id}.pdf`}
-                          viewTo={`/agentes/${agente.id}`}
-                          editTo={
-                            podeEditar
-                              ? `/agentes/${agente.id}/editar`
-                              : undefined
-                          }
-                          onDelete={
-                            podeExcluir
-                              ? () => setConfirmDelete(agente.id)
-                              : undefined
-                          }
-                        />
-                      </div>
-                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                        {tipoAgenteLabels[agente.tipo]}
-                      </p>
-                      <p className="mt-0.5 font-medium text-foreground">
-                        {agente.nomePrincipal}
-                      </p>
-                      {agente.representante && (
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Rep.: {agente.representante}
-                        </p>
-                      )}
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {formatDocumentoAgente(agente.documento)}
-                      </p>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

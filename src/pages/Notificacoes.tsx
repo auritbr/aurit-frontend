@@ -1186,8 +1186,8 @@ export default function Notificacoes() {
                 </div>
               ) : (
                 <>
-                  <div className="hidden overflow-hidden rounded-[13px] border border-border/60 md:block">
-                    <table className="w-full text-left text-[13px]">
+                  <div className="overflow-x-auto rounded-[13px] border border-border/60">
+                    <table className="w-full text-left text-[13px] whitespace-nowrap">
                       <caption className="sr-only">
                         Últimas notificações enviadas pelo sistema
                       </caption>
@@ -1232,34 +1232,6 @@ export default function Notificacoes() {
                       </tbody>
                     </table>
                   </div>
-                  <ul
-                    className="flex flex-col gap-2.5 md:hidden"
-                    aria-label="Últimas notificações"
-                  >
-                    {historico.map((item) => (
-                      <li
-                        key={item.id}
-                        className="rounded-[13px] border border-border/60 bg-card/70 px-4 py-3 backdrop-blur-sm"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-[13.5px] font-semibold text-foreground">
-                              {item.tipoNotificacaoDescricao}
-                            </p>
-                            <p className="mt-0.5 break-words text-[12.5px] text-foreground/85">
-                              {item.referencia}
-                            </p>
-                            <p className="mt-1 text-[12px] text-muted-foreground">
-                              {formatarDataEnvio(
-                                item.dataEnvio ?? item.dataTentativa,
-                              )}
-                            </p>
-                          </div>
-                          <StatusPill status={item.situacao} />
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
                 </>
               )}
             </FormSectionCard>

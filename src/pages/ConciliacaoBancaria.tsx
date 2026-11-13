@@ -1226,8 +1226,8 @@ export default function ConciliacaoBancaria() {
                 </div>
               ) : (
                 <>
-                  <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full min-w-[980px]">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[980px] whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                           <th
@@ -1321,46 +1321,6 @@ export default function ConciliacaoBancaria() {
                         ))}
                       </tbody>
                     </table>
-                  </div>
-
-                  <div className="divide-y divide-border md:hidden">
-                    {historicoPaginado.map((item) => (
-                      <div key={item.id} className="p-4">
-                        <div className="mb-3 flex items-center justify-between gap-2">
-                          <RowActionsDropdown
-                            extraItems={[
-                              {
-                                label: "Abrir conciliação",
-                                icon: ClipboardCheck,
-                                onClick: () => abrirConciliacao(item.id),
-                              },
-                            ]}
-                            onDelete={() => setConfirmarExcluir(item)}
-                          />
-                          <StatusPill
-                            status={
-                              statusConciliacaoBancariaLabels[
-                                item.statusConciliacaoBancaria
-                              ]
-                            }
-                          />
-                        </div>
-                        <p className="font-medium text-foreground">
-                          {item.contaBancariaLabel}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {formatDate(item.periodoInicio)} –{" "}
-                          {formatDate(item.periodoFim)}
-                        </p>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          {item.totais.total} movimentações ·{" "}
-                          {item.totais.conciliadas} conciliadas
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Importado em {formatDateTime(item.dataImportacao)}
-                        </p>
-                      </div>
-                    ))}
                   </div>
 
                   <DataTablePagination

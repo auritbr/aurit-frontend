@@ -351,7 +351,7 @@ export default function ParceirosPage() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
+                <div className="overflow-x-auto">
                   <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b bg-muted/45">

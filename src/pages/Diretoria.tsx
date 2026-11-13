@@ -1829,8 +1829,8 @@ export default function Diretoria() {
                 />
               ) : (
                 <>
-                  <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full min-w-[1260px]">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1260px] whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                           <th
@@ -1993,91 +1993,6 @@ export default function Diretoria() {
                         })}
                       </tbody>
                     </table>
-                  </div>
-
-                  <div className="divide-y divide-border md:hidden">
-                    {paginated.map((item) => {
-                      const organizacao = organizacaoNome(item.organizacaoId);
-
-                      return (
-                        <div key={item.id} className="p-4">
-                          <div className="mb-3 flex items-center gap-1">
-                            <RowActionsDropdown
-                              reportEndpoint={
-                                podeGerarPdf
-                                  ? `/diretorias/${item.id}/relatorio`
-                                  : undefined
-                              }
-                              reportFilename={`diretoria-${item.id}.pdf`}
-                              onView={() => openRecord(item, "view")}
-                              onEdit={
-                                podeEditar
-                                  ? () => openRecord(item, "edit")
-                                  : undefined
-                              }
-                              onDelete={
-                                podeExcluir
-                                  ? () => setConfirmDeleteId(item.id)
-                                  : undefined
-                              }
-                              extraItems={[
-                                ...(podeCriar
-                                  ? [
-                                      {
-                                        label: "Duplicar",
-                                        icon: Copy,
-                                        onClick: () => duplicateRecord(item),
-                                      },
-                                      {
-                                        label: "Converter em Colaborador",
-                                        icon: UserPlus,
-                                        onClick: () => setConvertItem(item),
-                                      },
-                                    ]
-                                  : []),
-                                ...(podeGerarPdf
-                                  ? [
-                                      {
-                                        label: "Gerar declaração de cargo",
-                                        icon: FileText,
-                                        onClick: () =>
-                                          void gerarDeclaracaoCargo(item.id),
-                                      },
-                                    ]
-                                  : []),
-                              ]}
-                            />
-                          </div>
-
-                          <p className="font-medium text-foreground">
-                            {item.nomeCompleto || "—"}
-                          </p>
-
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <span className="text-xs text-muted-foreground">
-                              {cargoDiretoriaLabel(item.cargoDiretoria)}
-                            </span>
-
-                            <StatusPill
-                              status={item.statusDiretoria}
-                              context="diretoria"
-                              ariaLabelPrefix="Status na diretoria"
-                            />
-                          </div>
-
-                          <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                            <p>
-                              Início: {formatDateBR(item.dataInicioMandato)}
-                            </p>
-                            <p>Término: {formatDateBR(item.dataFimMandato)}</p>
-                            <p>
-                              Afastamento: {formatDateBR(item.dataAfastamento)}
-                            </p>
-                            <p>Organização: {organizacao}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
                   </div>
 
                   <DataTablePagination

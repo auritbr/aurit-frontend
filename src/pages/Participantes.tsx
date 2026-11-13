@@ -1025,8 +1025,8 @@ export default function Participantes() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1185,90 +1185,6 @@ export default function Participantes() {
                       })}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((p) => (
-                    <div key={p.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={
-                            podeGerarPdf
-                              ? `/participantes/${p.id}/relatorio`
-                              : undefined
-                          }
-                          reportFilename={`participante-${p.id}.pdf`}
-                          viewTo={`/participantes/${p.id}`}
-                          editTo={
-                            podeEditar
-                              ? `/participantes/${p.id}/editar`
-                              : undefined
-                          }
-                          onDelete={
-                            podeExcluir
-                              ? () => setConfirmDelete(p.id)
-                              : undefined
-                          }
-                          extraItems={[
-                            ...(podeCriar
-                              ? [
-                                  doadorAction(p),
-                                  {
-                                    label: "Duplicar",
-                                    icon: Copy,
-                                    onClick: () =>
-                                      navigate(
-                                        `/participantes/novo?duplicar=${p.id}`,
-                                      ),
-                                  },
-                                ]
-                              : []),
-                            {
-                              label: "Linha do Tempo",
-                              icon: History,
-                              to: `/participantes/${p.id}/linha-do-tempo`,
-                            },
-                            ...acoesEstudos(p.id),
-                            ...acoesDeclaracao(p.id),
-                          ]}
-                          onHistory={() => abrirHistorico(p)}
-                        />
-
-                        {podeGerarPdf && (
-                          <GerarDocumentoButton
-                            label="Gerar termo"
-                            compacto
-                            tipoDestinatario="PARTICIPANTE"
-                            destinatarioId={Number(p.id)}
-                          />
-                        )}
-                      </div>
-
-                      <p className="font-medium text-foreground">
-                        {p.nomeCompleto}
-                      </p>
-
-                      {p.nomeResponsavel && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          Resp.: {p.nomeResponsavel}
-                        </p>
-                      )}
-
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <StatusPill status={statusValueToLabel(p.status)} />
-
-                        <span className="text-xs text-muted-foreground">
-                          • {formatVinculos(p.vinculos) || "Sem vínculos"}
-                        </span>
-                      </div>
-
-                      {p.telefone && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Telefone: {maskPhone(p.telefone)}
-                        </p>
-                      )}
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

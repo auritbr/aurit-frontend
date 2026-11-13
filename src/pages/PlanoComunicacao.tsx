@@ -758,9 +758,9 @@ export default function PlanoComunicacaoPage() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
+                <div className="overflow-x-auto">
                   <table
-                    className={`w-full table-fixed ${propostaContexto ? "min-w-[1080px]" : "min-w-[1320px]"}`}
+                    className={`w-full table-fixed whitespace-nowrap ${propostaContexto ? "min-w-[1080px]" : "min-w-[1320px]"}`}
                   >
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
@@ -863,55 +863,6 @@ export default function PlanoComunicacaoPage() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((item) => (
-                    <div key={item.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          viewTo={`/plano-comunicacao/${item.id}`}
-                          reportEndpoint={`/planos-comunicacao/${item.id}/relatorio`}
-                          editTo={`/plano-comunicacao/${item.id}/editar`}
-                          onDelete={() => setConfirmDelete(item)}
-                        />
-                        <StatusPill status={situacaoPlanoLabel(item)} />
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {textoOuTraco(item.nomePlano)}
-                      </p>
-                      {!propostaContexto && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {propostaNomeDoPlano(item)}
-                        </p>
-                      )}
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
-                        <div>
-                          <p className="text-muted-foreground">
-                            Quantidade prevista
-                          </p>
-                          <p className="text-foreground">
-                            {textoOuTraco(item.quantidade)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Período</p>
-                          <p className="tabular-nums text-foreground">
-                            {periodoPlano(item)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {(item.estrategiasDivulgacao || []).map((e) => (
-                          <StatusPill
-                            key={e}
-                            status={e}
-                            ariaLabelPrefix="Estratégia de divulgação"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

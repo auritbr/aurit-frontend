@@ -561,8 +561,8 @@ export default function TrajetoriasCulturais() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -635,46 +635,6 @@ export default function TrajetoriasCulturais() {
                       })}
                     </tbody>
                   </table>
-                </div>
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((item) => {
-                    const situacao = situacaoTexto(item.textoTrajetoria);
-                    return (
-                      <div key={item.id} className="p-4">
-                        <div className="mb-3 flex items-center justify-between gap-2">
-                          <RowActionsDropdown
-                            viewTo={`/trajetorias-culturais/${item.id}`}
-                            editTo={
-                              podeEditar
-                                ? `/trajetorias-culturais/${item.id}/editar`
-                                : undefined
-                            }
-                            onDelete={
-                              podeExcluir
-                                ? () => setConfirmDelete(item.id)
-                                : undefined
-                            }
-                          />
-                          {podeGerarPdf && (
-                            <DocumentActionButton
-                              label="Gerar trajetória"
-                              icon={FileDown}
-                              disabled={
-                                !situacao.preenchido ||
-                                (gerandoTrajetoriaId !== null &&
-                                  gerandoTrajetoriaId !== item.id)
-                              }
-                              loading={gerandoTrajetoriaId === item.id}
-                              onClick={() => void handleExport(item.id)}
-                            />
-                          )}
-                        </div>
-                        <p className="font-medium text-foreground">
-                          {getColaboradorNome(item)}
-                        </p>
-                      </div>
-                    );
-                  })}
                 </div>
                 <DataTablePagination
                   totalItems={filtered.length}

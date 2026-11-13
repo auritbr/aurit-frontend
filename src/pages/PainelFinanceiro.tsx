@@ -270,9 +270,8 @@ function PrevistosLista({
 
   return (
     <>
-      {/* Desktop e tablet */}
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[640px]">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] whitespace-nowrap">
           <caption className="sr-only">
             Registros previstos para os próximos {DIAS_PROXIMO_VENCIMENTO} dias
           </caption>
@@ -329,49 +328,6 @@ function PrevistosLista({
           </tbody>
         </table>
       </div>
-
-      {/* Mobile */}
-      <ul className="space-y-2.5 md:hidden">
-        {items.map((item) => (
-          <li key={item.id}>
-            <button
-              type="button"
-              onClick={() => onSelect(item.id)}
-              className="w-full rounded-[12px] border border-border/60 bg-background/60 p-3 text-left backdrop-blur-sm"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-[13px] font-medium text-foreground">
-                  {item.descricao}
-                </span>
-                <StatusPill
-                  status={statusLabel(item.situacao)}
-                  size="sm"
-                  ariaLabelPrefix="Situação"
-                />
-              </div>
-              {item.pessoa && (
-                <p className="mt-1 text-[12.5px] text-muted-foreground">
-                  {rotuloPessoa}: {item.pessoa}
-                </p>
-              )}
-              {item.projeto && (
-                <p className="text-[12.5px] text-muted-foreground">
-                  Projeto: {item.projeto}
-                </p>
-              )}
-              <p className="mt-1.5 text-[12.5px] text-muted-foreground">
-                Vencimento:{" "}
-                <span className="tabular-nums">
-                  {formatDate(item.vencimento)}
-                </span>
-              </p>
-              <p className="text-[15px] font-semibold tabular-nums text-foreground">
-                {formatCurrency(item.valor)}
-              </p>
-            </button>
-          </li>
-        ))}
-      </ul>
     </>
   );
 }

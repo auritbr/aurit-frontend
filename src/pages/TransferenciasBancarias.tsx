@@ -13,7 +13,6 @@ import {
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -730,8 +729,8 @@ export default function TransferenciasBancarias() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -768,6 +767,14 @@ export default function TransferenciasBancarias() {
                           onSort={toggleSort}
                         >
                           Data
+                        </SortableTh>
+                        <SortableTh
+                          sortKey="dataEfetivacao"
+                          activeKey={filtros.sortBy}
+                          dir={filtros.sortDir}
+                          onSort={toggleSort}
+                        >
+                          Data de efetivação
                         </SortableTh>
                         <SortableTh
                           sortKey="valorTransferencia"
@@ -832,6 +839,13 @@ export default function TransferenciasBancarias() {
                               {formatDate(i.dataTransferencia)}
                             </TableCellText>
                           </td>
+                          <td className="px-6 py-2.5">
+                            <TableCellText
+                              text={formatDate(i.dataEfetivacaoTransferencia)}
+                            >
+                              {formatDate(i.dataEfetivacaoTransferencia)}
+                            </TableCellText>
+                          </td>
                           <td className="whitespace-nowrap px-6 py-2.5 text-right md:text-left">
                             <TableCellText
                               text={formatCurrency(
@@ -860,52 +874,6 @@ export default function TransferenciasBancarias() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((i) => (
-                    <div key={i.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={`/transferencias-bancarias/${i.id}/relatorio`}
-                          reportFilename={`transferencia-bancaria-${i.id}.pdf`}
-                          viewTo={`/transferencias-bancarias/${i.id}`}
-                          editTo={`/transferencias-bancarias/${i.id}/editar`}
-                          onDelete={() => setConfirmDelete(i)}
-                        />
-                        <StatusPill
-                          status={statusTransferenciaLabel(
-                            i.statusTransferenciaBancaria,
-                          )}
-                          ariaLabelPrefix="Situação da transferência"
-                        />
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {i.nomeTransferencia}
-                      </p>
-                      <p className="mt-1 text-sm text-foreground">
-                        {contaLabel(i.contaOrigemId)} →{" "}
-                        {contaLabel(i.contaDestinoId)}
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-foreground">
-                        {formatCurrency(parseMoney(i.valorTransferencia))}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Transferência {formatDate(i.dataTransferencia)}
-                        {i.dataEfetivacaoTransferencia
-                          ? ` · Efetivação ${formatDate(i.dataEfetivacaoTransferencia)}`
-                          : ""}
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        <Badge
-                          variant="outline"
-                          className="border-border/70 bg-background/60 font-medium backdrop-blur-sm"
-                        >
-                          {formaTransferenciaLabel(i.formaPagamento)}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

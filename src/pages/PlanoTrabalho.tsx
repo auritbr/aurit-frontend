@@ -709,7 +709,7 @@ function FinanceiroTable({
         <Empty text={empty} to={to} />
       ) : (
         <div className="overflow-x-auto rounded-[14px] border border-border/60 bg-background/35">
-          <table className="w-full min-w-[760px] text-[13px]">
+          <table className="w-full min-w-[760px] text-[13px] whitespace-nowrap">
             <thead>
               <tr className="border-b border-border/60 bg-muted/35 text-left text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <th className="px-3.5 py-3">Lançamento</th>

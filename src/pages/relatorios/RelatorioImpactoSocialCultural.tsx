@@ -29,7 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs } from "@/components/ui/tabs";
+import { ReportTab, ReportTabsList } from "@/components/relatorios/ReportTabs";
 import {
   ComparacaoResumo,
   FilteredByBanner,
@@ -751,19 +752,13 @@ export default function RelatorioImpactoSocialCultural() {
         onValueChange={(value) => setAba(value as Aba)}
         className="mb-5"
       >
-        <div className="-mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-          <TabsList className="h-auto w-max gap-1 rounded-[12px] border border-border/60 bg-card/60">
-            {abas.map(([key, label]) => (
-              <TabsTrigger
-                key={key}
-                value={key}
-                className="rounded-[9px] px-3 py-1.5 text-[12.5px]"
-              >
-                {label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
+        <ReportTabsList aria-label="Seções do relatório">
+          {abas.map(([key, label]) => (
+            <ReportTab key={key} value={key}>
+              {label}
+            </ReportTab>
+          ))}
+        </ReportTabsList>
       </Tabs>
       {aba === "analises-cruzadas" && (
         <div className="mb-4 flex flex-wrap gap-3">

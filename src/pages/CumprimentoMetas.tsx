@@ -455,7 +455,7 @@ export default function CumprimentoMetasPage() {
                 <Vazio texto="Nenhuma meta corresponde aos filtros." />
               ) : (
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="whitespace-nowrap">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-xs">Meta</TableHead>
@@ -496,7 +496,7 @@ export default function CumprimentoMetasPage() {
                 <Vazio texto="Nenhuma meta corresponde aos filtros." />
               ) : (
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="whitespace-nowrap">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-xs">Meta</TableHead>

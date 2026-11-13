@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileDown, Loader2, Plus, RotateCcw, Search } from "lucide-react";
+import { Loader2, Plus, RotateCcw, Search } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
@@ -14,7 +14,6 @@ import {
   useSessionBoolean,
 } from "@/components/AdvancedSearchPanel";
 import { DataTablePagination } from "@/components/DataTablePagination";
-import { DocumentActionButton } from "@/components/DocumentActionButton";
 import { FieldLabel } from "@/components/FieldLabel";
 import { FilterMultiSelect } from "@/components/FilterMultiSelect";
 import { RowActionsDropdown } from "@/components/RowActionsDropdown";
@@ -37,7 +36,6 @@ import {
 } from "@/components/ui/select";
 import { usePagination } from "@/hooks/usePagination";
 import { isPlanoAccessDenied } from "@/lib/access";
-import { downloadAcaoDivulgacaoReport as exportAcaoDivulgacaoPdf } from "@/lib/individualReportDownload";
 import {
   getPermissoesUsuarioLogadoPorModulo,
   permissoesVazias,
@@ -337,17 +335,6 @@ export default function AcoesDivulgacao() {
     }
   }
 
-  function exportPdf(item: AcaoDivulgacao) {
-    if (!podeGerarPdf)
-      return toast.error("Você não possui permissão para gerar PDF.");
-    void exportAcaoDivulgacaoPdf({
-      ...item,
-      propostaEdital: propostaNome(item),
-      edital: editalNome(item),
-      projeto: projetoNome(item),
-    });
-  }
-
   const propostaOptions = propostas.map((p) => ({
     value: p.id,
     label: p.nome,
@@ -545,8 +532,8 @@ export default function AcoesDivulgacao() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[1100px]">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1100px] whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase text-muted-foreground">
@@ -637,49 +624,6 @@ export default function AcoesDivulgacao() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((item) => (
-                    <div key={item.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between">
-                        <RowActionsDropdown
-                          reportEndpoint={
-                            podeGerarPdf
-                              ? `/acoes-divulgacao/${item.id}/relatorio`
-                              : undefined
-                          }
-                          reportFilename={`acao-divulgacao-${item.id}.pdf`}
-                          viewTo={`/acoes-divulgacao/${item.id}`}
-                          editTo={
-                            podeEditar
-                              ? `/acoes-divulgacao/${item.id}/editar`
-                              : undefined
-                          }
-                          onDelete={
-                            podeExcluir
-                              ? () => setConfirmDelete(item.id)
-                              : undefined
-                          }
-                        />
-                        {podeGerarPdf && (
-                          <DocumentActionButton
-                            label="Gerar PDF"
-                            icon={FileDown}
-                            aria-label={`Gerar PDF da ação ${item.nomeAcao}`}
-                            onClick={() => exportPdf(item)}
-                          />
-                        )}
-                      </div>
-                      <p className="font-medium">{item.nomeAcao}</p>
-                      <p className="mt-1 text-sm">{propostaNome(item)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {editalNome(item)} · {projetoNome(item)}
-                      </p>
-                      <div className="mt-2">
-                        <StatusPill status={statusValueToLabel(item.status)} />
-                      </div>
-                    </div>
-                  ))}
                 </div>
                 <DataTablePagination
                   totalItems={filtered.length}

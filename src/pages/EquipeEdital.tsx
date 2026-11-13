@@ -572,8 +572,8 @@ export default function EquipeEditalPage() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -641,13 +641,15 @@ export default function EquipeEditalPage() {
                               />
                             </td>
                             <td className="px-6 py-2.5">
-                              <TableCellText text={nome} bold>
-                                {nome}
-                              </TableCellText>
-                              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                                {tipoPessoaLabel(item.tipoPessoa)}
-                                {detalhe ? ` · ${detalhe}` : ""}
-                              </p>
+                              <div className="flex items-baseline gap-2">
+                                <TableCellText text={nome} bold>
+                                  {nome}
+                                </TableCellText>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {tipoPessoaLabel(item.tipoPessoa)}
+                                  {detalhe ? ` · ${detalhe}` : ""}
+                                </span>
+                              </div>
                             </td>
 
                             {!propostaContexto && (
@@ -678,56 +680,6 @@ export default function EquipeEditalPage() {
                       })}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((item) => (
-                    <div key={item.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          viewTo={`/equipe-edital/${item.id}`}
-                          reportEndpoint={`/equipes-editais/${item.id}/relatorio`}
-                          editTo={`/equipe-edital/${item.id}/editar`}
-                          onDelete={() => setConfirmDelete(item)}
-                        />
-                        <span className="rounded-full border border-border/70 bg-muted/50 px-2.5 py-0.5 text-[11px] text-muted-foreground">
-                          {tipoPessoaLabel(item.tipoPessoa)}
-                        </span>
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {pessoaEquipeNome(item)}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {item.funcaoProjeto}
-                      </p>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
-                        {!propostaContexto && (
-                          <div className="col-span-2">
-                            <p className="text-muted-foreground">
-                              Proposta de edital
-                            </p>
-                            <p className="text-foreground">
-                              {propostaEquipeNomeById(item.propostaEdital)}
-                            </p>
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-muted-foreground">Carga horária</p>
-                          <p className="tabular-nums text-foreground">
-                            {formatHoras(item.cargaHorariaPrevista)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">
-                            Valor previsto
-                          </p>
-                          <p className="font-medium tabular-nums text-foreground">
-                            {formatBRL(item.valorPrevisto)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

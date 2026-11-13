@@ -748,8 +748,8 @@ export default function HabilitacaoPage() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45">
                         <th className="w-[120px] px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -851,54 +851,6 @@ export default function HabilitacaoPage() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((item) => (
-                    <div key={item.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={
-                            podeExportar
-                              ? `/habilitacoes-propostas/${item.id}/relatorio`
-                              : undefined
-                          }
-                          reportFilename={`habilitacao-${item.id}.pdf`}
-                          viewTo={`/habilitacoes-propostas/${item.id}`}
-                          editTo={
-                            podeEditar
-                              ? `/habilitacoes-propostas/${item.id}/editar`
-                              : undefined
-                          }
-                          onDelete={
-                            podeExcluir
-                              ? () => setConfirmDelete(item.id)
-                              : undefined
-                          }
-                        />
-                        <StatusPill
-                          status={item.statusHabilitacao}
-                          context="habilitacao"
-                          ariaLabelPrefix="Situação da habilitação"
-                        />
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {propostaNome(item)}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {agenteNome(item)}
-                      </p>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-[12px]">
-                        <div>
-                          <p className="text-muted-foreground">Documentos</p>
-                          <p>{documentosTexto(item)}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Data de envio</p>
-                          <p>{formatDateBr(item.dataEnvioDocumentacao)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
                 <DataTablePagination
                   totalItems={filtered.length}

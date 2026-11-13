@@ -840,8 +840,11 @@ export default function FinanceiroPage() {
             )}
           </div>
 
-          <div className="hidden md:block overflow-x-auto">
-            <table ref={tableRef} className="w-full min-w-[1320px]">
+          <div className="overflow-x-auto">
+            <table
+              ref={tableRef}
+              className="w-full min-w-[1320px] whitespace-nowrap"
+            >
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th
@@ -1061,130 +1064,6 @@ export default function FinanceiroPage() {
                 )}
               </tbody>
             </table>
-          </div>
-
-          <div className="md:hidden divide-y divide-border">
-            {paginated.map((item) => {
-              const hasComprovante = !!item.urlComprovante;
-
-              return (
-                <div key={item.id} className="p-4">
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-1">
-                      <TableActionIcon
-                        icon={Eye}
-                        label="Visualizar"
-                        onClick={() => navigate(`/financeiro/${item.id}`)}
-                      />
-
-                      {podeEditar && (
-                        <TableActionIcon
-                          icon={Pencil}
-                          label="Editar"
-                          onClick={() =>
-                            navigate(`/financeiro/${item.id}/editar`)
-                          }
-                        />
-                      )}
-
-                      {podeBaixar && hasComprovante ? (
-                        <TableActionIcon
-                          icon={Download}
-                          label="Baixar comprovante"
-                          onClick={() => void handleDownload(item)}
-                        />
-                      ) : (
-                        <Tooltip delayDuration={150}>
-                          <TooltipTrigger asChild>
-                            <span className="h-6 w-6 rounded inline-flex items-center justify-center text-muted-foreground/30 cursor-not-allowed">
-                              <Download
-                                className="h-3.5 w-3.5"
-                                strokeWidth={2}
-                              />
-                            </span>
-                          </TooltipTrigger>
-
-                          <TooltipContent>
-                            {podeBaixar
-                              ? "Sem comprovante disponível"
-                              : "Sem permissão para baixar"}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-
-                      {podeExcluir && (
-                        <TableActionIcon
-                          icon={Trash2}
-                          label="Excluir"
-                          variant="danger"
-                          onClick={() => setConfirmDelete(item.id)}
-                        />
-                      )}
-                    </div>
-
-                    {podeGerarPdf && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void handleExportPdf(item)}
-                        className="h-8 gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
-                      >
-                        <FileDown className="h-3.5 w-3.5" />
-                        PDF
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2">
-                    <OperacaoBadge tipo={item.tipoOperacaoFinanceira} />
-
-                    <span
-                      className={`text-sm font-semibold ${
-                        item.tipoOperacaoFinanceira === "ENTRADA"
-                          ? "text-emerald-600"
-                          : "text-foreground"
-                      }`}
-                    >
-                      {item.tipoOperacaoFinanceira === "SAIDA" ? "− " : ""}
-                      {formatCurrency(item.valor)}
-                    </span>
-                  </div>
-
-                  <p className="font-medium text-foreground text-sm mt-2 truncate">
-                    {item.projetoId
-                      ? projetoNome(item.projetoId)
-                      : "Sem projeto vinculado"}
-                  </p>
-
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                    {pessoaLabel(item)} ·{" "}
-                    {labelFromList(formasPagamento, item.formaPagamento)}
-                  </p>
-
-                  <div className="flex items-center gap-2 mt-2">
-                    <StatusPill
-                      status={item.statusFinanceiro}
-                      context="financeiro"
-                      ariaLabelPrefix="Situação financeira"
-                    />
-
-                    <span className="text-xs text-muted-foreground">
-                      {formatDateBR(item.dataPagamento)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-
-            {paginated.length === 0 && (
-              <div className="p-10 text-center">
-                <Wallet className="h-10 w-10 mx-auto text-muted-foreground/40" />
-
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nenhum lançamento do controle financeiro encontrado.
-                </p>
-              </div>
-            )}
           </div>
 
           <TablePagination

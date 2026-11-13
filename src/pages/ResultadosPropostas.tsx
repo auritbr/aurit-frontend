@@ -750,8 +750,8 @@ export default function ResultadosPropostas() {
             />
           ) : (
             <>
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[1040px]">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1040px] whitespace-nowrap">
                   <thead>
                     <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                       <th
@@ -897,81 +897,6 @@ export default function ResultadosPropostas() {
                     )}
                   </tbody>
                 </table>
-              </div>
-
-              <div className="divide-y divide-border md:hidden">
-                {paginated.length === 0 ? (
-                  <div className="p-10 text-center">
-                    <Award className="mx-auto h-10 w-10 text-muted-foreground/40" />
-
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Nenhum Resultado da Proposta cadastrado.
-                    </p>
-                  </div>
-                ) : (
-                  paginated.map((item) => (
-                    <div key={item.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1">
-                          <RowActionsDropdown
-                            viewTo={`/resultados-propostas/${item.id}`}
-                            reportEndpoint={`/resultados-propostas/${item.id}/relatorio`}
-                            editTo={
-                              podeEditar
-                                ? `/resultados-propostas/${item.id}/editar`
-                                : undefined
-                            }
-                            onDelete={
-                              podeExcluir
-                                ? () => setConfirmDelete(item.id)
-                                : undefined
-                            }
-                          />
-                        </div>
-
-                        <StatusPill
-                          status={item.statusResultadoProposta}
-                          context="resultado-proposta"
-                          ariaLabelPrefix="Resultado da proposta"
-                        />
-                      </div>
-
-                      <p className="font-medium text-foreground">
-                        {propostaNome(item)}
-                      </p>
-
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {editalNome(item)}
-                      </p>
-
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-3">
-                        <div>
-                          <p className="text-muted-foreground">Pontuação</p>
-
-                          <p className="font-medium text-foreground">
-                            {formatPontuacao(item.pontuacao)}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-muted-foreground">Resultado</p>
-
-                          <p className="text-foreground">
-                            {formatDateBr(item.dataResultado)}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-muted-foreground">Recurso</p>
-
-                          <p className="text-foreground">
-                            {item.recursoInterposto ? "Sim" : "Não"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
               </div>
 
               <DataTablePagination

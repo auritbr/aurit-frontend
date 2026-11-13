@@ -897,8 +897,8 @@ export default function Patrimonio() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[1120px]">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1120px] whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1015,44 +1015,6 @@ export default function Patrimonio() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((item) => (
-                    <div key={item.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        {rowActions(item)}
-                      </div>
-                      <p className="font-mono text-xs text-muted-foreground">
-                        {item.numeroPatrimonio}
-                      </p>
-                      <p className="mt-0.5 font-medium text-foreground">
-                        {item.nomePatrimonio}
-                      </p>
-                      <p className="mt-2 text-sm text-foreground">
-                        {tipoPatrimonioLabel(item.tipoPatrimonio)}
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        <StatusPill
-                          status={item.estadoConservacao}
-                          ariaLabelPrefix="Estado de conservação"
-                        />
-                        <StatusPill
-                          status={item.statusPatrimonio}
-                          context="patrimonio"
-                          ariaLabelPrefix="Situação do bem"
-                        />
-                      </div>
-                      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                        <span>
-                          Aquisição: {item.dataAquisicao || "Não informada"}
-                        </span>
-                        <span className="font-medium text-foreground">
-                          {formatCurrency(item.valorPatrimonio)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

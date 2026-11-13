@@ -710,7 +710,7 @@ export default function ControleEmpresas() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px] text-[13px]">
+            <table className="w-full min-w-[1080px] text-[13px] whitespace-nowrap">
               <thead>
                 <tr className="border-b border-border/60 bg-muted/25 backdrop-blur-md">
                   <th className={thBase}>Empresa</th>
@@ -906,7 +906,7 @@ export default function ControleEmpresas() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-[13px]">
+            <table className="w-full min-w-[900px] text-[13px] whitespace-nowrap">
               <thead>
                 <tr className="border-b border-border/60 bg-muted/25 backdrop-blur-md">
                   <th className={thBase}>Tipo</th>

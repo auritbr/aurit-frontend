@@ -1467,8 +1467,8 @@ export default function PlanejamentoFinanceiro() {
                 canExport={podeGerarPdf}
               />
 
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[1180px]">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1180px] whitespace-nowrap">
                   <thead>
                     <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                       <th
@@ -1633,92 +1633,6 @@ export default function PlanejamentoFinanceiro() {
                     {paginated.length === 0 && renderEmptyRow({ colSpan: 9 })}
                   </tbody>
                 </table>
-              </div>
-
-              <div className="divide-y divide-border md:hidden">
-                {paginated.length === 0 ? (
-                  <DataTableEmptyState
-                    emptyTitle="Nenhuma aplicação de recursos cadastrada."
-                    emptyDescription="Adicione os itens previstos no orçamento para detalhar como os recursos serão utilizados."
-                    noResultsTitle="Nenhuma aplicação encontrada com os filtros selecionados."
-                    activeCount={activeFilters.length}
-                  />
-                ) : (
-                  paginated.map((item) => {
-                    const proposta = propostaEditalNome(item.propostaEditalId);
-                    const equipe = equipeNome(item.equipeEditalId);
-
-                    return (
-                      <div key={item.id} className="p-4">
-                        <div className="mb-3 flex items-center justify-between gap-2">
-                          <RowActionsDropdown
-                            reportEndpoint={
-                              podeGerarPdf
-                                ? `/planejamentos-financeiros/${item.id}/relatorio`
-                                : undefined
-                            }
-                            reportFilename={`planejamento-financeiro-${item.id}.pdf`}
-                            onView={() => openRecord(item, "view")}
-                            onEdit={
-                              podeEditar
-                                ? () => openRecord(item, "edit")
-                                : undefined
-                            }
-                            onDelete={
-                              podeExcluir
-                                ? () => setConfirmDeleteId(item.id)
-                                : undefined
-                            }
-                          />
-                        </div>
-
-                        <p className="font-medium text-foreground">
-                          {item.nomePlanejamento}
-                        </p>
-
-                        <div className="mt-1">
-                          <StatusPill
-                            status={item.classificacaoPlanejamentoFinanceiro}
-                            ariaLabelPrefix="Classificação do planejamento"
-                          />
-                        </div>
-
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {formatDateBr(item.dataInicio)} a{" "}
-                          {formatDateBr(item.dataFim)}
-                        </p>
-
-                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                          {item.justificativaPlanejamento}
-                        </p>
-
-                        <div className="mt-3 space-y-1 text-sm text-foreground">
-                          <p>
-                            {item.quantidade}{" "}
-                            {unidadeMedidaLabel(item.unidadeMedida)}
-                          </p>
-
-                          <p>
-                            Valor unitário:{" "}
-                            {formatCurrencyBR(
-                              parseCurrencyInput(item.valorUnitario),
-                            )}
-                          </p>
-
-                          <p className="font-medium">
-                            Total:{" "}
-                            {formatCurrencyBR(
-                              parseCurrencyInput(item.valorTotal),
-                            )}
-                          </p>
-
-                          <p className="text-muted-foreground">{proposta}</p>
-                          <p className="text-muted-foreground">{equipe}</p>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
               </div>
 
               <DataTablePagination

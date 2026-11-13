@@ -2321,8 +2321,8 @@ export default function Organizacao() {
                 </div>
               ) : (
                 <>
-                  <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full min-w-[1100px]">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1100px] whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                           <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -2472,69 +2472,6 @@ export default function Organizacao() {
                         })}
                       </tbody>
                     </table>
-                  </div>
-
-                  <div className="divide-y divide-border md:hidden">
-                    {pagedOrganizacoes.map((item) => {
-                      const tipoAgente =
-                        optionLabels.tipoAgente[
-                          item.tipoAgente as keyof typeof optionLabels.tipoAgente
-                        ] || item.tipoAgente;
-                      const tipoIniciativa =
-                        optionLabels.tipoIniciativaCultural[
-                          item.tipoIniciativaCultural as keyof typeof optionLabels.tipoIniciativaCultural
-                        ] || item.tipoIniciativaCultural;
-                      const area = item.areasAtuacao
-                        .map(
-                          (value) =>
-                            optionLabels.areaAtuacao[
-                              value as keyof typeof optionLabels.areaAtuacao
-                            ] || value,
-                        )
-                        .join(", ");
-                      const documento = formatDocumentoTabela(
-                        item.cnpj,
-                        item.tipoAgente,
-                      );
-
-                      return (
-                        <div key={item.id} className="p-4">
-                          <div className="mb-3 flex items-center gap-1">
-                            <RowActionsDropdown
-                              reportEndpoint={
-                                podeBaixar
-                                  ? `/organizacoes/${item.id}/relatorio`
-                                  : undefined
-                              }
-                              reportFilename={`organizacao-${item.id}.pdf`}
-                              onView={() => openRecord(item, "view")}
-                              onEdit={
-                                podeEditar
-                                  ? () => openRecord(item, "edit")
-                                  : undefined
-                              }
-                              onDelete={
-                                podeExcluir
-                                  ? () => setConfirmDeleteId(item.id)
-                                  : undefined
-                              }
-                            />
-                          </div>
-
-                          <p className="font-medium text-foreground">
-                            {item.razaoSocial}
-                          </p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {item.nomeFantasia || documento}
-                          </p>
-                          <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-                            {tipoAgente && <p>{tipoAgente}</p>}
-                            {tipoIniciativa && <p>{tipoIniciativa}</p>}
-                            {area && <p>{area}</p>}
-                          </div>
-                        </div>
-                      );
-                    })}
                   </div>
 
                   <DataTablePagination

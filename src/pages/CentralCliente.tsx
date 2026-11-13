@@ -701,8 +701,8 @@ export default function CentralCliente() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         {[
@@ -769,37 +769,6 @@ export default function CentralCliente() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-                <div className="divide-y divide-border md:hidden">
-                  {ordenadas.map((item) => (
-                    <div key={item.id} className="space-y-3 p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">
-                            {formatReferenciaCurta(item.competencia)}
-                          </p>
-                          <p className="mt-0.5 text-[13px] text-muted-foreground">
-                            Vencimento {formatDate(item.dataVencimento)}
-                          </p>
-                        </div>
-                        <StatusPill
-                          status={statusMensalidadeLabels[item.status]}
-                          ariaLabelPrefix="Situação da mensalidade"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <InfoItem
-                          label="Valor"
-                          value={formatCurrency(item.valor)}
-                        />
-                        <InfoItem
-                          label="Pagamento"
-                          value={formatDate(item.dataPagamento)}
-                        />
-                      </div>
-                      <div>{acaoDaMensalidade(item)}</div>
-                    </div>
-                  ))}
                 </div>
               </>
             )}

@@ -1,11 +1,10 @@
-import { Columns3 } from "lucide-react";
+import { Check, Columns3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
 import type { RelatorioColumn } from "@/lib/relatorioExports";
 
 interface ColumnSelectorProps<T> {
@@ -46,13 +45,12 @@ export function ColumnSelector<T>({
       <PopoverContent
         align="end"
         collisionPadding={12}
-        style={{ maxHeight: "calc(100dvh - 2rem)" }}
-        className="w-64 rounded-[14px] border-border/70 bg-popover/90 p-2 shadow-[0_14px_32px_-18px_hsl(var(--foreground)/0.35)] backdrop-blur-xl"
+        className="flex max-h-[var(--radix-popover-content-available-height)] w-64 max-w-[calc(100vw-1.5rem)] flex-col rounded-[14px] border-border/70 bg-popover p-2 shadow-[0_14px_32px_-18px_hsl(var(--foreground)/0.35)]"
       >
-        <p className="px-2 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+        <p className="shrink-0 px-2 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
           Colunas visíveis
         </p>
-        <div className="max-h-72 overflow-y-auto">
+        <div className="min-h-0 max-h-72 overflow-y-auto overscroll-contain">
           {columns.map((col, index) => {
             const checked = visibleKeys.includes(col.key);
             const disabled =
@@ -69,14 +67,24 @@ export function ColumnSelector<T>({
                   </p>
                 )}
                 <label
-                  className={`flex items-center gap-2 rounded-[9px] px-2 py-1.5 text-sm transition-colors hover:bg-muted/50 ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                  className={`flex min-h-11 items-center gap-2 rounded-[9px] px-2 py-1.5 text-sm transition-colors hover:bg-muted/50 md:min-h-0 ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                 >
-                  <Checkbox
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
                     checked={checked}
                     disabled={disabled}
-                    onCheckedChange={(v) => toggle(col.key, Boolean(v))}
+                    onChange={(event) => toggle(col.key, event.target.checked)}
                   />
-                  <span className="flex-1 truncate">{col.label}</span>
+                  <span
+                    aria-hidden="true"
+                    className="flex size-4 shrink-0 items-center justify-center rounded-sm border border-primary text-transparent peer-checked:bg-primary peer-checked:text-primary-foreground peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
+                  >
+                    <Check className="size-3.5" />
+                  </span>
+                  <span className="min-w-0 flex-1 break-words">
+                    {col.label}
+                  </span>
                 </label>
               </div>
             );

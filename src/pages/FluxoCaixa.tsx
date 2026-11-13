@@ -1057,92 +1057,8 @@ export default function FluxoCaixa() {
                   </p>
                 ) : (
                   <>
-                    <div className="divide-y divide-border md:hidden">
-                      {evolucaoRows.map((periodo, index) => (
-                        <dl
-                          key={`${periodo.periodo}-${periodo.tipo}-${index}`}
-                          className="space-y-3 py-4"
-                        >
-                          <div>
-                            <dt className="text-xs text-muted-foreground">
-                              Período
-                            </dt>
-                            <dd className="mt-1 text-sm font-medium">
-                              {formatPeriodoCompleto(
-                                periodo.periodo,
-                                filtros.agrupamento,
-                              )}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt className="text-xs text-muted-foreground">
-                              Movimentação
-                            </dt>
-                            <dd className="mt-1 text-sm">{periodo.tipo}</dd>
-                          </div>
-                          {[
-                            {
-                              label: "Entradas realizadas",
-                              value: periodo.entradasRealizadas ?? 0,
-                              color: "text-emerald-700",
-                            },
-                            {
-                              label: "Saídas realizadas",
-                              value: periodo.saidasRealizadas ?? 0,
-                              color: "text-rose-700 dark:text-rose-300",
-                            },
-                            {
-                              label: "Entradas previstas",
-                              value: periodo.entradasPrevistas ?? 0,
-                              color:
-                                "text-emerald-700/80 dark:text-emerald-300/80",
-                            },
-                            {
-                              label: "Saídas previstas",
-                              value: periodo.saidasPrevistas ?? 0,
-                              color: "text-rose-600/80 dark:text-rose-300/80",
-                            },
-                            {
-                              label: "Saldo acumulado",
-                              value: periodo.saldoAcumulado,
-                              color:
-                                periodo.saldoAcumulado < 0
-                                  ? "text-destructive"
-                                  : "text-foreground",
-                            },
-                            {
-                              label: "Saldo projetado",
-                              value: periodo.saldoProjetado,
-                              color:
-                                periodo.saldoProjetado < 0
-                                  ? "text-destructive"
-                                  : "text-foreground",
-                            },
-                          ].map((item) => (
-                            <div
-                              key={item.label}
-                              className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-sm"
-                            >
-                              <dt className="text-muted-foreground">
-                                {item.label}
-                              </dt>
-                              <dd
-                                className={cn(
-                                  "font-medium tabular-nums",
-                                  item.color,
-                                )}
-                              >
-                                {item.value === undefined
-                                  ? "—"
-                                  : formatCurrency(item.value)}
-                              </dd>
-                            </div>
-                          ))}
-                        </dl>
-                      ))}
-                    </div>
-                    <div className="hidden overflow-x-auto md:block">
-                      <table className="w-full min-w-[820px]">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[820px] whitespace-nowrap">
                         <thead>
                           <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                             {[
@@ -1399,8 +1315,8 @@ export default function FluxoCaixa() {
                       />
                     ) : (
                       <>
-                        <div className="hidden overflow-x-auto md:block">
-                          <table className="w-full">
+                        <div className="overflow-x-auto">
+                          <table className="w-full whitespace-nowrap">
                             <thead>
                               <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                                 <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1492,45 +1408,6 @@ export default function FluxoCaixa() {
                               ))}
                             </tbody>
                           </table>
-                        </div>
-
-                        <div className="divide-y divide-border md:hidden">
-                          {paginated.map((item) => (
-                            <div
-                              key={`${item.id}-${item.contaBancariaId}-${item.tipo}`}
-                              className="p-4"
-                            >
-                              <div className="mb-3 flex items-center justify-between gap-2">
-                                <RowActionsDropdown
-                                  extraItems={rowActions(item)}
-                                />
-                                <StatusPill
-                                  status={item.origem}
-                                  ariaLabelPrefix="Origem do lançamento"
-                                />
-                              </div>
-                              <p className="font-medium text-foreground">
-                                {item.historico}
-                              </p>
-                              <p className="mt-0.5 text-sm text-muted-foreground">
-                                {formatDate(item.data)} ·{" "}
-                                {contaNome(item.contaBancariaId)}
-                              </p>
-                              <p
-                                className={cn(
-                                  "mt-2 text-sm font-semibold",
-                                  isPrevisto(item.tipo)
-                                    ? "text-muted-foreground"
-                                    : isEntrada(item.tipo)
-                                      ? "text-emerald-700"
-                                      : "text-foreground",
-                                )}
-                              >
-                                {tipoExibicao(item)} ·{" "}
-                                {formatCurrency(item.valor)}
-                              </p>
-                            </div>
-                          ))}
                         </div>
 
                         <DataTablePagination

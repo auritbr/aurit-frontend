@@ -46,7 +46,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { ReportTab, ReportTabsList } from "@/components/relatorios/ReportTabs";
 import {
   Table,
   TableBody,
@@ -908,28 +909,11 @@ export default function RelatorioMetasResultados() {
       )}
       {consulta.painel && (
         <Tabs value={aba} onValueChange={setAba} className="mb-6 mt-5">
-          <div className="mb-4">
-            <TabsList className="grid h-auto w-full grid-cols-3 items-stretch gap-1 rounded-[12px] border border-border/60 bg-card/60 p-1 backdrop-blur-md sm:inline-flex sm:w-auto">
-              <TabsTrigger
-                value="visao-geral"
-                className="whitespace-normal rounded-[9px] px-2 py-1.5 text-center text-[12.5px] sm:px-3"
-              >
-                Visão Geral
-              </TabsTrigger>
-              <TabsTrigger
-                value="fisica"
-                className="whitespace-normal rounded-[9px] px-2 py-1.5 text-center text-[12.5px] sm:px-3"
-              >
-                Execução Física
-              </TabsTrigger>
-              <TabsTrigger
-                value="financeira"
-                className="whitespace-normal rounded-[9px] px-2 py-1.5 text-center text-[12.5px] sm:px-3"
-              >
-                Execução Financeira
-              </TabsTrigger>
-            </TabsList>
-          </div>
+          <ReportTabsList aria-label="Seções do relatório">
+            <ReportTab value="visao-geral">Visão Geral</ReportTab>
+            <ReportTab value="fisica">Execução Física</ReportTab>
+            <ReportTab value="financeira">Execução Financeira</ReportTab>
+          </ReportTabsList>
 
           {/* ───── Visão Geral ───── */}
           <TabsContent

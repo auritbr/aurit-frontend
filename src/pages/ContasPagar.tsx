@@ -989,8 +989,8 @@ export default function ContasPagar() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1138,58 +1138,6 @@ export default function ContasPagar() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((i) => (
-                    <div key={i.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={`/contas-pagar/${i.id}/relatorio`}
-                          reportFilename={`conta-pagar-${i.id}.pdf`}
-                          viewTo={`/contas-pagar/${i.id}`}
-                          editTo={`/contas-pagar/${i.id}/editar`}
-                          onDelete={() => setConfirmDelete(i)}
-                        />
-                        <div className="flex items-center gap-2">
-                          <GerarReciboButton
-                            endpoint={`/contas-pagar/${i.id}/recibo`}
-                            filename={`recibo-pagamento-${i.id}.pdf`}
-                            label="Recibo"
-                            successMessage="Recibo de pagamento gerado com sucesso."
-                            errorMessage="Não foi possível gerar o recibo de pagamento."
-                          />
-                          <StatusPill
-                            status={statusFinanceiroLabel(i.statusFinanceiro)}
-                            ariaLabelPrefix="Situação da conta"
-                          />
-                        </div>
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {i.nomeContaPagar}
-                      </p>
-                      <p className="mt-0.5 text-sm text-foreground">
-                        {credorLabel(i)}
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-foreground">
-                        {formatCurrency(parseMoney(i.valorAPagar))}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Competência {formatDate(i.dataCompetencia)} · Vencimento{" "}
-                        {formatDate(i.dataVencimento)}
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        <StatusPill
-                          status={i.classificacaoContaPagar}
-                          ariaLabelPrefix="Classificação"
-                        />
-                        <StatusPill
-                          status={i.formaPagamento}
-                          ariaLabelPrefix="Forma de pagamento"
-                        />
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

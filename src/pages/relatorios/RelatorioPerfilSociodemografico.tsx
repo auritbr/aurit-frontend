@@ -43,7 +43,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { ReportTab, ReportTabsList } from "@/components/relatorios/ReportTabs";
 import { RelatorioDataTable } from "@/components/relatorios/RelatorioDataTable";
 import {
   ReportBarChart,
@@ -1139,46 +1140,14 @@ export default function RelatorioPerfilSociodemografico() {
       </ReportFilterPanel>
 
       <Tabs value={aba} onValueChange={setAba} className="mb-6 mt-5">
-        <div className="-mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-          <TabsList className="h-auto w-max gap-1 rounded-[12px] border border-border/60 bg-card/60 p-1 backdrop-blur-md">
-            <TabsTrigger
-              value="visao-geral"
-              className="rounded-[9px] px-3 py-1.5 text-[12.5px]"
-            >
-              Visão Geral
-            </TabsTrigger>
-            <TabsTrigger
-              value="participantes"
-              className="rounded-[9px] px-3 py-1.5 text-[12.5px]"
-            >
-              Perfil dos Participantes
-            </TabsTrigger>
-            <TabsTrigger
-              value="familiar"
-              className="rounded-[9px] px-3 py-1.5 text-[12.5px]"
-            >
-              Composição Familiar
-            </TabsTrigger>
-            <TabsTrigger
-              value="moradia"
-              className="rounded-[9px] px-3 py-1.5 text-[12.5px]"
-            >
-              Moradia e Infraestrutura
-            </TabsTrigger>
-            <TabsTrigger
-              value="renda"
-              className="rounded-[9px] px-3 py-1.5 text-[12.5px]"
-            >
-              Renda e Benefícios
-            </TabsTrigger>
-            <TabsTrigger
-              value="demonstrativo"
-              className="rounded-[9px] px-3 py-1.5 text-[12.5px]"
-            >
-              Demonstrativo
-            </TabsTrigger>
-          </TabsList>
-        </div>
+        <ReportTabsList aria-label="Seções do relatório">
+          <ReportTab value="visao-geral">Visão Geral</ReportTab>
+          <ReportTab value="participantes">Perfil dos Participantes</ReportTab>
+          <ReportTab value="familiar">Composição Familiar</ReportTab>
+          <ReportTab value="moradia">Moradia e Infraestrutura</ReportTab>
+          <ReportTab value="renda">Renda e Benefícios</ReportTab>
+          <ReportTab value="demonstrativo">Demonstrativo</ReportTab>
+        </ReportTabsList>
 
         <TabsContent value="visao-geral" className="mt-0">
           <h2 className={secao + " mt-0"}>

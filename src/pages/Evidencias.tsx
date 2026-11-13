@@ -546,8 +546,8 @@ export default function EvidenciasPage() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45">
                         <th className="w-[110px] px-5 py-2.5 text-left text-[11px] font-semibold uppercase text-muted-foreground">
@@ -583,7 +583,7 @@ export default function EvidenciasPage() {
                     </thead>
                     <tbody>
                       {paginated.map((i) =>
-                        renderDesktopRow({
+                        renderRow({
                           item: i,
                           navigate,
                           edit: permissoes.EDITAR,
@@ -594,17 +594,6 @@ export default function EvidenciasPage() {
                       )}
                     </tbody>
                   </table>
-                </div>
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((i) => (
-                    <MobileRow
-                      key={i.id}
-                      item={i}
-                      navigate={navigate}
-                      edit={permissoes.EDITAR}
-                      remove={permissoes.EXCLUIR ? setConfirmDelete : undefined}
-                    />
-                  ))}
                 </div>
                 <DataTablePagination
                   totalItems={filtered.length}
@@ -662,7 +651,7 @@ function Badge({ value }: { value: ContextoEvidencia }) {
     </span>
   );
 }
-function renderDesktopRow({
+function renderRow({
   item,
   navigate,
   edit,
@@ -697,12 +686,13 @@ function renderDesktopRow({
         {item.projeto?.nome ?? "—"}
       </td>
       <td className="px-5 py-2.5">
-        <p className="text-[13px] font-medium">{lines[0] ?? "—"}</p>
-        {lines.slice(1).map((l) => (
-          <p key={l} className="text-[12px] text-muted-foreground">
-            {l}
-          </p>
-        ))}
+        <span className="text-[13px] font-medium">{lines[0] ?? "—"}</span>
+        {lines.length > 1 && (
+          <span className="text-[12px] text-muted-foreground">
+            {" · "}
+            {lines.slice(1).join(" · ")}
+          </span>
+        )}
       </td>
       <td className="px-5 py-2.5 text-[13px] text-muted-foreground">
         {dataBR(item.dataReferencia) || "—"}
@@ -714,39 +704,6 @@ function renderDesktopRow({
         {countText(item.quantidadeLinks, "link", "links")}
       </td>
     </tr>
-  );
-}
-function MobileRow(props: Parameters<typeof renderDesktopRow>[0]) {
-  const { item, navigate, edit, remove } = props;
-  const lines = refs(item);
-  return (
-    <div className="p-4">
-      <div className="mb-3 flex justify-between">
-        <RowActionsDropdown
-          reportEndpoint={`/evidencias-execucao/${item.id}/relatorio`}
-          reportFilename={`evidencia-${item.id}.pdf`}
-          onView={() => navigate(`/evidencias/${item.id}`)}
-          onEdit={
-            edit ? () => navigate(`/evidencias/${item.id}/editar`) : undefined
-          }
-          onDelete={remove ? () => remove(item.id) : undefined}
-        />
-        <Badge value={item.contexto} />
-      </div>
-      <p className="text-sm font-medium">{lines[0] ?? "—"}</p>
-      {lines.slice(1).map((l) => (
-        <p key={l} className="text-xs text-muted-foreground">
-          {l}
-        </p>
-      ))}
-      <p className="mt-2 text-xs text-muted-foreground">
-        {item.projeto?.nome ?? "—"} · {dataBR(item.dataReferencia) || "—"}
-      </p>
-      <p className="mt-2 text-xs text-muted-foreground">
-        {countText(item.quantidadeImagens, "arquivo", "arquivos")} ·{" "}
-        {countText(item.quantidadeLinks, "link", "links")}
-      </p>
-    </div>
   );
 }
 function Empty({

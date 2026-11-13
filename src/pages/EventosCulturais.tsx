@@ -787,8 +787,8 @@ export default function EventosCulturais() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[1180px]">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1180px] whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
                         <th className="w-[120px] whitespace-nowrap px-6 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -932,73 +932,6 @@ export default function EventosCulturais() {
                       })}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((evento) => (
-                    <div key={evento.id} className="p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <RowActionsDropdown
-                          reportEndpoint={
-                            podeGerarPdf
-                              ? `/eventos-culturais/${evento.id}/relatorio`
-                              : undefined
-                          }
-                          reportFilename={`evento-cultural-${evento.id}.pdf`}
-                          viewTo={`/eventos-culturais/${evento.id}`}
-                          editTo={
-                            podeEditar
-                              ? `/eventos-culturais/${evento.id}/editar`
-                              : undefined
-                          }
-                          onDelete={
-                            podeExcluir
-                              ? () => setConfirmDelete(evento.id)
-                              : undefined
-                          }
-                          extraItems={
-                            podeCriar
-                              ? [
-                                  {
-                                    label: "Duplicar",
-                                    icon: Copy,
-                                    onClick: () =>
-                                      navigate(
-                                        `/eventos-culturais/novo?duplicar=${evento.id}`,
-                                      ),
-                                  },
-                                ]
-                              : undefined
-                          }
-                        />
-                      </div>
-                      <p className="font-medium text-foreground">
-                        {evento.nomeEvento}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        <StatusPill
-                          status={evento.tipoEvento}
-                          ariaLabelPrefix="Tipo de evento"
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {formatPeriodo(evento.dataEvento, evento.dataFim)}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm text-foreground">
-                        {evento.projetoNome}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <StatusPill
-                          status={statusValueToLabel(evento.status)}
-                        />
-                        <span className="line-clamp-1 text-xs text-muted-foreground">
-                          •{" "}
-                          {evento.colaboradoresNomes.join(", ") ||
-                            "Sem colaboradores"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 <DataTablePagination

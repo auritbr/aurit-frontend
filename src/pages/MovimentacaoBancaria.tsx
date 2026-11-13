@@ -956,7 +956,7 @@ export default function ExtratoBancario() {
               />
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
+                <div className="overflow-x-auto">
                   <table className="min-w-full w-max whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border/60 bg-muted/45 supports-[backdrop-filter]:bg-muted/35">
@@ -1121,79 +1121,6 @@ export default function ExtratoBancario() {
                       })}
                     </tbody>
                   </table>
-                </div>
-
-                <div className="divide-y divide-border md:hidden">
-                  {paginated.map((item) => {
-                    const estorno = estornoDaMovimentacao(item);
-                    const foiEstornada = Boolean(estorno);
-                    const ehEstorno = item.origemMovimentacao === "ESTORNO";
-                    return (
-                      <div
-                        id={`movimentacao-mobile-${item.id}`}
-                        key={item.id}
-                        className={cn(
-                          "p-4",
-                          foiEstornada && "bg-muted/40 text-muted-foreground",
-                          ehEstorno && "bg-rose-50/60 dark:bg-rose-950/15",
-                        )}
-                      >
-                        <div className="mb-3 flex items-center justify-between gap-2">
-                          <RowActionsDropdown extraItems={rowActions(item)} />
-                          {foiEstornada ? (
-                            <StatusPill
-                              status="Estornada"
-                              ariaLabelPrefix="Origem da movimentação"
-                            />
-                          ) : (
-                            <StatusPill
-                              status={item.origemMovimentacao}
-                              ariaLabelPrefix="Origem da movimentação"
-                            />
-                          )}
-                        </div>
-                        <p
-                          className={cn(
-                            "font-medium text-foreground",
-                            foiEstornada &&
-                              "line-through decoration-rose-500/70 decoration-2 text-muted-foreground",
-                          )}
-                        >
-                          {item.historico}
-                        </p>
-                        {foiEstornada && (
-                          <p className="mt-1 text-[11px] font-medium text-rose-700 dark:text-rose-300">
-                            Estornada pela movimentação #{estorno?.id}
-                          </p>
-                        )}
-                        {ehEstorno && item.movimentacaoEstornadaId && (
-                          <p className="mt-1 text-[11px] text-rose-700 dark:text-rose-300">
-                            Referente à movimentação #
-                            {item.movimentacaoEstornadaId}
-                          </p>
-                        )}
-                        <p className="mt-0.5 text-sm text-muted-foreground">
-                          {formatDate(item.dataMovimentacao)} ·{" "}
-                          {contaNome(item.contaBancariaId)}
-                        </p>
-                        <p
-                          className={cn(
-                            "mt-2 text-sm font-semibold",
-                            item.tipoMovimentacao === "ENTRADA"
-                              ? "text-emerald-700"
-                              : "text-foreground",
-                            foiEstornada &&
-                              "line-through decoration-rose-500/70 decoration-2 text-muted-foreground",
-                          )}
-                        >
-                          {item.tipoMovimentacao === "ENTRADA"
-                            ? "Entrada"
-                            : "Saída"}{" "}
-                          · {formatCurrency(item.valor)}
-                        </p>
-                      </div>
-                    );
-                  })}
                 </div>
 
                 <DataTablePagination
