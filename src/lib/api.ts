@@ -235,7 +235,7 @@ export async function apiFetchResponse(
     });
   }
 
-  if (isDataMutation(options.method)) {
+  if (isDataMutation(options.method, path)) {
     invalidateReportData(path);
   }
 
