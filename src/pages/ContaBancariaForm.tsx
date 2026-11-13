@@ -220,7 +220,11 @@ export default function ContaBancariaForm() {
   const [loading, setLoading] = useState(Boolean(id));
   const [saving, setSaving] = useState(false);
 
-  useImportFormFill("contas-bancarias", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "contas-bancarias",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -283,11 +287,7 @@ export default function ContaBancariaForm() {
         await createContaBancaria(payload);
         emitJourneyNextStep();
       }
-      window.dispatchEvent(
-        new CustomEvent("aurit:import-review-save-success", {
-          detail: { module: "contas-bancarias" },
-        }),
-      );
+      confirmarImportacaoSalva();
       toast.success(
         isEdit
           ? "Alterações salvas com sucesso."

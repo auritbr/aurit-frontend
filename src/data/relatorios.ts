@@ -508,6 +508,8 @@ const MONETARIO_KEYS = new Set([
   "entradas",
   "saidas",
   "valor_previsto",
+  "valor_estimado",
+  "valor_total_estimado",
   "valor_pago",
   "valor_aquisicao",
   "valor_total_disponivel",
@@ -523,6 +525,7 @@ const MONETARIO_KEYS = new Set([
 
 const PERCENTUAL_KEYS = new Set([
   "percentual_presenca",
+  "percentual_executado",
   "percentual",
   "taxa",
   "ocupacao_vagas",

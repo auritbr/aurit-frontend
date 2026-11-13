@@ -47,7 +47,9 @@ public class AuritGoogleAuthPlugin extends Plugin {
                 GetSignInWithGoogleOption option = new GetSignInWithGoogleOption.Builder(clientId).build();
                 GetCredentialRequest request = new GetCredentialRequest.Builder().addCredentialOption(option).build();
                 CredentialManager.create(getContext()).getCredentialAsync(
-                    new MutableContextWrapper(getActivity()), request, cancellation,
+                    new MutableContextWrapper(getActivity()),
+                    request,
+                    cancellation,
                     ContextCompat.getMainExecutor(getContext()),
                     new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
                         @Override
@@ -106,10 +108,14 @@ public class AuritGoogleAuthPlugin extends Plugin {
     public void clearCredentialState(PluginCall call) {
         try {
             CredentialManager.create(getContext()).clearCredentialStateAsync(
-                new ClearCredentialStateRequest(), null, ContextCompat.getMainExecutor(getContext()),
+                new ClearCredentialStateRequest(),
+                null,
+                ContextCompat.getMainExecutor(getContext()),
                 new CredentialManagerCallback<Void, ClearCredentialException>() {
                     @Override
-                    public void onResult(Void result) { call.resolve(); }
+                    public void onResult(Void result) {
+                        call.resolve();
+                    }
 
                     @Override
                     public void onError(ClearCredentialException error) {

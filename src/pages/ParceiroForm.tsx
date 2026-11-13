@@ -123,7 +123,11 @@ export default function ParceiroForm() {
     location.state as { conversionSeed?: { data?: Partial<FormState> } } | null
   )?.conversionSeed;
 
-  useImportFormFill("parceiros", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "parceiros",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     if (!id) {
@@ -235,6 +239,7 @@ export default function ParceiroForm() {
 
       await saveParceiro(payload);
 
+      confirmarImportacaoSalva();
       if (!isEdit) emitJourneyNextStep();
       toast.success(isEdit ? "Parceiro atualizado." : "Parceiro cadastrado.");
 

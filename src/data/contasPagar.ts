@@ -255,6 +255,8 @@ export interface ContaPagarData {
   acaoDivulgacaoId: string;
   projetoId: string;
   atividadeId: string;
+  /** Item do planejamento financeiro de uma meta, vinculado pelo endpoint próprio. */
+  itemOrcamentarioMetaId: string;
   comprovanteFile?: File;
   removerComprovante?: boolean;
 }
@@ -302,6 +304,7 @@ export function createEmptyContaPagar(): ContaPagarData {
     acaoDivulgacaoId: "",
     projetoId: "",
     atividadeId: "",
+    itemOrcamentarioMetaId: "",
     removerComprovante: false,
   };
 }
@@ -383,6 +386,7 @@ function mapConta(dto: ContaPagarDTO): ContaPagarData {
     acaoDivulgacaoId: stringId(dto.acaoDivulgacaoId),
     projetoId: stringId(dto.projetoId),
     atividadeId: stringId(dto.atividadeId),
+    itemOrcamentarioMetaId: stringId(dto.itemOrcamentarioMetaId),
     urlComprovante: dto.urlComprovante ?? "",
     nomeComprovante: dto.urlComprovante ? "Comprovante anexado" : "",
   } as ContaPagarData;
@@ -474,6 +478,28 @@ export async function saveContaPagar(conta: ContaPagarData) {
   const contaSalva = mapConta(await response.json());
   invalidateFinancialData("conta-pagar");
   return contaSalva;
+}
+
+export async function vincularContaPagarAoItemMeta(
+  contaId: string | number,
+  itemOrcamentarioMetaId: string | number | null,
+) {
+  const response = await fetch(
+    `${API_URL}/contas-pagar/${contaId}/item-orcamentario`,
+    {
+      method: "PUT",
+      cache: "no-store",
+      headers: getJsonHeaders(),
+      body: JSON.stringify({
+        itemOrcamentarioMetaId:
+          itemOrcamentarioMetaId == null || itemOrcamentarioMetaId === ""
+            ? null
+            : Number(itemOrcamentarioMetaId),
+      }),
+    },
+  );
+  if (!response.ok) throw new Error(await errorMessage(response));
+  invalidateFinancialData("conta-pagar");
 }
 
 export async function deleteContaPagar(id: string | number) {

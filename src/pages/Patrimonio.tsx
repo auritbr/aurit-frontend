@@ -986,8 +986,8 @@ export default function Patrimonio() {
                             </TableCellText>
                           </td>
                           <td className="whitespace-nowrap px-6 py-2.5">
-                            <TableCellText text={item.dataAquisicao}>
-                              {item.dataAquisicao}
+                            <TableCellText text={item.dataAquisicao || "—"}>
+                              {item.dataAquisicao || "—"}
                             </TableCellText>
                           </td>
                           <td className="whitespace-nowrap px-6 py-2.5 text-right">
@@ -1044,7 +1044,9 @@ export default function Patrimonio() {
                         />
                       </div>
                       <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Aquisição: {item.dataAquisicao}</span>
+                        <span>
+                          Aquisição: {item.dataAquisicao || "Não informada"}
+                        </span>
                         <span className="font-medium text-foreground">
                           {formatCurrency(item.valorPatrimonio)}
                         </span>

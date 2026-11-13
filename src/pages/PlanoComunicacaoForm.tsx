@@ -129,7 +129,11 @@ export default function PlanoComunicacaoForm() {
     normalizeId(existingPlano?.organizacao) ||
     normalizeId(organizacoes[0]?.id);
 
-  useImportFormFill("planos-comunicacao", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "planos-comunicacao",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -321,6 +325,7 @@ export default function PlanoComunicacaoForm() {
         toast.success("Plano de comunicação atualizado com sucesso.");
       } else {
         await createPlanoComunicacao(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoPlanoComunicacao();
         toast.success("Plano de comunicação cadastrado com sucesso.");
       }

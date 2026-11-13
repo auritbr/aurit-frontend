@@ -48,6 +48,7 @@ import { FieldLabel } from "@/components/FieldLabel";
 import { StatusPill } from "@/components/StatusPill";
 import { SummaryStatCard } from "@/components/SummaryStatCard";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
+import { ReportChartTooltipContent } from "@/components/relatorios/ReportKit";
 import { ListPageHeader } from "@/components/list/ListPageHeader";
 import { cn } from "@/lib/utils";
 import { getProjetos, type Projeto } from "@/data/projetos";
@@ -532,14 +533,6 @@ export default function PainelFinanceiro() {
     [painel],
   );
 
-  const chartLabels: Record<string, string> = {
-    entradasRealizadas: "Entradas realizadas",
-    saidasRealizadas: "Saídas realizadas",
-    saldoAcumulado: "Saldo realizado",
-    saldoProjetado: "Saldo projetado",
-    valor: "Valor",
-  };
-
   const resultado = painel?.resultadoPeriodo ?? 0;
   const skeletons = (quantidade: number, altura = "h-[70px]") =>
     Array.from({ length: quantidade }).map((_, index) => (
@@ -954,16 +947,12 @@ export default function PainelFinanceiro() {
                           }
                         />
                         <ChartTooltip
-                          contentStyle={{
-                            borderRadius: 12,
-                            border: "1px solid hsl(var(--border))",
-                            background: "hsl(var(--card))",
-                            fontSize: 12,
-                          }}
-                          formatter={(value: number, key: string) => [
-                            formatCurrency(value),
-                            chartLabels[key] || key,
-                          ]}
+                          content={
+                            <ReportChartTooltipContent
+                              currency
+                              showColorIndicator={false}
+                            />
+                          }
                         />
                         <Legend wrapperStyle={{ fontSize: 11 }} />
                         <Line
@@ -1040,16 +1029,12 @@ export default function PainelFinanceiro() {
                         />
                         <ChartTooltip
                           cursor={{ fill: "hsl(var(--muted) / 0.4)" }}
-                          contentStyle={{
-                            borderRadius: 12,
-                            border: "1px solid hsl(var(--border))",
-                            background: "hsl(var(--card))",
-                            fontSize: 12,
-                          }}
-                          formatter={(value: number) => [
-                            formatCurrency(value),
-                            "Valor",
-                          ]}
+                          content={
+                            <ReportChartTooltipContent
+                              currency
+                              showColorIndicator={false}
+                            />
+                          }
                         />
                         <Bar
                           dataKey="valor"

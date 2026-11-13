@@ -102,6 +102,7 @@ export interface AtividadeDTO {
   status: string;
 
   projetoId?: number | string | null;
+  metaProjetoId?: number | string | null;
   projetoNome?: string | null;
   projeto?:
     | {
@@ -132,6 +133,7 @@ export interface Atividade {
   tipoAtividade: string;
   status: string;
   projetoId: string;
+  metaProjetoId?: string;
   projetoNome?: string;
   integrantesIds: string[];
   colaboradoresIds: string[];
@@ -241,6 +243,7 @@ export function mapAtividade(dto: AtividadeDTO): Atividade {
     tipoAtividade: dto.tipoAtividade ?? "",
     status: dto.status ?? "",
     projetoId,
+    metaProjetoId: normalizeId(dto.metaProjetoId),
     projetoNome:
       pickText(
         dto.projetoNome,
@@ -275,6 +278,7 @@ export function buildAtividadePayload(data: Atividade): AtividadeDTO {
     tipoAtividade: data.tipoAtividade,
     status: data.status,
     projetoId: Number(data.projetoId),
+    metaProjetoId: data.metaProjetoId ? Number(data.metaProjetoId) : null,
     integrantesIds: (data.integrantesIds ?? [])
       .map(Number)
       .filter((id) => Number.isFinite(id) && id > 0),

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Inbox } from "lucide-react";
+import { Search, Inbox, ArrowUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -25,7 +25,15 @@ interface RelatorioDataTableProps<T> {
   searchPlaceholder?: string;
   emptyMessage?: string;
   indicadoresPdf?: { label: string; valor: string }[];
+  allowExport?: boolean;
+  sortable?: boolean;
+  showColumns?: boolean;
   enablePdfExport?: boolean;
+  onPdf?: (
+    rows: T[],
+    columns: RelatorioColumn<T>[],
+    search: string,
+  ) => Promise<void>;
   mobileCards?: boolean;
   appliedFilters?: Record<string, unknown>;
   filterLabels?: { label: string; value: string }[];
@@ -82,12 +90,20 @@ export function RelatorioDataTable<T>({
   searchPlaceholder = "Buscar...",
   emptyMessage = "Nenhum registro encontrado para este relatório.",
   indicadoresPdf,
+  allowExport = true,
+  sortable = false,
+  showColumns = true,
   enablePdfExport = false,
+  onPdf,
   mobileCards = true,
   appliedFilters,
   filterLabels,
 }: RelatorioDataTableProps<T>) {
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<{
+    key: string;
+    direction: "asc" | "desc";
+  } | null>(null);
 
   const [visibleKeys, setVisibleKeys] = useState<string[]>(() =>
     columns
@@ -112,16 +128,31 @@ export function RelatorioDataTable<T>({
     [columns, visibleKeys],
   );
 
-  const filtered = useMemo(
-    () => rows.filter((row) => matches(row, search, visibleColumns)),
-    [rows, search, visibleColumns],
+  const exportColumns = visibleColumns.filter(
+    (column) => column.exportable !== false,
   );
+
+  const filtered = useMemo(() => {
+    const result = rows.filter((row) => matches(row, search, visibleColumns));
+    const column = sortable && visibleColumns.find((c) => c.key === sort?.key);
+    if (!column || !sort) return result;
+    return result.sort((a, b) => {
+      const x = getCellRawValue(a, column);
+      const y = getCellRawValue(b, column);
+      if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
+      const comparison =
+        typeof x === "number" && typeof y === "number"
+          ? x - y
+          : String(x).localeCompare(String(y), "pt-BR", { numeric: true });
+      return sort.direction === "asc" ? comparison : -comparison;
+    });
+  }, [rows, search, visibleColumns, sort, sortable]);
 
   const { currentPage, pageSize, setCurrentPage, setPageSize, paginated } =
     usePagination(
       filtered,
       25,
-      `${search}:${JSON.stringify(appliedFilters ?? {})}`,
+      `${search}:${JSON.stringify(sort)}:${JSON.stringify(appliedFilters ?? {})}`,
     );
 
   return (
@@ -139,34 +170,41 @@ export function RelatorioDataTable<T>({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <RelatorioExportButtons
-            rows={filtered}
-            columns={visibleColumns}
-            reportName={reportName}
-            organizacaoNome={organizacaoNome}
-            dataGeracao={dataGeracao}
-            indicadoresPdf={indicadoresPdf}
-            showPdf={enablePdfExport}
-            showCopy={false}
-            onPdf={
-              enablePdfExport
-                ? () =>
-                    downloadGeneralReportPdf({
-                      slug: reportName,
-                      columns: visibleColumns.map((column) => column.key),
-                      search,
-                      filters: appliedFilters,
-                      filterLabels,
-                    })
-                : undefined
-            }
-          />
+          {(allowExport || onPdf) && (
+            <RelatorioExportButtons
+              rows={filtered}
+              columns={exportColumns}
+              reportName={reportName}
+              organizacaoNome={organizacaoNome}
+              dataGeracao={dataGeracao}
+              indicadoresPdf={indicadoresPdf}
+              showPdf={!!onPdf || enablePdfExport}
+              showDataExports={allowExport}
+              showCopy={false}
+              onPdf={
+                onPdf
+                  ? () => onPdf(filtered, exportColumns, search)
+                  : enablePdfExport
+                    ? () =>
+                        downloadGeneralReportPdf({
+                          slug: reportName,
+                          columns: exportColumns.map((column) => column.key),
+                          search,
+                          filters: appliedFilters,
+                          filterLabels,
+                        })
+                    : undefined
+              }
+            />
+          )}
 
-          <ColumnSelector
-            columns={columns}
-            visibleKeys={visibleKeys}
-            onChange={setVisibleKeys}
-          />
+          {showColumns && (
+            <ColumnSelector
+              columns={columns}
+              visibleKeys={visibleKeys}
+              onChange={setVisibleKeys}
+            />
+          )}
         </div>
       </div>
 
@@ -216,8 +254,35 @@ export function RelatorioDataTable<T>({
                         key={column.key}
                         className="max-w-[260px] whitespace-nowrap text-xs"
                         title={column.label}
+                        aria-sort={
+                          sort?.key === column.key
+                            ? sort.direction === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : undefined
+                        }
                       >
-                        <span className="block truncate">{column.label}</span>
+                        {sortable && !column.alwaysVisible ? (
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1.5"
+                            onClick={() =>
+                              setSort((prev) => ({
+                                key: column.key,
+                                direction:
+                                  prev?.key === column.key &&
+                                  prev.direction === "asc"
+                                    ? "desc"
+                                    : "asc",
+                              }))
+                            }
+                          >
+                            {column.label}
+                            <ArrowUpDown className="h-3 w-3" aria-hidden />
+                          </button>
+                        ) : (
+                          <span className="block truncate">{column.label}</span>
+                        )}
                       </TableHead>
                     ))}
                   </TableRow>

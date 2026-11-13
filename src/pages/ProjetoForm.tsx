@@ -314,7 +314,7 @@ export default function ProjetoForm() {
     return options;
   }, [organizacoes, form.organizacaoId, existingProjeto]);
 
-  useImportFormFill("projetos", setForm);
+  const confirmarImportacaoSalva = useImportFormFill("projetos", form, setForm);
 
   useEffect(() => {
     let active = true;
@@ -583,6 +583,7 @@ export default function ProjetoForm() {
         toast.success("Projeto atualizado com sucesso.");
       } else {
         await createProjeto(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoProjeto();
         toast.success("Projeto cadastrado com sucesso.");
       }

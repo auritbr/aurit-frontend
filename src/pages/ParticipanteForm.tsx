@@ -40,6 +40,7 @@ import { PageObjective } from "@/components/PageObjective";
 import { BackButton } from "@/components/BackButton";
 import { ImportDataButton } from "@/components/ImportDataButton";
 import { FormSectionCard } from "@/components/FormSectionCard";
+import { HistoricoAcompanhamentoTab } from "@/components/participantes/HistoricoAcompanhamentoTab";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,6 +103,10 @@ import {
   type Patrimonio,
 } from "@/data/patrimonio";
 import { getEmprestimos, type Emprestimo } from "@/data/emprestimos";
+import {
+  salvarAcompanhamento,
+  type RascunhoAcompanhamento,
+} from "@/lib/historicoAcompanhamento";
 
 const SEM_TURMA = "__SEM_TURMA__";
 const SEM_NIVEL_TURMA = "__SEM_NIVEL_TURMA__";
@@ -526,12 +531,27 @@ export default function ParticipanteForm() {
   const [documentoNome, setDocumentoNome] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [aba, setAba] = useState("dados");
+  const [historicoAberto, setHistoricoAberto] = useState(false);
+  const [historicoPendente, setHistoricoPendente] = useState<
+    RascunhoAcompanhamento[]
+  >([]);
+  const [novoParticipanteId, setNovoParticipanteId] = useState<string>();
   const [cepLoading, setCepLoading] = useState(false);
   const conversionSeed = (
     location.state as { conversionSeed?: { data?: Partial<FormState> } } | null
   )?.conversionSeed;
 
-  const bloqueado = loading || saving || visualizando;
+  const bloqueado =
+    loading || saving || visualizando || Boolean(novoParticipanteId);
+  const atividadesDoHistorico = atividades
+    .filter((atividade) =>
+      form.vinculos.some((vinculo) => vinculo.atividadeId === atividade.id),
+    )
+    .map((atividade) => ({
+      id: Number(atividade.id),
+      nome: atividade.nomeAtividade,
+    }));
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((p) => ({ ...p, [k]: v }));
@@ -642,7 +662,11 @@ export default function ParticipanteForm() {
     [form.vinculos],
   );
 
-  useImportFormFill("participantes", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "participantes",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -855,10 +879,45 @@ export default function ParticipanteForm() {
     }
   }
 
+  async function concluirCadastro(participanteId: string) {
+    try {
+      for (const registro of historicoPendente) {
+        await salvarAcompanhamento(participanteId, registro);
+        setHistoricoPendente((pendentes) =>
+          pendentes.filter((item) => item.id !== registro.id),
+        );
+      }
+    } catch (error) {
+      setHistoricoAberto(true);
+      setAba("historico");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar o acompanhamento.",
+      );
+      return;
+    }
+
+    confirmarImportacaoSalva();
+    salvarProximaAcaoParticipante();
+    toast.success("Participante salvo com sucesso.");
+    navigate("/participantes");
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (visualizando) return;
+    if (visualizando || saving || loading) return;
+
+    if (novoParticipanteId) {
+      setSaving(true);
+      try {
+        await concluirCadastro(novoParticipanteId);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
 
     const organizacaoId =
       form.organizacaoId ||
@@ -1061,13 +1120,12 @@ export default function ParticipanteForm() {
       if (isEdit && id) {
         await updateParticipante(Number(id), payload, documento);
         toast.success("Participante atualizado com sucesso.");
+        navigate("/participantes");
       } else {
-        await createParticipante(payload, documento);
-        salvarProximaAcaoParticipante();
-        toast.success("Participante salvo com sucesso.");
+        const criado = await createParticipante(payload, documento);
+        setNovoParticipanteId(criado.id);
+        await concluirCadastro(criado.id);
       }
-
-      navigate("/participantes");
     } catch (error) {
       console.error(error);
 
@@ -1093,7 +1151,7 @@ export default function ParticipanteForm() {
           title="Participantes"
           tooltip="Nesta página são cadastrados e acompanhados os participantes da organização, com informações pessoais, sociais, de acessibilidade, endereço, documentos, responsável legal quando menor de idade e vínculo institucional. A associação com atividades e turmas é opcional e deve ser informada apenas quando o participante fizer parte de uma atividade ou turma específica."
           actions={
-            visualizando ? undefined : (
+            visualizando || novoParticipanteId ? undefined : (
               <ImportDataButton
                 config={getImportConfigForPath("/participantes")!}
                 canFillForm
@@ -1107,19 +1165,34 @@ export default function ParticipanteForm() {
         <FormLegend />
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Tabs defaultValue="dados" className="w-full">
+          <Tabs
+            value={aba}
+            onValueChange={(valor) => {
+              if (valor === "historico") setHistoricoAberto(true);
+              setAba(valor);
+            }}
+            className="w-full"
+          >
             <TabsList className="grid h-auto w-full grid-cols-2 rounded-[12px] border border-border/70 bg-card/70 p-1 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.16)] backdrop-blur-md supports-[backdrop-filter]:bg-card/55 sm:inline-flex sm:w-auto md:h-10">
               <TabsTrigger
                 value="dados"
+                disabled={Boolean(novoParticipanteId)}
                 className="rounded-[8px] data-[state=active]:bg-background/75 data-[state=active]:backdrop-blur-sm"
               >
                 Dados do Participante
               </TabsTrigger>
               <TabsTrigger
                 value="vinculos"
+                disabled={Boolean(novoParticipanteId)}
                 className="rounded-[8px] data-[state=active]:bg-background/75 data-[state=active]:backdrop-blur-sm"
               >
                 Matrículas
+              </TabsTrigger>
+              <TabsTrigger
+                value="historico"
+                className="col-span-2 rounded-[8px] data-[state=active]:bg-background/75 data-[state=active]:backdrop-blur-sm"
+              >
+                Acompanhamento
               </TabsTrigger>
             </TabsList>
 
@@ -2232,6 +2305,35 @@ export default function ParticipanteForm() {
                 </div>
               </Section>
             </TabsContent>
+            <TabsContent
+              value="historico"
+              forceMount
+              className="mt-4 space-y-5 data-[state=inactive]:hidden"
+            >
+              {novoParticipanteId && !saving && (
+                <p
+                  role="status"
+                  className="rounded-lg border border-border p-3 text-sm"
+                >
+                  O participante já foi cadastrado. Revise os registros
+                  pendentes e clique em Concluir cadastro para salvá-los.
+                </p>
+              )}
+              {historicoAberto &&
+                !loading &&
+                (!id || existingParticipante?.id === String(Number(id))) && (
+                  <HistoricoAcompanhamentoTab
+                    key={id ?? "novo"}
+                    participanteId={id ? existingParticipante?.id : undefined}
+                    readOnly={visualizando}
+                    iniciarEmEdicao={isEdit}
+                    disabled={saving}
+                    pendentes={historicoPendente}
+                    atividadesVinculadas={atividadesDoHistorico}
+                    onPendentesChange={setHistoricoPendente}
+                  />
+                )}
+            </TabsContent>
           </Tabs>
 
           <div className="flex flex-col-reverse gap-2.5 pt-2 sm:flex-row sm:justify-end">
@@ -2253,7 +2355,11 @@ export default function ParticipanteForm() {
                 disabled={saving || loading}
                 aria-busy={saving}
               >
-                {saving ? "Salvando..." : "Salvar"}
+                {saving
+                  ? "Salvando..."
+                  : novoParticipanteId
+                    ? "Concluir cadastro"
+                    : "Salvar"}
               </Button>
             )}
           </div>

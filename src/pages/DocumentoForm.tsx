@@ -140,7 +140,11 @@ export default function DocumentoForm() {
     });
   };
 
-  useImportFormFill("documentos", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "documentos",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -391,6 +395,7 @@ export default function DocumentoForm() {
         toast.success("Documento atualizado com sucesso.");
       } else {
         await createDocumento(payload, arquivo);
+        confirmarImportacaoSalva();
         salvarProximaAcaoDocumento();
         toast.success("Documento cadastrado com sucesso.");
       }

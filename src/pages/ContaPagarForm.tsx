@@ -54,6 +54,7 @@ import {
   maskMoney,
   parseMoney,
   saveContaPagar,
+  vincularContaPagarAoItemMeta,
   statusFinanceiroOptions,
   type ContaPagarData,
   getContaPagarComprovanteUrl,
@@ -74,6 +75,8 @@ import { getAtividades } from "@/data/atividades";
 import { nameWithYear } from "@/lib/entityYear";
 import { getEventosCulturais } from "@/data/eventosCulturais";
 import { getAcoesDivulgacao } from "@/data/acoesDivulgacao";
+import { getMetasProjeto, type MetaProjeto } from "@/data/metasProjeto";
+import { getOrcamentoMeta, type ItemOrcamentoMeta } from "@/data/orcamentoMeta";
 
 const normalize = (value: string) =>
   value
@@ -307,7 +310,7 @@ type TipoCredor =
   | "PARCEIRO"
   | "EXTERNO"
   | "";
-type TipoAcao = "NENHUMA" | "ATIVIDADE" | "EVENTO" | "ACAO";
+type TipoAcao = "NENHUMA" | "ATIVIDADE" | "EVENTO" | "ACAO" | "META_PROJETO";
 
 const tipoCredorOptions = [
   { value: "COLABORADOR", label: "Colaborador" },
@@ -323,6 +326,7 @@ const tipoAcaoOptions = [
   { value: "ATIVIDADE", label: "Atividade" },
   { value: "EVENTO", label: "Evento cultural" },
   { value: "ACAO", label: "Ação de divulgação" },
+  { value: "META_PROJETO", label: "Meta do projeto" },
 ];
 
 export default function ContaPagarForm() {
@@ -337,6 +341,7 @@ export default function ContaPagarForm() {
   );
   const [tipoCredor, setTipoCredor] = useState<TipoCredor>("");
   const [tipoAcao, setTipoAcao] = useState<TipoAcao>("NENHUMA");
+  const itemOrcamentarioOriginalRef = useRef("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [contasBancarias, setContasBancarias] = useState<ContaBancariaData[]>(
@@ -357,8 +362,18 @@ export default function ContaPagarForm() {
   const [acaoRecords, setAcaoRecords] = useState<
     Array<Option & { projetoId: string }>
   >([]);
+  const [metasProjeto, setMetasProjeto] = useState<MetaProjeto[]>([]);
+  const [metaProjetoId, setMetaProjetoId] = useState("");
+  const [itensOrcamentariosMeta, setItensOrcamentariosMeta] = useState<
+    ItemOrcamentoMeta[]
+  >([]);
+  const [carregandoItensMeta, setCarregandoItensMeta] = useState(false);
 
-  useImportFormFill("contas-pagar", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "contas-pagar",
+    form,
+    setForm,
+  );
 
   const contaBancariaGroups = useMemo<Grupo[]>(() => {
     const describe = (c: (typeof contasBancarias)[number]) =>
@@ -416,6 +431,17 @@ export default function ContaPagarForm() {
       : acaoRecords;
     return list.map(({ value, label }) => ({ value, label }));
   }, [acaoRecords, form.projetoId]);
+
+  const metaOptions = useMemo<Option[]>(
+    () =>
+      metasProjeto
+        .filter((meta) => !form.projetoId || meta.projeto === form.projetoId)
+        .map((meta) => ({
+          value: meta.id,
+          label: meta.tituloMeta || `Meta ${meta.ordem}`,
+        })),
+    [metasProjeto, form.projetoId],
+  );
 
   useEffect(() => {
     void Promise.all([
@@ -514,10 +540,102 @@ export default function ContaPagarForm() {
   }, []);
 
   useEffect(() => {
+    void getMetasProjeto()
+      .then(setMetasProjeto)
+      .catch(() =>
+        toast.error("Não foi possível carregar as metas dos projetos."),
+      );
+  }, []);
+
+  useEffect(() => {
+    if (!metaProjetoId) {
+      setItensOrcamentariosMeta([]);
+      return;
+    }
+    const controller = new AbortController();
+    setCarregandoItensMeta(true);
+    void getOrcamentoMeta(metaProjetoId, controller.signal)
+      .then((orcamento) =>
+        setItensOrcamentariosMeta(
+          (orcamento.itens ?? [])
+            .map((entry) => entry.item)
+            .filter((item) => item?.ativo),
+        ),
+      )
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          setItensOrcamentariosMeta([]);
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar o planejamento financeiro da meta.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setCarregandoItensMeta(false);
+      });
+    return () => controller.abort();
+  }, [metaProjetoId]);
+
+  // Cada meta possui um único planejamento financeiro: associa a conta a esse
+  // registro automaticamente, sem pedir que a pessoa escolha o item novamente.
+  useEffect(() => {
+    if (!metaProjetoId || carregandoItensMeta) return;
+    const itemAtivo =
+      itensOrcamentariosMeta.length === 1
+        ? itensOrcamentariosMeta[0]
+        : itensOrcamentariosMeta.find(
+            (item) => String(item.id) === form.itemOrcamentarioMetaId,
+          );
+    const itemId = itemAtivo ? String(itemAtivo.id) : "";
+    if (itemId !== form.itemOrcamentarioMetaId) {
+      set("itemOrcamentarioMetaId", itemId);
+    }
+  }, [
+    metaProjetoId,
+    carregandoItensMeta,
+    itensOrcamentariosMeta,
+    form.itemOrcamentarioMetaId,
+  ]);
+
+  // Ao abrir uma conta existente, recupera a meta correspondente ao item já vinculado.
+  useEffect(() => {
+    if (!form.itemOrcamentarioMetaId || metasProjeto.length === 0) return;
+    let ativo = true;
+    void Promise.all(
+      metasProjeto.map(async (meta) => {
+        try {
+          const orcamento = await getOrcamentoMeta(meta.id);
+          return {
+            meta,
+            itens: (orcamento.itens ?? []).map((entry) => entry.item),
+          };
+        } catch {
+          return { meta, itens: [] };
+        }
+      }),
+    ).then((resultados) => {
+      if (!ativo) return;
+      const vinculo = resultados.find(({ itens }) =>
+        itens.some((item) => String(item?.id) === form.itemOrcamentarioMetaId),
+      );
+      if (vinculo) {
+        setMetaProjetoId(vinculo.meta.id);
+        setTipoAcao("META_PROJETO");
+      }
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [form.itemOrcamentarioMetaId, metasProjeto]);
+
+  useEffect(() => {
     if (!id) return;
     void getContaPagar(id)
       .then((found) => {
         setForm(found);
+        itemOrcamentarioOriginalRef.current = found.itemOrcamentarioMetaId;
         setTipoCredor(
           found.colaboradorId
             ? "COLABORADOR"
@@ -575,12 +693,28 @@ export default function ContaPagarForm() {
 
   const handleTipoAcao = (value: TipoAcao) => {
     setTipoAcao(value);
+    if (value !== "META_PROJETO") setMetaProjetoId("");
     setForm((p) => ({
       ...p,
       atividadeId: "",
       eventoCulturalId: "",
       acaoDivulgacaoId: "",
+      itemOrcamentarioMetaId:
+        value === "META_PROJETO" ? p.itemOrcamentarioMetaId : "",
     }));
+  };
+
+  const handleProjetoChange = (value: string) => {
+    set("projetoId", value);
+    if (
+      metaProjetoId &&
+      !metasProjeto.some(
+        (meta) => meta.id === metaProjetoId && meta.projeto === value,
+      )
+    ) {
+      setMetaProjetoId("");
+      set("itemOrcamentarioMetaId", "");
+    }
   };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -670,10 +804,34 @@ export default function ContaPagarForm() {
       return toast.error("Informe a data de pagamento da conta liquidada.");
     if (isLiquidado && (!form.valorPago || parseMoney(form.valorPago) <= 0))
       return toast.error("Informe o valor pago da conta liquidada.");
+    if (tipoAcao === "META_PROJETO" && !form.projetoId)
+      return toast.error("Selecione o projeto relacionado à meta.");
+    if (tipoAcao === "META_PROJETO" && !metaProjetoId)
+      return toast.error("Selecione a meta do projeto.");
+    if (tipoAcao === "META_PROJETO" && !form.itemOrcamentarioMetaId)
+      return toast.error(
+        itensOrcamentariosMeta.length > 1
+          ? "A meta possui mais de um planejamento financeiro ativo. Ajuste o cadastro da meta para manter apenas um."
+          : "Cadastre o planejamento financeiro da meta antes de relacionar esta despesa.",
+      );
 
     try {
-      await saveContaPagar(form);
+      const contaSalva = await saveContaPagar(form);
+      // Mantém o identificador após salvar a conta para permitir uma nova tentativa
+      // sem criar outra conta caso a atualização do vínculo falhe.
+      setForm(contaSalva);
+      // O vínculo financeiro tem endpoint próprio; só persistimos depois da conta existir.
+      const itemSelecionado =
+        tipoAcao === "META_PROJETO" ? form.itemOrcamentarioMetaId : "";
+      if (itemSelecionado || itemOrcamentarioOriginalRef.current) {
+        await vincularContaPagarAoItemMeta(
+          contaSalva.id,
+          itemSelecionado || null,
+        );
+        itemOrcamentarioOriginalRef.current = itemSelecionado;
+      }
       invalidateFinancialData("conta-pagar");
+      confirmarImportacaoSalva();
       if (!isEdit) emitJourneyNextStep();
       toast.success(
         isEdit
@@ -1020,7 +1178,7 @@ export default function ContaPagarForm() {
                   <EntitySelect
                     id="projetoId"
                     value={form.projetoId}
-                    onChange={(v) => set("projetoId", v)}
+                    onChange={handleProjetoChange}
                     options={projetoOptions}
                     placeholder="Selecione o projeto"
                     emptyMessage="Nenhum projeto cadastrado."
@@ -1031,7 +1189,7 @@ export default function ContaPagarForm() {
                 <Field>
                   <FieldLabel
                     htmlFor="tipoAcao"
-                    tooltip="Selecione o tipo de ação relacionada a esta despesa, quando houver. Depois, escolha a atividade, o evento cultural ou a ação de divulgação correspondente."
+                    tooltip="Selecione o tipo de ação relacionada a esta despesa. Para uma meta, escolha também o item do planejamento financeiro correspondente."
                   >
                     Tipo de Ação Relacionada
                   </FieldLabel>
@@ -1116,6 +1274,57 @@ export default function ContaPagarForm() {
                       disabled={isView}
                     />
                   </Field>
+                )}
+
+                {tipoAcao === "META_PROJETO" && (
+                  <>
+                    <Field>
+                      <FieldLabel
+                        htmlFor="metaProjetoId"
+                        tooltip="Selecione a meta do projeto à qual esta despesa está relacionada."
+                        required
+                      >
+                        Meta do Projeto
+                      </FieldLabel>
+                      <EntitySelect
+                        id="metaProjetoId"
+                        value={metaProjetoId}
+                        onChange={(value) => {
+                          setMetaProjetoId(value);
+                          set("itemOrcamentarioMetaId", "");
+                        }}
+                        options={metaOptions}
+                        placeholder={
+                          form.projetoId
+                            ? "Selecione a meta"
+                            : "Selecione primeiro o projeto"
+                        }
+                        emptyMessage={
+                          form.projetoId
+                            ? "Nenhuma meta cadastrada para este projeto."
+                            : "Selecione primeiro o projeto."
+                        }
+                        disabled={isView || !form.projetoId}
+                      />
+                    </Field>
+
+                    {metaProjetoId &&
+                      !carregandoItensMeta &&
+                      itensOrcamentariosMeta.length === 0 && (
+                        <p className="text-sm text-muted-foreground sm:col-span-2">
+                          Esta meta ainda não possui planejamento financeiro
+                          cadastrado.
+                        </p>
+                      )}
+                    {metaProjetoId &&
+                      !carregandoItensMeta &&
+                      itensOrcamentariosMeta.length > 1 && (
+                        <p className="text-sm text-amber-700 sm:col-span-2">
+                          Esta meta possui mais de um planejamento financeiro
+                          ativo. Mantenha apenas um para relacionar a despesa.
+                        </p>
+                      )}
+                  </>
                 )}
               </div>
             </FormSectionCard>

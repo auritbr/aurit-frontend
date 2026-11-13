@@ -1,3 +1,4 @@
+import { ROTA_PERFIL_SOCIOECONOMICO } from "@/config/rotas";
 import {
   House,
   FilePenLine,
@@ -76,6 +77,7 @@ const PERMISSAO_POR_ROTA: Record<string, ModuloPermissao> = {
   "/colaboradores": "COLABORADORES",
   "/integrantes": "INTEGRANTES",
   "/participantes": "PARTICIPANTES",
+  [ROTA_PERFIL_SOCIOECONOMICO]: "ESTUDOS_SOCIOECONOMICOS",
 
   "/curriculos": "CURRICULOS",
   "/trajetorias-culturais": "TRAJETORIAS_CULTURAIS",
@@ -222,6 +224,7 @@ const sections: Section[] = [
           { title: "Colaboradores", url: "/colaboradores" },
           { title: "Integrantes", url: "/integrantes" },
           { title: "Participantes", url: "/participantes" },
+          { title: "Estudos Socioeconômicos", url: ROTA_PERFIL_SOCIOECONOMICO },
           { title: "Currículos", url: "/curriculos", paidOnly: true },
           {
             title: "Trajetórias Culturais",

@@ -217,8 +217,8 @@ const JOURNEY: Array<{ paths: string[]; next?: NextStepDefinition }> = [
   {
     paths: ["/fluxo-caixa"],
     next: {
-      buttonLabel: "Cadastrar cumprimento de metas",
-      to: "/prestacao-metas/novo",
+      buttonLabel: "Consultar cumprimento de metas",
+      to: "/prestacao-metas",
     },
   },
   {

@@ -3,10 +3,18 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Target, ClipboardCheck, Link2 } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import { ajudaMetasProjeto } from "@/components/metasProjeto/textosMetaProjeto";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
 import { BackButton } from "@/components/BackButton";
 import { ImportDataButton } from "@/components/ImportDataButton";
 import { FormSectionCard } from "@/components/FormSectionCard";
+import { PlanejamentoFinanceiroMeta } from "@/components/metasProjeto/PlanejamentoFinanceiroMeta";
+import {
+  carregarPlanejamento,
+  dadosPlanejamento,
+  planejamentoVazio,
+  validarPlanejamento,
+} from "@/components/metasProjeto/planejamentoMeta";
 import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +42,13 @@ import {
   type ProjetoOption,
   type PropostaEditalOption,
 } from "@/data/metasProjeto";
+import {
+  getOrcamentoMeta,
+  salvarItemOrcamentoMeta,
+  type ItemOrcamentoMeta,
+} from "@/data/orcamentoMeta";
 import { toast } from "sonner";
+import { ApiError } from "@/lib/api";
 import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
 function salvarProximaAcaoMetaProjeto() {
@@ -58,6 +72,12 @@ const initial: FormState = {
   projeto: "",
   propostaEdital: "",
 };
+
+function criacaoSemConfirmacao(error: unknown) {
+  return (
+    !(error instanceof ApiError) || error.status === 0 || error.status >= 500
+  );
+}
 
 const sanitizeQuantidade = (raw: string) => {
   let value = raw.replace(/[^\d,.]/g, "");
@@ -118,8 +138,22 @@ export default function MetaProjetoForm() {
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
   const [propostas, setPropostas] = useState<PropostaEditalOption[]>([]);
   const [ordemAtual, setOrdemAtual] = useState<number>(1);
+  const [planejamento, setPlanejamento] = useState(planejamentoVazio);
+  const [orcamento, setOrcamento] = useState<{
+    dados: typeof planejamentoVazio;
+    item?: ItemOrcamentoMeta;
+    temItensMultiplos: boolean;
+  }>({ dados: planejamentoVazio, temItensMultiplos: false });
+  const [consultandoOrcamento, setConsultandoOrcamento] = useState(Boolean(id));
+  const [erroOrcamento, setErroOrcamento] = useState("");
+  const [tentativaOrcamento, setTentativaOrcamento] = useState(0);
+  const [metaSalva, setMetaSalva] = useState<{ id: string; dados: string }>();
+  const [criacaoIncerta, setCriacaoIncerta] = useState("");
 
   const bloqueado = visualizando || loading || saving;
+  const valorLegado = Boolean(
+    orcamento.item && orcamento.item.dados.quantidadePrevista !== 1,
+  );
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -178,7 +212,11 @@ export default function MetaProjetoForm() {
     return options;
   }, [propostasFiltradas, propostas, propostaSelectValue, projetoSelectValue]);
 
-  useImportFormFill("metas-projeto", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "metas-projeto",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -253,6 +291,44 @@ export default function MetaProjetoForm() {
     };
   }, [id, navigate]);
 
+  useEffect(() => {
+    setPlanejamento(planejamentoVazio);
+    setOrcamento({ dados: planejamentoVazio, temItensMultiplos: false });
+    if (!id) {
+      setErroOrcamento("");
+      setConsultandoOrcamento(false);
+      return;
+    }
+    const controller = new AbortController();
+    const { signal } = controller;
+    setConsultandoOrcamento(true);
+    setErroOrcamento("");
+    void getOrcamentoMeta(id, signal)
+      .then(({ itens, totais }) => {
+        if (signal.aborted) return;
+        const ativos = itens
+          .map(({ item }) => item)
+          .filter(({ ativo }) => ativo);
+        const dados = carregarPlanejamento(ativos, totais.valorPrevisto);
+        setPlanejamento(dados);
+        setOrcamento({
+          dados,
+          item: ativos.length === 1 ? ativos[0] : undefined,
+          temItensMultiplos: ativos.length > 1,
+        });
+      })
+      .catch(() => {
+        if (!signal.aborted)
+          setErroOrcamento(
+            "Não foi possível carregar o planejamento financeiro. Você pode tentar novamente ou salvar apenas os dados da meta.",
+          );
+      })
+      .finally(() => {
+        if (!signal.aborted) setConsultandoOrcamento(false);
+      });
+    return () => controller.abort();
+  }, [id, tentativaOrcamento]);
+
   const handleProjetoChange = (value: string) => {
     if (visualizando) return;
 
@@ -280,7 +356,7 @@ export default function MetaProjetoForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (visualizando) return;
+    if (bloqueado || consultandoOrcamento || criacaoIncerta) return;
 
     const formComVinculos = getFormComVinculos();
 
@@ -306,11 +382,27 @@ export default function MetaProjetoForm() {
       return;
     }
 
+    const planejamentoAlterado =
+      !erroOrcamento &&
+      !orcamento.temItensMultiplos &&
+      (planejamento.valorEstimado !== orcamento.dados.valorEstimado ||
+        planejamento.inicio !== orcamento.dados.inicio ||
+        planejamento.termino !== orcamento.dados.termino);
+    if (planejamentoAlterado) {
+      const erro = validarPlanejamento(planejamento, valorLegado);
+      if (erro) {
+        toast.error(erro);
+        return;
+      }
+    }
+
+    let mensagemFalha =
+      "Não foi possível salvar a meta. Verifique as informações e tente novamente.";
     try {
       setSaving(true);
 
       const meta: MetaProjeto = {
-        id: id ?? "",
+        id: id ?? metaSalva?.id ?? "",
         tituloMeta: formComVinculos.tituloMeta.trim(),
         descricaoMeta: formComVinculos.descricaoMeta.trim(),
         quantidadePrevista: quantidade,
@@ -322,19 +414,72 @@ export default function MetaProjetoForm() {
 
       const payload = buildMetaProjetoPayload(meta);
 
-      if (editando && id) {
-        await updateMetaProjeto(Number(id), payload);
-        toast.success("Meta atualizada com sucesso.");
-      } else {
-        await createMetaProjeto(payload);
-        salvarProximaAcaoMetaProjeto();
-        toast.success("Meta cadastrada com sucesso.");
+      let metaId = id ?? metaSalva?.id;
+      if (!metaId) {
+        try {
+          const criada = await createMetaProjeto(payload);
+          if (!criada.id)
+            throw new Error("Não foi possível identificar a meta cadastrada.");
+          metaId = criada.id;
+          setMetaSalva({
+            id: metaId,
+            dados: JSON.stringify({ ...payload, id: Number(metaId) }),
+          });
+        } catch (error) {
+          if (criacaoSemConfirmacao(error)) {
+            setCriacaoIncerta(
+              "Não foi possível confirmar a criação da meta. Confira a lista de metas antes de tentar cadastrá-la novamente.",
+            );
+          }
+          throw error;
+        }
+      } else if (metaSalva?.dados !== JSON.stringify(payload)) {
+        await updateMetaProjeto(Number(metaId), payload);
+        setMetaSalva({ id: metaId, dados: JSON.stringify(payload) });
       }
 
+      if (planejamentoAlterado) {
+        mensagemFalha = "Não foi possível salvar o planejamento financeiro.";
+        const itemId = orcamento.item?.id;
+        if (itemId == null && id) {
+          const atual = await getOrcamentoMeta(metaId);
+          if (atual.itens.some(({ item }) => item.ativo)) {
+            setCriacaoIncerta(
+              "Já existe um planejamento para esta meta. Reabra o cadastro para conferir os dados salvos.",
+            );
+            return;
+          }
+        }
+        try {
+          const salvo = await salvarItemOrcamentoMeta(
+            metaId,
+            dadosPlanejamento(planejamento, orcamento.item),
+            itemId,
+          );
+          if (!salvo?.id) throw new Error(mensagemFalha);
+        } catch (error) {
+          if (itemId == null && criacaoSemConfirmacao(error)) {
+            setCriacaoIncerta(
+              "Não foi possível confirmar o salvamento do planejamento. Reabra a meta para conferir os dados antes de tentar novamente.",
+            );
+          }
+          throw error;
+        }
+      }
+
+      confirmarImportacaoSalva();
+      if (!editando) salvarProximaAcaoMetaProjeto();
+      toast.success(
+        editando
+          ? "Meta atualizada com sucesso."
+          : "Meta cadastrada com sucesso.",
+      );
       navigate("/metas-projeto");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Erro ao salvar meta.",
+        error instanceof ApiError
+          ? `${mensagemFalha} ${error.message}`
+          : mensagemFalha,
       );
     } finally {
       setSaving(false);
@@ -357,7 +502,7 @@ export default function MetaProjetoForm() {
                 ? "Metas do Projeto"
                 : "Metas do Projeto"
           }
-          tooltip="Nesta página são cadastradas e acompanhadas as metas dos projetos, com a definição do resultado ou entrega esperada, da quantidade prevista e da forma de comprovação. Cada meta fica vinculada ao projeto correspondente e, quando aplicável, a uma proposta de edital."
+          tooltip={ajudaMetasProjeto}
           actions={
             visualizando ? undefined : (
               <ImportDataButton
@@ -556,8 +701,24 @@ export default function MetaProjetoForm() {
                 />
               </Field>
             </FormSectionCard>
+            <PlanejamentoFinanceiroMeta
+              dados={planejamento}
+              alterar={setPlanejamento}
+              bloqueado={bloqueado}
+              temPlanejamento={Boolean(orcamento.item)}
+              temItensMultiplos={orcamento.temItensMultiplos}
+              valorLegado={valorLegado}
+              consultando={consultandoOrcamento}
+              erroConsulta={erroOrcamento}
+              recarregar={() => setTentativaOrcamento((valor) => valor + 1)}
+            />
           </fieldset>
 
+          {criacaoIncerta && (
+            <p role="alert" className="text-sm text-destructive">
+              {criacaoIncerta}
+            </p>
+          )}
           {!visualizando && (
             <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
               <Button
@@ -573,7 +734,12 @@ export default function MetaProjetoForm() {
                 type="submit"
                 variant="glassPrimary"
                 className="h-9 px-5"
-                disabled={loading || saving}
+                disabled={
+                  loading ||
+                  saving ||
+                  consultandoOrcamento ||
+                  Boolean(criacaoIncerta)
+                }
               >
                 {saving ? "Salvando..." : "Salvar"}
               </Button>

@@ -3,6 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { Loader2, Plus, RotateCcw, Search } from "lucide-react";
 
 import { AppLayout } from "@/components/AppLayout";
+import {
+  ajudaMetasProjeto,
+  objetivoMetasProjeto,
+} from "@/components/metasProjeto/textosMetaProjeto";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import {
@@ -441,8 +445,8 @@ export default function MetasProjetoPage() {
       >
         <ListPageHeader
           title="Metas do Projeto"
-          tooltip="Nesta página são cadastradas e acompanhadas as metas dos projetos, com a definição do resultado ou entrega esperada, da quantidade prevista e da forma de comprovação. Cada meta fica vinculada ao projeto correspondente e, quando aplicável, a uma proposta de edital."
-          objective="Registre as metas previstas para cada projeto, definindo o que deverá ser alcançado, em qual quantidade e como o resultado poderá ser comprovado. Mantenha essas informações atualizadas para acompanhar o cumprimento das metas durante a execução do projeto."
+          tooltip={ajudaMetasProjeto}
+          objective={objetivoMetasProjeto}
           actions={
             podeCriar ? (
               <Button

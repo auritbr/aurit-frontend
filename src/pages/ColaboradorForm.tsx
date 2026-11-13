@@ -240,7 +240,11 @@ export default function ColaboradorForm() {
   const set = <K extends keyof Colaborador>(key: K, value: Colaborador[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  useImportFormFill("colaboradores", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "colaboradores",
+    form,
+    setForm,
+  );
 
   const carregarTudo = useCallback(async () => {
     try {
@@ -472,6 +476,7 @@ export default function ColaboradorForm() {
         toast.success("Colaborador atualizado com sucesso.");
       } else {
         await createColaborador(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoColaborador();
         toast.success("Colaborador salvo com sucesso.");
       }

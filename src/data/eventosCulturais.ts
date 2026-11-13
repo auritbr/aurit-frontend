@@ -202,6 +202,7 @@ export interface EventoCulturalDTO {
   dataFim?: string | null;
   tipoEvento?: TipoEventoValue | string | null;
   status?: StatusEventoValue | string | null;
+  metaProjetoId?: number | string | null;
 
   projetoId?: number | string | ProjetoApiDTO | null;
   projetosIds?: Array<number | string | ProjetoApiDTO> | null;
@@ -221,6 +222,7 @@ export interface EventoCulturalPayloadDTO {
   dataFim: string | null;
   tipoEvento: TipoEventoValue;
   status: StatusEventoValue;
+  metaProjetoId: number | null;
   projetoId: number | null;
   projetosIds: number[];
   colaboradoresIds: number[];
@@ -235,6 +237,7 @@ export interface EventoCultural {
   dataFim: string;
   tipoEvento: TipoEventoValue | "";
   status: StatusEventoValue | "";
+  metaProjetoId: string;
   projetoId: string;
   projetosIds: string[];
   colaboradoresIds: string[];
@@ -400,6 +403,7 @@ export function createEmptyEventoCultural(): EventoCultural {
     dataFim: "",
     tipoEvento: "",
     status: "",
+    metaProjetoId: "",
     projetoId: "",
     projetosIds: [],
     colaboradoresIds: [],
@@ -419,6 +423,7 @@ export function mapEventoCultural(dto: EventoCulturalDTO): EventoCultural {
     dataFim: toInputDate(dto.dataFim),
     tipoEvento: normalizeTipoEvento(dto.tipoEvento),
     status: normalizeStatusEvento(dto.status),
+    metaProjetoId: dto.metaProjetoId == null ? "" : String(dto.metaProjetoId),
     projetoId,
     projetosIds,
     colaboradoresIds: getColaboradoresIdsFromDto(dto),
@@ -451,6 +456,7 @@ export function buildEventoCulturalPayload(
     dataFim: evento.dataFim || null,
     tipoEvento: evento.tipoEvento as TipoEventoValue,
     status: evento.status as StatusEventoValue,
+    metaProjetoId: evento.metaProjetoId ? Number(evento.metaProjetoId) : null,
     projetoId: projetosIds[0] ?? null,
     projetosIds,
     colaboradoresIds,

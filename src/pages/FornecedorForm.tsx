@@ -93,7 +93,11 @@ export default function FornecedorForm() {
     location.state as { conversionSeed?: { data?: Partial<FormState> } } | null
   )?.conversionSeed;
 
-  useImportFormFill("fornecedores", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "fornecedores",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     if (!id) {
@@ -177,6 +181,7 @@ export default function FornecedorForm() {
         },
         isEdit ? id : undefined,
       );
+      confirmarImportacaoSalva();
       if (!isEdit) emitJourneyNextStep();
       toast.success(
         isEdit ? "Fornecedor atualizado." : "Fornecedor cadastrado.",

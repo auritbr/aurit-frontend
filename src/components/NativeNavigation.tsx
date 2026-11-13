@@ -11,6 +11,19 @@ export function NativeNavigation() {
   useEffect(() => {
     if (Capacitor.getPlatform() !== "android") return;
     const listener = App.addListener("backButton", ({ canGoBack }) => {
+      const overlay = document.querySelector(
+        '[data-state="open"]:is([role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"])',
+      );
+      if (overlay) {
+        // Os componentes Radix tratam Escape, incluindo a restauração de foco.
+        const escape = new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        });
+        if (!overlay.dispatchEvent(escape)) return;
+      }
+
       if (pathname === "/" || pathname === "/login") {
         void App.minimizeApp();
       } else if (canGoBack) {

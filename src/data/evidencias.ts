@@ -1,6 +1,7 @@
 import { sortOptionsByName } from "@/lib/sortOptions";
 import { getJsonHeaders, getMultipartHeaders } from "@/lib/apiHeaders";
 import { nameWithYear } from "@/lib/entityYear";
+import { invalidateReportData } from "@/lib/reportDataInvalidation";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -360,6 +361,7 @@ export async function deleteEvidenciaExecucao(id: number): Promise<void> {
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
+  invalidateReportData("evidencias-execucao");
 }
 
 export async function getProjetosOptions(): Promise<OptionItem[]> {
@@ -672,6 +674,7 @@ export interface EvidenciaFotografica {
   contexto: ContextoEvidencia;
   tipoEvidencia: TipoEvidencia;
   projeto: EvidenciaReferencia;
+  metaProjeto?: EvidenciaReferencia | null;
   atividade?: EvidenciaReferencia | null;
   turma?: EvidenciaReferencia | null;
   planoAula?: EvidenciaPlanoAula | null;
@@ -691,6 +694,8 @@ export interface EvidenciaFotograficaRequest {
   contexto: ContextoEvidencia;
   tipoEvidencia: TipoEvidencia;
   projetoId: number;
+  metaProjetoId?: number;
+  removerVinculoMeta?: boolean;
   atividadeId?: number | null;
   turmaId?: number | null;
   planoAulaId?: number | null;
@@ -780,6 +785,7 @@ async function salvarEvidenciaFotografica(
     { method, headers: getMultipartHeaders(), body: formData },
   );
   if (!response.ok) throw new Error(await parseError(response));
+  invalidateReportData("evidencias-execucao");
   return response.json() as Promise<EvidenciaFotografica>;
 }
 

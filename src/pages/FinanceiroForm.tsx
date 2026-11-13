@@ -298,7 +298,11 @@ export default function FinanceiroForm() {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  useImportFormFill("financeiros", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "financeiros",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     void carregar();
@@ -743,6 +747,7 @@ export default function FinanceiroForm() {
         );
       } else {
         await createFinanceiro(payload, comprovanteFile);
+        confirmarImportacaoSalva();
         salvarProximaAcaoFinanceiro();
         toast.success("Lançamento do controle financeiro salvo com sucesso.");
       }

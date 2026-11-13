@@ -192,7 +192,11 @@ export default function EquipeEditalForm() {
     return options;
   }, [integrantes, integranteSelectValue]);
 
-  useImportFormFill("equipe-edital", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "equipe-edital",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -386,6 +390,7 @@ export default function EquipeEditalForm() {
         toast.success("Membro da equipe atualizado.");
       } else {
         await createEquipeEdital(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoEquipeEdital();
         toast.success("Membro da equipe cadastrado.");
       }

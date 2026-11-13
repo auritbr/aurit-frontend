@@ -312,7 +312,11 @@ export default function IntegranteForm() {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((p) => ({ ...p, [k]: v }));
 
-  useImportFormFill("integrantes", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "integrantes",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -651,6 +655,7 @@ export default function IntegranteForm() {
         toast.success("Integrante atualizado com sucesso.");
       } else {
         await createIntegrante(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoIntegrante();
         toast.success("Integrante salvo com sucesso.");
       }

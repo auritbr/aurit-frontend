@@ -2437,10 +2437,7 @@ export default function ControleEmpresaDetalhe() {
 
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeletePagamento}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDeletePagamento}>
               {pagamentos.find((item) => item.id === confirmDeletePgto)
                 ?.coraInvoiceId
                 ? "Cancelar cobrança"

@@ -2,11 +2,13 @@ import * as React from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SectionDescription } from "@/components/SectionDescription";
+import { FieldTooltip } from "@/components/FieldTooltip";
 
 interface FormSectionCardProps {
   icon?: LucideIcon;
   title: string;
   description?: string;
+  tooltip?: string;
   className?: string;
   children: React.ReactNode;
 }
@@ -19,6 +21,7 @@ export function FormSectionCard({
   icon: Icon,
   title,
   description,
+  tooltip,
   className,
   children,
 }: FormSectionCardProps) {
@@ -38,6 +41,7 @@ export function FormSectionCard({
           <h2 className="min-w-0 break-words text-sm font-semibold uppercase leading-tight tracking-wide text-foreground">
             {title}
           </h2>
+          {tooltip && <FieldTooltip text={tooltip} fieldLabel={title} />}
         </div>
         {description && (
           <SectionDescription text={description} className="mt-2" />

@@ -131,7 +131,7 @@ export default function DoacaoForm() {
   const [removerComprovante, setRemoverComprovante] = useState(false);
   const [loading, setLoading] = useState(Boolean(id));
   const [saving, setSaving] = useState(false);
-  useImportFormFill("doacoes", setForm);
+  const confirmarImportacaoSalva = useImportFormFill("doacoes", form, setForm);
 
   useEffect(() => {
     let active = true;
@@ -480,6 +480,7 @@ export default function DoacaoForm() {
       };
 
       const salva = await saveDoacao(payload);
+      confirmarImportacaoSalva();
       const mensagem = isEdit ? "Doação atualizada." : "Doação cadastrada.";
       if (isFinanceira && salva.contasReceber)
         toastSuccessNext(mensagem, navigate, "/doacoes", {

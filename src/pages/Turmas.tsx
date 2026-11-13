@@ -1121,10 +1121,7 @@ export default function Turmas() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete}>
               Sim, excluir
             </AlertDialogAction>
           </AlertDialogFooter>

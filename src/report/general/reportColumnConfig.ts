@@ -115,7 +115,13 @@ export const GENERIC_REPORT_COLUMNS: Record<string, GenericReportColumnConfig> =
         "projeto",
         "proposta_edital",
         "quantidade_prevista",
+        "quantidade_executada",
+        "percentual_executado",
+        "status_cumprimento_meta",
         "forma_comprovacao",
+        "valor_estimado",
+        "data_inicio_planejamento",
+        "data_termino_planejamento",
       ],
     },
     cronogramas: {

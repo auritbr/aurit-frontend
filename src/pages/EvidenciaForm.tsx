@@ -60,10 +60,12 @@ import {
   type EvidenciaLink,
   type EvidenciaFotograficaRequest,
 } from "@/data/evidencias";
+import { getMetasProjetoByProjeto } from "@/data/metasProjeto";
 
 interface FormState {
   contexto: ContextoEvidencia | "";
   projetoId: string;
+  metaProjetoId: string;
   atividadeId: string;
   turmaId: string;
   planoAulaId: string;
@@ -74,6 +76,7 @@ interface FormState {
 const initialState: FormState = {
   contexto: "",
   projetoId: "",
+  metaProjetoId: "",
   atividadeId: "",
   turmaId: "",
   planoAulaId: "",
@@ -154,7 +157,11 @@ export default function EvidenciaForm() {
   const [removedImageIds, setRemovedImageIds] = useState<number[]>([]);
   const [links, setLinks] = useState<EvidenciaLink[]>([]);
 
-  useImportFormFill("evidencias", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "evidencias",
+    form,
+    setForm,
+  );
 
   const detailQ = useQuery({
     queryKey: ["evidencias", "detalhes", evidenciaId],
@@ -168,6 +175,26 @@ export default function EvidenciaForm() {
     queryFn: getProjetosOptions,
     retry: false,
   });
+
+  const metasQ = useQuery({
+    queryKey: ["metas-projeto", "por-projeto", form.projetoId],
+    queryFn: () => getMetasProjetoByProjeto(Number(form.projetoId)),
+    enabled: !isView && !!form.projetoId,
+    retry: false,
+  });
+
+  const metaVinculada = detailQ.data?.metaProjeto;
+  const metas = (metasQ.data ?? []).map((meta) => ({
+    id: meta.id,
+    nome: meta.tituloMeta,
+  }));
+  if (
+    metaVinculada &&
+    String(metaVinculada.id) === form.metaProjetoId &&
+    !metas.some((meta) => meta.id === form.metaProjetoId)
+  ) {
+    metas.push({ id: form.metaProjetoId, nome: metaVinculada.nome });
+  }
 
   const atividadesQ = useQuery({
     queryKey: ["evidencias", "atividades", form.projetoId],
@@ -209,6 +236,7 @@ export default function EvidenciaForm() {
     setForm({
       contexto: item.contexto,
       projetoId: String(item.projeto.id),
+      metaProjetoId: item.metaProjeto ? String(item.metaProjeto.id) : "",
       atividadeId: item.atividade ? String(item.atividade.id) : "",
       turmaId: item.turma ? String(item.turma.id) : "",
       planoAulaId: item.planoAula ? String(item.planoAula.id) : "",
@@ -332,6 +360,7 @@ export default function EvidenciaForm() {
     setForm((prev) => ({
       ...prev,
       projetoId,
+      metaProjetoId: prev.projetoId === projetoId ? prev.metaProjetoId : "",
       atividadeId: "",
       turmaId: "",
       planoAulaId: "",
@@ -396,6 +425,11 @@ export default function EvidenciaForm() {
         contexto: form.contexto,
         tipoEvidencia: "FOTO",
         projetoId: Number(form.projetoId),
+        metaProjetoId: form.metaProjetoId
+          ? Number(form.metaProjetoId)
+          : undefined,
+        removerVinculoMeta:
+          metaVinculada && !form.metaProjetoId ? true : undefined,
         atividadeId: form.contexto === "AULA" ? Number(form.atividadeId) : null,
         turmaId:
           form.contexto === "AULA" && form.turmaId
@@ -442,6 +476,7 @@ export default function EvidenciaForm() {
         refetchType: "none",
       });
 
+      confirmarImportacaoSalva();
       if (!isEdit) emitJourneyNextStep();
       toast.success(
         isEdit
@@ -498,6 +533,14 @@ export default function EvidenciaForm() {
                             label: "Projeto",
                             value: projetoNome,
                           },
+                          ...(metaVinculada
+                            ? [
+                                {
+                                  label: "Meta do Projeto",
+                                  value: metaVinculada.nome,
+                                },
+                              ]
+                            : []),
                           {
                             label: "Atividade",
                             value: atividadeNome,
@@ -520,6 +563,14 @@ export default function EvidenciaForm() {
                             label: "Projeto",
                             value: projetoNome,
                           },
+                          ...(metaVinculada
+                            ? [
+                                {
+                                  label: "Meta do Projeto",
+                                  value: metaVinculada.nome,
+                                },
+                              ]
+                            : []),
                           {
                             label: "Evento Cultural",
                             value: evento?.nome ?? "—",
@@ -645,6 +696,28 @@ export default function EvidenciaForm() {
                   options={projetos}
                   disabled={projetosQ.isLoading}
                   required
+                />
+              )}
+              {form.projetoId && (
+                <SelectField
+                  id="metaProjetoId"
+                  label="Meta do Projeto"
+                  tooltip="Selecione a meta que esta evidência ajuda a comprovar."
+                  value={form.metaProjetoId}
+                  onChange={(metaProjetoId) =>
+                    setForm((prev) => ({ ...prev, metaProjetoId }))
+                  }
+                  placeholder={
+                    metasQ.isLoading
+                      ? "Carregando metas..."
+                      : metasQ.isError
+                        ? "Metas indisponíveis"
+                        : "Selecione uma meta"
+                  }
+                  options={metas}
+                  disabled={
+                    metasQ.isLoading || (metasQ.isError && !metaVinculada)
+                  }
                 />
               )}
             </div>

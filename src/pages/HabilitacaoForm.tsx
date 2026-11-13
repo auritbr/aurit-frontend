@@ -112,7 +112,11 @@ export default function HabilitacaoForm() {
 
   const [saving, setSaving] = useState(false);
 
-  useImportFormFill("habilitacoes-proposta", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "habilitacoes-proposta",
+    form,
+    setForm,
+  );
 
   const bloqueado = loading || saving || visualizando;
 
@@ -363,6 +367,7 @@ export default function HabilitacaoForm() {
         toast.success("Habilitação documental atualizada com sucesso.");
       } else {
         await createHabilitacao(payload);
+        confirmarImportacaoSalva();
 
         emitJourneyNextStep();
         toast.success("Habilitação documental cadastrada com sucesso.");

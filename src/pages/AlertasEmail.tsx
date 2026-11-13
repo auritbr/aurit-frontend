@@ -586,7 +586,6 @@ export default function AlertasEmail() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={excluindo}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={(event) => {
                 event.preventDefault();
                 void handleExcluir();

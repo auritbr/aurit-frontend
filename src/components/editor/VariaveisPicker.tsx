@@ -6,7 +6,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { agruparVariaveis } from "@/components/editor/variaveisUtils";
 import type { VariavelDocumento } from "@/data/modeloDocumento";
 
@@ -42,9 +41,9 @@ export function VariaveisPicker({
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[300px] rounded-[14px] border-border/70 bg-popover/90 p-0 shadow-[0_16px_40px_-24px_hsl(215_28%_17%_/_0.35)] backdrop-blur-xl supports-[backdrop-filter]:bg-popover/80"
+        className="flex max-h-[min(22rem,var(--radix-popover-content-available-height,22rem))] w-[300px] max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-[14px] border-border/70 bg-popover/90 p-0 shadow-[0_16px_40px_-24px_hsl(215_28%_17%_/_0.35)] backdrop-blur-xl supports-[backdrop-filter]:bg-popover/80"
       >
-        <div className="border-b border-border/60 p-2.5">
+        <div className="shrink-0 border-b border-border/60 p-2.5">
           <div className="relative">
             <Search
               className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
@@ -55,11 +54,11 @@ export function VariaveisPicker({
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar variável"
               aria-label="Buscar variável"
-              className="h-8 rounded-[10px] border-border/70 bg-background/60 pl-8 text-[12.5px]"
+              className="h-11 rounded-[10px] border-border/70 bg-background/60 pl-8 text-base sm:h-8 sm:text-[12.5px]"
             />
           </div>
         </div>
-        <ScrollArea className="max-h-[280px]">
+        <div className="min-h-0 overflow-y-auto overscroll-contain">
           <div className="p-2">
             {aviso ? (
               <p className="px-1.5 py-4 text-center text-[12.5px] text-muted-foreground">
@@ -87,7 +86,7 @@ export function VariaveisPicker({
                         onInserir(item.chave);
                         setOpen(false);
                       }}
-                      className="flex w-full items-center gap-2 rounded-[10px] px-1.5 py-1.5 text-left transition-colors hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex min-h-11 w-full items-center gap-2 rounded-[10px] sm:min-h-0 px-1.5 py-1.5 text-left transition-colors hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <Braces
                         className="h-3.5 w-3.5 shrink-0 text-primary/70"
@@ -107,7 +106,7 @@ export function VariaveisPicker({
               ))
             )}
           </div>
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );

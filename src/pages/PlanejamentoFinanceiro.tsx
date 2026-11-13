@@ -24,7 +24,6 @@ import {
 import { AppLayout } from "@/components/AppLayout";
 import { BackButton } from "@/components/BackButton";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
-import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
 import { AccessDenied } from "@/components/AccessDenied";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { PageObjective } from "@/components/PageObjective";
@@ -231,7 +230,12 @@ export default function PlanejamentoFinanceiro() {
   const invalidPeriodo =
     !!form.dataInicio && !!form.dataFim && form.dataFim < form.dataInicio;
 
-  useImportFormFill("planejamentos-financeiros", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "planejamentos-financeiros",
+    form,
+    setForm,
+    showForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -716,7 +720,7 @@ export default function PlanejamentoFinanceiro() {
 
         return [saved, ...prev];
       });
-      notifyImportReviewSaveSuccess("planejamentos-financeiros");
+      confirmarImportacaoSalva();
 
       handleCancel();
       setSelectedId(saved.id);
@@ -1750,10 +1754,7 @@ export default function PlanejamentoFinanceiro() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
 
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete}>
               Sim, excluir
             </AlertDialogAction>
           </AlertDialogFooter>

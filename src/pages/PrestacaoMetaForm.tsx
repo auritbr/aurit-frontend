@@ -128,7 +128,11 @@ export default function PrestacaoMetaForm() {
 
   const bloqueado = loading || saving || visualizando;
 
-  useImportFormFill("prestacoes-metas", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "prestacoes-metas",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -443,6 +447,7 @@ export default function PrestacaoMetaForm() {
         toast.success("Cumprimento de metas atualizado.");
       } else {
         await createPrestacaoMeta(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoPrestacaoMeta();
         toast.success("Cumprimento de metas cadastrado.");
       }

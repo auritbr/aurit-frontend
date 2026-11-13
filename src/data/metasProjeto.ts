@@ -1,4 +1,5 @@
 import { getJsonHeaders } from "@/lib/apiHeaders";
+import { apiFetch } from "@/lib/api";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -255,18 +256,10 @@ export async function getMetaProjetoById(id: number): Promise<MetaProjeto> {
 export async function createMetaProjeto(
   payload: MetaProjetoPayloadDTO,
 ): Promise<MetaProjeto> {
-  const response = await fetch(`${API_URL}/metas-projeto`, {
+  const data = await apiFetch<MetaProjetoDTO>("/metas-projeto", {
     method: "POST",
-    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: MetaProjetoDTO = await response.json();
-
   return mapMetaProjeto(data);
 }
 
@@ -274,18 +267,10 @@ export async function updateMetaProjeto(
   id: number,
   payload: MetaProjetoPayloadDTO,
 ): Promise<MetaProjeto> {
-  const response = await fetch(`${API_URL}/metas-projeto/${id}`, {
+  const data = await apiFetch<MetaProjetoDTO>(`/metas-projeto/${id}`, {
     method: "PUT",
-    headers: getJsonHeaders(),
     body: JSON.stringify(payload),
   });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  const data: MetaProjetoDTO = await response.json();
-
   return mapMetaProjeto(data);
 }
 

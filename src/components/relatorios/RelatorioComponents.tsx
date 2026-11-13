@@ -49,9 +49,10 @@ export function RelatorioHeader({
 
 interface IndicadorCardProps {
   indicador: Indicador;
+  wrapLabel?: boolean;
 }
 
-export function IndicadorCard({ indicador }: IndicadorCardProps) {
+export function IndicadorCard({ indicador, wrapLabel }: IndicadorCardProps) {
   const valor = formatValorRelatorio(indicador.valor, indicador.chave);
 
   return (
@@ -63,7 +64,9 @@ export function IndicadorCard({ indicador }: IndicadorCardProps) {
         <ChartNoAxesColumn className="h-4 w-4" strokeWidth={2.2} />
       </span>
       <div className="min-w-0">
-        <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <p
+          className={`text-[11px] font-medium uppercase tracking-wide text-muted-foreground ${wrapLabel ? "break-words" : "truncate"}`}
+        >
           {indicador.label}
         </p>
         <p className="break-words text-lg font-semibold tabular-nums text-foreground">
@@ -76,9 +79,10 @@ export function IndicadorCard({ indicador }: IndicadorCardProps) {
 
 interface GrupoIndicadoresProps {
   grupo: GrupoRelatorio;
+  wrapLabels?: boolean;
 }
 
-export function GrupoIndicadores({ grupo }: GrupoIndicadoresProps) {
+export function GrupoIndicadores({ grupo, wrapLabels }: GrupoIndicadoresProps) {
   return (
     <section className="mb-5">
       <h2 className="mb-2.5 text-[13px] font-semibold tracking-tight text-foreground">
@@ -92,7 +96,11 @@ export function GrupoIndicadores({ grupo }: GrupoIndicadoresProps) {
       ) : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {grupo.indicadores.map((ind, i) => (
-            <IndicadorCard key={`${ind.chave}-${i}`} indicador={ind} />
+            <IndicadorCard
+              key={`${ind.chave}-${i}`}
+              indicador={ind}
+              wrapLabel={wrapLabels}
+            />
           ))}
         </div>
       )}

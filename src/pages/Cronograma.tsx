@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
-import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
 import { PageTitle } from "@/components/PageTitle";
 import { BackButton } from "@/components/BackButton";
 import { FormSectionCard } from "@/components/FormSectionCard";
@@ -228,7 +227,12 @@ export default function Cronograma() {
     !!form.dataFimEtapa &&
     form.dataFimEtapa < form.dataInicioEtapa;
 
-  useImportFormFill("cronogramas", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "cronogramas",
+    form,
+    setForm,
+    showForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -730,7 +734,7 @@ export default function Cronograma() {
 
         return [saved, ...prev];
       });
-      notifyImportReviewSaveSuccess("cronogramas");
+      confirmarImportacaoSalva();
 
       if (mode === "create") {
         salvarProximaAcaoCronograma();
@@ -1672,10 +1676,7 @@ export default function Cronograma() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
 
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete}>
               Sim, excluir
             </AlertDialogAction>
           </AlertDialogFooter>

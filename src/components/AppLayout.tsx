@@ -32,7 +32,10 @@ export function AppLayout({ children }: AppLayoutProps) {
       return;
     }
 
-    navigate(queue.createRoute, { replace: true });
+    navigate(queue.createRoute, {
+      replace: true,
+      state: { applyImportQueueModule: config.module },
+    });
   }, [navigate, pathname]);
 
   useEffect(() => {

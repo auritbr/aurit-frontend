@@ -87,6 +87,10 @@ const REPORT_FORM_FIELD_LABELS: Record<string, Record<string, string>> = {
     projeto: "Projeto",
     proposta_edital: "Proposta de Edital",
     titulo_meta: "Título da Meta",
+    quantidade_prevista: "Quantidade Prevista",
+    quantidade_executada: "Quantidade Executada",
+    percentual_executado: "Percentual Executado",
+    status_cumprimento_meta: "Situação do Cumprimento",
   },
   cronogramas: {
     status_cronograma: "Situação da Etapa",

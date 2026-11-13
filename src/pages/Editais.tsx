@@ -207,7 +207,12 @@ export default function Editais() {
   const [filtros, setFiltros] = useState<Filtros>(filtrosIniciais);
   const formTopRef = useRef<HTMLDivElement>(null);
 
-  useImportFormFill<EditalForm>("editais", setForm);
+  const confirmarImportacaoSalva = useImportFormFill<EditalForm>(
+    "editais",
+    form,
+    setForm,
+    showForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -539,11 +544,7 @@ export default function Editais() {
           : await updateEdital(Number(form.id), buildEditalPayload(form));
       await syncItems();
       if (mode === "create") {
-        window.dispatchEvent(
-          new CustomEvent("aurit:import-review-save-success", {
-            detail: { module: "editais" },
-          }),
-        );
+        confirmarImportacaoSalva();
         emitJourneyNextStep();
       }
       handleCancel();

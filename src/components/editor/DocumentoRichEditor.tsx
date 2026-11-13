@@ -1,5 +1,10 @@
-import { useEffect } from "react";
-import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { useEffect, useState } from "react";
+import {
+  EditorContent,
+  useEditor,
+  useEditorState,
+  type Editor,
+} from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
@@ -24,6 +29,15 @@ import {
   Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -61,6 +75,8 @@ export function useDocumentoEditor(
         codeBlock: false,
         code: false,
         horizontalRule: false,
+        link: false,
+        underline: false,
         blockquote: false,
       }),
       Underline,
@@ -150,9 +166,10 @@ function ToolbarButton({
           aria-label={label}
           aria-pressed={active}
           disabled={disabled}
+          onMouseDown={(event) => event.preventDefault()}
           onClick={onClick}
           className={cn(
-            "h-8 w-8 rounded-[10px] text-muted-foreground",
+            "editor-toolbar-button h-8 w-8 shrink-0 rounded-[10px] text-muted-foreground",
             active && "bg-primary/12 text-primary ring-1 ring-primary/30",
           )}
         >
@@ -167,7 +184,12 @@ function ToolbarButton({
 }
 
 function Divisor() {
-  return <span aria-hidden className="mx-0.5 h-6 w-px shrink-0 bg-border/70" />;
+  return (
+    <span
+      aria-hidden
+      className="hidden h-6 w-px shrink-0 bg-border/70 lg:block"
+    />
+  );
 }
 
 export interface DocumentoRichEditorProps {
@@ -188,21 +210,41 @@ export function DocumentoRichEditor({
   readOnly,
   className,
 }: DocumentoRichEditorProps) {
-  if (!editor) {
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkValue, setLinkValue] = useState("");
+  const [linkError, setLinkError] = useState(false);
+  const toolbar = useEditorState({
+    editor,
+    selector: ({ editor: current }) => {
+      if (!current) return null;
+      const heading = [1, 2, 3].find((level) =>
+        current.isActive("heading", { level }),
+      );
+      return {
+        structure: heading ? `h${heading}` : "p",
+        canUndo: current.can().undo(),
+        canRedo: current.can().redo(),
+        bold: current.isActive("bold"),
+        italic: current.isActive("italic"),
+        underline: current.isActive("underline"),
+        strike: current.isActive("strike"),
+        alignLeft: current.isActive({ textAlign: "left" }),
+        alignCenter: current.isActive({ textAlign: "center" }),
+        alignRight: current.isActive({ textAlign: "right" }),
+        alignJustify: current.isActive({ textAlign: "justify" }),
+        bulletList: current.isActive("bulletList"),
+        orderedList: current.isActive("orderedList"),
+        link: current.isActive("link"),
+      };
+    },
+  });
+  if (!editor || !toolbar) {
     return (
       <div className="documento-folha flex min-h-[320px] items-center justify-center text-sm text-muted-foreground">
         Carregando editor...
       </div>
     );
   }
-
-  const estrutura = editor.isActive("heading", { level: 1 })
-    ? "h1"
-    : editor.isActive("heading", { level: 2 })
-      ? "h2"
-      : editor.isActive("heading", { level: 3 })
-        ? "h3"
-        : "p";
 
   const aplicarEstrutura = (valor: string) => {
     if (valor === "p") editor.chain().focus().setParagraph().run();
@@ -214,23 +256,20 @@ export function DocumentoRichEditor({
         .run();
   };
 
-  const inserirLink = () => {
-    const atual = editor.getAttributes("link")?.href as string | undefined;
-    const url = window.prompt(
-      "Informe o endereço do link:",
-      atual || "https://",
-    );
-    if (url === null) return;
-    if (!url.trim()) {
-      editor.chain().focus().unsetLink().run();
-      return;
-    }
-    editor
-      .chain()
-      .focus()
-      .extendMarkRange("link")
-      .setLink({ href: url.trim() })
-      .run();
+  const abrirLink = () => {
+    setLinkValue(editor.getAttributes("link").href ?? "https://");
+    setLinkError(false);
+    setLinkOpen(true);
+  };
+
+  const aplicarLink = () => {
+    const href = linkValue.trim();
+    const chain = editor.chain().extendMarkRange("link");
+    const applied = href
+      ? chain.setLink({ href }).run()
+      : chain.unsetLink().run();
+    setLinkError(!applied);
+    if (applied) setLinkOpen(false);
   };
 
   const inserirVariavel = (chave: string) => {
@@ -238,55 +277,55 @@ export function DocumentoRichEditor({
   };
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("min-w-0 space-y-3", className)}>
       {!readOnly && (
         <div
           role="toolbar"
           aria-label="Ferramentas de formatação do documento"
-          className="editor-toolbar-glass flex items-center gap-1 overflow-x-auto rounded-[14px] p-1.5"
+          className="editor-toolbar-glass flex flex-wrap items-center gap-1 rounded-[14px] p-1.5"
         >
           <ToolbarButton
             label="Desfazer"
             icon={Undo2}
             onClick={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo()}
+            disabled={!toolbar.canUndo}
           />
           <ToolbarButton
             label="Refazer"
             icon={Redo2}
             onClick={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo()}
+            disabled={!toolbar.canRedo}
           />
           <Divisor />
           <ToolbarButton
             label="Negrito"
             icon={Bold}
-            active={editor.isActive("bold")}
+            active={toolbar.bold}
             onClick={() => editor.chain().focus().toggleBold().run()}
           />
           <ToolbarButton
             label="Itálico"
             icon={Italic}
-            active={editor.isActive("italic")}
+            active={toolbar.italic}
             onClick={() => editor.chain().focus().toggleItalic().run()}
           />
           <ToolbarButton
             label="Sublinhado"
             icon={UnderlineIcon}
-            active={editor.isActive("underline")}
+            active={toolbar.underline}
             onClick={() => editor.chain().focus().toggleUnderline().run()}
           />
           <ToolbarButton
             label="Tachado"
             icon={Strikethrough}
-            active={editor.isActive("strike")}
+            active={toolbar.strike}
             onClick={() => editor.chain().focus().toggleStrike().run()}
           />
           <Divisor />
-          <Select value={estrutura} onValueChange={aplicarEstrutura}>
+          <Select value={toolbar.structure} onValueChange={aplicarEstrutura}>
             <SelectTrigger
               aria-label="Estrutura do texto"
-              className="h-8 w-[132px] shrink-0 rounded-[10px] border-border/70 bg-background/60 text-[12.5px]"
+              className="editor-toolbar-button h-8 w-[132px] shrink-0 rounded-[10px] border-border/70 bg-background/60 text-[12.5px]"
             >
               <SelectValue />
             </SelectTrigger>
@@ -301,51 +340,51 @@ export function DocumentoRichEditor({
           <ToolbarButton
             label="Alinhar à esquerda"
             icon={AlignLeft}
-            active={editor.isActive({ textAlign: "left" })}
+            active={toolbar.alignLeft}
             onClick={() => editor.chain().focus().setTextAlign("left").run()}
           />
           <ToolbarButton
             label="Centralizar"
             icon={AlignCenter}
-            active={editor.isActive({ textAlign: "center" })}
+            active={toolbar.alignCenter}
             onClick={() => editor.chain().focus().setTextAlign("center").run()}
           />
           <ToolbarButton
             label="Alinhar à direita"
             icon={AlignRight}
-            active={editor.isActive({ textAlign: "right" })}
+            active={toolbar.alignRight}
             onClick={() => editor.chain().focus().setTextAlign("right").run()}
           />
           <ToolbarButton
             label="Justificar"
             icon={AlignJustify}
-            active={editor.isActive({ textAlign: "justify" })}
+            active={toolbar.alignJustify}
             onClick={() => editor.chain().focus().setTextAlign("justify").run()}
           />
           <Divisor />
           <ToolbarButton
             label="Lista com marcadores"
             icon={List}
-            active={editor.isActive("bulletList")}
+            active={toolbar.bulletList}
             onClick={() => editor.chain().focus().toggleBulletList().run()}
           />
           <ToolbarButton
             label="Lista numerada"
             icon={ListOrdered}
-            active={editor.isActive("orderedList")}
+            active={toolbar.orderedList}
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
           />
           <Divisor />
           <ToolbarButton
             label="Inserir link"
             icon={LinkIcon}
-            active={editor.isActive("link")}
-            onClick={inserirLink}
+            active={toolbar.link}
+            onClick={abrirLink}
           />
           <ToolbarButton
             label="Remover link"
             icon={Unlink}
-            disabled={!editor.isActive("link")}
+            disabled={!toolbar.link}
             onClick={() => editor.chain().focus().unsetLink().run()}
           />
           <Divisor />
@@ -366,7 +405,7 @@ export function DocumentoRichEditor({
               <Button
                 type="button"
                 variant="glassSecondary"
-                className="h-8 shrink-0 gap-1.5 rounded-[10px] px-2.5 text-[12.5px] font-medium"
+                className="editor-toolbar-button h-8 shrink-0 gap-1.5 rounded-[10px] px-2.5 text-[12.5px] font-medium"
                 aria-label="Inserir variável no documento"
               >
                 <Braces className="h-3.5 w-3.5" aria-hidden />
@@ -376,6 +415,51 @@ export function DocumentoRichEditor({
           />
         </div>
       )}
+
+      <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Link do documento</DialogTitle>
+            <DialogDescription>Informe o endereço do link.</DialogDescription>
+          </DialogHeader>
+          <Input
+            type="text"
+            inputMode="url"
+            autoComplete="off"
+            autoCapitalize="none"
+            aria-label="Endereço do link"
+            aria-invalid={linkError || undefined}
+            value={linkValue}
+            onChange={(event) => {
+              setLinkValue(event.target.value);
+              setLinkError(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.nativeEvent.isComposing)
+                return;
+              event.preventDefault();
+              aplicarLink();
+            }}
+          />
+          {linkError && (
+            <p role="alert" className="text-sm text-destructive">
+              Informe um endereço de link válido.
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setLinkOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="button" onClick={aplicarLink}>
+              Aplicar link
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="documento-folha-area">
         <div className="documento-folha">

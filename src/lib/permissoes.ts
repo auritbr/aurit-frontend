@@ -16,6 +16,7 @@ export type ModuloPermissao =
   | "COLABORADORES"
   | "INTEGRANTES"
   | "PARTICIPANTES"
+  | "ESTUDOS_SOCIOECONOMICOS"
   | "PROJETOS"
   | "METAS_PROJETO"
   | "CRONOGRAMA"

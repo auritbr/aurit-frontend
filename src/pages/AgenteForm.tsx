@@ -45,7 +45,7 @@ import {
 import { getJsonHeaders } from "@/lib/apiHeaders";
 import { getImportConfigForPath } from "@/config/importacoes";
 import { applyImportedData } from "@/lib/importDataApplicator";
-import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
+import { useImportReviewProgress } from "@/hooks/useImportFormFill";
 import { toast } from "sonner";
 import { emitJourneyNextStep } from "@/lib/nextStepPopup";
 
@@ -471,6 +471,8 @@ export default function AgenteForm() {
   const setEnd = <K extends keyof Endereco>(k: K, v: Endereco[K]) =>
     setEndereco((p) => ({ ...p, [k]: v }));
 
+  const confirmarImportacaoSalva = useImportReviewProgress("agentes");
+
   useEffect(() => {
     const handleImportFill = (event: Event) => {
       const detail = (
@@ -838,7 +840,7 @@ export default function AgenteForm() {
         throw new Error(await parseError(response));
       }
 
-      notifyImportReviewSaveSuccess("agentes");
+      confirmarImportacaoSalva();
 
       toast.success(
         editando

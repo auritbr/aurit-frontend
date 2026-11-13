@@ -62,16 +62,16 @@ export function DataTablePagination({
   const summary = `Mostrando ${totalItems === 0 ? 0 : start} até ${totalItems === 0 ? 0 : end} de ${totalItems} ${plural}`;
 
   const navButton =
-    "h-8 w-8 rounded-[10px] border-border/70 bg-background/60 backdrop-blur-sm supports-[backdrop-filter]:bg-background/50 hover:bg-accent hover:text-accent-foreground transition-colors";
+    "app-table-icon-control h-8 w-8 rounded-[10px] border-border/70 bg-background/60 backdrop-blur-sm supports-[backdrop-filter]:bg-background/50 hover:bg-accent hover:text-accent-foreground transition-colors";
 
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 border-t border-border/60 bg-muted/20 px-5 py-3 text-xs text-muted-foreground backdrop-blur-sm supports-[backdrop-filter]:bg-muted/15 sm:flex-row sm:items-center sm:justify-between",
+        "flex flex-col flex-wrap gap-3 border-t border-border/60 bg-muted/20 px-5 py-3 text-xs text-muted-foreground backdrop-blur-sm supports-[backdrop-filter]:bg-muted/15 sm:flex-row sm:items-center sm:justify-between",
         className,
       )}
     >
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+      <div className="flex flex-col flex-wrap gap-2 sm:flex-row sm:items-center sm:gap-4">
         <span className="flex items-center gap-1.5">
           {loading && (
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -88,7 +88,7 @@ export function DataTablePagination({
             disabled={loading}
           >
             <SelectTrigger
-              className="h-8 w-[74px] rounded-[10px] border-border/70 bg-background/60 text-xs backdrop-blur-sm supports-[backdrop-filter]:bg-background/50"
+              className="app-table-control h-8 w-[74px] rounded-[10px] border-border/70 bg-background/60 text-xs backdrop-blur-sm supports-[backdrop-filter]:bg-background/50"
               aria-labelledby="page-size-label"
             >
               <SelectValue />
@@ -104,7 +104,7 @@ export function DataTablePagination({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 sm:justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
         <span className="whitespace-nowrap">
           Página <span className="font-medium text-foreground">{safePage}</span>{" "}
           de <span className="font-medium text-foreground">{totalPages}</span>

@@ -1,3 +1,6 @@
+import { ROTA_PERFIL_SOCIOECONOMICO } from "@/config/rotas";
+import { useQuery } from "@tanstack/react-query";
+import { getOrganizacaoSelecionadaId } from "@/lib/configuracaoEmpresaStore";
 import { useConsultaOperacional } from "@/hooks/useConsultaOperacional";
 import {
   QuickFilterCards,
@@ -68,6 +71,7 @@ import { downloadDeclaracaoParticipacao } from "@/lib/individualReportDownload";
 import { maskPhone } from "@/lib/masks";
 import {
   getPermissoesUsuarioLogadoPorModulo,
+  usuarioTemPermissao,
   permissoesVazias,
   type PermissoesModulo,
 } from "@/lib/permissoes";
@@ -203,6 +207,23 @@ export default function Participantes() {
   const [searching, setSearching] = useState(false);
 
   const podeVisualizar = permissoes.VISUALIZAR;
+  const acessoEstudos = useQuery({
+    queryKey: ["acesso-estudos-participantes", getOrganizacaoSelecionadaId()],
+    queryFn: () => usuarioTemPermissao("ESTUDOS_SOCIOECONOMICOS"),
+    enabled: podeVisualizar,
+  });
+  const acoesEstudos = (id: string) =>
+    acessoEstudos.data
+      ? [
+          {
+            label: "Estudos Socioeconômicos",
+            icon: FileText,
+            to:
+              `${ROTA_PERFIL_SOCIOECONOMICO}?` +
+              new URLSearchParams({ participante: id }),
+          },
+        ]
+      : [];
   const chavesCards: Record<string, string[]> = {
     ativos: ["ATIVO"],
     inativos: ["INATIVO", "PENDENTE"],
@@ -1102,6 +1123,7 @@ export default function Participantes() {
                                     icon: History,
                                     to: `/participantes/${p.id}/linha-do-tempo`,
                                   },
+                                  ...acoesEstudos(p.id),
                                   ...acoesDeclaracao(p.id),
                                 ]}
                                 onHistory={() => abrirHistorico(p)}
@@ -1206,6 +1228,7 @@ export default function Participantes() {
                               icon: History,
                               to: `/participantes/${p.id}/linha-do-tempo`,
                             },
+                            ...acoesEstudos(p.id),
                             ...acoesDeclaracao(p.id),
                           ]}
                           onHistory={() => abrirHistorico(p)}
@@ -1283,10 +1306,7 @@ export default function Participantes() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
 
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete}>
               Sim, excluir
             </AlertDialogAction>
           </AlertDialogFooter>

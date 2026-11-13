@@ -491,7 +491,11 @@ export default function PlanoAulaForm() {
     turmasOptions.find((turma) => String(turma.id) === String(turmaId))
       ?.nomeTurma ?? turmaId;
 
-  useImportFormFill("planos-aula", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "planos-aula",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -735,6 +739,7 @@ export default function PlanoAulaForm() {
         toast.success("Plano de aula atualizado com sucesso.");
       } else {
         await createPlanoAula(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoPlanoAula();
         toast.success("Plano de aula criado com sucesso.");
       }

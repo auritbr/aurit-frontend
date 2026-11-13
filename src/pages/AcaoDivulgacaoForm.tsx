@@ -180,7 +180,11 @@ export default function AcaoDivulgacaoForm() {
   const propostaSelectValue =
     form.propostaEditalId || normalizeId(existingAcao?.propostaEditalId);
 
-  useImportFormFill("acoes-divulgacao", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "acoes-divulgacao",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -327,6 +331,7 @@ export default function AcaoDivulgacaoForm() {
         toast.success("Ação de divulgação atualizada com sucesso.");
       } else {
         await createAcaoDivulgacao(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoDivulgacao();
         toast.success("Ação de divulgação cadastrada com sucesso.");
       }

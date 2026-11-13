@@ -47,6 +47,7 @@ import { StatusPill } from "@/components/StatusPill";
 import { TableCellText } from "@/components/TableCellText";
 import { RowActionsDropdown } from "@/components/RowActionsDropdown";
 import { WikiFloatingButton } from "@/components/WikiFloatingButton";
+import { ReportChartTooltipContent } from "@/components/relatorios/ReportKit";
 import { ListPageHeader } from "@/components/list/ListPageHeader";
 import { DataTableCard } from "@/components/list/DataTableCard";
 import { DataTableToolbar } from "@/components/list/DataTableToolbar";
@@ -547,15 +548,6 @@ export default function FluxoCaixa() {
     [fluxo, filtros.agrupamento],
   );
 
-  const chartLabels: Record<string, string> = {
-    saldoAcumulado: "Saldo acumulado",
-    saldoProjetado: "Saldo projetado",
-    entradasRealizadas: "Entradas realizadas",
-    saidasRealizadas: "Saídas realizadas",
-    entradasPrevistas: "Entradas previstas",
-    saidasPrevistas: "Saídas previstas",
-  };
-
   // A tabela não agrega entradas e saídas na mesma linha: isso deixa explícito
   // cada lado de uma transferência feita no mesmo dia.
   const evolucaoRows = useMemo(
@@ -1014,16 +1006,12 @@ export default function FluxoCaixa() {
                         />
 
                         <ChartTooltip
-                          contentStyle={{
-                            borderRadius: 12,
-                            border: "1px solid hsl(var(--border))",
-                            background: "hsl(var(--card))",
-                            fontSize: 12,
-                          }}
-                          formatter={(value: number, key: string) => [
-                            formatCurrency(value),
-                            chartLabels[key] || key,
-                          ]}
+                          content={
+                            <ReportChartTooltipContent
+                              currency
+                              showColorIndicator={false}
+                            />
+                          }
                         />
 
                         <Legend

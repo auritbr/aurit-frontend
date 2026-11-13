@@ -658,7 +658,7 @@ export default function DoadorForm() {
 
   const [saving, setSaving] = useState(false);
 
-  useImportFormFill("doadores", setForm);
+  const confirmarImportacaoSalva = useImportFormFill("doadores", form, setForm);
 
   useEffect(() => {
     if (!id) {
@@ -747,6 +747,7 @@ export default function DoadorForm() {
         isEdit ? id : undefined,
       );
 
+      confirmarImportacaoSalva();
       if (!isEdit) emitJourneyNextStep();
       toast.success(isEdit ? "Doador atualizado." : "Doador cadastrado.");
 

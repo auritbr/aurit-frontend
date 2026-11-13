@@ -1,3 +1,4 @@
+import { ROTA_PERFIL_SOCIOECONOMICO } from "@/config/rotas";
 /* eslint-disable react-refresh/only-export-components */
 
 import {
@@ -54,6 +55,7 @@ const ROTAS_POR_MODULO: ReadonlyArray<readonly [string, ModuloPermissao]> = [
   ["/colaboradores", "COLABORADORES"],
   ["/integrantes", "INTEGRANTES"],
   ["/participantes", "PARTICIPANTES"],
+  [ROTA_PERFIL_SOCIOECONOMICO, "ESTUDOS_SOCIOECONOMICOS"],
   ["/cronograma", "CRONOGRAMA"],
   ["/atividades", "ATIVIDADES"],
   ["/turmas", "TURMAS"],

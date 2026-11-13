@@ -65,6 +65,7 @@ export interface PatrimonioDTO {
   modelo?: string | null;
   numeroSerie?: string | null;
   urlNotaFiscal?: string | null;
+  urlFoto?: string | null;
 
   tipoPatrimonio?: TipoPatrimonioApi | null;
   estadoConservacao?: EstadoConservacaoApi | null;
@@ -93,7 +94,7 @@ export interface PatrimonioPayloadDTO {
 
   numeroPatrimonio: string;
   nomePatrimonio: string;
-  dataAquisicao: string;
+  dataAquisicao: string | null;
   descricaoPatrimonio: string;
   valorPatrimonio?: number | null;
 
@@ -101,6 +102,7 @@ export interface PatrimonioPayloadDTO {
   modelo?: string | null;
   numeroSerie?: string | null;
   urlNotaFiscal?: string | null;
+  removerFoto?: boolean;
 
   tipoPatrimonio: TipoPatrimonioApi;
   estadoConservacao: EstadoConservacaoApi;
@@ -123,6 +125,7 @@ export interface Patrimonio {
   modelo?: string;
   numeroSerie?: string;
   urlNotaFiscal?: string;
+  urlFoto?: string;
 
   tipoPatrimonio: TipoPatrimonioApi;
   estadoConservacao: EstadoConservacaoApi;
@@ -267,6 +270,7 @@ export function mapPatrimonio(dto: PatrimonioDTO): Patrimonio {
     modelo: dto.modelo ?? "",
     numeroSerie: dto.numeroSerie ?? "",
     urlNotaFiscal: dto.urlNotaFiscal ?? "",
+    urlFoto: dto.urlFoto ?? "",
 
     tipoPatrimonio: dto.tipoPatrimonio ?? "OUTRO",
     estadoConservacao: dto.estadoConservacao ?? "USADO",
@@ -287,7 +291,7 @@ export function buildPatrimonioPayload(
 
     numeroPatrimonio: form.numeroPatrimonio.trim(),
     nomePatrimonio: form.nomePatrimonio.trim(),
-    dataAquisicao: brToIso(form.dataAquisicao),
+    dataAquisicao: brToIso(form.dataAquisicao) || null,
     descricaoPatrimonio: form.descricaoPatrimonio.trim(),
     valorPatrimonio:
       form.valorPatrimonio == null || Number.isNaN(Number(form.valorPatrimonio))
@@ -341,6 +345,7 @@ export async function getPatrimonioById(id: number): Promise<Patrimonio> {
 export async function createPatrimonio(
   payload: PatrimonioPayloadDTO,
   notaFiscal?: File | null,
+  foto?: File | null,
 ): Promise<Patrimonio> {
   const formData = new FormData();
 
@@ -348,6 +353,10 @@ export async function createPatrimonio(
 
   if (notaFiscal) {
     formData.append("notaFiscal", notaFiscal);
+  }
+
+  if (foto) {
+    formData.append("foto", foto);
   }
 
   const response = await fetch(`${API_URL}/patrimonios`, {
@@ -369,6 +378,7 @@ export async function updatePatrimonio(
   id: number,
   payload: PatrimonioPayloadDTO,
   notaFiscal?: File | null,
+  foto?: File | null,
 ): Promise<Patrimonio> {
   const formData = new FormData();
 
@@ -376,6 +386,10 @@ export async function updatePatrimonio(
 
   if (notaFiscal) {
     formData.append("notaFiscal", notaFiscal);
+  }
+
+  if (foto) {
+    formData.append("foto", foto);
   }
 
   const response = await fetch(`${API_URL}/patrimonios/${id}`, {
@@ -481,6 +495,24 @@ export async function getPatrimonioNotaFiscalDownloadUrl(
     throw new Error("Link da nota fiscal não retornado pelo servidor.");
   }
 
+  return url;
+}
+
+export async function getPatrimonioFotoDownloadUrl(
+  id: number,
+): Promise<string> {
+  const response = await fetch(`${API_URL}/patrimonios/${id}/foto/download`, {
+    headers: getJsonHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const url = (await response.text()).trim();
+  if (!url) {
+    throw new Error("Link da foto não retornado pelo servidor.");
+  }
   return url;
 }
 

@@ -282,7 +282,11 @@ export default function PropostaEditalForm() {
     );
   }, [agentes, agenteSelectValue]);
 
-  useImportFormFill("propostas-editais", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "propostas-editais",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -461,6 +465,7 @@ export default function PropostaEditalForm() {
         toast.success("Proposta atualizada com sucesso.");
       } else {
         await createPropostaEdital(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoPropostaEdital();
         toast.success("Proposta cadastrada com sucesso.");
       }

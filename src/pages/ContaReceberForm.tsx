@@ -358,7 +358,11 @@ export default function ContaReceberForm() {
     Array<Option & { projetoId: string }>
   >([]);
 
-  useImportFormFill("contas-receber", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "contas-receber",
+    form,
+    setForm,
+  );
 
   const contaBancariaGroups = useMemo<Grupo[]>(() => {
     const describe = (c: (typeof contasBancarias)[number]) =>
@@ -678,6 +682,7 @@ export default function ContaReceberForm() {
     try {
       await saveContaReceber(form);
       invalidateFinancialData("conta-receber");
+      confirmarImportacaoSalva();
       if (!isEdit) emitJourneyNextStep();
       toast.success(
         isEdit

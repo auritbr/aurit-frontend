@@ -71,7 +71,12 @@ const AREAS: AreaDef[] = [
     descricao:
       "Cadastros, vínculos, participação e trajetória das pessoas relacionadas à organização ou iniciativa.",
     icon: Users,
-    slugs: ["colaboradores", "integrantes", "participantes-geral"],
+    slugs: [
+      "colaboradores",
+      "integrantes",
+      "participantes-geral",
+      "perfil-sociodemografico",
+    ],
   },
 
   {

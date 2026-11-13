@@ -25,7 +25,7 @@ export function TableActionIcon({
 }: Props) {
   const navigate = useNavigate();
 
-  const className = `h-6 w-6 rounded inline-flex items-center justify-center transition-colors ${
+  const className = `app-table-icon-control h-6 w-6 rounded inline-flex items-center justify-center transition-colors ${
     variant === "danger"
       ? "text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10"
       : "text-muted-foreground/70 hover:text-primary hover:bg-muted"

@@ -124,6 +124,16 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
           "Use este relatório para acompanhar quem faz parte da organização ou iniciativa, identificar como cada integrante participa de sua atuação e consultar seus períodos e tipos de vínculo.",
       },
       {
+        slug: "perfil-sociodemografico",
+        title: "Estudos Socioeconômicos",
+        description:
+          "Perfil dos participantes e de suas famílias a partir dos estudos socioeconômicos.",
+        icon: Users,
+        plano: "pago",
+        tooltip:
+          "Consulte indicadores de composição familiar, moradia, escolaridade, renda e benefícios.",
+      },
+      {
         slug: "participantes-geral",
         title: "Participantes",
         description:
@@ -159,11 +169,11 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         slug: "metas-projeto",
         title: "Metas do Projeto",
         description:
-          "Reúne as metas definidas para os projetos e permite consultar o que deve ser realizado, a quantidade prevista e a forma estabelecida para comprovar seu cumprimento.",
+          "Consulte o que deve ser realizado em cada meta, a quantidade prevista, a forma de comprovação e o valor e o período estimados para o uso dos recursos.",
         icon: Target,
         plano: "pago",
         tooltip:
-          "Use este relatório para verificar quais resultados foram definidos para cada projeto e como o cumprimento de cada meta deverá ser acompanhado e comprovado.",
+          "Veja os resultados esperados, como serão comprovados e o planejamento financeiro informado em cada meta.",
       },
       {
         slug: "cronogramas",
@@ -469,11 +479,11 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         slug: "prestacoes-metas",
         title: "Cumprimento de Metas",
         description:
-          "Relaciona as metas previstas com as quantidades efetivamente realizadas e apresenta seu percentual de execução, situação de cumprimento e informações registradas para demonstrar os resultados.",
+          "Execução física e financeira das metas com demonstrativos, gráficos e pontos de atenção.",
         icon: Target,
         plano: "pago",
         tooltip:
-          "Use este relatório para comparar o que foi previsto com o que foi realizado em cada meta e identificar resultados cumpridos, parcialmente cumpridos ou que ainda precisam de acompanhamento ou justificativa.",
+          "Compare os resultados e os recursos previstos com os registros de execução vinculados a cada meta.",
       },
       {
         slug: "prestacoes-contas",
@@ -561,16 +571,6 @@ export const RELATORIOS_CATALOGO: RelatorioCatalogoGrupo[] = [
         plano: "pago",
         tooltip:
           "Use este relatório para acompanhar o atendimento realizado em cada turma, verificar quantas vagas estão disponíveis ou preenchidas e entender como os participantes estão distribuídos entre as atividades.",
-      },
-      {
-        slug: "metas-resultados",
-        title: "Metas e Resultados",
-        description:
-          "Relaciona as metas previstas nos projetos com as quantidades executadas, o percentual alcançado, a situação de cumprimento e os registros utilizados para demonstrar os resultados.",
-        icon: Target,
-        plano: "pago",
-        tooltip:
-          "Use este relatório para comparar o que foi planejado com o que foi realizado e identificar metas cumpridas, parcialmente cumpridas ou que ainda precisam de acompanhamento.",
       },
       {
         slug: "cronograma-prazos",

@@ -951,7 +951,6 @@ export default function PlanoComunicacaoPage() {
                 confirmDelete && deleteMutation.mutate(confirmDelete.id)
               }
               disabled={deleteMutation.isPending}
-              className="bg-destructive hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? "Excluindo..." : "Sim, excluir"}
             </AlertDialogAction>

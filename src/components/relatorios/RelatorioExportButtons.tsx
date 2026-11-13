@@ -27,6 +27,7 @@ interface RelatorioExportButtonsProps<T> {
   showCopy?: boolean;
   /** Exibe a exportação em PDF (padrão: true). */
   showPdf?: boolean;
+  showDataExports?: boolean;
   /** Geração oficial do PDF pelo backend/Jasper. */
   onPdf?: () => Promise<void>;
   onCsv?: () => Promise<void>;
@@ -47,6 +48,7 @@ export function RelatorioExportButtons<T>({
   disabled,
   showCopy = false,
   showPdf = true,
+  showDataExports = true,
   onPdf,
   onCsv,
   onXlsx,
@@ -115,38 +117,42 @@ export function RelatorioExportButtons<T>({
           Copiar
         </Button>
       )}
-      <Button
-        type="button"
-        variant="glassSecondary"
-        className={actionClass}
-        onClick={() =>
-          void exportar(
-            "Excel",
-            onXlsx ?? (() => exportXlsx(rows, columns, reportName)),
-          )
-        }
-        disabled={disabled || !!exporting}
-        aria-label="Exportar relatório para Excel"
-      >
-        <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
-        Excel
-      </Button>
-      <Button
-        type="button"
-        variant="glassSecondary"
-        className={actionClass}
-        onClick={() =>
-          void exportar(
-            "CSV",
-            onCsv ?? (() => exportCsv(rows, columns, reportName)),
-          )
-        }
-        disabled={disabled || !!exporting}
-        aria-label="Exportar relatório para CSV"
-      >
-        <FileDown className="h-3.5 w-3.5" aria-hidden />
-        CSV
-      </Button>
+      {showDataExports && (
+        <>
+          <Button
+            type="button"
+            variant="glassSecondary"
+            className={actionClass}
+            onClick={() =>
+              void exportar(
+                "Excel",
+                onXlsx ?? (() => exportXlsx(rows, columns, reportName)),
+              )
+            }
+            disabled={disabled || !!exporting}
+            aria-label="Exportar relatório para Excel"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
+            Excel
+          </Button>
+          <Button
+            type="button"
+            variant="glassSecondary"
+            className={actionClass}
+            onClick={() =>
+              void exportar(
+                "CSV",
+                onCsv ?? (() => exportCsv(rows, columns, reportName)),
+              )
+            }
+            disabled={disabled || !!exporting}
+            aria-label="Exportar relatório para CSV"
+          >
+            <FileDown className="h-3.5 w-3.5" aria-hidden />
+            CSV
+          </Button>
+        </>
+      )}
       {showPdf && (
         <Button
           type="button"

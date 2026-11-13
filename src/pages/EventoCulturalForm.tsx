@@ -51,6 +51,10 @@ import {
 } from "@/data/eventosCulturais";
 import { toast } from "sonner";
 import { emitJourneyNextStep } from "@/lib/nextStepPopup";
+import {
+  getMetasProjetoByProjeto,
+  type MetaProjeto,
+} from "@/data/metasProjeto";
 
 function salvarProximaAcaoEventoCultural() {
   emitJourneyNextStep();
@@ -90,6 +94,7 @@ export default function EventoCulturalForm() {
     null,
   );
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
+  const [metasProjeto, setMetasProjeto] = useState<MetaProjeto[]>([]);
   const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -114,6 +119,7 @@ export default function EventoCulturalForm() {
 
     return projetoId ? [projetoId] : [];
   }, [form.projetosIds, form.projetoId, existingEvento]);
+  const projetosParaMetaKey = projetosSelectValue.join(",");
 
   const projetosComFallback = useMemo(() => {
     const options = [...projetos];
@@ -134,7 +140,11 @@ export default function EventoCulturalForm() {
     return options;
   }, [projetos, projetosSelectValue, existingEvento]);
 
-  useImportFormFill("eventos-culturais", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "eventos-culturais",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -214,6 +224,21 @@ export default function EventoCulturalForm() {
   const projetoLabel = (option: string) =>
     projetosComFallback.find((projeto) => String(projeto.id) === String(option))
       ?.nome ?? option;
+
+  useEffect(() => {
+    let active = true;
+    const ids = projetosParaMetaKey.split(",").filter(Boolean);
+    if (ids.length === 0) {
+      setMetasProjeto([]);
+      return;
+    }
+    Promise.all(ids.map((id) => getMetasProjetoByProjeto(Number(id))))
+      .then((grupos) => active && setMetasProjeto(grupos.flat()))
+      .catch(() => active && setMetasProjeto([]));
+    return () => {
+      active = false;
+    };
+  }, [projetosParaMetaKey]);
 
   const colaboradoresOptions = useMemo(
     () => colaboradores.map((colaborador) => String(colaborador.id)),
@@ -301,6 +326,7 @@ export default function EventoCulturalForm() {
         toast.success("Evento cultural atualizado com sucesso.");
       } else {
         await createEventoCultural(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoEventoCultural();
         toast.success("Evento cultural salvo com sucesso.");
       }
@@ -349,7 +375,7 @@ export default function EventoCulturalForm() {
             <Section
               icon={Link2}
               title="Vínculo do evento"
-              description="Vincule o evento aos projetos dos quais ele faz parte, permitindo que sua realização seja acompanhada dentro das ações previstas pela organização."
+              description="Selecione os projetos aos quais este evento está vinculado e, quando aplicável, as metas correspondentes. Essas informações permitem relacionar o evento às ações planejadas e acompanhar sua contribuição para o cumprimento das metas."
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
@@ -374,10 +400,49 @@ export default function EventoCulturalForm() {
                         if (visualizando) return;
                         set("projetosIds", value);
                         set("projetoId", value[0] ?? "");
+                        if (
+                          form.metaProjetoId &&
+                          !value.some((projetoId) =>
+                            metasProjeto.some(
+                              (meta) =>
+                                meta.id === form.metaProjetoId &&
+                                meta.projeto === projetoId,
+                            ),
+                          )
+                        ) {
+                          set("metaProjetoId", "");
+                        }
                       }}
                       getOptionLabel={projetoLabel}
                     />
                   </div>
+                </Field>
+                <Field>
+                  <FieldLabel
+                    htmlFor="metaProjetoId"
+                    tooltip="Selecione a meta que este evento ajuda a cumprir."
+                  >
+                    Meta do Projeto
+                  </FieldLabel>
+                  <Select
+                    value={form.metaProjetoId || "__nenhuma__"}
+                    onValueChange={(value) =>
+                      set("metaProjetoId", value === "__nenhuma__" ? "" : value)
+                    }
+                    disabled={bloqueado || projetosSelectValue.length === 0}
+                  >
+                    <SelectTrigger id="metaProjetoId">
+                      <SelectValue placeholder="Selecione uma meta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__nenhuma__">Nenhuma meta</SelectItem>
+                      {metasProjeto.map((meta) => (
+                        <SelectItem key={meta.id} value={meta.id}>
+                          {meta.tituloMeta}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </Field>
               </div>
             </Section>
@@ -627,15 +692,22 @@ function Section({
   icon,
   title,
   description,
+  tooltip,
   children,
 }: {
   icon: LucideIcon;
   title: string;
   description?: string;
+  tooltip?: string;
   children: React.ReactNode;
 }) {
   return (
-    <FormSectionCard icon={icon} title={title} description={description}>
+    <FormSectionCard
+      icon={icon}
+      title={title}
+      description={description}
+      tooltip={tooltip}
+    >
       {children}
     </FormSectionCard>
   );

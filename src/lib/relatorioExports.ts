@@ -8,6 +8,7 @@ export interface RelatorioColumn<T> {
   render?: (row: T) => ReactNode;
   accessor?: (row: T) => string | number | null | undefined;
   alwaysVisible?: boolean;
+  exportable?: boolean;
   hiddenByDefault?: boolean;
 }
 

@@ -188,6 +188,7 @@ export function ReportStatCard({
   active,
   hint,
   comparacao,
+  wrapText = false,
 }: {
   icon: LucideIcon;
   label: string;
@@ -198,6 +199,7 @@ export function ReportStatCard({
   active?: boolean;
   hint?: string;
   comparacao?: React.ReactNode;
+  wrapText?: boolean;
 }) {
   const CardTag = onClick ? "button" : "div";
   return (
@@ -222,7 +224,12 @@ export function ReportStatCard({
         <Icon className="h-4 w-4" strokeWidth={2.2} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <p
+          className={cn(
+            "text-[11px] font-medium uppercase tracking-wide text-muted-foreground",
+            wrapText ? "break-words" : "truncate",
+          )}
+        >
           {label}
         </p>
         <p className="break-words text-lg font-semibold tabular-nums text-foreground">
@@ -230,7 +237,10 @@ export function ReportStatCard({
         </p>
         {hint && (
           <p
-            className="truncate text-[11px] text-muted-foreground"
+            className={cn(
+              "text-[11px] text-muted-foreground",
+              wrapText ? "break-words" : "truncate",
+            )}
             title={hint}
           >
             {hint}
@@ -242,9 +252,17 @@ export function ReportStatCard({
   );
 }
 
-export function ReportStatGrid({ children }: { children: React.ReactNode }) {
+export function ReportStatGrid({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <section className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <section
+      className={cn("mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4", className)}
+    >
       {children}
     </section>
   );
@@ -303,14 +321,16 @@ export function ReportChartCard({
   description,
   children,
   clickable,
+  height,
 }: {
   title: string;
   description?: string;
   children: React.ReactNode;
   clickable?: boolean;
+  height?: number;
 }) {
   return (
-    <section className="rounded-[14px] border border-border/70 bg-card/75 p-4 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
+    <section className="min-w-0 rounded-[14px] border border-border/70 bg-card/75 p-4 shadow-[0_2px_10px_-8px_hsl(215_28%_17%_/_0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
       <h2 className="text-[13px] font-semibold text-foreground">{title}</h2>
       {description && (
         <p className="mt-0.5 text-[11.5px] text-muted-foreground">
@@ -322,7 +342,9 @@ export function ReportChartCard({
           Selecione uma categoria para filtrar a tabela.
         </p>
       )}
-      <div className="mt-3 h-[220px]">{children}</div>
+      <div className="mt-3 h-[220px]" style={height ? { height } : undefined}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -398,13 +420,16 @@ type ChartTooltipEntry = {
   payload?: { name?: string | number };
 };
 
-function ReportChartTooltipContent({
+export function ReportChartTooltipContent({
   active,
   label,
   payload,
   currency = false,
   percent = false,
   duration = false,
+  showColorIndicator = true,
+  formatter,
+  details,
 }: {
   active?: boolean;
   label?: string | number;
@@ -412,6 +437,9 @@ function ReportChartTooltipContent({
   currency?: boolean;
   percent?: boolean;
   duration?: boolean;
+  showColorIndicator?: boolean;
+  formatter?: (value: number) => string;
+  details?: string[];
 }) {
   const items = (payload ?? []).filter(
     (item) => String(item.dataKey ?? "") !== "inicio",
@@ -419,6 +447,7 @@ function ReportChartTooltipContent({
   if (!active || items.length === 0) return null;
 
   const formatValue = (value: string | number | undefined) => {
+    if (formatter) return formatter(Number(value ?? 0));
     if (duration) return `${value ?? 0} dia(s)`;
     if (percent) return formatChartPercent(value ?? 0);
     return currency
@@ -437,7 +466,7 @@ function ReportChartTooltipContent({
           className="flex items-start justify-between gap-3 py-0.5"
         >
           <span className="min-w-0 break-all text-muted-foreground">
-            {item.color && (
+            {showColorIndicator && item.color && (
               <span
                 className="mr-1.5 inline-block h-2 w-2 rounded-full"
                 style={{ backgroundColor: item.color }}
@@ -450,6 +479,13 @@ function ReportChartTooltipContent({
           </span>
         </div>
       ))}
+      {details?.length ? (
+        <div className="mt-1 border-t border-border/70 pt-1 text-muted-foreground">
+          {details.map((detail) => (
+            <p key={detail}>{detail}</p>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -467,6 +503,11 @@ export function ReportBarChart({
   labelAtual = "Período principal",
   labelComparado = "Período comparado",
   showZero = false,
+  maxBarSize,
+  reportTooltip = false,
+  cursorFill = "hsl(var(--muted) / 0.35)",
+  compareColor = "hsl(var(--muted-foreground) / 0.4)",
+  primaryColor,
 }: {
   data: ChartDatum[];
   reportKey?: string;
@@ -480,6 +521,13 @@ export function ReportBarChart({
   labelAtual?: string;
   labelComparado?: string;
   showZero?: boolean;
+  /** Limita a espessura das barras em gráficos horizontais agrupados. */
+  maxBarSize?: number;
+  /** Usa o tooltip arredondado padrão dos relatórios. */
+  reportTooltip?: boolean;
+  cursorFill?: string;
+  compareColor?: string;
+  primaryColor?: string;
 }) {
   const categorias = Array.from(
     new Set([
@@ -563,7 +611,19 @@ export function ReportBarChart({
             />
           </>
         )}
-        {formatValue ? (
+        {reportTooltip ? (
+          <ChartTooltip
+            {...compactTooltipProps}
+            cursor={{ fill: cursorFill }}
+            content={
+              <ReportChartTooltipContent
+                currency={currency}
+                percent={percent}
+                formatter={formatValue}
+              />
+            }
+          />
+        ) : formatValue ? (
           <ChartTooltip
             {...compactTooltipProps}
             formatter={(value: number, name: string) => [
@@ -587,6 +647,7 @@ export function ReportBarChart({
           dataKey="value"
           name={compareData ? labelAtual : "Total"}
           radius={horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0]}
+          maxBarSize={maxBarSize}
           cursor={onSelect ? "pointer" : undefined}
           onClick={select}
         >
@@ -596,7 +657,7 @@ export function ReportBarChart({
               fill={
                 categorical
                   ? getChartColor(reportKey, i, row.name)
-                  : getReportChartTheme(reportKey).primary
+                  : (primaryColor ?? getReportChartTheme(reportKey).primary)
               }
             />
           ))}
@@ -605,8 +666,9 @@ export function ReportBarChart({
           <Bar
             dataKey="comparado"
             name={labelComparado}
-            fill="hsl(var(--muted-foreground))"
+            fill={compareColor}
             radius={horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0]}
+            maxBarSize={maxBarSize}
             cursor={onSelect ? "pointer" : undefined}
             onClick={select}
           />
@@ -1047,6 +1109,9 @@ export function ReportTable<T>({
   sortResetKey,
   remote,
   onExport,
+  onPdf,
+  separateExportActions = false,
+  wrapCells = false,
 }: {
   title: string;
   description?: string;
@@ -1062,6 +1127,10 @@ export function ReportTable<T>({
   sortResetKey?: string;
   /** Oculta somente a ação PDF, preservando as exportações Excel e CSV. */
   showPdf?: boolean;
+  onPdf?: () => Promise<void>;
+  separateExportActions?: boolean;
+  /** Permite quebra de linha nas células em demonstrativos com muitos campos. */
+  wrapCells?: boolean;
   remote?: {
     total: number;
     currentPage: number;
@@ -1177,7 +1246,14 @@ export function ReportTable<T>({
             {description ?? "Resultados consideram os filtros aplicados."}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div
+          className={cn(
+            "flex gap-2",
+            separateExportActions
+              ? "flex-col items-start lg:items-end"
+              : "flex-wrap items-center gap-1.5",
+          )}
+        >
           <RelatorioExportButtons
             rows={sorted}
             columns={visibleColumns}
@@ -1195,7 +1271,8 @@ export function ReportTable<T>({
             onCsv={onExport ? () => onExport("CSV", pdfColumns) : undefined}
             onXlsx={onExport ? () => onExport("XLSX", pdfColumns) : undefined}
             onPdf={
-              onExport
+              onPdf ??
+              (onExport
                 ? () => onExport("PDF", pdfColumns)
                 : pdfExport
                   ? () =>
@@ -1210,7 +1287,7 @@ export function ReportTable<T>({
                             : undefined,
                         sortDirection: sortDir,
                       })
-                  : undefined
+                  : undefined)
             }
           />
           <ColumnSelector
@@ -1333,7 +1410,12 @@ export function ReportTable<T>({
                           <TableCell
                             key={c.key}
                             className={cn(
-                              "whitespace-nowrap text-xs",
+                              cn(
+                                wrapCells
+                                  ? "whitespace-normal"
+                                  : "whitespace-nowrap",
+                                "text-xs",
+                              ),
                               c.className,
                             )}
                           >

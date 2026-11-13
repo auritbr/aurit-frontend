@@ -64,6 +64,22 @@ export async function downloadIndividualReport(
   return downloadPdf(endpoint, fallbackFilename, { method: "GET" });
 }
 
+export function downloadEstudosSocioeconomicosPdf(
+  secao: string,
+  colunas: string[],
+  linhas: string[][],
+  filtros: { label: string; value: string }[],
+) {
+  return downloadPdf(
+    "/relatorios/estudos-socioeconomicos/pdf",
+    `estudos-socioeconomicos-${secao}.pdf`,
+    {
+      method: "POST",
+      body: JSON.stringify({ secao, colunas, linhas, filtros }),
+    },
+  );
+}
+
 export const downloadDeclaracaoCargoDiretoria = (id: string | number) =>
   downloadIndividualReport(
     `/diretorias/${id}/declaracao-cargo`,

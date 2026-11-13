@@ -78,7 +78,11 @@ export default function CurriculoForm() {
     v: CurriculoFormData[K],
   ) => setForm((p) => ({ ...p, [k]: v }));
 
-  useImportFormFill("curriculos", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "curriculos",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -231,6 +235,7 @@ export default function CurriculoForm() {
         toast.success("Currículo atualizado com sucesso.");
       } else {
         await createCurriculo(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoCurriculo();
         toast.success("Currículo cadastrado com sucesso.");
       }

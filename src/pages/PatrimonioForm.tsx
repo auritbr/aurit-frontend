@@ -9,6 +9,7 @@ import {
   Tag,
   ClipboardList,
   Layers,
+  Paperclip,
   Building2,
   Upload,
   FileText,
@@ -45,6 +46,7 @@ import {
   getPatrimonioById,
   getNomeArquivoPatrimonio,
   getPatrimonioNotaFiscalDownloadUrl,
+  getPatrimonioFotoDownloadUrl,
   getProjetosPatrimonio,
   statusPatrimonioOptions,
   tipoPatrimonioOptions,
@@ -75,6 +77,7 @@ interface FormState {
   modelo: string;
   numeroSerie: string;
   urlNotaFiscal: string;
+  urlFoto: string;
 
   tipoPatrimonio: TipoPatrimonioApi | "";
   estadoConservacao: EstadoConservacaoApi | "";
@@ -95,6 +98,7 @@ const initial: FormState = {
   modelo: "",
   numeroSerie: "",
   urlNotaFiscal: "",
+  urlFoto: "",
 
   tipoPatrimonio: "",
   estadoConservacao: "",
@@ -152,13 +156,6 @@ function brToDate(value: string) {
   return new Date(year, month - 1, day);
 }
 
-function isAllowedNotaFiscal(file: File) {
-  const allowed = ["pdf", "png", "jpg", "jpeg", "webp"];
-  const extension = file.name.split(".").pop()?.toLowerCase();
-
-  return !!extension && allowed.includes(extension);
-}
-
 function getOrganizacaoId(organizacao?: OrganizacaoOption | null) {
   return organizacao ? String(organizacao.id) : "";
 }
@@ -186,7 +183,8 @@ export default function PatrimonioForm() {
   const [saving, setSaving] = useState(false);
 
   const [notaFiscalFile, setNotaFiscalFile] = useState<File | null>(null);
-  const notaFiscalInputRef = useRef<HTMLInputElement | null>(null);
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [fotoRemovida, setFotoRemovida] = useState(false);
 
   const bloqueado = loading || saving || visualizando;
 
@@ -249,7 +247,11 @@ export default function PatrimonioForm() {
     String(existingPatrimonio?.projetoId ?? "") ||
     SEM_PROJETO_VALUE;
 
-  useImportFormFill("patrimonios", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "patrimonios",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -271,6 +273,9 @@ export default function PatrimonioForm() {
 
         const organizacaoPadrao = organizacoesData[0] ?? null;
 
+        setNotaFiscalFile(null);
+        setFotoFile(null);
+        setFotoRemovida(false);
         setOrganizacoes(organizacoesData);
         setProjetos(projetosData);
 
@@ -298,6 +303,7 @@ export default function PatrimonioForm() {
             urlNotaFiscal: duplicarId
               ? ""
               : (patrimonioData.urlNotaFiscal ?? ""),
+            urlFoto: duplicarId ? "" : (patrimonioData.urlFoto ?? ""),
 
             tipoPatrimonio: patrimonioData.tipoPatrimonio,
             estadoConservacao: patrimonioData.estadoConservacao,
@@ -344,45 +350,35 @@ export default function PatrimonioForm() {
     };
   }, [duplicarId, id, navigate]);
 
-  function abrirSeletorNotaFiscal() {
-    if (bloqueado) return;
-
-    notaFiscalInputRef.current?.click();
-  }
-
-  function handleNotaFiscalChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (bloqueado) return;
-
-    const file = e.target.files?.[0];
-
-    if (!file) return;
-
-    if (!isAllowedNotaFiscal(file)) {
-      toast.error("Formato não permitido. Envie PDF, PNG, JPG, JPEG ou WEBP.");
-      e.target.value = "";
-      return;
-    }
-
-    const sizeMB = file.size / (1024 * 1024);
-
-    if (sizeMB > MAX_FILE_MB) {
-      toast.error("O arquivo deve ter no máximo 10 MB.");
-      e.target.value = "";
-      return;
-    }
-
+  function selecionarNotaFiscal(file: File) {
     setNotaFiscalFile(file);
     set("urlNotaFiscal", file.name);
   }
 
   function removerNotaFiscal() {
-    if (bloqueado) return;
-
     setNotaFiscalFile(null);
     set("urlNotaFiscal", "");
+  }
 
-    if (notaFiscalInputRef.current) {
-      notaFiscalInputRef.current.value = "";
+  function selecionarFoto(file: File) {
+    setFotoFile(file);
+    setFotoRemovida(false);
+  }
+
+  function removerFoto() {
+    setFotoFile(null);
+    setFotoRemovida(true);
+  }
+
+  async function abrirFoto() {
+    if (!id) return;
+    try {
+      const url = await getPatrimonioFotoDownloadUrl(Number(id));
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Erro ao abrir a foto.",
+      );
     }
   }
 
@@ -438,17 +434,13 @@ export default function PatrimonioForm() {
       return;
     }
 
-    if (!formComVinculos.dataAquisicao.trim()) {
-      toast.error("Informe a data de aquisição.");
-      return;
-    }
-
-    if (!isValidDateBR(formComVinculos.dataAquisicao)) {
+    const dataAquisicao = formComVinculos.dataAquisicao.trim();
+    if (dataAquisicao && !isValidDateBR(dataAquisicao)) {
       toast.error("Informe uma data de aquisição válida.");
       return;
     }
 
-    if (brToDate(formComVinculos.dataAquisicao) > new Date()) {
+    if (dataAquisicao && brToDate(dataAquisicao) > new Date()) {
       toast.error("A data de aquisição não pode ser futura.");
       return;
     }
@@ -481,7 +473,7 @@ export default function PatrimonioForm() {
 
         numeroPatrimonio: formComVinculos.numeroPatrimonio,
         nomePatrimonio: formComVinculos.nomePatrimonio,
-        dataAquisicao: formComVinculos.dataAquisicao,
+        dataAquisicao,
         descricaoPatrimonio: formComVinculos.descricaoPatrimonio,
         valorPatrimonio: parseCurrencyToNumber(formComVinculos.valorPatrimonio),
 
@@ -506,12 +498,16 @@ export default function PatrimonioForm() {
           : null,
       };
 
-      const payload = buildPatrimonioPayload(patrimonioForPayload);
+      const payload = {
+        ...buildPatrimonioPayload(patrimonioForPayload),
+        removerFoto: fotoRemovida,
+      };
 
       if (editando && id) {
-        await updatePatrimonio(Number(id), payload, notaFiscalFile);
+        await updatePatrimonio(Number(id), payload, notaFiscalFile, fotoFile);
       } else {
-        await createPatrimonio(payload, notaFiscalFile);
+        await createPatrimonio(payload, notaFiscalFile, fotoFile);
+        confirmarImportacaoSalva();
         salvarProximaAcaoPatrimonio();
       }
 
@@ -807,13 +803,12 @@ export default function PatrimonioForm() {
             <Section
               icon={FileText}
               title="Aquisição do bem"
-              description="Informe quando e por qual valor o bem foi adquirido ou recebido e anexe, quando disponível, o documento que comprova sua origem."
+              description="Informe quando e por qual valor o bem foi adquirido ou recebido, se souber."
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
                   <FieldLabel
                     htmlFor="dataAquisicao"
-                    required={!visualizando}
                     tooltip="Informe a data em que o bem foi comprado, recebido por doação ou incorporado de outra forma ao patrimônio da organização."
                   >
                     Data de Aquisição
@@ -857,90 +852,45 @@ export default function PatrimonioForm() {
                     />
                   </div>
                 </Field>
+              </div>
+            </Section>
 
-                <Field full>
-                  <FieldLabel
-                    htmlFor="urlNotaFiscal"
-                    tooltip="Anexe a nota fiscal ou outro documento que comprove a compra, doação, recebimento ou origem do bem, quando disponível."
-                  >
-                    Documento de Aquisição
-                  </FieldLabel>
-
-                  <input
-                    ref={notaFiscalInputRef}
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.png,.jpg,.jpeg,.webp"
-                    onChange={handleNotaFiscalChange}
-                    disabled={bloqueado}
-                  />
-
-                  <div className="flex gap-2">
-                    <Input
-                      id="urlNotaFiscal"
-                      value={
-                        notaFiscalFile?.name ||
-                        getNomeArquivoPatrimonio(form.urlNotaFiscal)
-                      }
-                      readOnly
-                      disabled
-                      className="attachment-file-glass flex-1 cursor-not-allowed"
-                      placeholder="Nenhum arquivo anexado"
-                    />
-
-                    {visualizando && form.urlNotaFiscal && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 gap-2"
-                        onClick={() => void abrirNotaFiscal()}
-                      >
-                        <FileText className="h-4 w-4" />
-                        Abrir
-                      </Button>
-                    )}
-
-                    {!visualizando && (
-                      <Button
-                        type="button"
-                        variant="glassSecondary"
-                        className="h-10 gap-2 px-4"
-                        onClick={abrirSeletorNotaFiscal}
-                        disabled={saving}
-                      >
-                        <Upload className="h-4 w-4" />
-                        {notaFiscalFile?.name || form.urlNotaFiscal
-                          ? "Substituir"
-                          : "Selecionar arquivo"}
-                      </Button>
-                    )}
-                  </div>
-
-                  {!visualizando && form.urlNotaFiscal && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <p className="truncate text-xs text-muted-foreground">
-                        Arquivo selecionado:{" "}
-                        {notaFiscalFile?.name ||
-                          getNomeArquivoPatrimonio(form.urlNotaFiscal)}
-                      </p>
-
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={removerNotaFiscal}
-                        disabled={saving}
-                      >
-                        Limpar seleção
-                      </Button>
-                    </div>
-                  )}
-
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Formatos aceitos: PDF, PNG, JPG, JPEG ou WEBP. Tamanho
-                    máximo: 10 MB.
-                  </p>
-                </Field>
+            <Section icon={Paperclip} title="Anexos do bem">
+              <div className="grid gap-4">
+                <CampoAnexo
+                  id="urlNotaFiscal"
+                  label="Documento de Aquisição"
+                  tooltip="Anexe um documento que comprove a compra, doação, recebimento ou origem do bem."
+                  nome={
+                    notaFiscalFile?.name ||
+                    getNomeArquivoPatrimonio(form.urlNotaFiscal)
+                  }
+                  formatos="PDF, PNG, JPG, JPEG ou WEBP"
+                  extensoes={["pdf", "png", "jpg", "jpeg", "webp"]}
+                  bloqueado={bloqueado}
+                  visualizando={visualizando}
+                  onSelecionar={selecionarNotaFiscal}
+                  onRemover={removerNotaFiscal}
+                  onAbrir={abrirNotaFiscal}
+                  labelRemover="Limpar seleção"
+                />
+                <CampoAnexo
+                  id="urlFoto"
+                  label="Foto do Bem"
+                  tooltip="Anexe uma foto para facilitar a identificação do bem."
+                  nome={
+                    fotoFile?.name ||
+                    (fotoRemovida ? "" : getNomeArquivoPatrimonio(form.urlFoto))
+                  }
+                  formatos="PNG, JPG, JPEG ou WEBP"
+                  extensoes={["png", "jpg", "jpeg", "webp"]}
+                  bloqueado={bloqueado}
+                  visualizando={visualizando}
+                  onSelecionar={selecionarFoto}
+                  onRemover={removerFoto}
+                  onAbrir={abrirFoto}
+                  labelRemover="Remover foto"
+                />
               </div>
             </Section>
 
@@ -1063,6 +1013,118 @@ function Section({
     <FormSectionCard icon={Icon} title={title} description={description}>
       {children}
     </FormSectionCard>
+  );
+}
+
+function CampoAnexo({
+  id,
+  label,
+  tooltip,
+  nome,
+  formatos,
+  extensoes,
+  bloqueado,
+  visualizando,
+  onSelecionar,
+  onRemover,
+  onAbrir,
+  labelRemover,
+}: {
+  id: string;
+  label: string;
+  tooltip: string;
+  nome: string;
+  formatos: string;
+  extensoes: string[];
+  bloqueado: boolean;
+  visualizando: boolean;
+  onSelecionar: (file: File) => void;
+  onRemover: () => void;
+  onAbrir: () => Promise<void>;
+  labelRemover: string;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  function selecionar(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.currentTarget.files?.[0];
+    e.currentTarget.value = "";
+    if (!file || bloqueado) return;
+
+    const extensao = file.name.split(".").pop()?.toLowerCase();
+    if (!extensao || !extensoes.includes(extensao)) {
+      toast.error(`Formato não permitido. Envie ${formatos}.`);
+      return;
+    }
+    if (!file.size || file.size > MAX_FILE_MB * 1024 * 1024) {
+      toast.error("Selecione um arquivo de até 10 MB.");
+      return;
+    }
+    onSelecionar(file);
+  }
+
+  return (
+    <Field>
+      <FieldLabel htmlFor={id} tooltip={tooltip}>
+        {label}
+      </FieldLabel>
+      <input
+        ref={input}
+        type="file"
+        className="hidden"
+        disabled={bloqueado}
+        accept={extensoes.map((extensao) => `.${extensao}`).join(",")}
+        onChange={selecionar}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Input
+          id={id}
+          value={nome}
+          readOnly
+          disabled
+          className="attachment-file-glass min-w-0 flex-1 cursor-not-allowed"
+          placeholder="Nenhum arquivo anexado"
+        />
+        {visualizando ? (
+          nome && (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 gap-2"
+              aria-label={`Abrir ${label}`}
+              onClick={() => void onAbrir()}
+            >
+              <FileText className="h-4 w-4" /> Abrir
+            </Button>
+          )
+        ) : (
+          <Button
+            type="button"
+            variant="glassSecondary"
+            className="h-10 gap-2 px-4"
+            aria-label={`${nome ? "Substituir" : "Selecionar arquivo para"} ${label}`}
+            disabled={bloqueado}
+            onClick={() => input.current?.click()}
+          >
+            <Upload className="h-4 w-4" />{" "}
+            {nome ? "Substituir" : "Selecionar arquivo"}
+          </Button>
+        )}
+      </div>
+      {!visualizando && nome && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="mt-1"
+          disabled={bloqueado}
+          onClick={onRemover}
+        >
+          {labelRemover}
+        </Button>
+      )}
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        Formatos aceitos: {formatos}. Tamanho máximo: 10 MB.
+      </p>
+    </Field>
   );
 }
 

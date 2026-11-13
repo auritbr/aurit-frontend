@@ -1,3 +1,7 @@
+import { ROTA_PERFIL_SOCIOECONOMICO } from "@/config/rotas";
+import EstudosSocioeconomicos from "@/pages/EstudosSocioeconomicos";
+import EstudoSocioeconomicoForm from "@/pages/EstudoSocioeconomicoForm";
+import RelatorioPerfilSociodemografico from "@/pages/relatorios/RelatorioPerfilSociodemografico";
 import { NativeNavigation } from "@/components/NativeNavigation";
 import { useEffect, type ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -100,7 +104,7 @@ import EvidenciaForm from "./pages/EvidenciaForm.tsx";
 import MetasProjeto from "./pages/MetasProjeto.tsx";
 import MetaProjetoForm from "./pages/MetaProjetoForm.tsx";
 
-import PrestacaoMetas from "./pages/PrestacaoMetas.tsx";
+import CumprimentoMetas from "./pages/CumprimentoMetas.tsx";
 import PrestacaoMetaForm from "./pages/PrestacaoMetaForm.tsx";
 
 import PrestacaoContas from "./pages/PrestacaoContas.tsx";
@@ -140,12 +144,11 @@ import RelatorioExecucaoAtividades from "./pages/relatorios/RelatorioExecucaoAti
 import RelatorioGeralProjetos from "./pages/relatorios/RelatorioGeralProjetos.tsx";
 import RelatorioImpactoSocialCultural from "./pages/relatorios/RelatorioImpactoSocialCultural.tsx";
 import RelatorioInstitucionalOrganizacao from "./pages/relatorios/RelatorioInstitucionalOrganizacao.tsx";
-import RelatorioMetasResultados from "./pages/relatorios/RelatorioMetasResultados.tsx";
+import RelatorioCumprimentoMetas from "./pages/relatorios/RelatorioCumprimentoMetas.tsx";
 import RelatorioRegularidadeDocumental from "./pages/relatorios/RelatorioRegularidadeDocumental.tsx";
 import RelatorioTurmasAtendimento from "./pages/relatorios/RelatorioTurmasAtendimento.tsx";
 import RelatorioEvidencias from "./pages/relatorios/RelatorioEvidencias.tsx";
 import RelatorioPrestacaoContas from "./pages/relatorios/RelatorioPrestacaoContas.tsx";
-import RelatorioCumprimentoMetas from "./pages/relatorios/RelatorioCumprimentoMetas.tsx";
 import RelatorioEmprestimos from "./pages/relatorios/RelatorioEmprestimos.tsx";
 import RelatorioFluxoCaixa from "./pages/relatorios/financeiro/RelatorioFluxoCaixa.tsx";
 import RelatorioMovimentacoesFinanceiras from "./pages/relatorios/financeiro/RelatorioMovimentacoesFinanceiras.tsx";
@@ -709,6 +712,34 @@ function AppRoutes() {
         />
 
         <Route
+          path={ROTA_PERFIL_SOCIOECONOMICO}
+          element={protectedPage(
+            <EstudosSocioeconomicos />,
+            permission("ESTUDOS_SOCIOECONOMICOS"),
+          )}
+        />
+        <Route
+          path={`${ROTA_PERFIL_SOCIOECONOMICO}/novo`}
+          element={protectedPage(
+            <EstudoSocioeconomicoForm />,
+            permission("ESTUDOS_SOCIOECONOMICOS", "CRIAR"),
+          )}
+        />
+        <Route
+          path={`${ROTA_PERFIL_SOCIOECONOMICO}/:id`}
+          element={protectedPage(
+            <EstudoSocioeconomicoForm />,
+            permission("ESTUDOS_SOCIOECONOMICOS"),
+          )}
+        />
+        <Route
+          path={`${ROTA_PERFIL_SOCIOECONOMICO}/:id/editar`}
+          element={protectedPage(
+            <EstudoSocioeconomicoForm />,
+            permission("ESTUDOS_SOCIOECONOMICOS", "EDITAR"),
+          )}
+        />
+        <Route
           path="/participantes"
           element={protectedPage(
             <Participantes />,
@@ -1022,16 +1053,13 @@ function AppRoutes() {
         <Route
           path="/prestacao-metas"
           element={protectedPage(
-            <PrestacaoMetas />,
+            <CumprimentoMetas />,
             permission("PRESTACAO_METAS"),
           )}
         />
         <Route
           path="/prestacao-metas/novo"
-          element={protectedPage(
-            <PrestacaoMetaForm />,
-            permission("PRESTACAO_METAS", "CRIAR"),
-          )}
+          element={<Navigate to="/prestacao-metas" replace />}
         />
         <Route
           path="/prestacao-metas/:id"
@@ -1042,10 +1070,7 @@ function AppRoutes() {
         />
         <Route
           path="/prestacao-metas/:id/editar"
-          element={protectedPage(
-            <PrestacaoMetaForm />,
-            permission("PRESTACAO_METAS", "EDITAR"),
-          )}
+          element={<Navigate to="/prestacao-metas" replace />}
         />
 
         <Route
@@ -1265,6 +1290,13 @@ function AppRoutes() {
           )}
         />
         <Route
+          path="/relatorios/perfil-sociodemografico"
+          element={protectedPage(
+            <RelatorioPerfilSociodemografico />,
+            permission("RELATORIOS"),
+          )}
+        />
+        <Route
           path="/relatorios/indicadores-sociodemograficos"
           element={protectedPage(
             <IndicadoresSociodemograficos />,
@@ -1324,7 +1356,7 @@ function AppRoutes() {
         <Route
           path="/relatorios/metas-resultados"
           element={protectedPage(
-            <RelatorioMetasResultados />,
+            <RelatorioCumprimentoMetas />,
             permission("RELATORIOS"),
           )}
         />

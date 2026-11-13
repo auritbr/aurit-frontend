@@ -47,7 +47,7 @@ export interface RowActionsDropdownProps {
 }
 
 const rowActionItemClass =
-  "gap-2 rounded-[9px] px-2.5 py-2 text-[13px] leading-5 focus:bg-muted/70";
+  "app-table-control gap-2 rounded-[9px] px-2.5 py-2 text-[13px] leading-5 focus:bg-muted/70";
 
 /**
  * Botão "Ações" com menu suspenso (Visualizar, Editar, Excluir).
@@ -94,7 +94,7 @@ export function RowActionsDropdown({
       <DropdownMenuTrigger
         aria-label={label}
         className={cn(
-          "inline-flex h-8 items-center gap-1.5 rounded-[12px] border border-border/70 bg-background/70 px-2.5 text-[13px] font-medium text-foreground shadow-[0_1px_3px_-2px_hsl(215_28%_17%_/_0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-background/55 transition-all hover:border-border hover:bg-muted/60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[state=open]:bg-muted/70 motion-reduce:transition-none",
+          "app-table-control inline-flex h-8 items-center gap-1.5 rounded-[12px] border border-border/70 bg-background/70 px-2.5 text-[13px] font-medium text-foreground shadow-[0_1px_3px_-2px_hsl(215_28%_17%_/_0.14)] backdrop-blur-md supports-[backdrop-filter]:bg-background/55 transition-all hover:border-border hover:bg-muted/60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[state=open]:bg-muted/70 motion-reduce:transition-none",
           className,
         )}
       >
@@ -104,7 +104,7 @@ export function RowActionsDropdown({
       <DropdownMenuContent
         align="start"
         sideOffset={6}
-        className="min-w-[176px] rounded-[13px] border-border/70 bg-popover/90 p-1.5 shadow-[0_10px_30px_-16px_hsl(215_28%_17%_/_0.28)] backdrop-blur-xl supports-[backdrop-filter]:bg-popover/80"
+        className="max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[176px] overflow-y-auto overscroll-contain rounded-[13px] border-border/70 bg-popover/90 p-1.5 shadow-[0_10px_30px_-16px_hsl(215_28%_17%_/_0.28)] backdrop-blur-xl supports-[backdrop-filter]:bg-popover/80"
       >
         {viewTo ? (
           <DropdownMenuItem asChild className={rowActionItemClass}>

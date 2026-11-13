@@ -240,7 +240,7 @@ export default function TurmaForm() {
     ];
   }, [colaboradores, form.colaboradores]);
 
-  useImportFormFill("turmas", setForm);
+  const confirmarImportacaoSalva = useImportFormFill("turmas", form, setForm);
 
   useEffect(() => {
     if (!form.diaAtividade && !form.horarioInicio && !form.horarioFim) return;
@@ -448,6 +448,7 @@ export default function TurmaForm() {
         toast.success("Turma atualizada com sucesso.");
       } else {
         await createTurma(payload);
+        confirmarImportacaoSalva();
         emitJourneyNextStep();
         toast.success("Turma salva com sucesso.");
       }

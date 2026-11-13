@@ -316,6 +316,7 @@ export type ModuloPermissao =
   | "COLABORADORES"
   | "INTEGRANTES"
   | "PARTICIPANTES"
+  | "ESTUDOS_SOCIOECONOMICOS"
   | "PROJETOS"
   | "METAS_PROJETO"
   | "CRONOGRAMA"
@@ -375,6 +376,7 @@ export const moduloLabel: Record<ModuloPermissao, string> = {
   COLABORADORES: "Colaboradores",
   INTEGRANTES: "Integrantes",
   PARTICIPANTES: "Participantes",
+  ESTUDOS_SOCIOECONOMICOS: "Estudos Socioeconômicos",
   PROJETOS: "Projetos",
   METAS_PROJETO: "Metas do projeto",
   CRONOGRAMA: "Cronograma",
@@ -452,6 +454,7 @@ export const GRUPOS_MODULOS: ModuloGrupo[] = [
       "COLABORADORES",
       "INTEGRANTES",
       "PARTICIPANTES",
+      "ESTUDOS_SOCIOECONOMICOS",
     ],
   },
   {

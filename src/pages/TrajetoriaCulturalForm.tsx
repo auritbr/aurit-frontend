@@ -142,7 +142,11 @@ export default function TrajetoriaCulturalForm() {
     existingTrajetoria,
   ]);
 
-  useImportFormFill("trajetorias-culturais", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "trajetorias-culturais",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -285,6 +289,7 @@ export default function TrajetoriaCulturalForm() {
         toast.success("Trajetória cultural atualizada com sucesso.");
       } else {
         await createTrajetoriaCultural(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoTrajetoriaCultural();
         toast.success("Trajetória cultural cadastrada com sucesso.");
       }

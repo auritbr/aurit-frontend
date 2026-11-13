@@ -42,6 +42,10 @@ import {
 } from "@/data/atividades";
 import { toast } from "sonner";
 import { emitJourneyNextStep } from "@/lib/nextStepPopup";
+import {
+  getMetasProjetoByProjeto,
+  type MetaProjeto,
+} from "@/data/metasProjeto";
 
 function salvarProximaAcaoAtividade() {
   emitJourneyNextStep();
@@ -61,6 +65,7 @@ interface FormState {
   status: string;
   projeto: string;
   projetoNome: string;
+  metaProjetoId: string;
   colaboradores: string[];
 }
 
@@ -78,6 +83,7 @@ const initial: FormState = {
   status: "",
   projeto: "",
   projetoNome: "",
+  metaProjetoId: "",
   colaboradores: [],
 };
 
@@ -117,6 +123,7 @@ function mapAtividadeToForm(atividade: Atividade): FormState {
     status: atividade.status ?? "",
     projeto: atividade.projetoId ?? "",
     projetoNome: atividade.projetoNome ?? "",
+    metaProjetoId: atividade.metaProjetoId ?? "",
     colaboradores: [
       ...(atividade.colaboradoresIds ?? []),
       ...(atividade.integrantesIds ?? []).map((id) => `integrante:${id}`),
@@ -146,6 +153,7 @@ export default function AtividadeForm() {
     null,
   );
   const [projetos, setProjetos] = useState<ProjetoOption[]>([]);
+  const [metasProjeto, setMetasProjeto] = useState<MetaProjeto[]>([]);
   const [colaboradores, setColaboradores] = useState<ColaboradorOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -157,6 +165,20 @@ export default function AtividadeForm() {
 
   const projetoSelectValue =
     form.projeto || String(existingAtividade?.projetoId ?? "");
+
+  useEffect(() => {
+    let active = true;
+    if (!projetoSelectValue) {
+      setMetasProjeto([]);
+      return;
+    }
+    getMetasProjetoByProjeto(Number(projetoSelectValue))
+      .then((metas) => active && setMetasProjeto(metas))
+      .catch(() => active && setMetasProjeto([]));
+    return () => {
+      active = false;
+    };
+  }, [projetoSelectValue]);
 
   const projetosOptions = useMemo(() => {
     const options = [...projetos];
@@ -182,7 +204,11 @@ export default function AtividadeForm() {
     return options;
   }, [projetos, form.projeto, form.projetoNome, existingAtividade]);
 
-  useImportFormFill("atividades", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "atividades",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -387,6 +413,7 @@ export default function AtividadeForm() {
         .filter((id) => id.startsWith("integrante:"))
         .map((id) => id.slice("integrante:".length)),
       colaboradoresNomes: [],
+      metaProjetoId: formComProjeto.metaProjetoId,
     };
 
     try {
@@ -399,6 +426,7 @@ export default function AtividadeForm() {
         toast.success("Atividade atualizada com sucesso.");
       } else {
         await createAtividade(payload);
+        confirmarImportacaoSalva();
         salvarProximaAcaoAtividade();
         toast.success("Atividade salva com sucesso.");
       }
@@ -448,7 +476,7 @@ export default function AtividadeForm() {
             <FormSectionCard
               icon={Link2}
               title="Vínculo da atividade"
-              description="Defina a qual projeto esta atividade pertence. Esse vínculo permite organizar a atividade dentro do planejamento e do acompanhamento do projeto."
+              description="Selecione o projeto ao qual esta atividade pertence e, quando aplicável, a meta correspondente. Essas informações permitem relacionar a atividade ao planejamento e acompanhar sua contribuição para os resultados do projeto."
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
@@ -472,6 +500,8 @@ export default function AtividadeForm() {
                       setForm((prev) => ({
                         ...prev,
                         projeto: String(v),
+                        metaProjetoId:
+                          prev.projeto === String(v) ? prev.metaProjetoId : "",
                         projetoNome:
                           projetoSelecionado?.nome ?? prev.projetoNome,
                       }));
@@ -486,6 +516,33 @@ export default function AtividadeForm() {
                       {projetosOptions.map((p) => (
                         <SelectItem key={String(p.id)} value={String(p.id)}>
                           {p.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel
+                    htmlFor="metaProjetoId"
+                    tooltip="Selecione a meta que esta atividade ajuda a cumprir."
+                  >
+                    Meta do Projeto
+                  </FieldLabel>
+                  <Select
+                    value={form.metaProjetoId || "__nenhuma__"}
+                    onValueChange={(v) =>
+                      set("metaProjetoId", v === "__nenhuma__" ? "" : v)
+                    }
+                    disabled={bloqueado || !projetoSelectValue}
+                  >
+                    <SelectTrigger id="metaProjetoId">
+                      <SelectValue placeholder="Selecione uma meta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__nenhuma__">Nenhuma meta</SelectItem>
+                      {metasProjeto.map((meta) => (
+                        <SelectItem key={meta.id} value={meta.id}>
+                          {meta.tituloMeta}
                         </SelectItem>
                       ))}
                     </SelectContent>

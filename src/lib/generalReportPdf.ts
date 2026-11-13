@@ -30,6 +30,18 @@ const responseFilename = (header: string | null, fallback: string) => {
 export async function downloadGeneralReportPdf(
   request: GeneralReportPdfRequest,
 ) {
+  const response = await fetchGeneralReportPdf(request);
+  const filename = responseFilename(
+    response.headers.get("Content-Disposition"),
+    `relatorio-${request.slug}.pdf`,
+  );
+  await downloadFile(
+    response.blob,
+    filename.toLowerCase().endsWith(".pdf") ? filename : `${filename}.pdf`,
+  );
+}
+
+export async function fetchGeneralReportPdf(request: GeneralReportPdfRequest) {
   const response = await apiFetchResponse(`/relatorios/${request.slug}/pdf`, {
     method: "POST",
     headers: { Accept: "application/pdf" },
@@ -47,12 +59,5 @@ export async function downloadGeneralReportPdf(
     throw new Error("O servidor não retornou um PDF válido.");
   const blob = await response.blob();
   if (!blob.size) throw new Error("O relatório retornado está vazio.");
-  const filename = responseFilename(
-    response.headers.get("Content-Disposition"),
-    `relatorio-${request.slug}.pdf`,
-  );
-  await downloadFile(
-    blob,
-    filename.toLowerCase().endsWith(".pdf") ? filename : `${filename}.pdf`,
-  );
+  return { blob, headers: response.headers };
 }

@@ -253,7 +253,11 @@ export default function ResultadoPropostaForm() {
   const propostaSelectValue =
     form.propostaEdital || normalizeId(existingResultado?.propostaEdital);
 
-  useImportFormFill("resultados-proposta", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "resultados-proposta",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -631,6 +635,7 @@ export default function ResultadoPropostaForm() {
         );
       } else {
         await createResultadoProposta(payload, novoRelatorio, novoDocRecurso);
+        confirmarImportacaoSalva();
         salvarProximaAcaoResultadoProposta();
 
         toastSuccessNext(

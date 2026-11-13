@@ -26,7 +26,6 @@ import {
 } from "@/lib/permissoes";
 import { isPlanoAccessDenied } from "@/lib/access";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
-import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
 import { getImportConfigForPath } from "@/config/importacoes";
 import { AppLayout } from "@/components/AppLayout";
 import { AccessDenied } from "@/components/AccessDenied";
@@ -658,7 +657,12 @@ export default function Organizacao() {
   const podeExcluir = permissoes.EXCLUIR;
   const podeBaixar = permissoes.BAIXAR || permissoes.GERAR_PDF;
 
-  useImportFormFill("organizacoes", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "organizacoes",
+    form,
+    setForm,
+    showForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -1164,7 +1168,7 @@ export default function Organizacao() {
       );
       if (!response.ok) throw new Error(await parseApiError(response));
       const saved = mapOrganizacao((await response.json()) as OrganizacaoDTO);
-      notifyImportReviewSaveSuccess("organizacoes");
+      confirmarImportacaoSalva();
       if (mode === "create") {
         emitJourneyNextStep();
       }

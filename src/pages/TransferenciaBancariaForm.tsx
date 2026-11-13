@@ -324,7 +324,11 @@ export default function TransferenciaBancariaForm() {
     [],
   );
 
-  useImportFormFill("transferencias-bancarias", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "transferencias-bancarias",
+    form,
+    setForm,
+  );
 
   const contaGroups = useMemo<Grupo[]>(() => {
     const describe = (c: (typeof contasBancarias)[number]) =>
@@ -487,6 +491,7 @@ export default function TransferenciaBancariaForm() {
       return toast.error("Selecione a situação da transferência.");
     try {
       await saveTransferencia(form);
+      confirmarImportacaoSalva();
       if (!isEdit) emitJourneyNextStep();
       toast.success(
         isEdit

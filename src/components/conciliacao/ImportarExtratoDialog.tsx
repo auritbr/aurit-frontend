@@ -58,10 +58,12 @@ function SearchableSelect({
   options,
   value,
   onChange,
+  disabled,
 }: {
   options: { value: string; label: string }[];
   value: string;
   onChange: (value: string) => void;
+  disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -75,7 +77,7 @@ function SearchableSelect({
   const selected = options.find((option) => option.value === value);
   return (
     <Popover
-      open={open}
+      open={open && !disabled}
       onOpenChange={(next) => {
         setOpen(next);
         if (!next) setQuery("");
@@ -85,9 +87,10 @@ function SearchableSelect({
         <button
           type="button"
           role="combobox"
-          aria-expanded={open}
+          aria-expanded={open && !disabled}
+          disabled={disabled}
           className={cn(
-            "flex h-9 w-full items-center justify-between gap-2 rounded-[10px] border border-border/70 bg-background/70 px-3 text-left text-[13px] shadow-sm backdrop-blur-md",
+            "flex h-11 w-full sm:h-9 items-center justify-between gap-2 rounded-[10px] border border-border/70 bg-background/70 px-3 text-left text-[13px] shadow-sm backdrop-blur-md",
             !selected && "text-muted-foreground",
           )}
         >
@@ -99,14 +102,14 @@ function SearchableSelect({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-[--radix-popover-trigger-width] min-w-[260px] p-2"
+        className="max-h-[var(--radix-popover-content-available-height)] w-[--radix-popover-trigger-width] max-w-[calc(100vw-1rem)] overflow-y-auto p-2"
       >
         <Input
           autoFocus
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Pesquisar conta bancária"
-          className="mb-2 h-8"
+          className="mb-2 h-11 text-base sm:h-8 sm:text-sm"
         />
         <div className="max-h-60 overflow-y-auto">
           {filtered.map((option) => (
@@ -170,6 +173,7 @@ export function ImportarExtratoDialog({
   }, [open]);
 
   const enviar = async () => {
+    if (loading) return;
     if (!contaId) return void toast.error("Selecione a conta bancária.");
     if (!arquivo) return void toast.error("Selecione o arquivo OFX.");
     if (!arquivo.name.toLowerCase().endsWith(".ofx"))
@@ -201,10 +205,15 @@ export function ImportarExtratoDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!loading) onOpenChange(value);
+      }}
+    >
       <DialogContent
         data-mobile-data-page="finance"
-        className="rounded-[18px] border-border/70 bg-card/90 backdrop-blur-xl sm:max-w-lg"
+        className="max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] overflow-y-auto overscroll-contain rounded-[18px] border-border/70 bg-card/90 backdrop-blur-xl sm:max-w-lg"
       >
         <DialogHeader>
           <DialogTitle>Importar extrato bancário</DialogTitle>
@@ -220,6 +229,7 @@ export function ImportarExtratoDialog({
             <SearchableSelect
               value={contaId}
               onChange={setContaId}
+              disabled={loading}
               options={contas.map((conta) => ({
                 value: conta.id,
                 label: `${conta.nomeConta || "Conta bancária"} · ${nomeBancoLabel(conta.nomeBanco)}`,
@@ -243,7 +253,9 @@ export function ImportarExtratoDialog({
                   type="button"
                   variant="glassDanger"
                   size="icon"
-                  className="h-7 w-7"
+                  className="h-11 w-11 sm:h-7 sm:w-7"
+                  aria-label="Remover arquivo OFX"
+                  disabled={loading}
                   onClick={() => {
                     setArquivo(null);
                     if (inputRef.current) inputRef.current.value = "";
@@ -289,7 +301,10 @@ export function ImportarExtratoDialog({
             />
           </div>
           {erro && (
-            <div className="rounded-[12px] border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-[13px] text-destructive">
+            <div
+              role="alert"
+              className="rounded-[12px] border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-[13px] text-destructive [overflow-wrap:anywhere]"
+            >
               {erro}
             </div>
           )}

@@ -15,7 +15,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { AppLayout } from "@/components/AppLayout";
 import { useImportFormFill } from "@/hooks/useImportFormFill";
-import { notifyImportReviewSaveSuccess } from "@/lib/importReviewQueue";
 import { AccessNotPermitted } from "@/components/AccessNotPermitted";
 import { EmailInput } from "@/components/EmailInput";
 import { BackButton } from "@/components/BackButton";
@@ -366,7 +365,12 @@ export default function Diretoria() {
   const statusEncerrado = isStatusEncerrado(form.statusDiretoria);
   const statusAfastado = isStatusAfastado(form.statusDiretoria);
 
-  useImportFormFill("diretoria", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "diretoria",
+    form,
+    setForm,
+    showForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -1082,7 +1086,7 @@ export default function Diretoria() {
 
         return [mapped, ...prev];
       });
-      notifyImportReviewSaveSuccess("diretoria");
+      confirmarImportacaoSalva();
 
       if (isCreating) {
         emitJourneyNextStep();

@@ -144,13 +144,20 @@ function isSafeId(value: unknown) {
   );
 }
 
-function isAllowedRelationshipId(
+function resolveRelationship(
   value: unknown,
   options: ImportFieldRule["options"],
 ) {
-  if (options?.length)
-    return options.some((option) => String(option.value) === String(value));
-  return isSafeId(value);
+  if (!options?.length)
+    return isSafeId(value) ? String(value).trim() : undefined;
+  const id = options.find((option) => option.value === String(value).trim());
+  if (id) return id.value;
+  const normalized = normalizeComparable(value);
+  if (!normalized) return undefined;
+  const matches = options.filter(
+    (option) => normalizeComparable(option.label) === normalized,
+  );
+  return matches.length === 1 ? matches[0].value : undefined;
 }
 
 function applyRule(
@@ -185,7 +192,8 @@ function applyRule(
     return matched;
   }
   if (rule.kind === "relationship") {
-    if (isAllowedRelationshipId(value, rule.options)) return String(value);
+    const id = resolveRelationship(value, rule.options);
+    if (id !== undefined) return id;
     warnings.push({
       field,
       value,
@@ -194,17 +202,16 @@ function applyRule(
     return undefined;
   }
   const values = Array.isArray(value) ? value : [value];
-  const ids = values
-    .filter((item) => isAllowedRelationshipId(item, rule.options))
-    .map(String);
-  for (const item of values.filter(
-    (item) => !isAllowedRelationshipId(item, rule.options),
-  )) {
-    warnings.push({
-      field,
-      value: item,
-      message: `“${String(item)}” não é um ID seguro; selecione o relacionamento manualmente.`,
-    });
+  const ids: string[] = [];
+  for (const item of values) {
+    const id = resolveRelationship(item, rule.options);
+    if (id !== undefined) ids.push(id);
+    else
+      warnings.push({
+        field,
+        value: item,
+        message: `“${String(item)}” não corresponde a um vínculo disponível. Selecione-o no formulário.`,
+      });
   }
   return ids;
 }
@@ -233,6 +240,7 @@ export function applyImportedData<T extends object>(
   current: T,
   imported: Record<string, unknown>,
   rules: Record<string, ImportFieldRule> = {},
+  checkFormFields = false,
 ): ImportApplyResult<T> {
   const next = clone(current) as Record<string, unknown>;
   const warnings: ImportApplyWarning[] = [];
@@ -240,7 +248,7 @@ export function applyImportedData<T extends object>(
   const preservedFields: string[] = [];
 
   for (const [sourceField, rawValue] of Object.entries(imported)) {
-    if (rawValue === undefined) continue;
+    if (isImportValueEmpty(rawValue)) continue;
     if (
       normalizeComparable(sourceField) === "complemento" &&
       typeof rawValue === "string" &&
@@ -252,6 +260,17 @@ export function applyImportedData<T extends object>(
     const addressState = !rule && isAddressStateField(next, sourceField);
     const targetField =
       rule?.targetField ?? (addressState ? "estado" : sourceField);
+    if (
+      checkFormFields &&
+      !Object.prototype.hasOwnProperty.call(next, targetField)
+    ) {
+      warnings.push({
+        field: sourceField,
+        value: rawValue,
+        message: "Não foi encontrado um campo correspondente no formulário.",
+      });
+      continue;
+    }
     const value = rule
       ? applyRule(targetField, rawValue, rule, warnings)
       : addressState
@@ -259,11 +278,27 @@ export function applyImportedData<T extends object>(
         : clone(rawValue);
     if (value === undefined || isImportValueEmpty(value)) continue;
     const before = next[targetField];
-    const merged = mergeValue(before, value);
+    const compatibleValue =
+      typeof before === "string" && typeof value === "number"
+        ? String(value)
+        : value;
+    const merged = mergeValue(before, compatibleValue);
     next[targetField] = merged;
-    if (comparableItem(before) === comparableItem(merged))
+    if (comparableItem(before) === comparableItem(merged)) {
       preservedFields.push(targetField);
-    else appliedFields.push(targetField);
+      if (
+        checkFormFields &&
+        !Array.isArray(compatibleValue) &&
+        typeof compatibleValue !== "object" &&
+        comparableItem(before) !== comparableItem(compatibleValue)
+      ) {
+        warnings.push({
+          field: targetField,
+          value: rawValue,
+          message: `O valor existente foi mantido. Confira o valor do arquivo: ${String(rawValue)}.`,
+        });
+      }
+    } else appliedFields.push(targetField);
   }
 
   return { data: next as T, warnings, appliedFields, preservedFields };

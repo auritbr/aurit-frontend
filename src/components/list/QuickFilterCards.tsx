@@ -9,6 +9,7 @@ export interface QuickFilterCard {
   icon: LucideIcon;
   filtravel?: boolean;
   valor?: string;
+  descricao?: string;
 }
 export function useQuickFilter<K extends string = string>() {
   const [ativo, setAtivo] = useState<K | null>(null);
@@ -20,15 +21,15 @@ export function useQuickFilter<K extends string = string>() {
 }
 export function QuickFilterCards({
   cards,
-  ativo,
+  ativo = null,
   onToggle,
   onClear,
   totalFiltrado,
 }: {
   cards: QuickFilterCard[];
-  ativo: string | null;
-  onToggle: (key: string) => void;
-  onClear: () => void;
+  ativo?: string | null;
+  onToggle?: (key: string) => void;
+  onClear?: () => void;
   totalFiltrado?: number;
 }) {
   const label = cards.find((c) => c.key === ativo)?.label;
@@ -56,12 +57,19 @@ export function QuickFilterCards({
                 <span className="block text-lg font-semibold tabular-nums">
                   {c.valor ?? c.count.toLocaleString("pt-BR")}
                 </span>
+                {c.descricao && (
+                  <span className="block text-[11px] text-muted-foreground">
+                    {c.descricao}
+                  </span>
+                )}
               </span>
             </>
           );
           const base =
             "flex min-h-[64px] items-center gap-3 rounded-[14px] border border-border/70 bg-card/75 px-3.5 py-3 text-left backdrop-blur-md";
-          return c.filtravel === false || (!c.count && !selecionado) ? (
+          return !onToggle ||
+            c.filtravel === false ||
+            (!c.count && !selecionado) ? (
             <div key={c.key} className={base}>
               {body}
             </div>
@@ -87,7 +95,7 @@ export function QuickFilterCards({
           );
         })}
       </section>
-      {label && (
+      {label && onClear && (
         <div
           role="status"
           className="flex flex-wrap items-center justify-between gap-2 rounded-[12px] border border-primary/25 bg-primary/5 px-3 py-2 text-[12.5px]"

@@ -2,8 +2,10 @@ import type { ImportPreviewRow } from "@/data/importacoes";
 
 export interface ImportReviewQueue {
   module: string;
+  reviewId?: string;
   entity: string;
   fileName?: string;
+  ignoredColumns?: string[];
   rows: ImportPreviewRow[];
   currentIndex: number;
   createRoute?: string;
@@ -73,10 +75,4 @@ export function removeCurrentImportReviewItem(module: string) {
   };
   saveImportReviewQueue(next);
   return next;
-}
-
-export function notifyImportReviewSaveSuccess(module: string) {
-  window.dispatchEvent(
-    new CustomEvent("aurit:import-review-save-success", { detail: { module } }),
-  );
 }

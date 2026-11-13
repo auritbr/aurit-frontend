@@ -262,7 +262,11 @@ export default function EmprestimoForm() {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  useImportFormFill("emprestimos", setForm);
+  const confirmarImportacaoSalva = useImportFormFill(
+    "emprestimos",
+    form,
+    setForm,
+  );
 
   useEffect(() => {
     let active = true;
@@ -690,6 +694,7 @@ export default function EmprestimoForm() {
         toast.success("Empréstimo atualizado com sucesso.");
       } else {
         await createEmprestimo(payload);
+        confirmarImportacaoSalva();
         toast.success("Empréstimo registrado com sucesso.");
       }
 

@@ -1,7 +1,15 @@
-import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import {
   advanceImportReviewQueue,
   getImportReviewQueue,
+  type ImportReviewQueue,
 } from "@/lib/importReviewQueue";
 import {
   applyImportedData,
@@ -12,75 +20,118 @@ import {
 interface ImportFillDetail {
   module: string;
   data: Record<string, unknown>;
-  requiredFields?: string[];
-  fieldRules?: Record<string, ImportFieldRule>;
+  requiredFields: string[];
+  fieldRules: Record<string, ImportFieldRule>;
+}
+
+export function useImportReviewProgress(module: string, active = true) {
+  const [applied, setApplied] = useState<ImportReviewQueue | null>(null);
+
+  useEffect(() => {
+    if (!active) {
+      setApplied(null);
+      return;
+    }
+    const handleFill = (event: Event) => {
+      const detail = (event as CustomEvent<ImportFillDetail>).detail;
+      if (detail?.module === module) {
+        setApplied(getImportReviewQueue(module));
+      }
+    };
+    window.addEventListener("aurit:import-fill-form", handleFill);
+    return () => {
+      window.removeEventListener("aurit:import-fill-form", handleFill);
+    };
+  }, [active, module]);
+
+  return useCallback(() => {
+    const queue = getImportReviewQueue(module);
+    if (
+      !active ||
+      !applied ||
+      !queue ||
+      applied.reviewId !== queue.reviewId ||
+      applied.currentIndex !== queue.currentIndex
+    )
+      return;
+
+    advanceImportReviewQueue(module);
+    setApplied((current) => (current === applied ? null : current));
+  }, [active, applied, module]);
 }
 
 export function useImportFormFill<T extends object>(
   module: string,
+  form: T,
   setForm: Dispatch<SetStateAction<T>>,
+  active = true,
 ) {
-  const submitted = useRef(false);
+  const formRef = useRef(form);
+  formRef.current = form;
+  const [requiredFields, setRequiredFields] = useState<string[]>([]);
+  const confirmSave = useImportReviewProgress(module, active);
 
   useEffect(() => {
+    if (!active) {
+      setRequiredFields([]);
+      return;
+    }
+
     const handleFill = (event: Event) => {
       const detail = (event as CustomEvent<ImportFillDetail>).detail;
-      if (detail?.module !== module || !detail.data) return;
-      setForm((current) => {
-        const result = applyImportedData(
-          current,
-          detail.data,
-          detail.fieldRules,
-        );
-        const next = result.data as Record<string, unknown>;
-        window.dispatchEvent(
-          new CustomEvent("aurit:import-apply-result", {
-            detail: {
-              module,
-              warnings: result.warnings,
-              appliedFields: result.appliedFields,
-              preservedFields: result.preservedFields,
-            },
-          }),
-        );
-        window.setTimeout(() => {
-          for (const field of detail.requiredFields ?? []) {
-            const element = document.getElementById(field);
-            if (!element || !isImportValueEmpty(next[field])) continue;
-            element.setAttribute("aria-invalid", "true");
-            element.classList.add(
-              "border-amber-500",
-              "ring-1",
-              "ring-amber-300",
-            );
-          }
-        }, 0);
-        return next as T;
-      });
-    };
-    const handleSubmit = () => {
-      if (getImportReviewQueue(module)) submitted.current = true;
-    };
-    const handleSaveSuccess = (event: Event) => {
-      const detail = (event as CustomEvent<{ module: string }>).detail;
       if (detail?.module !== module) return;
-      advanceImportReviewQueue(module);
-      submitted.current = false;
-    };
-    window.addEventListener("aurit:import-fill-form", handleFill);
-    window.addEventListener(
-      "aurit:import-review-save-success",
-      handleSaveSuccess,
-    );
-    document.addEventListener("submit", handleSubmit, true);
-    return () => {
-      window.removeEventListener("aurit:import-fill-form", handleFill);
-      window.removeEventListener(
-        "aurit:import-review-save-success",
-        handleSaveSuccess,
+
+      const result = applyImportedData(
+        formRef.current,
+        detail.data,
+        detail.fieldRules,
+        true,
       );
-      document.removeEventListener("submit", handleSubmit, true);
-      if (submitted.current) advanceImportReviewQueue(module);
+      const fields = detail.requiredFields.map(
+        (field) => detail.fieldRules[field]?.targetField ?? field,
+      );
+      const next = result.data as Record<string, unknown>;
+      setForm(result.data);
+      setRequiredFields(fields);
+      window.dispatchEvent(
+        new CustomEvent("aurit:import-apply-result", {
+          detail: {
+            module,
+            warnings: result.warnings,
+            missingFields: fields.filter((field) =>
+              isImportValueEmpty(next[field]),
+            ),
+          },
+        }),
+      );
     };
-  }, [module, setForm]);
+
+    window.addEventListener("aurit:import-fill-form", handleFill);
+    return () =>
+      window.removeEventListener("aurit:import-fill-form", handleFill);
+  }, [active, module, setForm]);
+
+  useEffect(() => {
+    if (!active || !requiredFields.length) return;
+    const marked = requiredFields.flatMap((field) => {
+      if (!isImportValueEmpty((form as Record<string, unknown>)[field]))
+        return [];
+      const element = document.getElementById(field);
+      if (!element || element.getAttribute("aria-invalid") === "true")
+        return [];
+      element.setAttribute("aria-invalid", "true");
+      return [
+        { element, previous: element.classList.contains("border-amber-500") },
+      ];
+    });
+    for (const { element } of marked) element.classList.add("border-amber-500");
+    return () => {
+      for (const { element, previous } of marked) {
+        element.removeAttribute("aria-invalid");
+        if (!previous) element.classList.remove("border-amber-500");
+      }
+    };
+  }, [active, form, requiredFields]);
+
+  return confirmSave;
 }

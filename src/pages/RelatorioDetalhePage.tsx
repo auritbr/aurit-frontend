@@ -224,6 +224,11 @@ export default function RelatorioDetalhePage() {
   const description = item.description;
 
   const rows = advancedFilters.filteredRows;
+  const filtrosAtivos = advancedFilters.activeFilters.length > 0;
+  const planejamentoFiltrado =
+    slug === "metas-projeto" && filtrosAtivos
+      ? indicadoresPlanejamentoFiltrado(rows)
+      : null;
 
   const enablePdfExport = podeGerarPdf && rows.length > 0 && columns.length > 0;
 
@@ -276,12 +281,19 @@ export default function RelatorioDetalhePage() {
                 ? "registro encontrado"
                 : "registros encontrados"}
             </p>
-            {advancedFilters.activeFilters.length === 0 &&
+            {!filtrosAtivos &&
               data.resumo
                 ?.filter((grupo) => !isResumoTotal(grupo))
                 .map((grupo, index) => (
-                  <GrupoIndicadores key={index} grupo={grupo} />
+                  <GrupoIndicadores
+                    key={index}
+                    grupo={grupo}
+                    wrapLabels={slug === "metas-projeto"}
+                  />
                 ))}
+            {planejamentoFiltrado && (
+              <GrupoIndicadores grupo={planejamentoFiltrado} wrapLabels />
+            )}
 
             <RelatorioDetalheCharts slug={slug} rows={rows} />
 
@@ -316,6 +328,39 @@ export default function RelatorioDetalhePage() {
       </div>
     </AppLayout>
   );
+}
+
+function indicadoresPlanejamentoFiltrado(rows: Row[]) {
+  const valores = rows
+    .map((row) => row.valor_estimado)
+    .filter((valor): valor is number => typeof valor === "number");
+  const totalCentavos = valores.reduce(
+    (total, valor) => total + Math.round(valor * 100),
+    0,
+  );
+  return {
+    titulo: "Planejamento financeiro",
+    indicadores: [
+      {
+        chave: "metas_com_planejamento",
+        label: "Metas com planejamento",
+        valor: valores.length,
+      },
+      {
+        chave: "valor_total_estimado",
+        label: "Valor total estimado",
+        valor: valores.length ? totalCentavos / 100 : null,
+      },
+      {
+        chave: "metas_com_periodo",
+        label: "Metas com período definido",
+        valor: rows.filter(
+          (row) =>
+            row.data_inicio_planejamento && row.data_termino_planejamento,
+        ).length,
+      },
+    ],
+  };
 }
 
 function isResumoTotal(grupo: {
