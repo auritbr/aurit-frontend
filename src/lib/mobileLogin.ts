@@ -40,7 +40,7 @@ export async function autenticarMobile(
         }
       : { idToken: credenciais.idToken, organizacaoSlug };
   let response: Response;
-  let data: MobileLoginResponse | null;
+  let data: (MobileLoginResponse & { message?: string }) | null;
   const controller = new AbortController();
   const timeout = window.setTimeout(
     () => controller.abort(),
@@ -70,6 +70,14 @@ export async function autenticarMobile(
     throw new Error("Não foi possível conectar ao servidor. Tente novamente.");
   } finally {
     window.clearTimeout(timeout);
+  }
+  if (
+    credenciais.tipo === "senha" &&
+    response.status === 403 &&
+    typeof data?.message === "string" &&
+    data.message.trim()
+  ) {
+    throw new Error(data.message);
   }
   if (!response.ok || !data) {
     throw new Error(
