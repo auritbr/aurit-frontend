@@ -16,6 +16,8 @@ import {
 import { classificacaoOptions as classificacaoContaReceberOptions } from "@/data/contasReceber";
 import { classificacaoPlanejamentoOptions } from "@/data/planejamentoFinanceiro";
 import { esferaEditalOptions, statusEditalOptions } from "@/data/editais";
+import { tipoPessoaOptions } from "@/data/fornecedores";
+import { tipoParceriaOptions } from "@/data/parceiros";
 import type { ModuloPermissao } from "@/lib/permissoes";
 
 export interface ImportRelationship {
@@ -106,6 +108,28 @@ const relationship = (
   endpoint: string,
   required = false,
 ): ImportRelationship => ({ field, label, endpoint, required });
+
+const formatImportMoney =
+  (...fields: string[]): NonNullable<ImportModuleConfig["transform"]> =>
+  (data) => {
+    const result = { ...data };
+    for (const field of fields) {
+      const value = result[field];
+      if (typeof value === "number") {
+        result[field] = value.toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      }
+    }
+    return result;
+  };
+
+const personTypeRule: ImportFieldRule = {
+  kind: "enum",
+  options: tipoPessoaOptions,
+  replaceDefault: { value: "PESSOA_FISICA", whenEmpty: "pessoaFisica" },
+};
 
 export const IMPORT_MODULE_CONFIGS: ImportModuleConfig[] = [
   config("organizacoes", "Organizações", "/organizacoes", ["razaoSocial"], {
@@ -322,6 +346,13 @@ export const IMPORT_MODULE_CONFIGS: ImportModuleConfig[] = [
     ],
     {
       transport: "multipartDados",
+      transform: formatImportMoney(
+        "valorAPagar",
+        "valorPago",
+        "juros",
+        "multa",
+        "desconto",
+      ),
       fieldRules: {
         classificacaoContaPagar: {
           kind: "enum",
@@ -369,6 +400,13 @@ export const IMPORT_MODULE_CONFIGS: ImportModuleConfig[] = [
     ],
     {
       transport: "multipartDados",
+      transform: formatImportMoney(
+        "valorAReceber",
+        "valorRecebido",
+        "juros",
+        "multa",
+        "desconto",
+      ),
       fieldRules: {
         classificacaoContaReceber: {
           kind: "enum",
@@ -416,6 +454,7 @@ export const IMPORT_MODULE_CONFIGS: ImportModuleConfig[] = [
     ],
     {
       transport: "multipartDados",
+      transform: formatImportMoney("valorTransferencia"),
       relationships: [
         relationship(
           "contaOrigemId",
@@ -612,21 +651,33 @@ export const IMPORT_MODULE_CONFIGS: ImportModuleConfig[] = [
       ],
     },
   ),
-  config("doadores", "Doadores", "/doadores", ["tipoPessoa"]),
+  config("doadores", "Doadores", "/doadores", ["tipoPessoa"], {
+    fieldRules: { tipoPessoa: personTypeRule },
+  }),
   config("doacoes", "Doações", "/doacoes", [
     "nomeDoacao",
     "tipoDoacao",
     "dataDoacao",
   ]),
-  config("fornecedores", "Fornecedores", "/fornecedores", [
-    "tipoPessoa",
-    "tipoFornecedor",
-  ]),
-  config("parceiros", "Parceiros", "/parceiros", [
-    "tipoPessoa",
-    "tipoParcerias",
-    "dataInicioParceria",
-  ]),
+  config(
+    "fornecedores",
+    "Fornecedores",
+    "/fornecedores",
+    ["tipoPessoa", "tipoFornecedor"],
+    { fieldRules: { tipoPessoa: personTypeRule } },
+  ),
+  config(
+    "parceiros",
+    "Parceiros",
+    "/parceiros",
+    ["tipoPessoa", "tipoParcerias", "dataInicioParceria"],
+    {
+      fieldRules: {
+        tipoPessoa: personTypeRule,
+        tipoParcerias: { kind: "enum-array", options: tipoParceriaOptions },
+      },
+    },
+  ),
 ];
 
 export function getImportConfigForPath(pathname: string) {

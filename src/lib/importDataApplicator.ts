@@ -4,6 +4,7 @@ export type ImportFieldKind =
 export interface ImportFieldRule {
   targetField?: string;
   kind: ImportFieldKind;
+  replaceDefault?: { value: string; whenEmpty: string };
   options?: ReadonlyArray<{ value: string; label?: string }>;
 }
 
@@ -221,7 +222,6 @@ function mergeValue(current: unknown, imported: unknown): unknown {
     return mergeArrays(Array.isArray(current) ? current : [], imported);
   }
   if (imported && typeof imported === "object") {
-    if (isImportValueEmpty(current)) return clone(imported);
     if (current && typeof current === "object" && !Array.isArray(current)) {
       const next = { ...(current as Record<string, unknown>) };
       for (const [key, value] of Object.entries(
@@ -231,7 +231,7 @@ function mergeValue(current: unknown, imported: unknown): unknown {
       }
       return next;
     }
-    return current;
+    return isImportValueEmpty(current) ? clone(imported) : current;
   }
   return isImportValueEmpty(current) ? imported : current;
 }
@@ -242,6 +242,7 @@ export function applyImportedData<T extends object>(
   rules: Record<string, ImportFieldRule> = {},
   checkFormFields = false,
 ): ImportApplyResult<T> {
+  const original = current as Record<string, unknown>;
   const next = clone(current) as Record<string, unknown>;
   const warnings: ImportApplyWarning[] = [];
   const appliedFields: string[] = [];
@@ -282,7 +283,14 @@ export function applyImportedData<T extends object>(
       typeof before === "string" && typeof value === "number"
         ? String(value)
         : value;
-    const merged = mergeValue(before, compatibleValue);
+    const replaceDefault = rule?.replaceDefault;
+    const canReplaceDefault =
+      replaceDefault &&
+      before === replaceDefault.value &&
+      isImportValueEmpty(original[replaceDefault.whenEmpty]);
+    const merged = canReplaceDefault
+      ? compatibleValue
+      : mergeValue(before, compatibleValue);
     next[targetField] = merged;
     if (comparableItem(before) === comparableItem(merged)) {
       preservedFields.push(targetField);
