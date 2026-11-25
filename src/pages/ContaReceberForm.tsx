@@ -1,6 +1,11 @@
 import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import {
   Check,
   ChevronDown,
@@ -328,6 +333,8 @@ const tipoAcaoOptions = [
 export default function ContaReceberForm() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const duplicarId = !id ? searchParams.get("duplicar") : null;
   const { pathname } = useLocation();
   const isView = !!id && !pathname.endsWith("/editar");
   const isEdit = !!id && pathname.endsWith("/editar");
@@ -518,10 +525,25 @@ export default function ContaReceberForm() {
   }, []);
 
   useEffect(() => {
-    if (!id) return;
-    void getContaReceber(id)
+    if (!id && !duplicarId) return;
+    void getContaReceber(id ?? duplicarId!)
       .then((found) => {
-        setForm(found);
+        setForm(
+          duplicarId
+            ? {
+                ...found,
+                id: "",
+                statusFinanceiro: "PENDENTE",
+                numeroDocumento: "",
+                urlComprovante: "",
+                nomeComprovante: "",
+                comprovanteFile: undefined,
+                removerComprovante: false,
+                dataRecebimento: "",
+                valorRecebido: "",
+              }
+            : found,
+        );
         setTipoPagador(
           found.colaboradorId
             ? "COLABORADOR"
@@ -555,7 +577,7 @@ export default function ContaReceberForm() {
         );
         navigate("/contas-receber");
       });
-  }, [id, navigate]);
+  }, [id, duplicarId, navigate]);
 
   const set = <K extends keyof ContaReceberData>(
     k: K,

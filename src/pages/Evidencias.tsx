@@ -92,7 +92,7 @@ const dataBR = (v?: string | null) => {
   return a && m && d ? `${d}/${m}/${a}` : v;
 };
 const contextoLabel = (v: ContextoEvidencia) =>
-  v === "AULA" ? "Aula" : "Evento Cultural";
+  contextos.find((contexto) => contexto.value === v)?.label ?? v;
 const countText = (n: number, singular: string, plural: string) =>
   `${n} ${n === 1 ? singular : plural}`;
 const refs = (item: EvidenciaFotografica) =>
@@ -281,11 +281,9 @@ export default function EvidenciasPage() {
         ? contextoLabel(item.contexto)
         : filtros.sortBy === "projeto"
           ? (item.projeto?.nome ?? "")
-          : filtros.sortBy === "referencia"
-            ? refs(item).join(" ")
-            : filtros.sortBy === "imagens"
-              ? item.quantidadeImagens
-              : (item.dataReferencia ?? "");
+          : filtros.sortBy === "imagens"
+            ? item.quantidadeImagens
+            : (item.dataReferencia ?? "");
     return [...base].sort((a, b) => {
       const x = value(a);
       const y = value(b);
@@ -381,7 +379,6 @@ export default function EvidenciasPage() {
   const exportColumns = [
     { header: "Contexto", key: "contexto" },
     { header: "Projeto", key: "projeto" },
-    { header: "Referência", key: "referencia" },
     { header: "Data", key: "data" },
     { header: "Arquivos", key: "imagens" },
     { header: "Links", key: "links" },
@@ -390,7 +387,6 @@ export default function EvidenciasPage() {
     filtered.map((i) => ({
       contexto: contextoLabel(i.contexto),
       projeto: i.projeto?.nome ?? "—",
-      referencia: refs(i).join(" · "),
       data: dataBR(i.dataReferencia) || "—",
       imagens: i.quantidadeImagens,
       links: i.quantidadeLinks,
@@ -554,13 +550,7 @@ export default function EvidenciasPage() {
                           Ações
                         </th>
                         {(
-                          [
-                            "contexto",
-                            "projeto",
-                            "referencia",
-                            "data",
-                            "imagens",
-                          ] as SortBy[]
+                          ["contexto", "projeto", "data", "imagens"] as SortBy[]
                         ).map((k) => (
                           <SortableTh
                             key={k}
@@ -569,11 +559,9 @@ export default function EvidenciasPage() {
                             dir={filtros.sortDir}
                             onSort={toggleSort}
                           >
-                            {k === "referencia"
-                              ? "Referência"
-                              : k === "imagens"
-                                ? "Arquivos"
-                                : `${k[0].toUpperCase()}${k.slice(1)}`}
+                            {k === "imagens"
+                              ? "Arquivos"
+                              : `${k[0].toUpperCase()}${k.slice(1)}`}
                           </SortableTh>
                         ))}
                         <th className="px-5 py-2.5 text-left text-[11px] font-semibold uppercase text-muted-foreground">
@@ -662,7 +650,6 @@ function renderRow({
   edit: boolean;
   remove?: (id: number) => void;
 }) {
-  const lines = refs(item);
   return (
     <tr
       key={item.id}
@@ -684,15 +671,6 @@ function renderRow({
       </td>
       <td className="px-5 py-2.5 text-[13px] text-muted-foreground">
         {item.projeto?.nome ?? "—"}
-      </td>
-      <td className="px-5 py-2.5">
-        <span className="text-[13px] font-medium">{lines[0] ?? "—"}</span>
-        {lines.length > 1 && (
-          <span className="text-[12px] text-muted-foreground">
-            {" · "}
-            {lines.slice(1).join(" · ")}
-          </span>
-        )}
       </td>
       <td className="px-5 py-2.5 text-[13px] text-muted-foreground">
         {dataBR(item.dataReferencia) || "—"}

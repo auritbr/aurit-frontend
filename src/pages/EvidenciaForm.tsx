@@ -1,3 +1,4 @@
+import { contextos } from "@/lib/evidenceSearch";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -85,10 +86,10 @@ const initialState: FormState = {
 };
 
 const tooltip =
-  "Nesta página são registradas fotografias e links utilizados para comprovar a realização de aulas e eventos culturais. Relacione a evidência aos cadastros já existentes no Sistema Aurit para manter cada material vinculado corretamente à execução do projeto.";
+  "Nesta página são registrados arquivos e links utilizados para comprovar atividades formativas, eventos e ações administrativas e institucionais. Relacione a evidência aos cadastros já existentes no Sistema Aurit para manter cada material vinculado corretamente à execução do projeto.";
 
 const TOOLTIP_CONTEXTO =
-  "Selecione se a evidência foi produzida durante uma aula ou um evento cultural. Essa escolha define quais informações serão solicitadas nas próximas etapas.";
+  "Selecione o contexto que melhor representa a ação em que a evidência foi produzida, considerando atividades formativas, eventos, ações administrativas e institucionais.";
 
 const TOOLTIP_PROJETO =
   "Selecione o projeto ao qual esta evidência pertence. Serão apresentados somente os registros relacionados ao projeto escolhido nas etapas seguintes.";
@@ -109,12 +110,7 @@ const TOOLTIP_EVENTO =
   "Selecione o evento cultural em que a evidência foi produzida. As informações do evento serão recuperadas automaticamente do cadastro existente.";
 
 const TOOLTIP_DESCRICAO =
-  "Descreva o que está sendo comprovado por esta evidência. Informe, de forma breve, o momento registrado, a atividade realizada ou outra informação que ajude a compreender as fotografias e os links anexados.";
-
-const contextos = [
-  { value: "AULA", label: "Aula" },
-  { value: "EVENTO_CULTURAL", label: "Evento Cultural" },
-] as const;
+  "Descreva de forma clara e objetiva a ação realizada, informando sua finalidade, o que ocorreu, as pessoas ou instituições envolvidas, os principais assuntos abordados, os resultados obtidos e os encaminhamentos definidos, quando aplicável. Essas informações são importantes para contextualizar os registros comprobatórios e documentar a atuação da organização.";
 
 const dataBR = (value?: string | null) => {
   if (!value) return "";
@@ -525,7 +521,10 @@ export default function EvidenciaForm() {
                 description="Consulte os vínculos da evidência com os cadastros utilizados para identificar onde e quando este registro foi produzido."
               >
                 <EvidenciaResumoContexto
-                  title={form.contexto === "AULA" ? "Aula" : "Evento Cultural"}
+                  title={
+                    contextos.find((item) => item.value === form.contexto)
+                      ?.label ?? "Contexto da Evidência"
+                  }
                   items={
                     form.contexto === "AULA"
                       ? [
@@ -558,36 +557,51 @@ export default function EvidenciaForm() {
                             value: dataBR(plano?.dataInicio) || "—",
                           },
                         ]
-                      : [
-                          {
-                            label: "Projeto",
-                            value: projetoNome,
-                          },
-                          ...(metaVinculada
-                            ? [
-                                {
-                                  label: "Meta do Projeto",
-                                  value: metaVinculada.nome,
-                                },
-                              ]
-                            : []),
-                          {
-                            label: "Evento Cultural",
-                            value: evento?.nome ?? "—",
-                          },
-                          {
-                            label: "Data",
-                            value: periodo(evento?.dataInicio, evento?.dataFim),
-                          },
-                          {
-                            label: "Local",
-                            value: evento?.local ?? "—",
-                          },
-                          {
-                            label: "Descrição do evento",
-                            value: evento?.descricao ?? "—",
-                          },
-                        ]
+                      : form.contexto === "EVENTO_CULTURAL"
+                        ? [
+                            {
+                              label: "Projeto",
+                              value: projetoNome,
+                            },
+                            ...(metaVinculada
+                              ? [
+                                  {
+                                    label: "Meta do Projeto",
+                                    value: metaVinculada.nome,
+                                  },
+                                ]
+                              : []),
+                            {
+                              label: "Evento Cultural",
+                              value: evento?.nome ?? "—",
+                            },
+                            {
+                              label: "Data",
+                              value: periodo(
+                                evento?.dataInicio,
+                                evento?.dataFim,
+                              ),
+                            },
+                            {
+                              label: "Local",
+                              value: evento?.local ?? "—",
+                            },
+                            {
+                              label: "Descrição do evento",
+                              value: evento?.descricao ?? "—",
+                            },
+                          ]
+                        : [
+                            { label: "Projeto", value: projetoNome },
+                            ...(metaVinculada
+                              ? [
+                                  {
+                                    label: "Meta do Projeto",
+                                    value: metaVinculada.nome,
+                                  },
+                                ]
+                              : []),
+                          ]
                   }
                 />
 
@@ -911,7 +925,7 @@ export default function EvidenciaForm() {
               <FormSectionCard
                 icon={Camera}
                 title="Descrição da evidência"
-                description="Registre uma breve explicação sobre o que aparece nas evidências e qual momento da execução está sendo demonstrado."
+                description="Informe a finalidade da ação, o que ocorreu, quem participou, os resultados e os encaminhamentos, quando aplicável."
               >
                 <FieldLabel htmlFor="descricao" tooltip={TOOLTIP_DESCRICAO}>
                   Descrição da Evidência

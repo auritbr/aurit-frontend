@@ -1,6 +1,11 @@
 import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import {
   Check,
   ChevronDown,
@@ -332,6 +337,8 @@ const tipoAcaoOptions = [
 export default function ContaPagarForm() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const duplicarId = !id ? searchParams.get("duplicar") : null;
   const { pathname } = useLocation();
   const isView = !!id && !pathname.endsWith("/editar");
   const isEdit = !!id && pathname.endsWith("/editar");
@@ -631,11 +638,29 @@ export default function ContaPagarForm() {
   }, [form.itemOrcamentarioMetaId, metasProjeto]);
 
   useEffect(() => {
-    if (!id) return;
-    void getContaPagar(id)
+    if (!id && !duplicarId) return;
+    void getContaPagar(id ?? duplicarId!)
       .then((found) => {
-        setForm(found);
-        itemOrcamentarioOriginalRef.current = found.itemOrcamentarioMetaId;
+        setForm(
+          duplicarId
+            ? {
+                ...found,
+                id: "",
+                statusFinanceiro: "PENDENTE",
+                numeroDocumento: "",
+                urlComprovante: "",
+                nomeComprovante: "",
+                comprovanteFile: undefined,
+                removerComprovante: false,
+                dataPagamento: "",
+                dataAgendamento: "",
+                valorPago: "",
+              }
+            : found,
+        );
+        itemOrcamentarioOriginalRef.current = duplicarId
+          ? ""
+          : found.itemOrcamentarioMetaId;
         setTipoCredor(
           found.colaboradorId
             ? "COLABORADOR"
@@ -669,7 +694,7 @@ export default function ContaPagarForm() {
         );
         navigate("/contas-pagar");
       });
-  }, [id, navigate]);
+  }, [id, duplicarId, navigate]);
 
   const set = <K extends keyof ContaPagarData>(k: K, v: ContaPagarData[K]) =>
     setForm((p) => ({ ...p, [k]: v }));

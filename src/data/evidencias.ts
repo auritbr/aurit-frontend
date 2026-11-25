@@ -49,6 +49,7 @@ export type TipoEvidencia =
   | "OUTRO";
 
 export type TipoVinculoEvidencia =
+  | "PROJETO"
   | "PROPOSTA_EDITAL"
   | "PLANO_AULA"
   | "ATIVIDADE"
@@ -622,7 +623,8 @@ export function buildArquivoUrl(urlArquivo?: string) {
   return `${API_URL}${urlArquivo.startsWith("/") ? "" : "/"}${urlArquivo}`;
 }
 
-export type ContextoEvidencia = "AULA" | "EVENTO_CULTURAL";
+export type ContextoEvidencia =
+  (typeof import("@/lib/evidenceSearch").contextos)[number]["value"];
 
 export interface EvidenciaReferencia {
   id: number;

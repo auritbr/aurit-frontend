@@ -1,3 +1,5 @@
+import { useQuery } from "@tanstack/react-query";
+import { EvidenciaGaleria } from "@/components/evidencias/EvidenciaGaleria";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useLocation,
@@ -185,6 +187,25 @@ export default function PatrimonioForm() {
   const [notaFiscalFile, setNotaFiscalFile] = useState<File | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [fotoRemovida, setFotoRemovida] = useState(false);
+  const [fotoLocalUrl, setFotoLocalUrl] = useState<string>();
+
+  useEffect(() => {
+    if (!fotoFile) {
+      setFotoLocalUrl(undefined);
+      return;
+    }
+    const url = URL.createObjectURL(fotoFile);
+    setFotoLocalUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [fotoFile]);
+
+  const fotoQuery = useQuery({
+    queryKey: ["patrimonios", id, "foto", form.urlFoto],
+    queryFn: () => getPatrimonioFotoDownloadUrl(Number(id)),
+    enabled: !!id && !!form.urlFoto && !fotoRemovida && !fotoFile,
+    staleTime: 4 * 60 * 1000,
+    retry: false,
+  });
 
   const bloqueado = loading || saving || visualizando;
 
@@ -854,6 +875,35 @@ export default function PatrimonioForm() {
                 </Field>
               </div>
             </Section>
+
+            {!fotoRemovida && (fotoFile || form.urlFoto) && (
+              <Section icon={FileText} title="Foto do equipamento">
+                {!fotoLocalUrl && fotoQuery.isError ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-destructive">
+                      Não foi possível carregar a foto do equipamento.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="glassSecondary"
+                      onClick={() => void fotoQuery.refetch()}
+                    >
+                      Tentar novamente
+                    </Button>
+                  </div>
+                ) : (
+                  <EvidenciaGaleria
+                    imagens={[
+                      {
+                        id: Number(id),
+                        nome: form.nomePatrimonio,
+                        url: fotoLocalUrl ?? fotoQuery.data,
+                      },
+                    ]}
+                  />
+                )}
+              </Section>
+            )}
 
             <Section icon={Paperclip} title="Anexos do bem">
               <div className="grid gap-4">

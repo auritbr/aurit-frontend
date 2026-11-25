@@ -1,3 +1,5 @@
+import { Copy } from "lucide-react";
+import { useModulePermissionContext } from "@/contexts/ModulePermissionContext";
 import { sortOptionsByName } from "@/lib/sortOptions";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -163,6 +165,9 @@ const dateFieldClass =
   "h-9 rounded-[10px] border-border/70 bg-background/70 backdrop-blur-sm";
 
 export default function ContasReceber() {
+  const { modulo, carregando, permissoes } = useModulePermissionContext();
+  const podeDuplicar = !modulo || (!carregando && permissoes.CRIAR);
+
   const navigate = useNavigate();
   const [items, setItems] = useState<ContaReceberData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1074,6 +1079,17 @@ export default function ContasReceber() {
                               reportFilename={`conta-receber-${i.id}.pdf`}
                               viewTo={`/contas-receber/${i.id}`}
                               editTo={`/contas-receber/${i.id}/editar`}
+                              extraItems={
+                                podeDuplicar
+                                  ? [
+                                      {
+                                        label: "Duplicar",
+                                        icon: Copy,
+                                        to: `/contas-receber/novo?duplicar=${i.id}`,
+                                      },
+                                    ]
+                                  : []
+                              }
                               onDelete={() => setConfirmDelete(i)}
                             />
                           </td>
